@@ -1,13 +1,22 @@
 import { NavLink } from 'react-router-dom';
 import { Home, Library, Heart, Search, Settings } from 'lucide-react';
+import { useUIStore } from '../../store/uiStore';
 
 export default function MobileBottomNav() {
+  const { setSearchOpen } = useUIStore();
+  
   return (
     <div className="md:hidden flex items-center justify-around bg-background/95 backdrop-blur-md border-t border-white/5 pb-safe pt-2 px-2 z-50">
       <NavItem to="/Holad" icon={<Home size={24} />} label="Главная" end />
       <NavItem to="/Holad/library" icon={<Library size={24} />} label="Библиотека" />
       <NavItem to="/Holad/favorites" icon={<Heart size={24} />} label="Избранное" />
-      <NavItem to="/Holad/search" icon={<Search size={24} />} label="Поиск" />
+      <button 
+        onClick={() => setSearchOpen(true)}
+        className="flex flex-col items-center gap-1 p-2 transition-colors text-secondary hover:text-foreground"
+      >
+        <Search size={24} />
+        <span className="text-sm font-bold">Поиск</span>
+      </button>
       <NavItem to="/Holad/settings" icon={<Settings size={24} />} label="Настройки" />
     </div>
   );

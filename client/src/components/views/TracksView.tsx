@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo } from 'react';
-import NavTab from '../layout/NavTab';
 import { formatArtistName } from '../../utils/formatters';
 import { Play, Pause, Heart, Clock, Search, FilterX, Users } from 'lucide-react';
 import { searchTracks, getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';

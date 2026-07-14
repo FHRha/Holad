@@ -19,6 +19,7 @@ export interface Playlist {
 
 interface PlayerState {
   queue: Track[];
+  originalQueue: Track[];
   currentIndex: number;
   isPlaying: boolean;
   volume: number;
@@ -35,6 +36,10 @@ interface PlayerState {
   isAutoDjEnabled: boolean;
   syncDrift: number; // for tracking drift
 
+  // Playback Modes
+  isShuffle: boolean;
+  repeatMode: 'none' | 'all' | 'one';
+
   // Actions
   setQueue: (tracks: Track[]) => void;
   setQueueAndPlay: (tracks: Track[], startIndex?: number) => void;
@@ -46,9 +51,11 @@ interface PlayerState {
   prevTrack: () => void;
   setIsPlaying: (playing: boolean) => void;
   setVolume: (volume: number) => void;
-  setInitialPosition: (pos: number) => void;
+  setInitialPosition: (position: number) => void;
   toggleAutoDj: () => void;
   setSyncDrift: (drift: number) => void;
+  toggleShuffle: () => void;
+  cycleRepeatMode: () => void;
   
   // Playlist Actions
   createPlaylist: (name: string) => void;
@@ -67,6 +74,7 @@ export const usePlayerStore = create<PlayerState>()(
   persist(
     (set) => ({
       queue: [],
+      originalQueue: [],
       currentIndex: -1,
       isPlaying: false,
       volume: 1,
@@ -78,11 +86,13 @@ export const usePlayerStore = create<PlayerState>()(
       
       roomId: null,
       role: null,
-      isAutoDjEnabled: true, // Default on like Feishin
+      isAutoDjEnabled: false,
       syncDrift: 0,
+      isShuffle: false,
+      repeatMode: 'none',
 
-      setQueue: (tracks) => set({ queue: tracks, currentIndex: 0, isPlaying: true }),
-      setQueueAndPlay: (tracks, startIndex = 0) => set({ queue: tracks, currentIndex: startIndex, isPlaying: true }),
+      setQueue: (tracks) => set({ queue: tracks, originalQueue: tracks, currentIndex: tracks.length > 0 ? 0 : -1, isShuffle: false }),
+      setQueueAndPlay: (tracks, startIndex = 0) => set({ queue: tracks, originalQueue: tracks, currentIndex: startIndex, isPlaying: true, isShuffle: false }),
       playNext: (tracks) => set((state) => {
         let newQueue = [...state.queue];
         let newCurrentIndex = state.currentIndex === -1 ? 0 : state.currentIndex;
@@ -98,20 +108,40 @@ export const usePlayerStore = create<PlayerState>()(
         }
         
         newQueue.splice(newCurrentIndex + 1, 0, ...tracks);
-        return { queue: newQueue, currentIndex: newCurrentIndex, isPlaying: true };
+        
+        let newOriginalQueue = state.originalQueue;
+        if (state.isShuffle) {
+          newOriginalQueue = [...state.originalQueue];
+          for (const id of trackIds) {
+            const idx = newOriginalQueue.findIndex(t => t.id === id);
+            if (idx !== -1) newOriginalQueue.splice(idx, 1);
+          }
+          const origIdx = newOriginalQueue.findIndex(t => t.id === state.queue[state.currentIndex]?.id);
+          newOriginalQueue.splice(origIdx !== -1 ? origIdx + 1 : newOriginalQueue.length, 0, ...tracks);
+        } else {
+          newOriginalQueue = newQueue;
+        }
+
+        return { queue: newQueue, originalQueue: newOriginalQueue, currentIndex: newCurrentIndex, isPlaying: true };
       }),
       addToQueue: (tracks) => set((state) => ({ 
         queue: [...state.queue, ...tracks],
+        originalQueue: [...(state.originalQueue.length > 0 ? state.originalQueue : state.queue), ...tracks],
         currentIndex: state.currentIndex === -1 ? 0 : state.currentIndex,
         isPlaying: state.currentIndex === -1 ? true : state.isPlaying
       })),
-      clearQueue: () => set({ queue: [], currentIndex: -1, isPlaying: false }),
+      clearQueue: () => set({ queue: [], originalQueue: [], currentIndex: -1, isPlaying: false, isShuffle: false }),
       
       playTrack: (index) => set({ currentIndex: index, isPlaying: true }),
       
       nextTrack: () => set((state) => {
+        if (state.repeatMode === 'one') {
+          return { currentIndex: state.currentIndex, initialPosition: 0, isPlaying: true };
+        }
         if (state.currentIndex < state.queue.length - 1) {
           return { currentIndex: state.currentIndex + 1, isPlaying: true };
+        } else if (state.repeatMode === 'all') {
+          return { currentIndex: 0, isPlaying: true };
         }
         return state;
       }),
@@ -132,6 +162,44 @@ export const usePlayerStore = create<PlayerState>()(
       toggleAutoDj: () => set((state) => ({ isAutoDjEnabled: !state.isAutoDjEnabled })),
 
       setSyncDrift: (drift) => set({ syncDrift: drift }),
+      
+      toggleShuffle: () => set((state) => {
+        if (!state.isShuffle) {
+          if (state.queue.length <= 1) return { isShuffle: true };
+          
+          const currentTrack = state.queue[state.currentIndex];
+          const rest = state.queue.filter((_, idx) => idx !== state.currentIndex);
+          
+          // Fisher-Yates
+          for (let i = rest.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [rest[i], rest[j]] = [rest[j], rest[i]];
+          }
+          
+          return { 
+            isShuffle: true, 
+            originalQueue: state.queue, 
+            queue: [currentTrack, ...rest], 
+            currentIndex: 0 
+          };
+        } else {
+          const currentTrack = state.queue[state.currentIndex];
+          const origQueue = state.originalQueue.length > 0 ? state.originalQueue : state.queue;
+          const newIndex = origQueue.findIndex(t => t.id === currentTrack?.id);
+          
+          return { 
+            isShuffle: false, 
+            queue: origQueue,
+            currentIndex: newIndex !== -1 ? newIndex : 0
+          };
+        }
+      }),
+      
+      cycleRepeatMode: () => set((state) => {
+        const modes: ('none' | 'all' | 'one')[] = ['none', 'all', 'one'];
+        const nextIndex = (modes.indexOf(state.repeatMode) + 1) % modes.length;
+        return { repeatMode: modes[nextIndex] };
+      }),
       
       createPlaylist: (name) => set((state) => ({
         localPlaylists: [...state.localPlaylists, { id: Date.now().toString(), name, tracks: [] }]
@@ -174,6 +242,8 @@ export const usePlayerStore = create<PlayerState>()(
         // or we could persist queue if requested. Let's persist queue and localPlaylists.
         queue: state.queue,
         currentIndex: state.currentIndex,
+        isShuffle: state.isShuffle,
+        repeatMode: state.repeatMode,
       }),
     }
   )

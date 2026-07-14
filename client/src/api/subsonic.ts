@@ -67,6 +67,14 @@ export const searchTracks = async (query = '', count = 500) => {
   return data['subsonic-response']?.searchResult3?.song || [];
 };
 
+export const searchAll = async (query = '', count = 10) => {
+  const params = getAuthParams();
+  const url = `${getBaseUrl()}/rest/search3?query=${encodeURIComponent(query)}&songCount=${count}&albumCount=${count}&artistCount=${count}&${params}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data['subsonic-response']?.searchResult3 || { song: [], album: [], artist: [] };
+};
+
 export const getCoverArtUrl = (id: string, size = 300) => {
   return `${getBaseUrl()}/rest/getCoverArt?id=${id}&size=${size}&${getAuthParams()}`;
 };

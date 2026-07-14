@@ -1,13 +1,22 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Clock, Heart, Download, ListVideo, X, Search, Play } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
+import { useUIStore } from '../../store/uiStore';
 import { formatArtistName } from '../../utils/formatters';
 
 export default function RightSidebar() {
   const { queue, currentIndex, playTrack } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
+  const { setSearchOpen } = useUIStore();
   const touchTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    const activeEl = document.getElementById(`queue-item-${currentIndex}`);
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [currentIndex]);
 
   const handleContextMenu = (e: React.MouseEvent, track: any, idx: number) => {
     e.preventDefault();
@@ -33,7 +42,7 @@ export default function RightSidebar() {
           <button className="hover:text-foreground"><ListVideo size={18} /></button>
           <button className="hover:text-foreground"><X size={18} /></button>
         </div>
-        <button className="hover:text-foreground"><Search size={18} /></button>
+        <button onClick={() => setSearchOpen(true)} className="hover:text-foreground"><Search size={18} /></button>
       </div>
 
       <div className="flex px-4 py-2 text-xs font-semibold tracking-wider text-secondary border-b border-white/5 uppercase">
@@ -48,6 +57,7 @@ export default function RightSidebar() {
           const isPlaying = idx === currentIndex;
           return (
             <div 
+              id={`queue-item-${idx}`}
               key={idx} 
               onClick={() => playTrack(idx)}
               onContextMenu={(e) => handleContextMenu(e, track, idx)}

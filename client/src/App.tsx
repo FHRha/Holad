@@ -16,6 +16,7 @@ import ContextMenu from './components/common/ContextMenu';
 import AlbumView from './components/views/AlbumView';
 import TracksView from './components/views/TracksView';
 import LoginView from './components/views/LoginView';
+import TopBar from './components/layout/TopBar';
 import { jamSocket } from './api/socket';
 import { useAuthStore } from './store/authStore';
 
@@ -86,15 +87,18 @@ function AppContent() {
               <Sidebar />
               <div className="flex-1 overflow-hidden relative">
                 <div className="absolute inset-0 flex flex-col">
-                  <Routes>
-                    <Route path="/" element={<MainContent />} />
-                    <Route path="/library/*" element={<LibraryView />} />
-                    <Route path="/albums" element={<AlbumsView />} />
-                    <Route path="/tracks" element={<TracksView />} />
-                    <Route path="/album/:id" element={<AlbumView />} />
-                    <Route path="/favorites" element={<FavoritesView />} />
-                    <Route path="*" element={<MainContent />} />
-                  </Routes>
+                  <TopBar />
+                  <div className="flex-1 overflow-y-auto relative hide-scrollbar">
+                    <Routes>
+                      <Route path="/" element={<MainContent />} />
+                      <Route path="/library/*" element={<LibraryView />} />
+                      <Route path="/albums" element={<AlbumsView />} />
+                      <Route path="/tracks" element={<TracksView />} />
+                      <Route path="/album/:id" element={<AlbumView />} />
+                      <Route path="/favorites" element={<FavoritesView />} />
+                      <Route path="*" element={<MainContent />} />
+                    </Routes>
+                  </div>
                 </div>
                 <ContextMenu />
               </div>

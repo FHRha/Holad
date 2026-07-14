@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, Heart, ChevronDown, MoreHorizontal, VolumeX, Star } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, ChevronDown, MoreHorizontal, MoreVertical, VolumeX, Star, Square } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { getStreamUrl, fetchRandomTracks, getCoverArtUrl, starItem, unstarItem, savePlayQueue } from '../../api/subsonic';
 import Slider from '../common/Slider';
 import { formatArtistName } from '../../utils/formatters';
 
 export default function BottomPlayer() {
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, addToQueue, likedTrackIds, toggleTrackLike, initialPosition, setInitialPosition } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, addToQueue, likedTrackIds, toggleTrackLike, initialPosition, setInitialPosition, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode } = usePlayerStore();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [progress, setProgress] = useState(0);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
@@ -134,48 +134,52 @@ export default function BottomPlayer() {
 
   const DesktopPlayer = (
     <div className="hidden md:flex h-28 bg-background border-t border-white/5 items-center px-4 justify-between z-20 relative">
-      {/* Hidden Audio Element */}
-      <audio 
-        id="main-audio-player"
-        ref={audioRef}
-        src={getStreamUrl(currentTrack.id)}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleEnded}
-      />
-
-      {/* Track Info (Left) */}
-      <div className="flex items-center gap-3 w-[30%] min-w-[200px]">
-        <div className="w-[52px] h-[52px] rounded overflow-hidden relative group shadow-md flex-shrink-0">
+      <div className="flex items-center gap-4 w-[30%] min-w-[200px]">
+        <div className="w-[92px] h-[92px] rounded-md overflow-hidden relative group shadow-sm flex-shrink-0">
           <img src={currentTrack.coverArt} alt="Cover" className="w-full h-full object-cover" />
         </div>
-        <div className="flex flex-col overflow-hidden leading-tight">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-lg text-foreground truncate hover:underline cursor-pointer">{currentTrack.title}</span>
+        <div className="flex flex-col overflow-hidden leading-tight justify-center gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-base text-foreground truncate hover:underline cursor-pointer">{currentTrack.title}</span>
+            <MoreVertical size={16} className="text-secondary/50 hover:text-foreground cursor-pointer flex-shrink-0" />
           </div>
-          <span className="text-sm font-bold text-secondary truncate hover:underline cursor-pointer mt-0.5">{formatArtistName(currentTrack.artist)}</span>
+          <span className="text-sm font-medium text-secondary truncate hover:underline cursor-pointer mt-0.5">{formatArtistName(currentTrack.artist)}</span>
+          {currentTrack.album && (
+            <span className="text-sm text-secondary/70 truncate hover:underline cursor-pointer">{currentTrack.album}</span>
+          )}
         </div>
       </div>
 
       {/* Controls (Center) */}
-      <div className="flex flex-col items-center justify-center flex-1 max-w-[40%]">
-        <div className="flex items-center gap-5 mb-2">
-          <button className="text-secondary hover:text-foreground transition-colors"><Shuffle size={16} /></button>
-          <button onClick={prevTrack} disabled={role === 'listener'} className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"><SkipBack size={18} fill="currentColor" /></button>
+      <div className="flex flex-col items-center justify-center flex-1 max-w-[40%] gap-3 mt-0">
+        <div className="flex items-center gap-7">
+          <button 
+            onClick={toggleShuffle} 
+            className={`transition-colors ${isShuffle ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+          >
+            <Shuffle size={20} />
+          </button>
+          <button onClick={prevTrack} disabled={role === 'listener'} className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"><SkipBack size={24} fill="currentColor" /></button>
           
           <button 
             onClick={handlePlayPause} 
             disabled={role === 'listener'}
-            className="w-10 h-10 rounded-full bg-foreground text-background flex items-center justify-center hover:bg-foreground/90 transition-colors disabled:opacity-50"
+            className="w-12 h-12 rounded-full bg-foreground text-background flex items-center justify-center hover:bg-foreground/90 transition-colors disabled:opacity-50 shadow-md"
           >
-            {isPlaying ? <Pause fill="currentColor" size={18} /> : <Play fill="currentColor" size={18} className="ml-0.5" />}
+            {isPlaying ? <Pause fill="currentColor" size={20} className="stroke-none" /> : <Play fill="currentColor" size={20} className="stroke-none translate-x-[2px]" />}
           </button>
           
-          <button onClick={nextTrack} disabled={role === 'listener'} className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"><SkipForward size={18} fill="currentColor" /></button>
-          <button className="text-secondary hover:text-foreground transition-colors"><Repeat size={16} /></button>
+          <button onClick={nextTrack} disabled={role === 'listener'} className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"><SkipForward size={24} fill="currentColor" /></button>
+          <button 
+            onClick={cycleRepeatMode} 
+            className={`transition-colors ${repeatMode !== 'none' ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+          >
+            {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
+          </button>
         </div>
 
-        <div className="w-full flex items-center gap-3 text-xs text-secondary font-medium">
-          <span className="min-w-[40px] text-right">{formatTime((progress / 100) * (currentTrack?.duration || 0))}</span>
+        <div className="w-full flex items-center gap-3 text-[11px] text-secondary font-medium px-4">
+          <span className="min-w-[35px] text-right">{formatTime((progress / 100) * (currentTrack?.duration || 0))}</span>
           <Slider 
             value={progress / 100} 
             onChange={handleSeekChange} 
@@ -183,7 +187,7 @@ export default function BottomPlayer() {
             className={`flex-1 ${role === 'listener' ? 'pointer-events-none' : ''}`}
             isAnimated={isPlaying}
           />
-          <span className="min-w-[40px] text-left">{formatTime(currentTrack.duration)}</span>
+          <span className="min-w-[35px] text-left">{formatTime(currentTrack.duration)}</span>
         </div>
       </div>
 
@@ -337,11 +341,14 @@ export default function BottomPlayer() {
 
   return (
     <>
-      <audio 
+      <audio
         ref={audioRef}
-        src={getStreamUrl(currentTrack.id)}
+        src={currentTrack ? getStreamUrl(currentTrack.id) : ''}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
+        onSeeking={() => setIsSeeking(true)}
+        onSeeked={() => setIsSeeking(false)}
+        loop={repeatMode === 'one'}
       />
       {DesktopPlayer}
       {!isMobileExpanded && MobileMiniPlayer}

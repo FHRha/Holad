@@ -55,7 +55,7 @@ export default function Slider({ value, onChange, onDragEnd, className = '', isA
 
   return (
     <div 
-      className={`w-full py-2 flex items-center cursor-pointer group relative touch-none ${className}`}
+      className={`w-full h-5 flex items-center cursor-pointer group relative touch-none ${className}`}
       onPointerDown={handlePointerDown}
       ref={trackRef}
     >
