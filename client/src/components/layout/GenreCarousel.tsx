@@ -92,7 +92,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar pt-4 pb-4 -mt-4"
+        className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar p-4 -m-4"
         style={{ scrollSnapType: 'x mandatory' }}
       >
         {genres.map((genre, idx) => {

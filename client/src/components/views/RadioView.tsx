@@ -110,7 +110,7 @@ export default function RadioView() {
         {/* Main Stations */}
         <section>
           <h2 className="text-2xl font-bold text-foreground mb-6">Основные Станции</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4 -m-4">
             <StationCard 
               id="random"
               title="Бесконечный Микс" 
@@ -142,7 +142,7 @@ export default function RadioView() {
         {genres.length > 0 && (
           <section>
             <h2 className="text-2xl font-bold text-foreground mb-6">Радио по жанрам</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 -m-4">
               {genres.map((genre: any, idx: number) => {
                 const spotifyColors = [
                   'bg-[#E13300]', 'bg-[#1E3264]', 'bg-[#E8115B]', 'bg-[#148A08]', 
