@@ -60,6 +60,7 @@ export function useArtistData(id: string | undefined) {
             artist: s.artist,
             album: s.album,
             albumId: s.albumId,
+            artistId: s.artistId || artistData.id,
             coverArt: getCoverArtUrl(s.coverArt || s.albumId || s.id, 300),
             duration: s.duration,
             userRating: s.userRating

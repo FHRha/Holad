@@ -85,7 +85,8 @@ export function useGlobalSearch(
       artist: song.artist,
       album: song.album,
       albumId: song.albumId,
-      coverArt: getCoverArtUrl(song.coverArt || song.id, 600),
+      artistId: song.artistId,
+      coverArt: getCoverArtUrl(song.coverArt || song.id, 300),
       duration: song.duration
     }], 0);
     setSearchOpen(false);

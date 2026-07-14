@@ -14,6 +14,7 @@ export function useSimilarTracks(trackId: string | undefined) {
           artist: t.artist,
           album: t.album,
           albumId: t.albumId,
+          artistId: t.artistId,
           coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
           duration: t.duration
         }));

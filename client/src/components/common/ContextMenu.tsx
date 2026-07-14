@@ -212,7 +212,11 @@ export default function ContextMenu() {
           </div>
 
           <div className="py-1 border-t border-white/10">
-            <ItemBtn icon={User} label="Перейти к Исполнителю" onClick={() => handleAction(() => {})} />
+            {item.artistId && (
+              <ItemBtn icon={User} label="Перейти к Исполнителю" onClick={() => handleAction(() => {
+                navigate(`/Holad/artist/${item.artistId}`);
+              })} />
+            )}
             <ItemBtn icon={Disc} label="Перейти к Альбому" onClick={() => handleAction(() => {
               if (isAlbum) navigate(`/Holad/album/${item.id}`);
               else if (item.albumId) navigate(`/Holad/album/${item.albumId}`);

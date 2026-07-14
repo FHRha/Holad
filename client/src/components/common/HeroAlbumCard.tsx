@@ -128,9 +128,10 @@ export default function HeroAlbumCard({ album }: { album: any }) {
       id: t.id,
       title: t.title,
       artist: t.artist,
-      album: t.album,
+      album: album.title,
       albumId: album.id,
-      coverArt: getCoverArtUrl(t.coverArt || album.id, 300),
+      artistId: t.artistId || album.artistId,
+      coverArt: getCoverArtUrl(album.coverArt || album.id, 300),
       duration: t.duration
     }));
   };

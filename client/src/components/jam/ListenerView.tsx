@@ -19,7 +19,8 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
             artist: t.artist,
             album: t.album,
             albumId: t.albumId,
-            coverArt: getCoverArtUrl(t.coverArt || t.id, 600),
+            artistId: t.artistId,
+            coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
             duration: t.duration
           }], 0);
         }

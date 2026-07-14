@@ -147,7 +147,7 @@ export default function AlbumView() {
                   key={track.id}
                   onContextMenu={(e) => { 
                     e.preventDefault(); 
-                    openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || album.id, 300), albumId: album.id }, 'track'); 
+                    openMenu(e.clientX, e.clientY, { ...track, artistId: track.artistId || album.artistId, coverArt: getCoverArtUrl(track.coverArt || album.id, 300), albumId: album.id }, 'track'); 
                   }}
                   onClick={() => {
                      handlePlaySong(index);
