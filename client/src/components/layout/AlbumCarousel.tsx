@@ -34,7 +34,7 @@ export default function AlbumCarousel({ title, albums, variant = 'standard' }: A
 
   return (
     <div className="mb-10 relative">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 px-4 lg:px-8">
         <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
           {title}
         </h2>
@@ -59,7 +59,7 @@ export default function AlbumCarousel({ title, albums, variant = 'standard' }: A
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar"
+        className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar px-4 lg:px-8 py-4 -my-4"
         style={{ scrollSnapType: 'x mandatory' }}
       >
         {albums.map((album) => (

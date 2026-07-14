@@ -36,7 +36,7 @@ export default function MainContent() {
   }
 
   return (
-    <div className="flex-1 bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar pt-10">
+    <div className="flex-1 bg-background overflow-y-auto py-4 lg:py-8 hide-scrollbar pt-10">
       <AlbumCarousel title="Откройте новое" albums={randomAlbums} variant="hero" />
       <GenreCarousel title="Радио по жанрам" genres={genres} />
       <AlbumCarousel title="Слушают чаще всего" albums={albums} variant="standard" />
