@@ -1,12 +1,11 @@
-import { Menu, Home, Heart, Disc, Music, Radio, Users } from 'lucide-react';
+import { Home, Heart, Disc, Music, Radio, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 export default function Sidebar() {
   return (
     <div className="hidden md:flex w-24 bg-background flex-col items-center py-4 border-r border-white/5 relative z-10 space-y-6">
-      <button className="text-secondary hover:text-foreground flex flex-col items-center gap-1 transition-colors">
-        <Menu size={24} />
-        <span className="text-[10px] font-bold uppercase tracking-wider mt-1">Меню</span>
+      <button className="text-foreground flex flex-col items-center gap-1 transition-transform hover:scale-105 active:scale-95">
+        <img src="/icons/favicon.png" alt="Holad" className="w-14 h-14 rounded-lg shadow-lg object-cover" />
       </button>
 
       <div className="flex-1 w-full flex flex-col gap-6 pt-4">

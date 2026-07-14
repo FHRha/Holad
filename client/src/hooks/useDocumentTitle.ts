@@ -6,11 +6,10 @@ export function useDocumentTitle() {
   const currentTrack = queue[currentIndex];
 
   useEffect(() => {
-    if (currentTrack) {
-      const playState = isPlaying ? '▶ ' : '';
-      document.title = `${playState}${currentTrack.title} - ${currentTrack.artist} | StreamNavi`;
+    if (currentTrack && isPlaying) {
+      document.title = `${currentTrack.title} - ${currentTrack.artist}`;
     } else {
-      document.title = 'StreamNavi';
+      document.title = 'Holad';
     }
   }, [currentTrack, isPlaying]);
 }
