@@ -67,7 +67,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
 
   return (
     <div className="mb-10 relative">
-      <div className="flex items-center justify-between mb-4 px-4 lg:px-8">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
           {title}
         </h2>
@@ -92,7 +92,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar px-4 lg:px-8 py-4 -my-4"
+        className="flex overflow-x-auto gap-2 snap-x snap-mandatory hide-scrollbar py-4 -my-4 -mx-2"
         style={{ scrollSnapType: 'x mandatory' }}
       >
         {genres.map((genre, idx) => {
@@ -105,10 +105,10 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
           const isThisLoading = loadingStation === genre.value;
 
           return (
-            <div key={genre.value} className="snap-start flex-shrink-0 h-[160px]" style={{ width: 'calc(20% - 13px)', minWidth: '160px' }}>
+            <div key={genre.value} className="snap-start flex-shrink-0 h-[176px] px-2" style={{ width: 'calc(20% - 5px)', minWidth: '176px' }}>
               <div 
                 onClick={isThisLoading ? undefined : () => startGenreRadio(genre.value)}
-                className={`w-full h-full relative overflow-hidden rounded-xl cursor-pointer group transition-all duration-300 hover:scale-105 hover:shadow-2xl ${colorClass}`}
+                className={`w-full h-full relative overflow-hidden rounded-xl cursor-pointer group transition-transform duration-300 hover:scale-105 hover:shadow-2xl ${colorClass}`}
               >
                 {/* Huge rotated icon in bottom right like Spotify images */}
                 <div className="absolute -bottom-6 -right-6 transform rotate-12 opacity-30 group-hover:opacity-40 transition-opacity">
