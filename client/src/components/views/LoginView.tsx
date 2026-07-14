@@ -1,0 +1,132 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
+import { pingServer } from '../../api/subsonic';
+import { Server, User, Lock, AlertCircle } from 'lucide-react';
+
+export default function LoginView() {
+  const [url, setUrl] = useState(useAuthStore.getState().url || 'https://');
+  const [username, setUsername] = useState(useAuthStore.getState().user || '');
+  const [password, setPassword] = useState(useAuthStore.getState().pass || '');
+  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const navigate = useNavigate();
+  const { setCredentials, setAuthenticated } = useAuthStore();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!url || !username || !password) {
+      setError('Заполните все поля');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Temporarily set credentials in store to test ping
+      setCredentials(url, username, password);
+      
+      await pingServer();
+      
+      setAuthenticated(true);
+      navigate('/Holad', { replace: true });
+    } catch (err: any) {
+      console.error(err);
+      setError('Не удалось подключиться к серверу. Проверьте данные.');
+      setAuthenticated(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="h-full w-full bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Abstract Background */}
+      <div className="absolute inset-0 pointer-events-none opacity-20">
+        <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] bg-primary/30 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-blue-500/20 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="w-full max-w-md bg-card/80 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl relative z-10">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-primary to-[#4ade80] rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-primary/20">
+            <Server size={32} className="text-black" />
+          </div>
+          <h1 className="text-3xl font-display font-bold text-white mb-2">Вход в систему</h1>
+          <p className="text-sm text-secondary">
+            Holad поддерживает <span className="text-primary font-bold">только серверы Navidrome</span>. Пожалуйста, введите данные вашего сервера.
+          </p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-secondary uppercase tracking-wider mb-2 ml-1">URL Сервера</label>
+            <div className="relative">
+              <Server size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
+              <input 
+                type="url" 
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                placeholder="https://navidrome.example.com"
+                className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-white/20"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-secondary uppercase tracking-wider mb-2 ml-1">Имя пользователя</label>
+            <div className="relative">
+              <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
+              <input 
+                type="text" 
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="Ваш логин"
+                className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-white/20"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-secondary uppercase tracking-wider mb-2 ml-1">Пароль</label>
+            <div className="relative">
+              <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
+              <input 
+                type="password" 
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-white/20"
+                required
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-center gap-2 text-red-400 text-sm">
+              <AlertCircle size={16} className="flex-shrink-0" />
+              <p>{error}</p>
+            </div>
+          )}
+
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full bg-primary hover:bg-primary/90 text-black font-bold py-3.5 rounded-xl transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none mt-6 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+            ) : (
+              'Войти в Navidrome'
+            )}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
