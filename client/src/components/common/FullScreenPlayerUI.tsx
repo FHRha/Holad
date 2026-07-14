@@ -1,72 +1,14 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
-import type { Track } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
 import { Play, ChevronDown } from 'lucide-react';
-import { getCoverArtUrl, getLyrics, getSimilarSongs, getLyricsBySongId } from '../../api/subsonic';
+import { getCoverArtUrl } from '../../api/subsonic';
 import { formatArtistName } from '../../utils/formatters';
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from './TrackImage';
 import AudioVisualizer from './AudioVisualizer';
-
-interface LyricLine {
-  time: number;
-  text: string;
-  isInterlude?: boolean;
-}
-
-function injectInterludes(lines: LyricLine[]): LyricLine[] {
-  const result: LyricLine[] = [];
-  
-  // Check for intro interlude
-  if (lines.length > 0 && lines[0].time >= 7) {
-    result.push({
-      time: Math.max(0, lines[0].time - 3), // Start up to 3 seconds before first line
-      text: '...',
-      isInterlude: true
-    });
-  }
-
-  for (let i = 0; i < lines.length; i++) {
-    result.push(lines[i]);
-    if (i < lines.length - 1) {
-      const curr = lines[i];
-      const next = lines[i + 1];
-      const gap = next.time - curr.time;
-      if (gap >= 7) { // If gap is >= 7 seconds
-        result.push({
-          time: next.time - 3, // Start the dots exactly 3 seconds BEFORE the next line starts!
-          text: '...',
-          isInterlude: true
-        });
-      }
-    }
-  }
-  return result;
-}
-
-function parseLRC(lrc: string): LyricLine[] {
-  const lines = lrc.split('\n');
-  const result: LyricLine[] = [];
-  const regex = /\[(\d{2}):(\d{2})(?:[:\.](\d{1,3}))?\](.*)/;
-
-  lines.forEach(line => {
-    const match = regex.exec(line);
-    if (match) {
-      const minutes = parseInt(match[1], 10);
-      const seconds = parseInt(match[2], 10);
-      const ms = match[3] ? parseInt(match[3], 10) : 0;
-      const milliseconds = match[3] ? (match[3].length === 1 ? ms * 100 : match[3].length === 2 ? ms * 10 : ms) : 0;
-      const time = minutes * 60 + seconds + milliseconds / 1000;
-      const text = match[4].trim();
-      if (text) {
-        result.push({ time, text });
-      }
-    }
-  });
-
-  return injectInterludes(result.sort((a, b) => a.time - b.time));
-}
+import { useLyricsSync } from '../../hooks/useLyricsSync';
+import { useSimilarTracks } from '../../hooks/useSimilarTracks';
 
 export default function FullScreenPlayerUI({ 
   onClose,
@@ -85,143 +27,24 @@ export default function FullScreenPlayerUI({
   const isStandalone = isJamRoute && !!searchParams.get('track');
   const readOnlyControls = isJamRoute && role === 'listener';
   
-  const [lyricsText, setLyricsText] = useState<string | null>(null);
-  const [lrcLines, setLrcLines] = useState<LyricLine[]>([]);
-  const [similarTracks, setSimilarTracks] = useState<Track[]>([]);
-  const [loadingLyrics, setLoadingLyrics] = useState(false);
-  
-  const [activeLyricIndex, setActiveLyricIndex] = useState(-1);
-  const [isUserScrolled, setIsUserScrolled] = useState(false);
-  const isAutoScrolling = useRef(false);
-  const autoScrollTimeoutRef = useRef<number | null>(null);
-  
-  const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const queueContainerRef = useRef<HTMLDivElement>(null);
   
   const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 1000) : '', [currentTrack?.id]);
   const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 300) : '', [currentTrack?.id]);
 
+  const {
+    lyricsText,
+    lrcLines,
+    loadingLyrics,
+    activeLyricIndex,
+    isUserScrolled,
+    lyricsContainerRef,
+    handleUserScroll,
+    forceSync,
+    setIsUserScrolled
+  } = useLyricsSync(currentTrack, audioElement, activeTab === 'lyrics');
 
-  useEffect(() => {
-    if (currentTrack) {
-      setLoadingLyrics(true);
-      setLyricsText(null);
-      setLrcLines([]);
-      
-      // Fetch Lyrics
-      getLyricsBySongId(currentTrack.id).then(structuredLine => {
-        if (structuredLine && structuredLine.length > 0) {
-          // Check if it's synced (does the first line have a start/offset/time property?)
-          const firstLine = structuredLine[0];
-          const hasTime = firstLine.start !== undefined || firstLine.offset !== undefined || firstLine.time !== undefined;
-          
-          if (hasTime) {
-            const parsed = structuredLine.map((l: any) => {
-              const val = Number(l.start ?? l.offset ?? l.time ?? 0);
-              return {
-                time: val / 1000,
-                text: l.value || l.text || ''
-              };
-            });
-            setLrcLines(injectInterludes(parsed.sort((a: any, b: any) => a.time - b.time)));
-          } else {
-            // It's unsynced. Treat as plain text.
-            const text = structuredLine.map((l: any) => l.value || l.text || '').join('\n');
-            setLyricsText(text);
-          }
-          setLoadingLyrics(false);
-        } else {
-          // Fallback to plain text getLyrics
-          getLyrics(currentTrack.artist, currentTrack.title).then(lyric => {
-            if (lyric) {
-              const parsedLrc = parseLRC(lyric);
-              if (parsedLrc.length > 0) {
-                setLrcLines(parsedLrc);
-              } else {
-                setLyricsText(lyric);
-              }
-            }
-            setLoadingLyrics(false);
-          });
-        }
-      });
-
-      // Fetch Similar Songs
-      getSimilarSongs(currentTrack.id).then(songs => {
-        const mapped = songs.map(t => ({
-          id: t.id,
-          title: t.title,
-          artist: t.artist,
-          album: t.album,
-          albumId: t.albumId,
-          coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
-          duration: t.duration
-        }));
-        setSimilarTracks(mapped);
-      });
-    }
-    // Reset scroll state on new track
-    setIsUserScrolled(false);
-  }, [currentTrack?.id]);
-
-  // Karaoke Loop
-  useEffect(() => {
-    if (!audioElement || lrcLines.length === 0 || activeTab !== 'lyrics') return;
-    
-    let rafId: number;
-    let lastActiveIndex = activeLyricIndex;
-
-    const updateCurrentLyric = () => {
-      const currentTime = audioElement.currentTime;
-      let newIndex = -1;
-      for (let i = 0; i < lrcLines.length; i++) {
-        if (currentTime >= lrcLines[i].time) {
-          newIndex = i;
-        } else {
-          break;
-        }
-      }
-      
-      if (newIndex !== -1 && lrcLines[newIndex].isInterlude) {
-        const line = lrcLines[newIndex];
-        const nextLine = lrcLines[newIndex + 1];
-        if (nextLine && lyricsContainerRef.current) {
-          const progress = Math.max(0, Math.min(1, (currentTime - line.time) / (nextLine.time - line.time)));
-          lyricsContainerRef.current.style.setProperty('--interlude-progress', progress.toString());
-        }
-      }
-
-      if (newIndex !== lastActiveIndex) {
-        lastActiveIndex = newIndex;
-        setActiveLyricIndex(newIndex);
-        
-        if (lyricsContainerRef.current) {
-          const activeElement = lyricsContainerRef.current.children[newIndex] as HTMLElement;
-          const container = lyricsContainerRef.current.closest('.overflow-y-auto') as HTMLElement;
-          if (activeElement && container) {
-            // Only auto-scroll if the user hasn't manually scrolled
-            if (!isUserScrolled) {
-              isAutoScrolling.current = true;
-              if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
-              
-              container.scrollTo({
-                top: activeElement.offsetTop - (container.clientHeight / 2) + (activeElement.clientHeight / 2),
-                behavior: 'smooth'
-              });
-              
-              autoScrollTimeoutRef.current = setTimeout(() => {
-                isAutoScrolling.current = false;
-              }, 1500) as unknown as number; // 1.5s should cover long smooth scrolls
-            }
-          }
-        }
-      }
-      rafId = requestAnimationFrame(updateCurrentLyric);
-    };
-    
-    rafId = requestAnimationFrame(updateCurrentLyric);
-    return () => cancelAnimationFrame(rafId);
-  }, [audioElement, lrcLines, activeTab]); // intentional omit activeLyricIndex to avoid infinite re-bind
+  const { similarTracks } = useSimilarTracks(currentTrack?.id);
 
   useEffect(() => {
     if (activeTab === 'queue' && queueContainerRef.current) {
@@ -233,24 +56,8 @@ export default function FullScreenPlayerUI({
           behavior: 'auto' // instant jump for queue
         });
       }
-    } else if (activeTab === 'lyrics' && lyricsContainerRef.current && activeLyricIndex !== -1) {
-      const activeElement = lyricsContainerRef.current.children[activeLyricIndex] as HTMLElement;
-      const container = lyricsContainerRef.current.closest('.overflow-y-auto') as HTMLElement;
-      if (activeElement && container && !isUserScrolled) {
-        isAutoScrolling.current = true;
-        if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
-        
-        container.scrollTo({
-          top: activeElement.offsetTop - (container.clientHeight / 2) + (activeElement.clientHeight / 2),
-          behavior: 'smooth'
-        });
-        
-        autoScrollTimeoutRef.current = setTimeout(() => {
-          isAutoScrolling.current = false;
-        }, 1500) as unknown as number;
-      }
     }
-  }, [activeTab, currentIndex]); // Removed activeLyricIndex from dependency array so it doesn't trigger on every lyric change
+  }, [activeTab, currentIndex]);
 
   const displayTrack = currentTrack || {
     id: 'empty',
@@ -323,25 +130,7 @@ export default function FullScreenPlayerUI({
           {/* Sync Button Floating Over Lyrics */}
           {activeTab === 'lyrics' && isUserScrolled && lrcLines.length > 0 && (
             <button 
-              onClick={() => {
-                setIsUserScrolled(false);
-                // Force a scroll immediately
-                if (lyricsContainerRef.current) {
-                  const activeElement = lyricsContainerRef.current.children[activeLyricIndex] as HTMLElement;
-                  const container = lyricsContainerRef.current.closest('.overflow-y-auto') as HTMLElement;
-                  if (activeElement && container) {
-                    isAutoScrolling.current = true;
-                    if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
-                    
-                    container.scrollTo({
-                      top: activeElement.offsetTop - (container.clientHeight / 2) + (activeElement.clientHeight / 2),
-                      behavior: 'smooth'
-                    });
-                    
-                    autoScrollTimeoutRef.current = setTimeout(() => isAutoScrolling.current = false, 1500) as unknown as number;
-                  }
-                }
-              }}
+              onClick={forceSync}
               className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 px-8 py-3 bg-primary text-background rounded-full font-bold shadow-[0_10px_30px_rgba(29,185,84,0.4)] hover:scale-105 hover:bg-primary/90 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in flex items-center gap-2"
             >
               Синхронизировать
@@ -383,16 +172,7 @@ export default function FullScreenPlayerUI({
             className="flex-1 overflow-y-auto custom-scrollbar p-6 relative"
             onScroll={() => {
               if (activeTab === 'lyrics') {
-                if (isAutoScrolling.current) {
-                  // If we are currently auto-scrolling, keep extending the timeout 
-                  // to prevent it from ending while scroll is still happening
-                  if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
-                  autoScrollTimeoutRef.current = setTimeout(() => {
-                    isAutoScrolling.current = false;
-                  }, 200) as unknown as number;
-                } else {
-                  setIsUserScrolled(true);
-                }
+                handleUserScroll();
               }
             }}
           >

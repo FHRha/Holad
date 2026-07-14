@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { formatArtistName } from '../../utils/formatters';
 import { Play, Pause, Heart, Clock, Search, FilterX } from 'lucide-react';
 import { searchTracks, getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
@@ -8,21 +8,31 @@ import { formatTime } from '../../utils/timeFormat';
 import TrackImage from '../common/TrackImage';
 import ArtistAvatar from '../common/ArtistAvatar';
 import { useContextMenuStore } from '../../store/contextMenuStore';
+import { useTrackFilters } from '../../hooks/useTrackFilters';
 
 export default function TracksView() {
   const [tracks, setTracks] = useState<any[]>([]);
   const [globalArtists, setGlobalArtists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Filters
-  const [filterLiked, setFilterLiked] = useState<'all' | 'yes' | 'no'>('all');
-  const [filterRated, setFilterRated] = useState<'all' | 'yes' | 'no'>('all');
-  const [artistSearch, setArtistSearch] = useState('');
-  const [selectedArtists, setSelectedArtists] = useState<Set<string>>(new Set());
   const [visibleCount, setVisibleCount] = useState(50);
 
   const { setQueueAndPlay, queue, currentIndex, likedTrackIds, toggleTrackLike, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
+
+  const {
+    filterLiked,
+    setFilterLiked,
+    filterRated,
+    setFilterRated,
+    artistSearch,
+    setArtistSearch,
+    selectedArtists,
+    setSelectedArtists,
+    filteredArtists,
+    filteredTracks,
+    toggleArtist
+  } = useTrackFilters(tracks, globalArtists);
 
   useEffect(() => {
     const loadTracks = async () => {
@@ -44,69 +54,6 @@ export default function TracksView() {
     loadTracks();
   }, []);
 
-  const allArtists = useMemo(() => {
-    const artistMap = new Map<string, { id: string, name: string }>(); // lower_name -> {id, original_name}
-    
-    // First, populate artistMap with precise IDs from global artists list
-    globalArtists.forEach(a => {
-      if (a.name && a.id) {
-        artistMap.set(a.name.toLowerCase(), { id: a.id, name: a.name });
-      }
-    });
-
-    tracks.forEach(t => {
-      if (t.artist) {
-        // Split by ;, /, ,, •, feat., ft.
-        const parts = t.artist.split(/\s*[;\\/,•]\s*|\s+feat\.?\s+|\s+ft\.?\s+/i);
-        parts.forEach((p: string) => {
-          const name = p.trim();
-          if (name) {
-            const lower = name.toLowerCase();
-            if (!artistMap.has(lower)) {
-              artistMap.set(lower, { id: t.artistId || '', name });
-            } else {
-               // Update ID if missing
-               const existing = artistMap.get(lower)!;
-               if (!existing.id && t.artistId) {
-                 existing.id = t.artistId;
-               }
-            }
-          }
-        });
-      }
-    });
-
-    return Array.from(artistMap.values())
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [tracks, globalArtists]);
-
-  const filteredArtists = allArtists.filter(a => a.name.toLowerCase().includes(artistSearch.toLowerCase()));
-
-  const filteredTracks = useMemo(() => {
-    return tracks.filter(t => {
-      // Like filter
-      const isLiked = likedTrackIds.includes(t.id);
-      if (filterLiked === 'yes' && !isLiked) return false;
-      if (filterLiked === 'no' && isLiked) return false;
-      
-      // Rated filter
-      const isRated = (t.userRating || 0) > 0;
-      if (filterRated === 'yes' && !isRated) return false;
-      if (filterRated === 'no' && isRated) return false;
-
-      // Artist filter
-      if (selectedArtists.size > 0) {
-        if (!t.artist) return false;
-        const parts = t.artist.split(/\s*[;\\/,•]\s*|\s+feat\.?\s+|\s+ft\.?\s+/i).map((p: string) => p.trim().toLowerCase());
-        const selectedLower = Array.from(selectedArtists).map(s => s.toLowerCase());
-        const hasSelected = parts.some((p: string) => selectedLower.includes(p));
-        if (!hasSelected) return false;
-      }
-
-      return true;
-    });
-  }, [tracks, filterLiked, filterRated, selectedArtists, likedTrackIds]);
-
   const handlePlay = (index: number) => {
     const mapped: Track[] = filteredTracks.map(t => ({
       id: t.id,
@@ -119,13 +66,6 @@ export default function TracksView() {
       userRating: t.userRating
     }));
     setQueueAndPlay(mapped, index);
-  };
-
-  const toggleArtist = (artist: string) => {
-    const newSet = new Set(selectedArtists);
-    if (newSet.has(artist)) newSet.delete(artist);
-    else newSet.add(artist);
-    setSelectedArtists(newSet);
   };
 
   return (
