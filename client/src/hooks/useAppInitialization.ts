@@ -40,6 +40,8 @@ export function useAppInitialization() {
             title: t.title,
             artist: t.artist,
             album: t.album,
+            albumId: t.albumId,
+            artistId: t.artistId,
             coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
             duration: t.duration
           }));

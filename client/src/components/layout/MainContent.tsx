@@ -36,6 +36,8 @@ export default function MainContent() {
       title: t.title,
       artist: t.artist,
       album: t.album,
+      albumId: t.albumId,
+      artistId: t.artistId,
       coverArt: getCoverArtUrl(t.coverArt || t.id),
       duration: t.duration
     }));

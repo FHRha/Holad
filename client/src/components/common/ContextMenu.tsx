@@ -66,6 +66,8 @@ export default function ContextMenu() {
       title: t.title,
       artist: t.artist,
       album: t.album,
+      albumId: t.albumId,
+      artistId: t.artistId,
       coverArt: getCoverArtUrl(t.coverArt, 300),
       duration: t.duration
     }));

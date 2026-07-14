@@ -58,6 +58,8 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
       title: t.title,
       artist: t.artist || album.artist,
       album: album.name,
+      albumId: album.id,
+      artistId: t.artistId || album.artistId,
       coverArt: getCoverArtUrl(album.coverArt || t.coverArt || t.id, 300),
       duration: t.duration,
       userRating: t.userRating
