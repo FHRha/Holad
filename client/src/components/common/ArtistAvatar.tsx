@@ -20,7 +20,24 @@ export default function ArtistAvatar({ artistName, artistId, className = "w-6 h-
     const loadAvatar = async () => {
       setLoading(true);
       
-      // Try to fetch from Deezer
+      if (artistId) {
+        try {
+          const info = await import('../../api/subsonic').then(m => m.getArtistInfo(artistId));
+          if (info && info.largeImageUrl) {
+            if (isMounted) {
+              setImageUrl(info.largeImageUrl);
+              setLoading(false);
+            }
+            return;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      // If Navidrome has no specific image URL in info, try its cover art first
+      // Actually, Navidrome getCoverArt for artist ID uses the same image.
+      // But let's try Deezer as a fallback if getArtistInfo doesn't have it
       const deezerUrl = await fetchArtistImage(artistName);
       
       if (isMounted) {
@@ -28,7 +45,7 @@ export default function ArtistAvatar({ artistName, artistId, className = "w-6 h-
           setImageUrl(deezerUrl);
         } else if (artistId) {
           // Fallback to Navidrome cover if Deezer fails
-          setImageUrl(getCoverArtUrl(artistId, 100));
+          setImageUrl(getCoverArtUrl(artistId, 300));
         } else {
           setImageUrl(null);
         }

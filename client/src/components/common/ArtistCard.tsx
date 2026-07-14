@@ -16,7 +16,16 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
 
   return (
     <div 
-      onClick={() => navigate(`/Holad/artist/${slug}`)}
+      onClick={() => {
+        const isJam = window.location.pathname.startsWith('/jam');
+        const searchParams = new URLSearchParams(window.location.search);
+        const room = searchParams.get('room');
+        if (isJam && room) {
+          navigate(`/jam/library/artist/${slug}?room=${room}`);
+        } else {
+          navigate(`/Holad/artist/${slug}`);
+        }
+      }}
       className="group relative bg-[#181818] hover:bg-[#282828] rounded-xl cursor-pointer flex flex-col p-4 flex-shrink-0 transition-colors duration-300 shadow-sm hover:shadow-lg"
     >
       <div className="relative aspect-square overflow-hidden rounded-full shadow-lg mb-4 mx-2">

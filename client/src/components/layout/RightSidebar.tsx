@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Clock, Heart, Download, ListVideo, X, Search, Play } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
@@ -10,7 +10,15 @@ export default function RightSidebar() {
   const { queue, currentIndex, playTrack } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const { setSearchOpen } = useUIStore();
-  const touchTimer = useRef<number | null>(null);
+  const [visibleCount, setVisibleCount] = useState(50);
+  const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 200;
+    if (bottom && visibleCount < queue.length) {
+      setVisibleCount(prev => prev + 50);
+    }
+  };
 
   useEffect(() => {
     const activeEl = document.getElementById(`queue-item-${currentIndex}`);
@@ -53,8 +61,8 @@ export default function RightSidebar() {
         <div className="w-8 flex justify-center"><Heart size={14} /></div>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1">
-        {queue.map((track, idx) => {
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1" onScroll={handleScroll}>
+        {queue.slice(0, visibleCount).map((track, idx) => {
           const isPlaying = idx === currentIndex;
           return (
             <div 

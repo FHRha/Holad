@@ -19,6 +19,7 @@ export default function TracksView() {
   const [filterRated, setFilterRated] = useState<'all' | 'yes' | 'no'>('all');
   const [artistSearch, setArtistSearch] = useState('');
   const [selectedArtists, setSelectedArtists] = useState<Set<string>>(new Set());
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const { setQueueAndPlay, queue, currentIndex, likedTrackIds, toggleTrackLike, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
@@ -226,14 +227,22 @@ export default function TracksView() {
           </div>
 
           {/* Table Body */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div 
+            className="flex-1 overflow-y-auto custom-scrollbar"
+            onScroll={(e) => {
+              const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 200;
+              if (bottom && visibleCount < filteredTracks.length) {
+                setVisibleCount(prev => prev + 50);
+              }
+            }}
+          >
             {loading ? (
               <div className="flex items-center justify-center h-full text-secondary">Загрузка...</div>
             ) : filteredTracks.length === 0 ? (
               <div className="flex items-center justify-center h-full text-secondary">Ничего не найдено</div>
             ) : (
               <div className="py-2">
-                {filteredTracks.map((track, index) => {
+                {filteredTracks.slice(0, visibleCount).map((track, index) => {
                   const currentPlaying = queue[currentIndex]?.id === track.id;
                   const isTrackLiked = likedTrackIds.includes(track.id);
 

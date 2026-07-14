@@ -1,6 +1,5 @@
 import { Menu, Home, Heart, Disc, Music, Radio, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import JamSessionControl from '../jam/JamSessionControl';
 
 export default function Sidebar() {
   return (
@@ -17,10 +16,6 @@ export default function Sidebar() {
         <SidebarItem to="/Holad/tracks" icon={<Music size={22} />} label="Треки" />
         <SidebarItem to="/Holad/artists" icon={<Users size={22} />} label="Артисты" />
         <SidebarItem to="/Holad/radio" icon={<Radio size={22} />} label="Радио" />
-      </div>
-
-      <div className="w-full px-2">
-        <JamSessionControl />
       </div>
     </div>
   );

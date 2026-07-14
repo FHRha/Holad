@@ -30,51 +30,55 @@ function AppContent() {
   const role = usePlayerStore(state => state.role);
   const setLikedItems = usePlayerStore(state => state.setLikedItems);
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const isJamRoute = location.pathname.startsWith('/jam');
+  // Removed backupQueue and restoreQueue logic to prevent ghost playlists
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-
+    // Only connect if authenticated OR if we are on a jam route
+    if (!isAuthenticated && !isJamRoute) return;
+    
     jamSocket.connect();
     
-    // Automatically join room if URL has ?room=XYZ and we are not already connected
-    if (roomToJoin && role === null) {
-      jamSocket.joinRoom(roomToJoin);
+    // Connection logic is now handled in JamLayout if needed
+    // We only connect for global listeners if needed, but jam routing handles the join.
+
+    if (isAuthenticated) {
+      fetchStarred().then(data => {
+        const trackIds = data.song?.map((t: any) => t.id) || [];
+        const albumIds = data.album?.map((a: any) => a.id) || [];
+        setLikedItems(trackIds, albumIds);
+      }).catch(e => console.error("Failed to fetch starred items", e));
     }
 
-    fetchStarred().then(data => {
-      const trackIds = data.song?.map((t: any) => t.id) || [];
-      const albumIds = data.album?.map((a: any) => a.id) || [];
-      setLikedItems(trackIds, albumIds);
-    }).catch(e => console.error("Failed to fetch starred items", e));
+    if (!isJamRoute || !roomToJoin) {
+      getPlayQueue().then(queueData => {
+        if (queueData && queueData.entry) {
+          const mappedTracks: Track[] = queueData.entry.map((t: any) => ({
+            id: t.id,
+            title: t.title,
+            artist: t.artist,
+            album: t.album,
+            coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
+            duration: t.duration
+          }));
+          
+          let initialIndex = 0;
+          if (queueData.current) {
+            const idx = mappedTracks.findIndex(t => t.id === queueData.current);
+            if (idx !== -1) initialIndex = idx;
+          }
 
-    getPlayQueue().then(queueData => {
-      if (queueData && queueData.entry) {
-        const mappedTracks: Track[] = queueData.entry.map((t: any) => ({
-          id: t.id,
-          title: t.title,
-          artist: t.artist,
-          album: t.album,
-          coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
-          duration: t.duration
-        }));
-        
-        let initialIndex = 0;
-        if (queueData.current) {
-          const idx = mappedTracks.findIndex(t => t.id === queueData.current);
-          if (idx !== -1) initialIndex = idx;
+          usePlayerStore.setState({
+            queue: mappedTracks,
+            currentIndex: initialIndex,
+            isPlaying: false, 
+            initialPosition: queueData.position || 0
+          });
         }
+      }).catch(e => console.error("Failed to fetch play queue", e));
+    }
+  }, [isAuthenticated, roomToJoin, role, setLikedItems, isJamRoute]);
 
-        usePlayerStore.setState({
-          queue: mappedTracks,
-          currentIndex: initialIndex,
-          isPlaying: false, 
-          initialPosition: queueData.position || 0
-        });
-      }
-    }).catch(e => console.error("Failed to fetch play queue", e));
-  }, [isAuthenticated, roomToJoin, role, setLikedItems]);
-
-  const isJamRoute = location.pathname.startsWith('/jam');
   const isLoginRoute = location.pathname === '/login';
 
   return (
@@ -112,14 +116,14 @@ function AppContent() {
             ) : <Navigate to="/login" replace />
           } />
           
-          <Route path="/jam/*" element={ isAuthenticated ? <JamLayout /> : <Navigate to="/login" replace /> } />
+          <Route path="/jam/*" element={<JamLayout />} />
           <Route path="*" element={<Navigate to="/Holad" replace />} />
         </Routes>
         
         <NowPlayingModal />
       </div>
       
-      {!isJamRoute && !isLoginRoute && isAuthenticated && (
+      {!isLoginRoute && (isAuthenticated || (isJamRoute && role)) && (
         <>
           <BottomPlayer />
           <MobileBottomNav />

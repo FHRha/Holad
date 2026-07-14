@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Play, Pause, Heart, Star, MoreHorizontal, Clock, Radio, Music, ListPlus } from 'lucide-react';
 import { getAlbumFull, getCoverArtUrl, starItem, unstarItem, setItemRating } from '../../api/subsonic';
@@ -11,6 +11,8 @@ export default function AlbumView() {
   const { id } = useParams();
   const [album, setAlbum] = useState<any>(null);
   const [dominantColor, setDominantColor] = useState<string>('#181818');
+  const [visibleCount, setVisibleCount] = useState(50);
+  const observerTarget = useRef<HTMLDivElement>(null);
   
   const { setQueueAndPlay, playNext, addToQueue, likedAlbumIds, toggleAlbumLike, queue, currentIndex, likedTrackIds, toggleTrackLike, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
@@ -36,6 +38,23 @@ export default function AlbumView() {
     window.addEventListener('rating-updated', handleRatingUpdate);
     return () => window.removeEventListener('rating-updated', handleRatingUpdate);
   }, [album]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && album?.song && visibleCount < album.song.length) {
+          setVisibleCount(prev => prev + 50);
+        }
+      },
+      { threshold: 0.1, rootMargin: '200px' }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [album, visibleCount]);
 
   if (!album) return <div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
 
@@ -187,7 +206,7 @@ export default function AlbumView() {
               <div className="w-16 text-right"><Clock size={14} className="inline-block" /></div>
             </div>
             
-            {album.song?.map((track: any, index: number) => {
+            {album.song?.slice(0, visibleCount).map((track: any, index: number) => {
               const currentPlaying = queue[currentIndex]?.id === track.id;
               const isTrackLiked = likedTrackIds.includes(track.id);
               
@@ -237,6 +256,12 @@ export default function AlbumView() {
                 </div>
               );
             })}
+            
+            {album.song && visibleCount < album.song.length && (
+              <div ref={observerTarget} className="h-20 w-full flex items-center justify-center">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
           </div>
 
           {/* Metadata Sidebar */}

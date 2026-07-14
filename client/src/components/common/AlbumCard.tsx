@@ -95,8 +95,17 @@ export default function AlbumCard({ album }: { album: any }) {
 
   return (
     <div 
-      onClick={() => navigate(`/Holad/album/${album.id}`)}
-      className="group relative bg-card rounded-lg cursor-pointer flex flex-col h-full flex-shrink-0 border border-transparent hover:bg-[#282828]"
+      onClick={() => {
+        const isJam = window.location.pathname.startsWith('/jam');
+        const searchParams = new URLSearchParams(window.location.search);
+        const room = searchParams.get('room');
+        if (isJam && room) {
+          navigate(`/jam/library/album/${album.id}?room=${room}`);
+        } else {
+          navigate(`/Holad/album/${album.id}`);
+        }
+      }}
+      className="group relative bg-[#181818] hover:bg-[#282828] rounded-xl cursor-pointer flex flex-col p-4 flex-shrink-0 transition-colors duration-300 shadow-sm hover:shadow-lg h-full"
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}

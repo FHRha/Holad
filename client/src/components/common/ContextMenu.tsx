@@ -10,7 +10,9 @@ import { getCoverArtUrl } from '../../api/subsonic';
 export default function ContextMenu() {
   const navigate = useNavigate();
   const { isOpen, x, y, item, type, closeMenu } = useContextMenuStore();
-  const { setQueueAndPlay, playNext, addToQueue, queue, setQueue, likedTrackIds, likedAlbumIds, toggleTrackLike, toggleAlbumLike } = usePlayerStore();
+  const { setQueueAndPlay, playNext, addToQueue, queue, setQueue, likedTrackIds, likedAlbumIds, toggleTrackLike, toggleAlbumLike, role } = usePlayerStore();
+  const isJamRoute = window.location.pathname.startsWith('/jam');
+  const isGuest = isJamRoute && role !== 'host';
   const menuRef = useRef<HTMLDivElement>(null);
   const [rating, setRating] = useState(0);
   const [isCopied, setIsCopied] = useState(false);
@@ -165,51 +167,55 @@ export default function ContextMenu() {
         </div>
       )}
 
-      <div className="py-1 border-t border-white/10">
-        <ItemBtn 
-          icon={Heart} 
-          label={isLiked ? "Удалить из любимых" : "Любимый"} 
-          onClick={() => handleAction(onLike)} 
-          color={isLiked ? "text-primary" : "text-white"} 
-        />
-        
-        {/* Rating inline */}
-        <div className="flex items-center justify-between px-4 py-2 hover:bg-white/10 transition-colors cursor-default">
-          <div className="flex items-center gap-3 text-sm font-semibold text-white">
-            <Star size={16} />
-            <span>Оценить</span>
+      {!isGuest && (
+        <>
+          <div className="py-1 border-t border-white/10">
+            <ItemBtn 
+              icon={Heart} 
+              label={isLiked ? "Удалить из любимых" : "Любимый"} 
+              onClick={() => handleAction(onLike)} 
+              color={isLiked ? "text-primary" : "text-white"} 
+            />
+            
+            {/* Rating inline */}
+            <div className="flex items-center justify-between px-4 py-2 hover:bg-white/10 transition-colors cursor-default">
+              <div className="flex items-center gap-3 text-sm font-semibold text-white">
+                <Star size={16} />
+                <span>Оценить</span>
+              </div>
+              <div className="flex gap-1 text-yellow-400">
+                {[1, 2, 3, 4, 5].map(v => (
+                  <Star 
+                    key={v} 
+                    size={14} 
+                    fill={v <= rating ? 'currentColor' : 'transparent'} 
+                    className={`cursor-pointer hover:scale-125 transition-transform ${v > rating ? 'text-white/30' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); onRate(v); }}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="flex gap-1 text-yellow-400">
-            {[1, 2, 3, 4, 5].map(v => (
-              <Star 
-                key={v} 
-                size={14} 
-                fill={v <= rating ? 'currentColor' : 'transparent'} 
-                className={`cursor-pointer hover:scale-125 transition-transform ${v > rating ? 'text-white/30' : ''}`}
-                onClick={(e) => { e.stopPropagation(); onRate(v); }}
-              />
-            ))}
+
+          <div className="py-1 border-t border-white/10">
+            <ItemBtn icon={Download} label="Скачать" onClick={() => handleAction(onDownload)} />
+            <ItemBtn 
+              icon={Share2} 
+              label={isCopied ? "Скопировано!" : "Поделиться (Врем. ссылка)"} 
+              onClick={() => handleAction(onShare, false)} 
+              color={isCopied ? "text-primary font-bold" : "text-white"}
+            />
           </div>
-        </div>
-      </div>
 
-      <div className="py-1 border-t border-white/10">
-        <ItemBtn icon={Download} label="Скачать" onClick={() => handleAction(onDownload)} />
-        <ItemBtn 
-          icon={Share2} 
-          label={isCopied ? "Скопировано!" : "Поделиться (Врем. ссылка)"} 
-          onClick={() => handleAction(onShare, false)} 
-          color={isCopied ? "text-primary font-bold" : "text-white"}
-        />
-      </div>
-
-      <div className="py-1 border-t border-white/10">
-        <ItemBtn icon={User} label="Перейти к Исполнителю" onClick={() => handleAction(() => {})} />
-        <ItemBtn icon={Disc} label="Перейти к Альбому" onClick={() => handleAction(() => {
-          if (isAlbum) navigate(`/Holad/album/${item.id}`);
-          else if (item.albumId) navigate(`/Holad/album/${item.albumId}`);
-        })} />
-      </div>
+          <div className="py-1 border-t border-white/10">
+            <ItemBtn icon={User} label="Перейти к Исполнителю" onClick={() => handleAction(() => {})} />
+            <ItemBtn icon={Disc} label="Перейти к Альбому" onClick={() => handleAction(() => {
+              if (isAlbum) navigate(`/Holad/album/${item.id}`);
+              else if (item.albumId) navigate(`/Holad/album/${item.albumId}`);
+            })} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

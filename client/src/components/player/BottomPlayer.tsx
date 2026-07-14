@@ -11,7 +11,7 @@ import TrackImage from '../common/TrackImage';
 
 
 export default function BottomPlayer() {
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, addToQueue, likedTrackIds, toggleTrackLike, initialPosition, setInitialPosition, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, addToQueue, likedTrackIds, toggleTrackLike, initialPosition, setInitialPosition, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized } = usePlayerStore();
   const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [progress, setProgress] = useState(0);
@@ -38,16 +38,19 @@ export default function BottomPlayer() {
   }, [currentTrack, initialPosition, setInitialPosition]);
 
   useEffect(() => {
-    if (role === 'listener' || queue.length === 0 || !currentTrack) return;
+    let interval: ReturnType<typeof setInterval>;
     
-    const interval = setInterval(() => {
-      if (isPlaying && audioRef.current) {
-         const trackIds = queue.map(t => t.id);
-         const pos = Math.floor(audioRef.current.currentTime * 1000);
-         savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
-      }
-    }, 10000);
+    const isJamUrl = window.location.pathname.startsWith('/jam');
     
+    if (isPlaying && currentTrack && role !== 'listener' && !isJamUrl) {
+      interval = setInterval(() => {
+        if (audioRef.current) {
+          const trackIds = queue.map(t => t.id);
+          const pos = Math.floor(audioRef.current.currentTime * 1000);
+          savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
+        }
+      }, 10000);
+    }
     return () => clearInterval(interval);
   }, [queue, currentTrack, isPlaying, role]);
 
@@ -61,12 +64,17 @@ export default function BottomPlayer() {
   useEffect(() => {
     if (audioRef.current && currentTrack) {
       if (isPlaying) {
-        audioRef.current.play().catch(e => console.error("Auto-play prevented", e));
+        audioRef.current.play().catch(e => {
+          console.error("Playback error:", e);
+          if (e.name === 'NotAllowedError') {
+            setIsPlaying(false);
+          }
+        });
       } else {
         audioRef.current.pause();
       }
     }
-  }, [isPlaying, currentTrack]);
+  }, [isPlaying, currentTrack, setIsPlaying]);
 
   const handleVolumeChange = (newVolume: number) => {
     setVolume(newVolume);
@@ -120,7 +128,7 @@ export default function BottomPlayer() {
     if (role === 'listener') return; 
     setIsPlaying(!isPlaying);
     
-    if (isPlaying && audioRef.current && currentTrack) {
+    if (isPlaying && audioRef.current && currentTrack && !isJamRoute) {
       const trackIds = queue.map(t => t.id);
       const pos = Math.floor(audioRef.current.currentTime * 1000);
       savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
@@ -138,12 +146,20 @@ export default function BottomPlayer() {
     if (audioRef.current && currentTrack) {
       audioRef.current.currentTime = value * currentTrack.duration;
       
-      const trackIds = queue.map(t => t.id);
-      const pos = Math.floor(audioRef.current.currentTime * 1000);
-      savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
+      if (!isJamRoute) {
+        const trackIds = queue.map(t => t.id);
+        const pos = Math.floor(audioRef.current.currentTime * 1000);
+        savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
+      }
     }
     setIsSeeking(false);
   };
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const isJamRoute = window.location.pathname.startsWith('/jam');
+  const isStandalone = isJamRoute && !!searchParams.get('track');
+  const hideSocialActions = isJamRoute && (role === 'listener' || isStandalone);
+  const hideAutoDJ = isJamRoute && isStandalone;
 
   if (!currentTrack) return null;
 
@@ -171,10 +187,11 @@ export default function BottomPlayer() {
 
       {/* Controls (Center) */}
       <div className="flex flex-col items-center justify-center flex-1 max-w-[40%] gap-3 mt-0">
-        <div className="flex items-center gap-7">
+        <div className="flex items-center justify-center gap-4">
           <button 
             onClick={toggleShuffle} 
-            className={`transition-colors ${isShuffle ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+            disabled={role === 'listener'}
+            className={`transition-colors disabled:opacity-50 ${isShuffle ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
           >
             <Shuffle size={20} />
           </button>
@@ -191,7 +208,8 @@ export default function BottomPlayer() {
           <button onClick={nextTrack} disabled={role === 'listener'} className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"><SkipForward size={24} fill="currentColor" /></button>
           <button 
             onClick={cycleRepeatMode} 
-            className={`transition-colors ${repeatMode !== 'none' ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+            disabled={role === 'listener'}
+            className={`transition-colors disabled:opacity-50 ${repeatMode !== 'none' ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
           >
             {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
           </button>
@@ -214,52 +232,72 @@ export default function BottomPlayer() {
       <div className="flex flex-col justify-center items-end w-[30%] min-w-[200px] text-secondary pr-2">
         <div className="flex flex-col gap-3 w-[240px]">
           {/* Top row: Favorite, Stars, Auto DJ */}
-          <div className="flex items-center gap-4 w-full">
-            <button 
-              onClick={handleLike} 
-              className="hover:text-primary transition-colors flex items-center justify-center w-5"
-            >
-              <Heart size={18} fill={likedTrackIds.includes(currentTrack.id) ? "currentColor" : "none"} className={likedTrackIds.includes(currentTrack.id) ? "text-primary" : ""} />
-            </button>
-            
-            {/* Star Rating */}
-            <div className="flex items-center justify-center gap-0.5 flex-1" onMouseLeave={() => {}}>
-              {[1, 2, 3, 4, 5].map(star => {
-                const currentRating = currentTrack.userRating || 0;
-                const isFilled = star <= currentRating;
-                return (
-                  <button 
-                    key={star} 
-                    className={`transition-colors ${isFilled ? 'text-primary' : 'text-white/20 hover:text-white/60'}`}
-                    onClick={() => {
-                      const newRating = currentRating === star ? 0 : star;
-                      setTrackRating(currentTrack.id, newRating);
-                    }}
-                  >
-                    <Star size={16} fill={isFilled ? "currentColor" : "none"} />
-                  </button>
-                );
-              })}
-            </div>
+          <div className="flex items-center gap-4 w-full justify-end">
+            {!hideSocialActions && (
+              <>
+                <button 
+                  onClick={handleLike} 
+                  disabled={role === 'listener'}
+                  className="hover:text-primary transition-colors flex items-center justify-center w-5 disabled:opacity-50"
+                >
+                  <Heart size={18} fill={likedTrackIds.includes(currentTrack.id) ? "currentColor" : "none"} className={likedTrackIds.includes(currentTrack.id) ? "text-primary" : ""} />
+                </button>
+                
+                {/* Star Rating */}
+                <div className={`flex items-center justify-center gap-0.5 flex-1 ${role === 'listener' ? 'pointer-events-none opacity-50' : ''}`} onMouseLeave={() => {}}>
+                  {[1, 2, 3, 4, 5].map(star => {
+                    const currentRating = currentTrack.userRating || 0;
+                    const isFilled = star <= currentRating;
+                    return (
+                      <button 
+                        key={star} 
+                        className={`transition-colors ${isFilled ? 'text-primary' : 'text-white/20 hover:text-white/60'}`}
+                        onClick={() => {
+                          const newRating = currentRating === star ? 0 : star;
+                          setTrackRating(currentTrack.id, newRating);
+                        }}
+                      >
+                        <Star size={16} fill={isFilled ? "currentColor" : "none"} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
-            <button 
-              onClick={toggleAutoDj}
-              className={`text-xs font-bold tracking-wider transition-colors ${isAutoDjEnabled ? 'text-primary' : 'text-secondary hover:text-white'}`}
-            >
-              АВТО DJ
-            </button>
+            {!hideAutoDJ && (
+              <button 
+                onClick={toggleAutoDj}
+                disabled={role === 'listener'}
+                className={`text-[10px] font-bold tracking-widest transition-colors w-16 text-right disabled:opacity-50 ${isAutoDjEnabled ? 'text-primary' : 'text-secondary hover:text-white'}`}
+              >
+                АВТО DJ
+              </button>
+            )}
           </div>
 
           {/* Bottom row: Expand & Volume */}
           <div className="flex items-center gap-4 w-full">
-            {/* Expand Now Playing View */}
-            <button 
-              onClick={toggleNowPlaying}
-              className={`transition-colors flex items-center justify-center w-5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-white'}`}
-              title="Сейчас играет"
-            >
-              <Maximize2 size={16} />
-            </button>
+            {/* Expand Now Playing View or Maximize Jam */}
+            {role === 'listener' ? (
+              <div className="w-5" /> // Placeholder for alignment
+            ) : (isJamRoute && role !== 'host') ? (
+              <button 
+                onClick={() => setIsMinimized(!isMinimized)}
+                className={`transition-colors flex items-center justify-center w-5 ${!isMinimized ? 'text-primary' : 'text-secondary hover:text-white'}`}
+                title={isMinimized ? "Развернуть сессию" : "Свернуть сессию"}
+              >
+                <Maximize2 size={16} />
+              </button>
+            ) : (
+              <button 
+                onClick={toggleNowPlaying}
+                className={`transition-colors flex items-center justify-center w-5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-white'}`}
+                title="Сейчас играет"
+              >
+                <Maximize2 size={16} />
+              </button>
+            )}
             
             <div className="flex items-center gap-3 flex-1">
               <button onClick={() => setVolume(volume === 0 ? 1 : 0)} className="hover:text-foreground transition-colors">
@@ -362,23 +400,24 @@ export default function BottomPlayer() {
 
         {/* Controls */}
         <div className="flex items-center justify-between mb-8">
-          <button className="text-white/70 hover:text-white transition-colors">
+          <button onClick={toggleShuffle} disabled={role === 'listener'} className={`transition-colors disabled:opacity-50 ${isShuffle ? 'text-primary' : 'text-white/70 hover:text-white'}`}>
             <Shuffle size={24} />
           </button>
-          <button onClick={prevTrack} className="text-white hover:text-primary transition-colors">
+          <button onClick={prevTrack} disabled={role === 'listener'} className="text-white hover:text-primary transition-colors disabled:opacity-50">
             <SkipBack fill="currentColor" size={32} />
           </button>
           <button 
             onClick={() => setIsPlaying(!isPlaying)}
-            className="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform"
+            disabled={role === 'listener'}
+            className="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
           >
             {isPlaying ? <Pause fill="currentColor" size={32} /> : <Play fill="currentColor" size={36} className="ml-2" />}
           </button>
-          <button onClick={nextTrack} className="text-white hover:text-primary transition-colors">
+          <button onClick={nextTrack} disabled={role === 'listener'} className="text-white hover:text-primary transition-colors disabled:opacity-50">
             <SkipForward fill="currentColor" size={32} />
           </button>
-          <button className="text-white/70 hover:text-white transition-colors">
-            <Repeat size={24} />
+          <button onClick={cycleRepeatMode} disabled={role === 'listener'} className={`transition-colors disabled:opacity-50 ${repeatMode !== 'none' ? 'text-primary' : 'text-white/70 hover:text-white'}`}>
+            {repeatMode === 'one' ? <Repeat1 size={24} /> : <Repeat size={24} />}
           </button>
         </div>
       </div>
@@ -388,13 +427,22 @@ export default function BottomPlayer() {
   return (
     <>
       <audio
-        ref={audioRef}
+        id="main-audio-player"
         crossOrigin="anonymous"
+        ref={audioRef}
         src={currentTrack ? getStreamUrl(currentTrack.id) : ''}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
+        onLoadedMetadata={(e) => {
+          (e.target as HTMLAudioElement).volume = volume * volume;
+        }}
         onSeeking={() => setIsSeeking(true)}
-        onSeeked={() => setIsSeeking(false)}
+        onSeeked={() => {
+          setIsSeeking(false);
+          if (audioRef.current) {
+            setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
+          }
+        }}
         loop={repeatMode === 'one'}
       />
       {DesktopPlayer}

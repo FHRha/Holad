@@ -33,26 +33,34 @@ interface PlayerState {
   
   // Jam Session State
   roomId: string | null;
-  role: 'host' | 'listener' | null;
+  role: 'host' | 'cohost' | 'listener' | null;
+  userName: string;
+  participants: { id: string; name: string; role: 'host' | 'cohost' | 'listener' }[];
   isAutoDjEnabled: boolean;
   syncDrift: number; // for tracking drift
-
+  jamError: string | null;
+  isMinimized: boolean;
+  
   // Playback Modes
   isShuffle: boolean;
   repeatMode: 'none' | 'all' | 'one';
 
   // Actions
   setQueue: (tracks: Track[]) => void;
-  setQueueAndPlay: (tracks: Track[], startIndex?: number) => void;
+  setQueueAndPlay: (tracks: Track[], index: number) => void;
   playNext: (tracks: Track[]) => void;
   addToQueue: (tracks: Track[]) => void;
+  removeFromQueue: (index: number) => void;
   clearQueue: () => void;
+  setCurrentIndex: (index: number) => void;
   playTrack: (index: number) => void;
   nextTrack: () => void;
   prevTrack: () => void;
-  setIsPlaying: (playing: boolean) => void;
+  setIsPlaying: (isPlaying: boolean) => void;
+  setRepeatMode: (mode: 'none' | 'all' | 'one') => void;
   setVolume: (volume: number) => void;
   setInitialPosition: (position: number) => void;
+  
   toggleAutoDj: () => void;
   setSyncDrift: (drift: number) => void;
   toggleShuffle: () => void;
@@ -63,7 +71,11 @@ interface PlayerState {
   addTrackToPlaylist: (playlistId: string, track: Track) => void;
   
   // Jam Session Actions
-  setRoomInfo: (roomId: string | null, role: 'host' | 'listener' | null) => void;
+  setRoomInfo: (roomId: string | null, role: 'host' | 'cohost' | 'listener' | null) => void;
+  setJamError: (error: string | null) => void;
+  setUserName: (name: string) => void;
+  setParticipants: (participants: { id: string; name: string; role: 'host' | 'cohost' | 'listener' }[]) => void;
+  setIsMinimized: (minimized: boolean) => void;
   
   // Likes and Ratings
   setLikedItems: (tracks: string[], albums: string[]) => void;
@@ -83,13 +95,20 @@ export const usePlayerStore = create<PlayerState>()(
       initialPosition: 0,
       localPlaylists: [],
       
+      jamBackupQueue: null,
+      jamBackupIndex: null,
+      
       likedTrackIds: [],
       likedAlbumIds: [],
       
       roomId: null,
       role: null,
+      userName: '',
+      participants: [],
       isAutoDjEnabled: false,
       syncDrift: 0,
+      jamError: null,
+      isMinimized: false,
       isShuffle: false,
       repeatMode: 'none',
 
@@ -133,6 +152,19 @@ export const usePlayerStore = create<PlayerState>()(
         isPlaying: state.currentIndex === -1 ? true : state.isPlaying
       })),
       clearQueue: () => set({ queue: [], originalQueue: [], currentIndex: -1, isPlaying: false, isShuffle: false }),
+      removeFromQueue: (index) => set((state) => {
+        const newQueue = [...state.queue];
+        newQueue.splice(index, 1);
+        return {
+          queue: newQueue,
+          currentIndex: state.currentIndex === index 
+            ? -1 
+            : state.currentIndex > index 
+              ? state.currentIndex - 1 
+              : state.currentIndex
+        };
+      }),
+      setCurrentIndex: (index) => set({ currentIndex: index }),
       
       playTrack: (index) => set({ currentIndex: index, isPlaying: true }),
       
@@ -158,9 +190,22 @@ export const usePlayerStore = create<PlayerState>()(
       setIsPlaying: (playing) => set({ isPlaying: playing }),
       
       setVolume: (volume) => set({ volume }),
-
-      setInitialPosition: (initialPosition) => set({ initialPosition }),
-
+      setInitialPosition: (position) => set({ initialPosition: position }),
+      
+      setRoomInfo: (roomId, role) => set(() => {
+        if (roomId) {
+          return { roomId, role, jamError: null };
+        } else {
+          return { roomId: null, role: null, participants: [], isMinimized: false };
+        }
+      }),
+      setJamError: (error) => set({ jamError: error }),
+      setUserName: (name) => set({ userName: name }),
+      setParticipants: (participants) => set({ participants }),
+      setIsMinimized: (minimized) => set({ isMinimized: minimized }),
+      
+      // Backup queue logic removed to prevent queue overwriting
+      
       toggleAutoDj: () => set((state) => ({ isAutoDjEnabled: !state.isAutoDjEnabled })),
 
       setSyncDrift: (drift) => set({ syncDrift: drift }),
@@ -198,10 +243,14 @@ export const usePlayerStore = create<PlayerState>()(
       }),
       
       cycleRepeatMode: () => set((state) => {
-        const modes: ('none' | 'all' | 'one')[] = ['none', 'all', 'one'];
-        const nextIndex = (modes.indexOf(state.repeatMode) + 1) % modes.length;
-        return { repeatMode: modes[nextIndex] };
+        const next: Record<string, 'none' | 'all' | 'one'> = {
+          'none': 'all',
+          'all': 'one',
+          'one': 'none'
+        };
+        return { repeatMode: next[state.repeatMode] };
       }),
+      setRepeatMode: (mode) => set({ repeatMode: mode }),
       
       createPlaylist: (name) => set((state) => ({
         localPlaylists: [...state.localPlaylists, { id: Date.now().toString(), name, tracks: [] }]
@@ -213,7 +262,6 @@ export const usePlayerStore = create<PlayerState>()(
         )
       })),
 
-      setRoomInfo: (roomId, role) => set({ roomId, role }),
 
       setLikedItems: (tracks, albums) => set({ likedTrackIds: tracks, likedAlbumIds: albums }),
       
@@ -261,6 +309,8 @@ export const usePlayerStore = create<PlayerState>()(
         currentIndex: state.currentIndex,
         isShuffle: state.isShuffle,
         repeatMode: state.repeatMode,
+        isAutoDjEnabled: state.isAutoDjEnabled,
+        userName: state.userName,
       }),
     }
   )

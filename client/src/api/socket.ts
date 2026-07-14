@@ -8,6 +8,9 @@ const SOCKET_URL = '/';
 class JamSocketService {
   private socket: Socket | null = null;
   private syncInterval: ReturnType<typeof setInterval> | null = null;
+  private unsubscribeStore: (() => void) | null = null;
+  private isApplyingRemoteState = false;
+  private latestStateVersion: number = 0;
 
   connect() {
     if (this.socket) return;
@@ -33,29 +36,90 @@ class JamSocketService {
       usePlayerStore.getState().setRoomInfo(roomId, role);
       this.stopHostSync(); // Listeners don't sync state outwards
       // Immediately apply host's state
+      this.isApplyingRemoteState = true;
       this.applySyncState(state);
+      this.isApplyingRemoteState = false;
     });
 
-    this.socket.on('syncState', (state) => {
-      const { role } = usePlayerStore.getState();
-      if (role === 'listener') {
-        this.applySyncState(state);
+    this.socket.on('syncStateVersion', (version) => {
+      if (version > this.latestStateVersion) {
+        this.latestStateVersion = version;
       }
     });
 
-    this.socket.on('error', (msg) => {
-      console.error('Socket Error:', msg);
-      alert(msg);
+    this.socket.on('syncState', (state) => {
+      if (state.version !== undefined) {
+        this.latestStateVersion = state.version;
+      }
+      this.isApplyingRemoteState = true;
+      this.applySyncState(state);
+      this.isApplyingRemoteState = false;
+    });
+
+    this.socket.on('syncQueue', ({ queue, currentIndex, version }) => {
+      if (version !== undefined) {
+        this.latestStateVersion = version;
+      }
+      const currentStore = usePlayerStore.getState();
+      if (queue !== currentStore.queue || currentIndex !== currentStore.currentIndex) {
+        this.isApplyingRemoteState = true;
+        usePlayerStore.setState({ queue, currentIndex });
+        this.isApplyingRemoteState = false;
+      }
+    });
+
+    this.socket.on('participants', (participants) => {
+      usePlayerStore.getState().setParticipants(participants);
+    });
+
+    // Fallback for older server code in case it wasn't restarted
+    this.socket.on('participantsUpdated', (participants) => {
+      usePlayerStore.getState().setParticipants(participants);
+    });
+
+    this.socket.on('roleChanged', (role) => {
+      usePlayerStore.setState({ role });
+      if (role === 'cohost') {
+        this.startHostSync(); // start syncing outwards
+      } else if (role === 'listener') {
+        this.stopHostSync();
+      }
+    });
+
+    this.socket.on('kicked', () => {
+      usePlayerStore.getState().setJamError('Вас исключили из сессии');
       usePlayerStore.getState().setRoomInfo(null, null);
       this.stopHostSync();
+      window.location.href = '/jam/';
+    });
+
+    this.socket.on('error', (msg) => {
+      usePlayerStore.getState().setJamError(msg);
+      usePlayerStore.getState().setRoomInfo(null, null);
+      this.stopHostSync();
+      window.location.href = '/jam/';
     });
   }
-  createRoom() {
-    this.socket?.emit('createRoom');
+  createRoom(name?: string) {
+    this.socket?.emit('createRoom', name);
   }
 
-  joinRoom(roomId: string) {
-    this.socket?.emit('joinRoom', roomId);
+  joinRoom(roomId: string, name: string) {
+    this.socket?.emit('joinRoom', { roomId, name });
+  }
+
+  grantRole(userId: string, role: 'host' | 'cohost' | 'listener') {
+    const { roomId } = usePlayerStore.getState();
+    if (roomId) {
+      this.socket?.emit('grantRole', { roomId, userId, role });
+    }
+  }
+
+  kickParticipant(userId: string) {
+    const { roomId } = usePlayerStore.getState();
+    if (roomId) {
+      this.socket?.emit('kickParticipant', { roomId, userId });
+    }
   }
 
   leaveRoom() {
@@ -69,20 +133,54 @@ class JamSocketService {
 
   private startHostSync() {
     this.stopHostSync();
+    
+    // Send initial queue
+    const state = usePlayerStore.getState();
+    if (state.roomId && state.queue.length > 0) {
+      this.socket?.emit('syncQueue', { roomId: state.roomId, queue: state.queue, currentIndex: state.currentIndex });
+    }
+
     this.syncInterval = setInterval(() => {
-      const { roomId, queue, currentIndex, isPlaying } = usePlayerStore.getState();
-      if (roomId && queue.length > 0 && currentIndex >= 0) {
+      const state = usePlayerStore.getState();
+      if (state.roomId && state.queue.length > 0 && state.currentIndex >= 0 && (state.role === 'host' || state.role === 'cohost')) {
         const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
         if (audioEl) {
           this.socket?.emit('syncState', {
-            roomId,
-            trackId: queue[currentIndex].id,
+            roomId: state.roomId,
+            trackId: state.queue[state.currentIndex].id,
             currentTime: audioEl.currentTime,
-            isPlaying
+            isPlaying: state.isPlaying,
+            currentIndex: state.currentIndex,
+            isAutoDjEnabled: state.isAutoDjEnabled,
+            version: this.latestStateVersion
           });
         }
       }
     }, 2000); // Send sync ping every 2 seconds
+
+    this.unsubscribeStore = usePlayerStore.subscribe((newState, prevState) => {
+      if (this.isApplyingRemoteState) return;
+      
+      if (newState.roomId && (newState.role === 'host' || newState.role === 'cohost')) {
+        if (newState.queue !== prevState.queue || newState.currentIndex !== prevState.currentIndex) {
+          this.socket?.emit('syncQueue', { roomId: newState.roomId, queue: newState.queue, currentIndex: newState.currentIndex });
+        }
+        if (newState.isPlaying !== prevState.isPlaying) {
+          const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
+          if (audioEl) {
+            this.socket?.emit('syncState', {
+              roomId: newState.roomId,
+              trackId: newState.queue[newState.currentIndex]?.id,
+              currentTime: audioEl.currentTime,
+              isPlaying: newState.isPlaying,
+              currentIndex: newState.currentIndex,
+              isAutoDjEnabled: newState.isAutoDjEnabled,
+              version: this.latestStateVersion
+            });
+          }
+        }
+      }
+    });
   }
 
   private stopHostSync() {
@@ -90,24 +188,26 @@ class JamSocketService {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
     }
+    if (this.unsubscribeStore) {
+      this.unsubscribeStore();
+      this.unsubscribeStore = null;
+    }
   }
 
   private applySyncState(state: any) {
-    const { trackId, currentTime, isPlaying } = state;
+    const { currentTime, isPlaying, currentIndex, queue, isAutoDjEnabled } = state;
     const store = usePlayerStore.getState();
     const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
 
-    // Check if we need to change track
-    const currentTrack = store.queue[store.currentIndex];
-    if (!currentTrack || currentTrack.id !== trackId) {
-      // Find track in queue or we have a problem. 
-      // For simplicity, if Host plays a track not in listener's queue, 
-      // the listener needs that track added to queue.
-      // But we will just assume listener has the same queue for now,
-      // or we dispatch an event to fetch it.
-      // A better approach: Host broadcasts the full track object when it changes.
-      // Let's implement that in the next iteration.
-      console.log("Track changed by host to", trackId);
+    // Apply queue if present (initial join)
+    if (queue && queue.length > 0 && queue !== store.queue) {
+      usePlayerStore.setState({ queue, currentIndex: currentIndex !== undefined ? currentIndex : 0 });
+    } else if (currentIndex !== undefined && currentIndex !== store.currentIndex) {
+      usePlayerStore.setState({ currentIndex });
+    }
+
+    if (isAutoDjEnabled !== undefined && isAutoDjEnabled !== store.isAutoDjEnabled) {
+      usePlayerStore.setState({ isAutoDjEnabled });
     }
 
     if (audioEl) {

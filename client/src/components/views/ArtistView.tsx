@@ -89,14 +89,14 @@ export default function ArtistView() {
 
   const handlePlayArtist = () => {
     if (topSongs.length > 0) {
-      setQueueAndPlay(topSongs);
+      setQueueAndPlay(topSongs, 0);
     }
   };
 
   const handleShuffleArtist = () => {
     if (topSongs.length > 0) {
       const shuffled = [...topSongs].sort(() => Math.random() - 0.5);
-      setQueueAndPlay(shuffled);
+      setQueueAndPlay(shuffled, 0);
     }
   };
 

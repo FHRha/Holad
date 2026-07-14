@@ -6,17 +6,20 @@ import { useUIStore } from '../../store/uiStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { formatTime } from '../../utils/timeFormat';
 import { formatArtistName } from '../../utils/formatters';
+import JamSessionControl from '../jam/JamSessionControl';
 
 export default function TopBar() {
   const { isSearchOpen, setSearchOpen } = useUIStore();
-  const { setQueueAndPlay } = usePlayerStore();
+  const { setQueueAndPlay, roomId } = usePlayerStore();
   const navigate = useNavigate();
   
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<{song: any[], album: any[], artist: any[]}>({ song: [], album: [], artist: [] });
   const [loading, setLoading] = useState(false);
+  const [showSession, setShowSession] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const sessionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -27,6 +30,7 @@ export default function TopBar() {
       }
       if (e.key === 'Escape') {
         setSearchOpen(false);
+        setShowSession(false);
         inputRef.current?.blur();
       }
     };
@@ -38,6 +42,9 @@ export default function TopBar() {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setSearchOpen(false);
+      }
+      if (sessionRef.current && !sessionRef.current.contains(e.target as Node)) {
+        setShowSession(false);
       }
     };
     window.addEventListener('mousedown', handleClickOutside);
@@ -62,28 +69,28 @@ export default function TopBar() {
             artist: data.artist || []
           });
         } catch (e) {
-          console.error(e);
+          console.error("Search failed", e);
         } finally {
           setLoading(false);
         }
       } else {
         setResults({ song: [], album: [], artist: [] });
       }
-    }, 500);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [query]);
 
-  const playTrack = (track: any) => {
+  const handlePlaySong = (song: any) => {
     setQueueAndPlay([{
-      id: track.id,
-      title: track.title,
-      artist: track.artist,
-      album: track.album,
-      albumId: track.albumId,
-      coverArt: getCoverArtUrl(track.coverArt || track.albumId, 300),
-      duration: track.duration
-    }]);
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      album: song.album,
+      albumId: song.albumId,
+      coverArt: getCoverArtUrl(song.coverArt || song.id, 600),
+      duration: song.duration
+    }], 0);
     setSearchOpen(false);
   };
 
@@ -99,7 +106,8 @@ export default function TopBar() {
   };
 
   return (
-    <div className="sticky top-0 z-50 h-16 bg-background/95 backdrop-blur-md border-b border-white/5 flex items-center justify-center px-4 w-full">
+    <div className="sticky top-0 z-50 h-16 bg-background/95 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-4 w-full">
+      <div className="w-10"></div> {/* Spacer for symmetry */}
       <div className="relative w-full max-w-xl" ref={containerRef}>
         <div className="relative flex items-center w-full bg-white/10 rounded-full hover:bg-white/15 transition-colors focus-within:bg-white/15 focus-within:ring-2 focus-within:ring-primary/50">
           <Search size={20} className="text-secondary ml-4" />
@@ -151,7 +159,7 @@ export default function TopBar() {
                         <div 
                           key={track.id}
                           className="group flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
-                          onClick={() => playTrack(track)}
+                          onClick={() => handlePlaySong(track)}
                         >
                           <div className="relative w-10 h-10 rounded overflow-hidden flex-shrink-0">
                             <img src={getCoverArtUrl(track.coverArt || track.albumId, 100)} className="w-full h-full object-cover" alt="" />
@@ -219,6 +227,25 @@ export default function TopBar() {
                 )}
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      <div className="relative" ref={sessionRef}>
+        <button 
+          onClick={() => setShowSession(!showSession)}
+          className={`h-10 px-4 rounded-full flex items-center justify-center gap-2 transition-colors ${showSession ? 'bg-primary/20 text-primary' : roomId ? 'bg-primary text-background hover:scale-105' : 'bg-white/5 hover:bg-white/10 text-secondary hover:text-white'}`}
+          title="Jam Session"
+        >
+          <Users size={18} />
+          <span className="text-sm font-bold hidden sm:inline">Совместный джэм</span>
+        </button>
+        
+        {showSession && (
+          <div className="absolute top-full right-0 mt-2 p-4 bg-card/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl w-80 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
+            <h3 className="font-bold text-center mb-1">Совместное прослушивание</h3>
+            <p className="text-xs text-secondary text-center mb-2">Слушайте музыку вместе с друзьями в реальном времени</p>
+            <JamSessionControl />
           </div>
         )}
       </div>
