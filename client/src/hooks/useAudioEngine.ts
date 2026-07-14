@@ -16,6 +16,26 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
       // Use exponential curve for volume (x^2) as human hearing is logarithmic
       audioRef.current.volume = volume * volume;
       setAudioElement(audioRef.current);
+      
+      // Initialize AudioContext early to prevent stuttering when switching to visualizer
+      const audioEl = audioRef.current as any;
+      if (!audioEl._audioCtx) {
+        try {
+          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          audioEl._audioCtx = ctx;
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.8;
+          audioEl._analyser = analyser;
+          
+          const source = ctx.createMediaElementSource(audioRef.current);
+          source.connect(analyser);
+          analyser.connect(ctx.destination);
+          audioEl._source = source;
+        } catch (e) {
+          console.error("Failed to pre-initialize audio context:", e);
+        }
+      }
     }
     return () => setAudioElement(null);
   }, [volume, setAudioElement]);
@@ -48,7 +68,12 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
   useEffect(() => {
     if (audioRef.current && currentTrack) {
       if (isPlaying) {
-        audioRef.current.play().catch(e => {
+        audioRef.current.play().then(() => {
+          const audioEl = audioRef.current as any;
+          if (audioEl && audioEl._audioCtx && audioEl._audioCtx.state === 'suspended') {
+            audioEl._audioCtx.resume();
+          }
+        }).catch(e => {
           console.error("Playback error:", e);
           if (e.name === 'NotAllowedError') {
             setIsPlaying(false);

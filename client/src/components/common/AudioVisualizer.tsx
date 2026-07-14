@@ -16,23 +16,7 @@ export default function AudioVisualizer() {
     // We attach it to the audio element as a property to reuse it!
     const audioEl = audioElement as any;
 
-    if (!audioEl._audioCtx) {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      audioEl._audioCtx = ctx;
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.8;
-      audioEl._analyser = analyser;
-      
-      try {
-        const source = ctx.createMediaElementSource(audioElement);
-        source.connect(analyser);
-        analyser.connect(ctx.destination);
-        audioEl._source = source;
-      } catch (e) {
-        console.error("Already connected source?", e);
-      }
-    }
+
 
     const ctx = audioEl._audioCtx as AudioContext;
     const analyser = audioEl._analyser as AnalyserNode;
