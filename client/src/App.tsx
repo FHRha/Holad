@@ -19,11 +19,14 @@ import TopBar from './components/layout/TopBar';
 import NowPlayingModal from './components/common/NowPlayingModal';
 
 import { useAppInitialization } from './hooks/useAppInitialization';
+import { useDocumentTitle } from './hooks/useDocumentTitle';
 
 function AppContent() {
   const location = useLocation();
   const { isAuthenticated, isJamRoute } = useAppInitialization();
   const role = usePlayerStore(state => state.role);
+  
+  useDocumentTitle();
 
   const isLoginRoute = location.pathname === '/login';
 
