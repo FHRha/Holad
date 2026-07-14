@@ -148,7 +148,11 @@ export default function ContextMenu() {
     >
       {/* Header */}
       <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
-        <img src={item.coverArt} alt="" className="w-10 h-10 rounded object-cover shadow-md" />
+        <img 
+          src={item.coverArt && item.coverArt.toString().startsWith('http') ? item.coverArt : getCoverArtUrl(item.coverArt || item.id, 300)} 
+          alt="" 
+          className="w-10 h-10 rounded object-cover shadow-md" 
+        />
         <div className="flex flex-col min-w-0">
           <span className="font-bold text-white text-sm truncate">{item.title || item.name}</span>
           <span className="text-secondary text-xs truncate">{item.artist}</span>

@@ -5,10 +5,13 @@ import TrackImage from '../common/TrackImage';
 import { Play, Shuffle, ArrowLeft } from 'lucide-react';
 import { formatTime } from '../../utils/timeFormat';
 import { useArtistData } from '../../hooks/useArtistData';
+import { useContextMenuStore } from '../../store/contextMenuStore';
+import { getCoverArtUrl } from '../../api/subsonic';
 
 export default function ArtistView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { openMenu } = useContextMenuStore();
   
   const {
     artist,
@@ -98,6 +101,10 @@ export default function ArtistView() {
                 <div 
                   key={track.id}
                   onClick={() => handlePlaySong(index)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId || '', 300) }, 'track');
+                  }}
                   className="group flex items-center gap-4 p-2 sm:p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
                 >
                   <div className="w-6 text-center text-sm font-medium text-secondary/70 group-hover:text-white">
