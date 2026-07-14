@@ -90,14 +90,18 @@ class JamSocketService {
       usePlayerStore.getState().setJamError('Вас исключили из сессии');
       usePlayerStore.getState().setRoomInfo(null, null);
       this.stopHostSync();
-      window.location.href = '/jam/';
+      if (window.location.pathname.startsWith('/jam') && window.location.pathname !== '/jam/') {
+        window.location.href = '/jam/';
+      }
     });
 
     this.socket.on('error', (msg) => {
       usePlayerStore.getState().setJamError(msg);
       usePlayerStore.getState().setRoomInfo(null, null);
       this.stopHostSync();
-      window.location.href = '/jam/';
+      if (window.location.pathname.startsWith('/jam') && window.location.pathname !== '/jam/') {
+        window.location.href = '/jam/';
+      }
     });
   }
   createRoom(name?: string) {

@@ -75,17 +75,17 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
     
     if (lyricsContainerRef.current) {
-      const container = lyricsContainerRef.current;
-      const containerHeight = container.clientHeight;
-      const elementOffsetTop = activeElement.offsetTop;
-      const elementHeight = activeElement.offsetHeight;
-      
-      const targetScroll = elementOffsetTop - (containerHeight / 2) + (elementHeight / 2);
-      
-      container.scrollTo({
-        top: targetScroll,
-        behavior: 'smooth'
-      });
+      const container = lyricsContainerRef.current.closest('.overflow-y-auto') as HTMLElement;
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = activeElement.getBoundingClientRect();
+        const targetScroll = container.scrollTop + (elementRect.top - containerRect.top) - (containerRect.height / 2) + (elementRect.height / 2);
+        
+        container.scrollTo({
+          top: targetScroll,
+          behavior: 'smooth'
+        });
+      }
     }
     
     autoScrollTimeoutRef.current = setTimeout(() => {
