@@ -59,6 +59,10 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     setIsUserScrolled(false);
   }, [currentTrack?.id]);
 
+  const isUserScrolledRef = useRef(false);
+  const userScrollTimeoutRef = useRef<number | null>(null);
+  const activeLyricIndexRef = useRef(-1);
+
   const handleUserScroll = () => {
     if (isAutoScrolling.current) {
       if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
@@ -67,6 +71,24 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       }, 200) as unknown as number;
     } else {
       setIsUserScrolled(true);
+      isUserScrolledRef.current = true;
+      
+      if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current);
+      
+      if (audioElement && !audioElement.paused) {
+        userScrollTimeoutRef.current = setTimeout(() => {
+          setIsUserScrolled(false);
+          isUserScrolledRef.current = false;
+          
+          if (lyricsContainerRef.current) {
+            const targetIndex = Math.max(0, activeLyricIndexRef.current);
+            const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
+            if (activeElement) {
+              scrollToActiveElement(activeElement);
+            }
+          }
+        }, 5000) as unknown as number;
+      }
     }
   };
 
@@ -123,11 +145,12 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       if (newIndex !== lastActiveIndex) {
         lastActiveIndex = newIndex;
         setActiveLyricIndex(newIndex);
+        activeLyricIndexRef.current = newIndex;
         
         if (lyricsContainerRef.current) {
           const targetIndex = Math.max(0, newIndex);
           const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
-          if (activeElement && !isUserScrolled) {
+          if (activeElement && !isUserScrolledRef.current) {
             scrollToActiveElement(activeElement);
           }
         }
@@ -144,7 +167,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     if (isActive && lyricsContainerRef.current) {
       const targetIndex = Math.max(0, activeLyricIndex);
       const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
-      if (activeElement && !isUserScrolled) {
+      if (activeElement && !isUserScrolledRef.current) {
         scrollToActiveElement(activeElement);
       }
     }
@@ -152,6 +175,9 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
 
   const forceSync = () => {
     setIsUserScrolled(false);
+    isUserScrolledRef.current = false;
+    if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current);
+
     if (lyricsContainerRef.current) {
       const targetIndex = Math.max(0, activeLyricIndex);
       const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
