@@ -81,7 +81,7 @@ export default function RadioView() {
     return (
       <div 
         onClick={isThisLoading ? undefined : onClick}
-        className={`relative overflow-hidden rounded-xl cursor-pointer group transition-all duration-300 hover:scale-105 hover:shadow-2xl ${colorClass}`}
+        className={`relative overflow-hidden rounded-xl cursor-pointer group transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${colorClass}`}
       >
         <div className="absolute -bottom-6 -right-6 transform rotate-12 opacity-30 group-hover:opacity-40 transition-opacity">
           <Icon size={120} className="text-black drop-shadow-lg" />
