@@ -59,6 +59,28 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     setIsUserScrolled(false);
   }, [currentTrack?.id]);
 
+  const handleUserScroll = () => {
+    if (isAutoScrolling.current) {
+      if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
+      autoScrollTimeoutRef.current = setTimeout(() => {
+        isAutoScrolling.current = false;
+      }, 200) as unknown as number;
+    } else {
+      setIsUserScrolled(true);
+    }
+  };
+
+  const scrollToActiveElement = (activeElement: HTMLElement) => {
+    isAutoScrolling.current = true;
+    if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
+    
+    activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    autoScrollTimeoutRef.current = setTimeout(() => {
+      isAutoScrolling.current = false;
+    }, 1500) as unknown as number;
+  };
+
   // Karaoke Loop
   useEffect(() => {
     if (!audioElement || lrcLines.length === 0 || !isActive) return;
@@ -92,21 +114,8 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
         
         if (lyricsContainerRef.current) {
           const activeElement = lyricsContainerRef.current.children[newIndex] as HTMLElement;
-          const container = lyricsContainerRef.current.closest('.overflow-y-auto') as HTMLElement;
-          if (activeElement && container) {
-            if (!isUserScrolled) {
-              isAutoScrolling.current = true;
-              if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
-              
-              container.scrollTo({
-                top: activeElement.offsetTop - (container.clientHeight / 2) + (activeElement.clientHeight / 2),
-                behavior: 'smooth'
-              });
-              
-              autoScrollTimeoutRef.current = setTimeout(() => {
-                isAutoScrolling.current = false;
-              }, 1500) as unknown as number;
-            }
+          if (activeElement && !isUserScrolled) {
+            scrollToActiveElement(activeElement);
           }
         }
       }
@@ -121,31 +130,19 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
   useEffect(() => {
     if (isActive && lyricsContainerRef.current && activeLyricIndex !== -1) {
       const activeElement = lyricsContainerRef.current.children[activeLyricIndex] as HTMLElement;
-      const container = lyricsContainerRef.current.closest('.overflow-y-auto') as HTMLElement;
-      if (activeElement && container && !isUserScrolled) {
-        isAutoScrolling.current = true;
-        if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
-        
-        container.scrollTo({
-          top: activeElement.offsetTop - (container.clientHeight / 2) + (activeElement.clientHeight / 2),
-          behavior: 'smooth'
-        });
-        
-        autoScrollTimeoutRef.current = setTimeout(() => {
-          isAutoScrolling.current = false;
-        }, 1500) as unknown as number;
+      if (activeElement && !isUserScrolled) {
+        scrollToActiveElement(activeElement);
       }
     }
   }, [isActive]);
 
-  const handleUserScroll = () => {
-    if (isAutoScrolling.current) {
-      if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
-      autoScrollTimeoutRef.current = setTimeout(() => {
-        isAutoScrolling.current = false;
-      }, 200) as unknown as number;
-    } else {
-      setIsUserScrolled(true);
+  const forceSync = () => {
+    setIsUserScrolled(false);
+    if (lyricsContainerRef.current && activeLyricIndex !== -1) {
+      const activeElement = lyricsContainerRef.current.children[activeLyricIndex] as HTMLElement;
+      if (activeElement) {
+        scrollToActiveElement(activeElement);
+      }
     }
   };
 
@@ -156,24 +153,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     }
   };
 
-  const forceSync = () => {
-    setIsUserScrolled(false);
-    if (lyricsContainerRef.current && activeLyricIndex !== -1) {
-      const activeElement = lyricsContainerRef.current.children[activeLyricIndex] as HTMLElement;
-      const container = lyricsContainerRef.current.closest('.overflow-y-auto') as HTMLElement;
-      if (activeElement && container) {
-        isAutoScrolling.current = true;
-        if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
-        
-        container.scrollTo({
-          top: activeElement.offsetTop - (container.clientHeight / 2) + (activeElement.clientHeight / 2),
-          behavior: 'smooth'
-        });
-        
-        autoScrollTimeoutRef.current = setTimeout(() => isAutoScrolling.current = false, 1500) as unknown as number;
-      }
-    }
-  };
+
 
   return {
     lyricsText,

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Heart, Star, ChevronDown, MoreHorizontal, SkipForward, ListPlus } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
+import { getCachedImageUrl } from '../../utils/imageCache';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import type { Track } from '../../store/playerStore';
@@ -61,7 +62,18 @@ export default function AlbumCard({ album }: { album: any }) {
     setItemRating(album.id, newRating).catch(console.error);
   };
 
+  const [finalCoverUrl, setFinalCoverUrl] = useState<string | undefined>(undefined);
   const coverUrl = getCoverArtUrl(album.coverArt, 300);
+
+  useEffect(() => {
+    let isMounted = true;
+    getCachedImageUrl(coverUrl).then(url => {
+      if (isMounted) setFinalCoverUrl(url);
+    }).catch(() => {
+      if (isMounted) setFinalCoverUrl(coverUrl);
+    });
+    return () => { isMounted = false; };
+  }, [coverUrl]);
 
   const mapTracks = (tracks: any[]): Track[] => {
     return tracks.map((t: any) => ({
@@ -113,7 +125,7 @@ export default function AlbumCard({ album }: { album: any }) {
     >
       <div className="relative aspect-square overflow-hidden rounded-t-lg bg-black/20">
         <img 
-          src={coverUrl} 
+          src={finalCoverUrl} 
           alt={album.name} 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"

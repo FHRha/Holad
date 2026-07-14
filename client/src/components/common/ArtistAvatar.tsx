@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Users } from 'lucide-react';
 import { fetchArtistImage } from '../../utils/artistImage';
-import { getCoverArtUrl } from '../../api/subsonic';
+import { getCoverArtUrl, getArtistInfo } from '../../api/subsonic';
+import { getCachedImageUrl } from '../../utils/imageCache';
 
 interface ArtistAvatarProps {
   artistName: string;
@@ -26,8 +27,7 @@ export default function ArtistAvatar({ artistName, artistId, className = "w-6 h-
       // 2. If no image found, fallback to Navidrome getArtistInfo (Last.fm)
       if (!url && artistId) {
         try {
-          // Dynamic import handled by normal import now, but we'll use normal import
-          const info = await import('../../api/subsonic').then(m => m.getArtistInfo(artistId));
+          const info = await getArtistInfo(artistId);
           if (info && info.largeImageUrl) {
             url = info.largeImageUrl;
           } else if (info && info.mediumImageUrl) {
@@ -44,8 +44,17 @@ export default function ArtistAvatar({ artistName, artistId, className = "w-6 h-
       }
 
       if (isMounted) {
-        setImageUrl(url || null);
-        setLoading(false);
+        if (url) {
+          try {
+            const cachedUrl = await getCachedImageUrl(url);
+            if (isMounted) setImageUrl(cachedUrl);
+          } catch {
+            if (isMounted) setImageUrl(url);
+          }
+        } else {
+          setImageUrl(null);
+        }
+        if (isMounted) setLoading(false);
       }
     };
 
@@ -59,7 +68,10 @@ export default function ArtistAvatar({ artistName, artistId, className = "w-6 h-
   return (
     <div className={className}>
       {imageUrl && !loading ? (
-        <img src={imageUrl} loading="lazy" alt={artistName} className="w-full h-full object-cover" />
+        <img src={imageUrl} loading="lazy" alt={artistName} className="w-full h-full object-cover" onError={(e) => {
+          // If the loaded image fails (e.g. broken Last.fm link from Navidrome), fallback to icon
+          (e.target as HTMLImageElement).style.display = 'none';
+        }} />
       ) : (
         <Users size={fallbackSize} className="text-secondary" />
       )}
