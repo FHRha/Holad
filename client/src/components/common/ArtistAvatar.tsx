@@ -20,35 +20,31 @@ export default function ArtistAvatar({ artistName, artistId, className = "w-6 h-
     const loadAvatar = async () => {
       setLoading(true);
       
-      if (artistId) {
+      // 1. First try our 3rd party API flow (Apple -> Deezer)
+      let url = await fetchArtistImage(artistName);
+
+      // 2. If no image found, fallback to Navidrome getArtistInfo (Last.fm)
+      if (!url && artistId) {
         try {
+          // Dynamic import handled by normal import now, but we'll use normal import
           const info = await import('../../api/subsonic').then(m => m.getArtistInfo(artistId));
           if (info && info.largeImageUrl) {
-            if (isMounted) {
-              setImageUrl(info.largeImageUrl);
-              setLoading(false);
-            }
-            return;
+            url = info.largeImageUrl;
+          } else if (info && info.mediumImageUrl) {
+            url = info.mediumImageUrl;
           }
         } catch (e) {
-          console.error(e);
+          console.error("Failed to fetch artist info from Navidrome", e);
         }
       }
-
-      // If Navidrome has no specific image URL in info, try its cover art first
-      // Actually, Navidrome getCoverArt for artist ID uses the same image.
-      // But let's try Deezer as a fallback if getArtistInfo doesn't have it
-      const deezerUrl = await fetchArtistImage(artistName);
       
+      // 3. If still no image, fallback to Navidrome album cover art
+      if (!url && artistId) {
+        url = getCoverArtUrl(artistId, 300);
+      }
+
       if (isMounted) {
-        if (deezerUrl) {
-          setImageUrl(deezerUrl);
-        } else if (artistId) {
-          // Fallback to Navidrome cover if Deezer fails
-          setImageUrl(getCoverArtUrl(artistId, 300));
-        } else {
-          setImageUrl(null);
-        }
+        setImageUrl(url || null);
         setLoading(false);
       }
     };

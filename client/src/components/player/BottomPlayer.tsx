@@ -1,80 +1,33 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, ChevronDown, MoreHorizontal, MoreVertical, VolumeX, Star, Maximize2 } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
-import { useAudioStore } from '../../store/audioStore';
-import { getStreamUrl, fetchRandomTracks, getCoverArtUrl, starItem, unstarItem, savePlayQueue } from '../../api/subsonic';
+import { getStreamUrl, starItem, unstarItem } from '../../api/subsonic';
 import Slider from '../common/Slider';
 import { formatArtistName } from '../../utils/formatters';
 import TrackImage from '../common/TrackImage';
-
-
+import { useAudioEngine } from '../../hooks/useAudioEngine';
+import { useAutoDj } from '../../hooks/useAutoDj';
 
 export default function BottomPlayer() {
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, addToQueue, likedTrackIds, toggleTrackLike, initialPosition, setInitialPosition, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized } = usePlayerStore();
   const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [progress, setProgress] = useState(0);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
-  const [isSeeking, setIsSeeking] = useState(false);
-  const { setAudioElement } = useAudioStore();
+
+  const {
+    progress,
+    setProgress,
+    setIsSeeking,
+    handleTimeUpdate,
+    handleEnded,
+    handleSeekChange,
+    handleSeekEnd
+  } = useAudioEngine(audioRef);
+
+  useAutoDj();
 
   const currentTrack = queue[currentIndex];
-
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume;
-      setAudioElement(audioRef.current);
-    }
-    return () => setAudioElement(null);
-  }, [audioRef.current]);
-
-  useEffect(() => {
-    if (audioRef.current && currentTrack && initialPosition > 0) {
-      audioRef.current.currentTime = initialPosition / 1000;
-      setProgress((initialPosition / 1000 / currentTrack.duration) * 100);
-      setInitialPosition(0);
-    }
-  }, [currentTrack, initialPosition, setInitialPosition]);
-
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    
-    const isJamUrl = window.location.pathname.startsWith('/jam');
-    
-    if (isPlaying && currentTrack && role !== 'listener' && !isJamUrl) {
-      interval = setInterval(() => {
-        if (audioRef.current) {
-          const trackIds = queue.map(t => t.id);
-          const pos = Math.floor(audioRef.current.currentTime * 1000);
-          savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
-        }
-      }, 10000);
-    }
-    return () => clearInterval(interval);
-  }, [queue, currentTrack, isPlaying, role]);
-
-  useEffect(() => {
-    if (audioRef.current) {
-      // Use exponential curve for volume (x^2) as human hearing is logarithmic
-      audioRef.current.volume = volume * volume;
-    }
-  }, [volume]);
-
-  useEffect(() => {
-    if (audioRef.current && currentTrack) {
-      if (isPlaying) {
-        audioRef.current.play().catch(e => {
-          console.error("Playback error:", e);
-          if (e.name === 'NotAllowedError') {
-            setIsPlaying(false);
-          }
-        });
-      } else {
-        audioRef.current.pause();
-      }
-    }
-  }, [isPlaying, currentTrack, setIsPlaying]);
 
   const handleVolumeChange = (newVolume: number) => {
     setVolume(newVolume);
@@ -91,68 +44,9 @@ export default function BottomPlayer() {
     }
   };
 
-  useEffect(() => {
-    const checkAutoDj = async () => {
-      if (isAutoDjEnabled && queue.length > 0 && currentIndex >= queue.length - 2) {
-        try {
-          const newTracks = await fetchRandomTracks(10);
-          const mapped = newTracks.map((t: any) => ({
-            id: t.id,
-            title: t.title,
-            artist: t.artist,
-            album: t.album,
-            coverArt: getCoverArtUrl(t.coverArt, 300),
-            duration: t.duration
-          }));
-          addToQueue(mapped);
-        } catch (error) {
-          console.error("Auto DJ failed to fetch tracks:", error);
-        }
-      }
-    };
-    checkAutoDj();
-  }, [currentIndex, isAutoDjEnabled, queue.length]);
-
-  const handleTimeUpdate = () => {
-    if (audioRef.current && !isSeeking) {
-      setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
-    }
-  };
-
-  const handleEnded = () => {
-    if (role === 'listener') return;
-    nextTrack();
-  };
-
   const handlePlayPause = () => {
     if (role === 'listener') return; 
     setIsPlaying(!isPlaying);
-    
-    if (isPlaying && audioRef.current && currentTrack && !isJamRoute) {
-      const trackIds = queue.map(t => t.id);
-      const pos = Math.floor(audioRef.current.currentTime * 1000);
-      savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
-    }
-  };
-
-  const handleSeekChange = (value: number) => {
-    if (role === 'listener') return;
-    setIsSeeking(true);
-    setProgress(value * 100);
-  };
-
-  const handleSeekEnd = (value: number) => {
-    if (role === 'listener') return;
-    if (audioRef.current && currentTrack) {
-      audioRef.current.currentTime = value * currentTrack.duration;
-      
-      if (!isJamRoute) {
-        const trackIds = queue.map(t => t.id);
-        const pos = Math.floor(audioRef.current.currentTime * 1000);
-        savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
-      }
-    }
-    setIsSeeking(false);
   };
 
   const searchParams = new URLSearchParams(window.location.search);

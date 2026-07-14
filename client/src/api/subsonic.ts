@@ -1,101 +1,10 @@
-import md5 from 'md5';
+export * from './subsonic-core';
+export * from './subsonic/tracks';
+export * from './subsonic/albums';
+export * from './subsonic/social';
+
+import { buildUrl, getBaseUrl, getAuthParams } from './subsonic-core';
 import { useAuthStore } from '../store/authStore';
-
-const getBaseUrl = () => {
-  const { isAuthenticated, url } = useAuthStore.getState();
-  if (!isAuthenticated) {
-    const proxyUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000';
-    return `${proxyUrl}/api/subsonic`;
-  }
-  return url.endsWith('/') ? url.slice(0, -1) : url;
-};
-
-let cachedAuthStr = '';
-let cachedAuthUser = '';
-let cachedAuthPass = '';
-
-const getAuthParams = () => {
-  const { user, pass, isAuthenticated } = useAuthStore.getState();
-  if (!isAuthenticated) return '';
-  
-  if (cachedAuthStr && cachedAuthUser === user && cachedAuthPass === pass) {
-    return cachedAuthStr;
-  }
-  
-  const salt = Math.random().toString(36).substring(2, 15);
-  const token = md5(pass + salt);
-  cachedAuthUser = user;
-  cachedAuthPass = pass;
-  cachedAuthStr = `u=${encodeURIComponent(user)}&t=${token}&s=${salt}&v=1.16.1&c=StreamNavi&f=json`;
-  return cachedAuthStr;
-};
-
-const buildUrl = (endpoint: string, params: Record<string, string> = {}) => {
-  const baseUrl = getBaseUrl();
-  const auth = getAuthParams();
-  const query = new URLSearchParams(params).toString();
-  
-  if (!useAuthStore.getState().isAuthenticated) {
-    return `${baseUrl}/${endpoint}?${query}`;
-  }
-  
-  const queryString = query ? `${query}&${auth}` : auth;
-  return `${baseUrl}/rest/${endpoint}?${queryString}`;
-};
-
-export const fetchAlbums = async () => {
-  const url = buildUrl('getAlbumList2', { type: 'newest', size: '500' });
-  const res = await fetch(url);
-  const data = await res.json();
-  return data['subsonic-response']?.albumList2?.album || [];
-};
-
-export const fetchRandomTracks = async (size = 20) => {
-  const url = buildUrl('getRandomSongs', { size: size.toString() });
-  const res = await fetch(url);
-  const data = await res.json();
-  return data['subsonic-response']?.randomSongs?.song || [];
-};
-
-export const getAlbum = async (id: string) => {
-  const url = buildUrl('getAlbum', { id });
-  const res = await fetch(url);
-  const data = await res.json();
-  return data['subsonic-response']?.album?.song || [];
-};
-
-export const getAlbumFull = async (id: string) => {
-  const url = buildUrl('getAlbum', { id });
-  const res = await fetch(url);
-  const data = await res.json();
-  return data['subsonic-response']?.album;
-};
-
-export const getSong = async (id: string) => {
-  const url = buildUrl('getSong', { id });
-  const res = await fetch(url);
-  const data = await res.json();
-  return data['subsonic-response']?.song;
-};
-
-export const searchTracks = async (query = '', count = 500) => {
-  const url = buildUrl('search3', { query, songCount: count.toString() });
-  const res = await fetch(url);
-  const data = await res.json();
-  return data['subsonic-response']?.searchResult3?.song || [];
-};
-
-export const searchAll = async (query = '', count = 10) => {
-  const url = buildUrl('search3', { query, songCount: count.toString(), albumCount: count.toString(), artistCount: count.toString() });
-  const res = await fetch(url);
-  const data = await res.json();
-  return data['subsonic-response']?.searchResult3 || { song: [], album: [], artist: [] };
-};
-
-export const getCoverArtUrl = (id: string, size: number = 300) => {
-  const url = buildUrl('getCoverArt', { id, size: size.toString() });
-  return url;
-};
 
 export const getDownloadUrl = (id: string) => {
   return `${getBaseUrl()}/rest/download?id=${id}&${getAuthParams()}`;
@@ -112,29 +21,7 @@ export const getStreamUrl = (id: string) => {
   return `${proxyUrl}/api/stream/${id}?serverUrl=${encodeURIComponent(targetServerUrl)}&${params}`;
 };
 
-export const starItem = async (id: string, isAlbum = false) => {
-  const paramName = isAlbum ? 'albumId' : 'id';
-  const url = buildUrl('star', { [paramName]: id });
-  await fetch(url);
-};
-
-export const unstarItem = async (id: string, isAlbum = false) => {
-  const paramName = isAlbum ? 'albumId' : 'id';
-  const url = buildUrl('unstar', { [paramName]: id });
-  await fetch(url);
-};
-
-export const setItemRating = async (id: string, rating: number) => {
-  const url = buildUrl('setRating', { id, rating: rating.toString() });
-  await fetch(url);
-};
-
-export const fetchStarred = async () => {
-  const url = buildUrl('getStarred');
-  const res = await fetch(url);
-  const data = await res.json();
-  return data['subsonic-response']?.starred || { song: [], album: [] };
-};
+// Moved to social.ts
 
 export const getPlayQueue = async () => {
   const url = buildUrl('getPlayQueue');
