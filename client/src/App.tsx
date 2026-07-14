@@ -12,9 +12,10 @@ import { usePlayerStore } from './store/playerStore';
 import ContextMenu from './components/common/ContextMenu';
 import AlbumView from './components/views/AlbumView';
 import TracksView from './components/views/TracksView';
-import ArtistsView from './components/views/ArtistsView';
 import ArtistView from './components/views/ArtistView';
+import ArtistsView from './components/views/ArtistsView';
 import LoginView from './components/views/LoginView';
+import RadioView from './components/views/RadioView';
 import TopBar from './components/layout/TopBar';
 import NowPlayingModal from './components/common/NowPlayingModal';
 
@@ -54,6 +55,7 @@ function AppContent() {
                       <Route path="/tracks" element={<TracksView />} />
                       <Route path="/album/:id" element={<AlbumView />} />
                       <Route path="/favorites" element={<FavoritesView />} />
+                      <Route path="/radio" element={<RadioView />} />
                       <Route path="*" element={<MainContent />} />
                     </Routes>
                   </div>
