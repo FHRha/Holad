@@ -92,8 +92,8 @@ export default function RadioView() {
           
           <div className="flex flex-col gap-4">
             <p className="text-sm text-white/80 font-bold drop-shadow-md line-clamp-2">{description}</p>
-            <div className="flex justify-end">
-              <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-4 group-hover:translate-y-0 shadow-xl">
+            <div className="absolute right-4 bottom-4">
+              <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out transform translate-y-4 group-hover:translate-y-0 shadow-xl">
                 {isThisLoading ? <Loader2 size={24} className="animate-spin text-black" /> : <Play size={24} fill="currentColor" className="ml-1 text-black" />}
               </div>
             </div>

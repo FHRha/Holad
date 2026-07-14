@@ -124,7 +124,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
                     <p className="text-xs text-white/80 font-bold drop-shadow-md">
                       {genre.songCount} треков
                     </p>
-                    <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xl transform translate-y-2 group-hover:translate-y-0">
+                    <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out shadow-xl transform translate-y-2 group-hover:translate-y-0">
                       {isThisLoading ? <Loader2 size={20} className="animate-spin text-black" /> : <Play size={20} fill="currentColor" className="ml-1 text-black" />}
                     </div>
                   </div>
