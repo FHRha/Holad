@@ -42,3 +42,18 @@ export const buildUrl = (endpoint: string, params: Record<string, string> = {}) 
   const queryString = query ? `${query}&${auth}` : auth;
   return `${baseUrl}/rest/${endpoint}?${queryString}`;
 };
+
+export const fetchWithRetry = async (url: string, options?: RequestInit, retries = 3, delay = 1000): Promise<Response> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res;
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw new Error("Fetch failed");
+};
+
