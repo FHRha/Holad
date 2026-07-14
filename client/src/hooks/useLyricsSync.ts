@@ -74,7 +74,19 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     isAutoScrolling.current = true;
     if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
     
-    activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (lyricsContainerRef.current) {
+      const container = lyricsContainerRef.current;
+      const containerHeight = container.clientHeight;
+      const elementOffsetTop = activeElement.offsetTop;
+      const elementHeight = activeElement.offsetHeight;
+      
+      const targetScroll = elementOffsetTop - (containerHeight / 2) + (elementHeight / 2);
+      
+      container.scrollTo({
+        top: targetScroll,
+        behavior: 'smooth'
+      });
+    }
     
     autoScrollTimeoutRef.current = setTimeout(() => {
       isAutoScrolling.current = false;
