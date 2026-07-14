@@ -92,7 +92,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar p-4 -m-4"
+        className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar py-4 -my-4 -mx-4"
         style={{ scrollSnapType: 'x mandatory' }}
       >
         {genres.map((genre, idx) => {
@@ -105,7 +105,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
           const isThisLoading = loadingStation === genre.value;
 
           return (
-            <div key={genre.value} className="snap-start flex-shrink-0 h-[160px]" style={{ width: 'calc(20% - 13px)', minWidth: '160px' }}>
+            <div key={genre.value} className="snap-start flex-shrink-0 h-[160px] first:ml-4 last:mr-4" style={{ width: 'calc(20% - 13px)', minWidth: '160px' }}>
               <div 
                 onClick={isThisLoading ? undefined : () => startGenreRadio(genre.value)}
                 className={`w-full h-full relative overflow-hidden rounded-xl cursor-pointer group transition-all duration-300 hover:scale-105 hover:shadow-2xl ${colorClass}`}
