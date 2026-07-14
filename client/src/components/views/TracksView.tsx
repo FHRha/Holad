@@ -1,9 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { formatArtistName } from '../../utils/formatters';
-import { Play, Pause, Heart, Clock, Search, FilterX, Users } from 'lucide-react';
+import { Play, Pause, Heart, Clock, Search, FilterX } from 'lucide-react';
 import { searchTracks, getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
+import { formatTime } from '../../utils/timeFormat';
+import TrackImage from '../common/TrackImage';
+import ArtistAvatar from '../common/ArtistAvatar';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 
 export default function TracksView() {
@@ -111,16 +114,10 @@ export default function TracksView() {
       album: t.album,
       albumId: t.albumId,
       coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
-      duration: t.duration
+      duration: t.duration,
+      userRating: t.userRating
     }));
     setQueueAndPlay(mapped, index);
-  };
-
-  const formatTime = (seconds: number) => {
-    if (!seconds) return '0:00';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   const toggleArtist = (artist: string) => {
@@ -189,13 +186,12 @@ export default function TracksView() {
                 onClick={() => toggleArtist(artist.name)}
                 className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-colors group ${selectedArtists.has(artist.name) ? 'bg-primary/20 border border-primary/30' : 'hover:bg-white/5 border border-transparent'}`}
               >
-                <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex-shrink-0 flex items-center justify-center">
-                  {artist.id ? (
-                    <img src={getCoverArtUrl(artist.id, 100)} loading="lazy" alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <Users size={12} className="text-secondary" />
-                  )}
-                </div>
+                <ArtistAvatar 
+                  artistName={artist.name} 
+                  artistId={artist.id} 
+                  className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex-shrink-0 flex items-center justify-center" 
+                  fallbackSize={12} 
+                />
                 <span className={`text-xs truncate ${selectedArtists.has(artist.name) ? 'text-primary font-bold' : 'text-secondary group-hover:text-white'}`}>
                   {artist.name}
                 </span>
@@ -263,7 +259,7 @@ export default function TracksView() {
                       </div>
                       
                       <div className="flex-1 min-w-[200px] flex items-center gap-3 pr-4">
-                        <img src={getCoverArtUrl(track.coverArt || track.albumId, 300)} loading="lazy" alt="" className="w-10 h-10 rounded object-cover shadow-sm" />
+                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId, 300)} alt="" className="w-10 h-10 rounded object-cover shadow-sm" />
                         <div className="flex flex-col min-w-0">
                           <span className={`text-sm font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-white'}`}>{track.title}</span>
                           <span className="text-xs text-secondary truncate">{formatArtistName(track.artist)}</span>

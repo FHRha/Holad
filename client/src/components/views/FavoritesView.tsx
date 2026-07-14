@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchStarred, getCoverArtUrl } from '../../api/subsonic';
 import { Play, Heart } from 'lucide-react';
 import { formatArtistName } from '../../utils/formatters';
+import TrackImage from '../common/TrackImage';
 import AlbumCard from '../common/AlbumCard';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
@@ -45,8 +46,10 @@ export default function FavoritesView() {
       title: t.title,
       artist: t.artist,
       album: t.album,
-      coverArt: t.coverArt,
-      duration: t.duration
+      albumId: t.albumId,
+      coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
+      duration: t.duration,
+      userRating: t.userRating
     }));
     setQueueAndPlay(mappedTracks, index);
   };
@@ -99,7 +102,7 @@ export default function FavoritesView() {
                   </div>
                   
                   <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-white/10 relative">
-                    {track.coverArt && <img src={getCoverArtUrl(track.coverArt, 100)} className="w-full h-full object-cover" alt="" loading="lazy" />}
+                    {track.coverArt && <TrackImage src={getCoverArtUrl(track.coverArt, 100)} className="w-full h-full object-cover" alt="" />}
                   </div>
 
                   <div className="flex-1 min-w-0">

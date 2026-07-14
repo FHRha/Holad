@@ -9,6 +9,7 @@ export interface Track {
   albumId?: string;
   coverArt: string;
   duration: number;
+  userRating?: number;
 }
 
 export interface Playlist {
@@ -64,10 +65,11 @@ interface PlayerState {
   // Jam Session Actions
   setRoomInfo: (roomId: string | null, role: 'host' | 'listener' | null) => void;
   
-  // Likes Actions
+  // Likes and Ratings
   setLikedItems: (tracks: string[], albums: string[]) => void;
   toggleTrackLike: (id: string) => void;
   toggleAlbumLike: (id: string) => void;
+  setTrackRating: (id: string, rating: number) => void;
 }
 
 export const usePlayerStore = create<PlayerState>()(
@@ -230,6 +232,21 @@ export const usePlayerStore = create<PlayerState>()(
           likedAlbumIds: isLiked 
             ? state.likedAlbumIds.filter(a => a !== id)
             : [...state.likedAlbumIds, id]
+        };
+      }),
+
+      setTrackRating: (id, rating) => set((state) => {
+        // Optimistically update rating in queues
+        const updateQueue = (q: Track[]) => q.map(t => t.id === id ? { ...t, userRating: rating } : t);
+        
+        // Also call the API
+        import('../api/subsonic').then(api => {
+          api.setItemRating(id, rating).catch(err => console.error('Failed to set rating:', err));
+        });
+
+        return {
+          queue: updateQueue(state.queue),
+          originalQueue: updateQueue(state.originalQueue)
         };
       }),
     }),

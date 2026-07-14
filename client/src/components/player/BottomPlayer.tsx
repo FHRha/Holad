@@ -1,18 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, ChevronDown, MoreHorizontal, MoreVertical, VolumeX, Star, Square } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, ChevronDown, MoreHorizontal, MoreVertical, VolumeX, Star, Maximize2 } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
+import { useUIStore } from '../../store/uiStore';
+import { useAudioStore } from '../../store/audioStore';
 import { getStreamUrl, fetchRandomTracks, getCoverArtUrl, starItem, unstarItem, savePlayQueue } from '../../api/subsonic';
 import Slider from '../common/Slider';
 import { formatArtistName } from '../../utils/formatters';
+import TrackImage from '../common/TrackImage';
+
+
 
 export default function BottomPlayer() {
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, addToQueue, likedTrackIds, toggleTrackLike, initialPosition, setInitialPosition, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, addToQueue, likedTrackIds, toggleTrackLike, initialPosition, setInitialPosition, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating } = usePlayerStore();
+  const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [progress, setProgress] = useState(0);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
+  const { setAudioElement } = useAudioStore();
 
   const currentTrack = queue[currentIndex];
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+      setAudioElement(audioRef.current);
+    }
+    return () => setAudioElement(null);
+  }, [audioRef.current]);
 
   useEffect(() => {
     if (audioRef.current && currentTrack && initialPosition > 0) {
@@ -136,7 +151,11 @@ export default function BottomPlayer() {
     <div className="hidden md:flex h-28 bg-background border-t border-white/5 items-center px-4 justify-between z-20 relative">
       <div className="flex items-center gap-4 w-[30%] min-w-[200px]">
         <div className="w-[92px] h-[92px] rounded-md overflow-hidden relative group shadow-sm flex-shrink-0">
-          <img src={currentTrack.coverArt} alt="Cover" className="w-full h-full object-cover" />
+          <TrackImage 
+            src={currentTrack.coverArt} 
+            alt="Cover" 
+            className="w-full h-full object-cover" 
+          />
         </div>
         <div className="flex flex-col overflow-hidden leading-tight justify-center gap-0.5">
           <div className="flex items-center gap-1.5">
@@ -192,43 +211,66 @@ export default function BottomPlayer() {
       </div>
 
       {/* Right Controls */}
-      <div className="flex flex-col justify-center items-end gap-3 w-[30%] min-w-[200px] text-secondary">
-        
-        {/* Top row: Favorite, Stars, Auto DJ */}
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={handleLike} 
-            className="hover:text-primary transition-colors"
-          >
-            <Heart size={18} fill={likedTrackIds.includes(currentTrack.id) ? "currentColor" : "none"} className={likedTrackIds.includes(currentTrack.id) ? "text-primary" : ""} />
-          </button>
-          
-          {/* Star Rating Placeholder */}
-          <div className="flex items-center gap-0.5">
-            {[1, 2, 3, 4, 5].map(star => (
-              <button key={star} className="text-white/20 hover:text-white transition-colors">
-                <Star size={16} fill="currentColor" />
+      <div className="flex flex-col justify-center items-end w-[30%] min-w-[200px] text-secondary pr-2">
+        <div className="flex flex-col gap-3 w-[240px]">
+          {/* Top row: Favorite, Stars, Auto DJ */}
+          <div className="flex items-center gap-4 w-full">
+            <button 
+              onClick={handleLike} 
+              className="hover:text-primary transition-colors flex items-center justify-center w-5"
+            >
+              <Heart size={18} fill={likedTrackIds.includes(currentTrack.id) ? "currentColor" : "none"} className={likedTrackIds.includes(currentTrack.id) ? "text-primary" : ""} />
+            </button>
+            
+            {/* Star Rating */}
+            <div className="flex items-center justify-center gap-0.5 flex-1" onMouseLeave={() => {}}>
+              {[1, 2, 3, 4, 5].map(star => {
+                const currentRating = currentTrack.userRating || 0;
+                const isFilled = star <= currentRating;
+                return (
+                  <button 
+                    key={star} 
+                    className={`transition-colors ${isFilled ? 'text-primary' : 'text-white/20 hover:text-white/60'}`}
+                    onClick={() => {
+                      const newRating = currentRating === star ? 0 : star;
+                      setTrackRating(currentTrack.id, newRating);
+                    }}
+                  >
+                    <Star size={16} fill={isFilled ? "currentColor" : "none"} />
+                  </button>
+                );
+              })}
+            </div>
+
+            <button 
+              onClick={toggleAutoDj}
+              className={`text-xs font-bold tracking-wider transition-colors ${isAutoDjEnabled ? 'text-primary' : 'text-secondary hover:text-white'}`}
+            >
+              АВТО DJ
+            </button>
+          </div>
+
+          {/* Bottom row: Expand & Volume */}
+          <div className="flex items-center gap-4 w-full">
+            {/* Expand Now Playing View */}
+            <button 
+              onClick={toggleNowPlaying}
+              className={`transition-colors flex items-center justify-center w-5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-white'}`}
+              title="Сейчас играет"
+            >
+              <Maximize2 size={16} />
+            </button>
+            
+            <div className="flex items-center gap-3 flex-1">
+              <button onClick={() => setVolume(volume === 0 ? 1 : 0)} className="hover:text-foreground transition-colors">
+                {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
               </button>
-            ))}
+              <div className="flex-1">
+                <Slider value={volume} onChange={handleVolumeChange} thickness="thick" />
+              </div>
+              <span className="text-xs font-bold w-9 text-right">{Math.round(volume * 100)}%</span>
+            </div>
           </div>
-
-          <button 
-            onClick={toggleAutoDj}
-            className={`text-xs font-bold tracking-wider transition-colors ${isAutoDjEnabled ? 'text-primary' : 'text-secondary hover:text-white'}`}
-          >
-            АВТО DJ
-          </button>
-        </div>
-
-        {/* Bottom row: Volume */}
-        <div className="flex items-center gap-3">
-          <button onClick={() => setVolume(volume === 0 ? 1 : 0)} className="hover:text-foreground transition-colors">
-            {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-          </button>
-          <div className="w-20">
-            <Slider value={volume} onChange={handleVolumeChange} thickness="thick" />
-          </div>
-          <span className="text-xs font-bold w-9 text-right">{Math.round(volume * 100)}%</span>
         </div>
       </div>
     </div>
@@ -244,7 +286,11 @@ export default function BottomPlayer() {
         style={{ width: `${progress}%` }} 
       />
       
-      <img src={currentTrack.coverArt} className="w-9 h-9 rounded shadow" alt="" />
+      <TrackImage 
+        src={currentTrack.coverArt} 
+        className="w-9 h-9 rounded shadow" 
+        alt="" 
+      />
       
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         <p className="text-sm font-bold text-foreground truncate">{currentTrack.title}</p>
@@ -287,7 +333,7 @@ export default function BottomPlayer() {
         </div>
 
         <div className="w-full aspect-square bg-muted rounded-xl shadow-2xl overflow-hidden mb-8">
-          <img src={currentTrack.coverArt} className="w-full h-full object-cover" alt="" />
+          <TrackImage src={currentTrack.coverArt} className="w-full h-full object-cover" alt="" />
         </div>
 
         <div className="flex justify-between items-end mb-6">
@@ -343,6 +389,7 @@ export default function BottomPlayer() {
     <>
       <audio
         ref={audioRef}
+        crossOrigin="anonymous"
         src={currentTrack ? getStreamUrl(currentTrack.id) : ''}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}

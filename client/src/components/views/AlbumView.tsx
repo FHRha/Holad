@@ -47,8 +47,9 @@ export default function AlbumView() {
     title: t.title,
     artist: t.artist || album.artist,
     album: album.name,
-    coverArt: getCoverArtUrl(t.coverArt || album.id, 300),
-    duration: t.duration
+    coverArt: getCoverArtUrl(album.coverArt || t.coverArt || t.id, 300),
+    duration: t.duration,
+    userRating: t.userRating
   }));
 
   const handlePlayAll = () => {

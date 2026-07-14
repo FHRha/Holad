@@ -4,6 +4,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useUIStore } from '../../store/uiStore';
 import { formatArtistName } from '../../utils/formatters';
+import TrackImage from '../common/TrackImage';
 
 export default function RightSidebar() {
   const { queue, currentIndex, playTrack } = usePlayerStore();
@@ -69,8 +70,8 @@ export default function RightSidebar() {
               <div className="w-6 flex justify-center text-secondary text-xs">
                 {isPlaying ? <Play size={12} className="text-primary" fill="currentColor" /> : idx + 1}
               </div>
-              <div className="w-10 h-10 flex-shrink-0 mx-2">
-                <img src={track.coverArt} className="w-full h-full rounded object-cover" alt="" />
+              <div className="w-10 h-10 flex-shrink-0 mx-2 relative group rounded overflow-hidden shadow-sm">
+                <TrackImage src={track.coverArt} className="w-full h-full rounded object-cover" alt="" />
               </div>
               <div className="flex-1 min-w-0 flex flex-col justify-center">
                 <p className={`truncate text-sm font-medium ${isPlaying ? 'text-primary' : 'text-foreground'}`}>{track.title}</p>

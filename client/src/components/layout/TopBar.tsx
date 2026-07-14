@@ -92,6 +92,12 @@ export default function TopBar() {
     setSearchOpen(false);
   };
 
+  const navigateToArtist = (artist: any) => {
+    const slug = `${encodeURIComponent(artist.name)}-${artist.id}`;
+    navigate(`/Holad/artist/${slug}`);
+    setSearchOpen(false);
+  };
+
   return (
     <div className="sticky top-0 z-50 h-16 bg-background/95 backdrop-blur-md border-b border-white/5 flex items-center justify-center px-4 w-full">
       <div className="relative w-full max-w-xl" ref={containerRef}>
@@ -202,6 +208,7 @@ export default function TopBar() {
                       {results.artist.map(artist => (
                         <div 
                           key={artist.id}
+                          onClick={() => navigateToArtist(artist)}
                           className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 cursor-pointer text-xs font-medium transition-colors"
                         >
                           {formatArtistName(artist.name)}

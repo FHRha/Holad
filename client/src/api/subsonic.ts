@@ -147,10 +147,11 @@ export const pingServer = async () => {
 };
 
 export const getArtists = async () => {
-  const url = `${getBaseUrl()}/rest/getArtists?${getAuthParams()}`;
+  // getIndexes returns ALL artists (including track-only artists) instead of just album artists
+  const url = `${getBaseUrl()}/rest/getIndexes?${getAuthParams()}`;
   const res = await fetch(url);
   const data = await res.json();
-  const index = data['subsonic-response']?.artists?.index || [];
+  const index = data['subsonic-response']?.indexes?.index || [];
   const artists: any[] = [];
   index.forEach((group: any) => {
     if (group.artist) {
@@ -158,4 +159,66 @@ export const getArtists = async () => {
     }
   });
   return artists; // array of { id, name, ... }
+};
+
+export const getArtist = async (id: string) => {
+  const url = `${getBaseUrl()}/rest/getArtist?id=${id}&${getAuthParams()}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data['subsonic-response']?.artist;
+};
+
+export const getTopSongs = async (artist: string, count: number = 1000): Promise<any[]> => {
+  const url = `${getBaseUrl()}/rest/getTopSongs?artist=${encodeURIComponent(artist)}&count=${count}&${getAuthParams()}`;
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    return data['subsonic-response']?.topSongs?.song || [];
+  } catch (error) {
+    console.error("Error fetching top songs", error);
+    return [];
+  }
+};
+
+export const getSimilarSongs = async (id: string, count: number = 50): Promise<any[]> => {
+  const url = `${getBaseUrl()}/rest/getSimilarSongs2?id=${id}&count=${count}&${getAuthParams()}`;
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    return data['subsonic-response']?.similarSongs2?.song || [];
+  } catch (error) {
+    console.error("Error fetching similar songs", error);
+    return [];
+  }
+};
+
+export const getLyrics = async (artist: string, title: string): Promise<string | null> => {
+  const url = `${getBaseUrl()}/rest/getLyrics?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}&${getAuthParams()}`;
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    return data['subsonic-response']?.lyrics?.value || null;
+  } catch (error) {
+    console.error("Error fetching lyrics", error);
+    return null;
+  }
+};
+
+export const getLyricsBySongId = async (id: string): Promise<any> => {
+  const url = `${getBaseUrl()}/rest/getLyricsBySongId?id=${id}&${getAuthParams()}`;
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    return data['subsonic-response']?.lyricsList?.structuredLyrics?.[0]?.line || null;
+  } catch (error) {
+    console.error("Error fetching structured lyrics", error);
+    return null;
+  }
+};
+
+export const getArtistInfo = async (id: string) => {
+  const url = `${getBaseUrl()}/rest/getArtistInfo2?id=${id}&${getAuthParams()}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data['subsonic-response']?.artistInfo2;
 };

@@ -15,10 +15,13 @@ import type { Track } from './store/playerStore';
 import ContextMenu from './components/common/ContextMenu';
 import AlbumView from './components/views/AlbumView';
 import TracksView from './components/views/TracksView';
+import ArtistsView from './components/views/ArtistsView';
+import ArtistView from './components/views/ArtistView';
 import LoginView from './components/views/LoginView';
 import TopBar from './components/layout/TopBar';
 import { jamSocket } from './api/socket';
 import { useAuthStore } from './store/authStore';
+import NowPlayingModal from './components/common/NowPlayingModal';
 
 function AppContent() {
   const location = useLocation();
@@ -93,6 +96,8 @@ function AppContent() {
                       <Route path="/" element={<MainContent />} />
                       <Route path="/library/*" element={<LibraryView />} />
                       <Route path="/albums" element={<AlbumsView />} />
+                      <Route path="/artists" element={<ArtistsView />} />
+                      <Route path="/artist/:id" element={<ArtistView />} />
                       <Route path="/tracks" element={<TracksView />} />
                       <Route path="/album/:id" element={<AlbumView />} />
                       <Route path="/favorites" element={<FavoritesView />} />
@@ -110,6 +115,8 @@ function AppContent() {
           <Route path="/jam/*" element={ isAuthenticated ? <JamLayout /> : <Navigate to="/login" replace /> } />
           <Route path="*" element={<Navigate to="/Holad" replace />} />
         </Routes>
+        
+        <NowPlayingModal />
       </div>
       
       {!isJamRoute && !isLoginRoute && isAuthenticated && (

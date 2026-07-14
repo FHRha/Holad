@@ -97,9 +97,10 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
   const handleRate = (e: React.MouseEvent, starValue: number) => {
     e.stopPropagation();
+    e.preventDefault();
     const newRating = starValue === rating ? 0 : starValue;
     setRatingState(newRating);
-    setItemRating(album.id, newRating);
+    setItemRating(album.id, newRating).catch(console.error);
   };
 
   const coverUrl = getCoverArtUrl(album.coverArt, 600);
