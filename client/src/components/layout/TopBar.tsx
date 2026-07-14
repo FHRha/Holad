@@ -1,109 +1,31 @@
-import { useEffect, useState, useRef } from 'react';
+import { useRef } from 'react';
 import { Search, X, Play, Music, Disc, Users } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { searchAll, getCoverArtUrl } from '../../api/subsonic';
-import { useUIStore } from '../../store/uiStore';
-import { usePlayerStore } from '../../store/playerStore';
+import { getCoverArtUrl } from '../../api/subsonic';
 import { formatTime } from '../../utils/timeFormat';
 import { formatArtistName } from '../../utils/formatters';
 import JamSessionControl from '../jam/JamSessionControl';
+import { useGlobalSearch } from '../../hooks/useGlobalSearch';
 
 export default function TopBar() {
-  const { isSearchOpen, setSearchOpen } = useUIStore();
-  const { setQueueAndPlay, roomId } = usePlayerStore();
-  const navigate = useNavigate();
-  
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<{song: any[], album: any[], artist: any[]}>({ song: [], album: [], artist: [] });
-  const [loading, setLoading] = useState(false);
-  const [showSession, setShowSession] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        inputRef.current?.focus();
-        setSearchOpen(true);
-      }
-      if (e.key === 'Escape') {
-        setSearchOpen(false);
-        setShowSession(false);
-        inputRef.current?.blur();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setSearchOpen]);
+  const {
+    query,
+    setQuery,
+    results,
+    loading,
+    isSearchOpen,
+    setSearchOpen,
+    showSession,
+    setShowSession,
+    roomId,
+    handlePlaySong,
+    navigateToAlbum,
+    navigateToArtist
+  } = useGlobalSearch(inputRef, containerRef, sessionRef);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setSearchOpen(false);
-      }
-      if (sessionRef.current && !sessionRef.current.contains(e.target as Node)) {
-        setShowSession(false);
-      }
-    };
-    window.addEventListener('mousedown', handleClickOutside);
-    return () => window.removeEventListener('mousedown', handleClickOutside);
-  }, [setSearchOpen]);
-
-  useEffect(() => {
-    if (isSearchOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isSearchOpen]);
-
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (query.trim().length >= 2) {
-        setLoading(true);
-        try {
-          const data = await searchAll(query);
-          setResults({
-            song: data.song || [],
-            album: data.album || [],
-            artist: data.artist || []
-          });
-        } catch (e) {
-          console.error("Search failed", e);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setResults({ song: [], album: [], artist: [] });
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  const handlePlaySong = (song: any) => {
-    setQueueAndPlay([{
-      id: song.id,
-      title: song.title,
-      artist: song.artist,
-      album: song.album,
-      albumId: song.albumId,
-      coverArt: getCoverArtUrl(song.coverArt || song.id, 600),
-      duration: song.duration
-    }], 0);
-    setSearchOpen(false);
-  };
-
-  const navigateToAlbum = (id: string) => {
-    navigate(`/Holad/album/${id}`);
-    setSearchOpen(false);
-  };
-
-  const navigateToArtist = (artist: any) => {
-    const slug = `${encodeURIComponent(artist.name)}-${artist.id}`;
-    navigate(`/Holad/artist/${slug}`);
-    setSearchOpen(false);
-  };
 
   return (
     <div className="sticky top-0 z-50 h-16 bg-background/95 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-4 w-full">

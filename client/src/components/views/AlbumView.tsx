@@ -1,103 +1,35 @@
-import { useEffect, useState, useRef } from 'react';
+import { useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Play, Pause, Heart, Star, MoreHorizontal, Clock, Radio, Music, ListPlus } from 'lucide-react';
-import { getAlbumFull, getCoverArtUrl, starItem, unstarItem, setItemRating } from '../../api/subsonic';
+import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
-import { extractDominantColor } from '../../utils/colorExtractor';
 import { formatArtistName } from '../../utils/formatters';
 import { useContextMenuStore } from '../../store/contextMenuStore';
+import { useAlbumData } from '../../hooks/useAlbumData';
 
 export default function AlbumView() {
   const { id } = useParams();
-  const [album, setAlbum] = useState<any>(null);
-  const [dominantColor, setDominantColor] = useState<string>('#181818');
-  const [visibleCount, setVisibleCount] = useState(50);
   const observerTarget = useRef<HTMLDivElement>(null);
   
-  const { setQueueAndPlay, playNext, addToQueue, likedAlbumIds, toggleAlbumLike, queue, currentIndex, likedTrackIds, toggleTrackLike, isPlaying } = usePlayerStore();
+  const { queue, currentIndex, likedTrackIds, toggleTrackLike, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
 
-  useEffect(() => {
-    if (!id) return;
-    getAlbumFull(id).then(data => {
-      setAlbum(data);
-      if (data) {
-        const coverUrl = getCoverArtUrl(data.coverArt || data.id, 600);
-        extractDominantColor(coverUrl).then(setDominantColor);
-      }
-    });
-  }, [id]);
-
-  useEffect(() => {
-    if (!album) return;
-    const handleRatingUpdate = (e: any) => {
-      if (e.detail.id === album.id) {
-        setAlbum((prev: any) => ({ ...prev, userRating: e.detail.rating }));
-      }
-    };
-    window.addEventListener('rating-updated', handleRatingUpdate);
-    return () => window.removeEventListener('rating-updated', handleRatingUpdate);
-  }, [album]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting && album?.song && visibleCount < album.song.length) {
-          setVisibleCount(prev => prev + 50);
-        }
-      },
-      { threshold: 0.1, rootMargin: '200px' }
-    );
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
-    }
-
-    return () => observer.disconnect();
-  }, [album, visibleCount]);
+  const {
+    album,
+    dominantColor,
+    visibleCount,
+    isLiked,
+    handlePlayAll,
+    handlePlayNext,
+    handleAddToEnd,
+    handleLike,
+    handleRate,
+    handlePlaySong
+  } = useAlbumData(id, observerTarget);
 
   if (!album) return <div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
 
   const coverUrl = getCoverArtUrl(album.coverArt || album.id, 600);
-  const isLiked = likedAlbumIds.includes(album.id);
-
-  const getMappedTracks = () => album.song.map((t: any) => ({
-    id: t.id,
-    title: t.title,
-    artist: t.artist || album.artist,
-    album: album.name,
-    coverArt: getCoverArtUrl(album.coverArt || t.coverArt || t.id, 300),
-    duration: t.duration,
-    userRating: t.userRating
-  }));
-
-  const handlePlayAll = () => {
-    if (!album.song) return;
-    setQueueAndPlay(getMappedTracks(), 0);
-  };
-
-  const handlePlayNext = () => {
-    if (!album.song) return;
-    playNext(getMappedTracks());
-  };
-
-  const handleAddToEnd = () => {
-    if (!album.song) return;
-    addToQueue(getMappedTracks());
-  };
-
-  const handleLike = () => {
-    toggleAlbumLike(album.id);
-    if (isLiked) unstarItem(album.id, true);
-    else starItem(album.id, true);
-  };
-
-  const handleRate = (val: number) => {
-    const newRating = album.userRating === val ? 0 : val;
-    setAlbum({ ...album, userRating: newRating });
-    setItemRating(album.id, newRating);
-  };
-
   const formatDuration = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -218,8 +150,7 @@ export default function AlbumView() {
                     openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || album.id, 300), albumId: album.id }, 'track'); 
                   }}
                   onClick={() => {
-                     const mapped = getMappedTracks();
-                     setQueueAndPlay(mapped, index);
+                     handlePlaySong(index);
                   }}
                   className={`flex items-center px-4 py-3 rounded-lg cursor-pointer group hover:bg-white/5 transition-colors ${currentPlaying ? 'bg-white/10' : ''}`}
                 >
