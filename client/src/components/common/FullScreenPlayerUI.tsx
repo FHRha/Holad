@@ -175,6 +175,12 @@ export default function FullScreenPlayerUI({
                 handleUserScroll();
               }
             }}
+            onWheel={() => {
+              if (activeTab === 'lyrics') setIsUserScrolled(true);
+            }}
+            onTouchMove={() => {
+              if (activeTab === 'lyrics') setIsUserScrolled(true);
+            }}
           >
             
             {activeTab === 'lyrics' && (

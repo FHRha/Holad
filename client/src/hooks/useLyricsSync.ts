@@ -78,7 +78,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     
     autoScrollTimeoutRef.current = setTimeout(() => {
       isAutoScrolling.current = false;
-    }, 1500) as unknown as number;
+    }, 600) as unknown as number;
   };
 
   // Karaoke Loop
@@ -113,7 +113,8 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
         setActiveLyricIndex(newIndex);
         
         if (lyricsContainerRef.current) {
-          const activeElement = lyricsContainerRef.current.children[newIndex] as HTMLElement;
+          const targetIndex = Math.max(0, newIndex);
+          const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
           if (activeElement && !isUserScrolled) {
             scrollToActiveElement(activeElement);
           }
@@ -128,8 +129,9 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
 
   // Jump to current active line when switching back to lyrics tab
   useEffect(() => {
-    if (isActive && lyricsContainerRef.current && activeLyricIndex !== -1) {
-      const activeElement = lyricsContainerRef.current.children[activeLyricIndex] as HTMLElement;
+    if (isActive && lyricsContainerRef.current) {
+      const targetIndex = Math.max(0, activeLyricIndex);
+      const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
       if (activeElement && !isUserScrolled) {
         scrollToActiveElement(activeElement);
       }
@@ -138,8 +140,9 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
 
   const forceSync = () => {
     setIsUserScrolled(false);
-    if (lyricsContainerRef.current && activeLyricIndex !== -1) {
-      const activeElement = lyricsContainerRef.current.children[activeLyricIndex] as HTMLElement;
+    if (lyricsContainerRef.current) {
+      const targetIndex = Math.max(0, activeLyricIndex);
+      const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
       if (activeElement) {
         scrollToActiveElement(activeElement);
       }
