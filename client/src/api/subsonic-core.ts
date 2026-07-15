@@ -1,4 +1,3 @@
-import md5 from 'md5';
 import { useAuthStore } from '../store/authStore';
 
 export const getBaseUrl = () => {
@@ -12,20 +11,18 @@ export const getBaseUrl = () => {
 
 let cachedAuthStr = '';
 let cachedAuthUser = '';
-let cachedAuthPass = '';
+let cachedAuthToken = '';
 
 export const getAuthParams = () => {
-  const { user, pass, isAuthenticated } = useAuthStore.getState();
-  if (!isAuthenticated) return '';
+  const { user, token, salt, isAuthenticated } = useAuthStore.getState();
+  if (!isAuthenticated || !token || !salt) return '';
   
-  if (cachedAuthStr && cachedAuthUser === user && cachedAuthPass === pass) {
+  if (cachedAuthStr && cachedAuthUser === user && cachedAuthToken === token) {
     return cachedAuthStr;
   }
   
-  const salt = Math.random().toString(36).substring(2, 15);
-  const token = md5(pass + salt);
   cachedAuthUser = user;
-  cachedAuthPass = pass;
+  cachedAuthToken = token;
   cachedAuthStr = `u=${encodeURIComponent(user)}&t=${token}&s=${salt}&v=1.16.1&c=StreamNavi&f=json`;
   return cachedAuthStr;
 };

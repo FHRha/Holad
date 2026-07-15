@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { pingServer } from '../../api/subsonic';
 import { Server, User, Lock, AlertCircle } from 'lucide-react';
+import md5 from 'md5';
 
 export default function LoginView() {
   const [url, setUrl] = useState(useAuthStore.getState().url || 'https://');
   const [username, setUsername] = useState(useAuthStore.getState().user || '');
-  const [password, setPassword] = useState(useAuthStore.getState().pass || '');
+  const [password, setPassword] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -26,8 +27,10 @@ export default function LoginView() {
 
     try {
       setLoading(true);
+      const salt = Math.random().toString(36).substring(2, 15);
+      const token = md5(password + salt);
       // Temporarily set credentials in store to test ping
-      setCredentials(url, username, password);
+      setCredentials(url, username, token, salt);
       
       await pingServer();
       

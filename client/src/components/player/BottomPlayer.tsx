@@ -328,7 +328,8 @@ export default function BottomPlayer() {
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         onLoadedMetadata={(e) => {
-          (e.target as HTMLAudioElement).volume = volume * volume;
+          const scaledVolume = volume * 0.3;
+          (e.target as HTMLAudioElement).volume = scaledVolume * scaledVolume;
         }}
         onSeeking={() => setIsSeeking(true)}
         onSeeked={() => {

@@ -1,0 +1,526 @@
+{
+  "client\\src\\api\\socket.ts": [
+    {
+      "line": 92,
+      "text": "usePlayerStore.getState().setJamError('Вас исключили из сессии');"
+    }
+  ],
+  "client\\src\\components\\common\\ArtistCard.tsx": [
+    {
+      "line": 43,
+      "text": "Исполнитель"
+    }
+  ],
+  "client\\src\\components\\common\\ContextMenu.tsx": [
+    {
+      "line": 167,
+      "text": "<ItemBtn icon={Play} label=\"Слушать сейчас\" onClick={() => handleAction(onPlayNow)} />"
+    },
+    {
+      "line": 168,
+      "text": "<ItemBtn icon={ListPlus} label=\"Слушать следующим\" onClick={() => handleAction(onPlayNext)} />"
+    },
+    {
+      "line": 169,
+      "text": "{!isInQueue && <ItemBtn icon={SkipForward} label=\"Добавить в очередь\" onClick={() => handleAction(onAddToQueue)} />}"
+    },
+    {
+      "line": 174,
+      "text": "<ItemBtn icon={Trash2} label=\"Удалить из очереди\" onClick={() => handleAction(onRemoveFromQueue)} color=\"text-red-400 hover:text-red-300\" />"
+    },
+    {
+      "line": 183,
+      "text": "label={isLiked ? \"Удалить из любимых\" : \"Любимый\"}"
+    },
+    {
+      "line": 192,
+      "text": "<span>Оценить</span>"
+    },
+    {
+      "line": 209,
+      "text": "<ItemBtn icon={Download} label=\"Скачать\" onClick={() => handleAction(onDownload)} />"
+    },
+    {
+      "line": 212,
+      "text": "label={isCopied ? \"Скопировано!\" : \"Поделиться\"}"
+    },
+    {
+      "line": 220,
+      "text": "<ItemBtn icon={User} label=\"Перейти к Исполнителю\" onClick={() => handleAction(() => {"
+    },
+    {
+      "line": 224,
+      "text": "<ItemBtn icon={Disc} label=\"Перейти к Альбому\" onClick={() => handleAction(() => {"
+    }
+  ],
+  "client\\src\\components\\common\\FullScreenPlayerUI.tsx": [
+    {
+      "line": 64,
+      "text": "title: 'Ожидание трека...',"
+    },
+    {
+      "line": 65,
+      "text": "artist: 'Пока ничего не играет',"
+    },
+    {
+      "line": 89,
+      "text": "title=\"Закрыть\""
+    },
+    {
+      "line": 98,
+      "text": "title=\"Свернуть окно сессии\""
+    },
+    {
+      "line": 136,
+      "text": "Синхронизировать"
+    },
+    {
+      "line": 146,
+      "text": "Очередь"
+    },
+    {
+      "line": 153,
+      "text": "Похожие"
+    },
+    {
+      "line": 160,
+      "text": "Слова"
+    },
+    {
+      "line": 166,
+      "text": "Визуализатор"
+    },
+    {
+      "line": 189,
+      "text": "<p className=\"text-white/50 animate-pulse text-lg\">Загрузка текста...</p>"
+    },
+    {
+      "line": 257,
+      "text": "<p>Текст песни не найден</p>"
+    },
+    {
+      "line": 314,
+      "text": "Похожие треки не найдены"
+    }
+  ],
+  "client\\src\\components\\common\\LanguageSelector.tsx": [
+    {
+      "line": 37,
+      "text": "title=\"Язык / Language\""
+    },
+    {
+      "line": 52,
+      "text": "<span>Русский</span>"
+    }
+  ],
+  "client\\src\\components\\jam\\JamSessionControl.tsx": [
+    {
+      "line": 49,
+      "text": "Создать сессию"
+    },
+    {
+      "line": 71,
+      "text": "title={p.role === 'cohost' ? 'Забрать права управления' : 'Дать права управления'}"
+    },
+    {
+      "line": 78,
+      "text": "title=\"Выгнать\""
+    },
+    {
+      "line": 97,
+      "text": "{copied ? 'Скопировано!' : 'Скопировать ссылку'}"
+    },
+    {
+      "line": 105,
+      "text": "Выйти из сессии"
+    }
+  ],
+  "client\\src\\components\\jam\\ListenerView.tsx": [
+    {
+      "line": 45,
+      "text": "<h2 className=\"text-xl font-bold mb-2\">Ожидание хоста...</h2>"
+    },
+    {
+      "line": 46,
+      "text": "<p className=\"text-sm\">Хост пока ничего не включил.</p>"
+    },
+    {
+      "line": 96,
+      "text": "<span className=\"text-foreground border-b-2 border-foreground pb-1\">Играет</span>"
+    },
+    {
+      "line": 97,
+      "text": "<span className=\"hover:text-foreground cursor-pointer\">Похожие</span>"
+    },
+    {
+      "line": 98,
+      "text": "<span className=\"hover:text-foreground cursor-pointer\">Слова</span>"
+    },
+    {
+      "line": 104,
+      "text": "<div className=\"w-20\">Время</div>"
+    }
+  ],
+  "client\\src\\components\\layout\\GenreCarousel.tsx": [
+    {
+      "line": 56,
+      "text": "alert(\"Не удалось загрузить треки для этой станции.\");"
+    },
+    {
+      "line": 60,
+      "text": "alert(\"Ошибка при запуске станции.\");"
+    },
+    {
+      "line": 125,
+      "text": "{genre.songCount} треков"
+    }
+  ],
+  "client\\src\\components\\layout\\JamLayout.tsx": [
+    {
+      "line": 103,
+      "text": "<h2 className=\"text-3xl font-bold mb-4\">{jamError === 'Room not found' ? 'Комната не найдена' : 'Ошибка сессии'}</h2>"
+    },
+    {
+      "line": 106,
+      "text": "? 'Похоже, эта сессия была завершена хостом, либо вы перешли по недействительной ссылке.'"
+    },
+    {
+      "line": 112,
+      "text": "На главную"
+    },
+    {
+      "line": 115,
+      "text": "Войти в свой аккаунт"
+    },
+    {
+      "line": 129,
+      "text": "<h2 className=\"text-2xl font-bold mb-4\">Неверная ссылка</h2>"
+    },
+    {
+      "line": 130,
+      "text": "<p className=\"text-secondary\">Эта ссылка недействительна или параметр пуст.</p>"
+    },
+    {
+      "line": 143,
+      "text": "<h2 className=\"text-2xl font-bold mb-4\">Временная ссылка</h2>"
+    },
+    {
+      "line": 144,
+      "text": "<p className=\"text-secondary\">Загрузка трека...</p>"
+    },
+    {
+      "line": 163,
+      "text": "<h2 className=\"text-3xl font-bold mb-8\">Присоединиться к джэму</h2>"
+    },
+    {
+      "line": 164,
+      "text": "<p className=\"text-secondary mb-8\">Введите свое имя, чтобы слушать музыку вместе</p>"
+    },
+    {
+      "line": 185,
+      "text": "placeholder=\"Ваш никнейм\""
+    },
+    {
+      "line": 191,
+      "text": "Войти"
+    },
+    {
+      "line": 206,
+      "text": "<h2 className=\"text-3xl font-bold mb-4\">Вы вышли из сессии</h2>"
+    },
+    {
+      "line": 208,
+      "text": "Чтобы продолжить слушать музыку, войдите в свой аккаунт или присоединитесь к сессии снова."
+    },
+    {
+      "line": 212,
+      "text": "Войти в аккаунт"
+    },
+    {
+      "line": 215,
+      "text": "Присоединиться снова"
+    },
+    {
+      "line": 229,
+      "text": "<span className=\"text-[10px] font-bold uppercase tracking-wider mt-1\">Меню</span>"
+    },
+    {
+      "line": 236,
+      "text": "<span className=\"text-[10px] font-bold leading-none mt-1 px-1 text-center\">Альбомы</span>"
+    },
+    {
+      "line": 244,
+      "text": "<span className=\"text-[10px] font-bold leading-none mt-1 px-1 text-center\">Треки</span>"
+    },
+    {
+      "line": 250,
+      "text": "<span className=\"text-[10px] font-bold leading-none mt-1 px-1 text-center\">Артисты</span>"
+    },
+    {
+      "line": 288,
+      "text": "<h2 className=\"text-2xl font-bold mb-4\">Вход...</h2>"
+    },
+    {
+      "line": 289,
+      "text": "<p className=\"text-secondary\">Подключаемся к джэму...</p>"
+    }
+  ],
+  "client\\src\\components\\layout\\LibraryView.tsx": [
+    {
+      "line": 9,
+      "text": "<NavTab to=\"/Holad/library/tracks\" label=\"Песни\" />"
+    },
+    {
+      "line": 10,
+      "text": "<NavTab to=\"/Holad/library/albums\" label=\"Альбомы\" />"
+    },
+    {
+      "line": 11,
+      "text": "<NavTab to=\"/Holad/library/artists\" label=\"Исполнители\" />"
+    },
+    {
+      "line": 12,
+      "text": "<NavTab to=\"/Holad/library/playlists\" label=\"Плейлисты\" />"
+    },
+    {
+      "line": 20,
+      "text": "<Route path=\"*\" element={<div className=\"p-8 text-center text-secondary\">В разработке...</div>} />"
+    }
+  ],
+  "client\\src\\components\\layout\\MainContent.tsx": [
+    {
+      "line": 35,
+      "text": "return <div className=\"flex-1 flex items-center justify-center text-secondary\">Загрузка музыки...</div>;"
+    },
+    {
+      "line": 40,
+      "text": "<AlbumCarousel title=\"Откройте новое\" albums={randomAlbums} variant=\"hero\" />"
+    },
+    {
+      "line": 41,
+      "text": "<GenreCarousel title=\"Радио по жанрам\" genres={genres} />"
+    },
+    {
+      "line": 42,
+      "text": "<AlbumCarousel title=\"Слушают чаще всего\" albums={albums} variant=\"standard\" />"
+    }
+  ],
+  "client\\src\\components\\layout\\MobileBottomNav.tsx": [
+    {
+      "line": 10,
+      "text": "<NavItem to=\"/Holad\" icon={<Home size={24} />} label=\"Главная\" end />"
+    },
+    {
+      "line": 11,
+      "text": "<NavItem to=\"/Holad/library\" icon={<Library size={24} />} label=\"Библиотека\" />"
+    },
+    {
+      "line": 12,
+      "text": "<NavItem to=\"/Holad/favorites\" icon={<Heart size={24} />} label=\"Избранное\" />"
+    },
+    {
+      "line": 18,
+      "text": "<span className=\"text-sm font-bold\">Поиск</span>"
+    },
+    {
+      "line": 20,
+      "text": "<NavItem to=\"/Holad/settings\" icon={<Settings size={24} />} label=\"Настройки\" />"
+    }
+  ],
+  "client\\src\\components\\layout\\RightSidebar.tsx": [
+    {
+      "line": 152,
+      "text": "<button className=\"hover:text-foreground\" title=\"Действия с альбомом\" onClick={() => setShowShareMenu(!showShareMenu)}>"
+    },
+    {
+      "line": 158,
+      "text": "<Download size={18} className=\"shrink-0\" /> Скачать альбом"
+    },
+    {
+      "line": 161,
+      "text": "<Share size={18} className=\"shrink-0\" /> {isCopied ? 'Скопировано!' : 'Поделиться альбомом'}"
+    },
+    {
+      "line": 166,
+      "text": "<button className=\"hover:text-foreground\" title=\"Перемешать\" onClick={toggleShuffle}><Shuffle size={18} /></button>"
+    },
+    {
+      "line": 167,
+      "text": "<button className=\"hover:text-foreground\" title=\"Очистить\" onClick={clearQueue}><Trash2 size={18} /></button>"
+    }
+  ],
+  "client\\src\\components\\layout\\TopBar.tsx": [
+    {
+      "line": 58,
+      "text": "title=\"Переключить меню\""
+    },
+    {
+      "line": 99,
+      "text": "Ничего не найдено по запросу «{query}»"
+    },
+    {
+      "line": 109,
+      "text": "<Music size={14} /> Треки"
+    },
+    {
+      "line": 141,
+      "text": "<Disc size={14} /> Альбомы"
+    },
+    {
+      "line": 167,
+      "text": "<Users size={14} /> Исполнители"
+    },
+    {
+      "line": 196,
+      "text": "<span className=\"text-sm font-bold hidden sm:inline\">Совместный джэм</span>"
+    },
+    {
+      "line": 201,
+      "text": "<h3 className=\"font-bold text-center mb-1\">Совместное прослушивание</h3>"
+    },
+    {
+      "line": 202,
+      "text": "<p className=\"text-xs text-secondary text-center mb-2\">Слушайте музыку вместе с друзьями в реальном времени</p>"
+    },
+    {
+      "line": 211,
+      "text": "title=\"Переключить очередь\""
+    }
+  ],
+  "client\\src\\components\\layout\\TopNavigation.tsx": [
+    {
+      "line": 7,
+      "text": "<NavTab to=\"/Holad\" label=\"Песни\" />"
+    },
+    {
+      "line": 8,
+      "text": "<NavTab to=\"/Holad/albums\" label=\"Альбомы\" />"
+    },
+    {
+      "line": 9,
+      "text": "<NavTab to=\"/Holad/artists\" label=\"Исполнители\" />"
+    },
+    {
+      "line": 10,
+      "text": "<NavTab to=\"/Holad/playlists\" label=\"Плейлисты\" />"
+    }
+  ],
+  "client\\src\\components\\views\\AlbumView.tsx": [
+    {
+      "line": 38,
+      "text": "if (h > 0) return `${h} Ч ${m} М`;"
+    },
+    {
+      "line": 39,
+      "text": "return `${m} МИН`;"
+    },
+    {
+      "line": 75,
+      "text": "<span>{album.songCount} треков</span>"
+    },
+    {
+      "line": 79,
+      "text": "<span>{album.playCount || 0} прослушиваний</span>"
+    },
+    {
+      "line": 87,
+      "text": "<Play fill=\"currentColor\" size={18} /> Играть"
+    },
+    {
+      "line": 91,
+      "text": "<ListPlus size={18} /> Воспроизвести следующим"
+    },
+    {
+      "line": 95,
+      "text": "В конец"
+    },
+    {
+      "line": 99,
+      "text": "<Radio size={16} /> Радио по альбому"
+    }
+  ],
+  "client\\src\\components\\views\\ArtistsView.tsx": [
+    {
+      "line": 85,
+      "text": "Исполнители не найдены"
+    }
+  ],
+  "client\\src\\components\\views\\ArtistView.tsx": [
+    {
+      "line": 63,
+      "text": "Исполнитель"
+    },
+    {
+      "line": 69,
+      "text": "Альбомов: {artist.albumCount || albums.length}"
+    },
+    {
+      "line": 158,
+      "text": "<p className=\"text-secondary text-sm\">Нет альбомов</p>"
+    }
+  ],
+  "client\\src\\components\\views\\FavoritesView.tsx": [
+    {
+      "line": 140,
+      "text": "<p>Вы ещё ничего не добавили в избранное.</p>"
+    }
+  ],
+  "client\\src\\components\\views\\LoginView.tsx": [
+    {
+      "line": 26,
+      "text": "setError('Заполните все поля');"
+    },
+    {
+      "line": 43,
+      "text": "setError('Не удалось подключиться к серверу. Проверьте данные.');"
+    },
+    {
+      "line": 65,
+      "text": "Holad поддерживает <span className=\"text-primary font-bold\">только серверы Navidrome</span>. Пожалуйста, введите данные вашего сервера."
+    },
+    {
+      "line": 130,
+      "text": "'Войти в Navidrome'"
+    }
+  ],
+  "client\\src\\components\\views\\RadioView.tsx": [
+    {
+      "line": 118,
+      "text": "title=\"Бесконечный Микс\""
+    },
+    {
+      "line": 126,
+      "text": "title=\"Микс из Любимых\""
+    },
+    {
+      "line": 134,
+      "text": "title=\"Свежая Кровь\""
+    },
+    {
+      "line": 161,
+      "text": "description={`${genre.songCount} треков`}"
+    }
+  ],
+  "client\\src\\components\\views\\TracksView.tsx": [
+    {
+      "line": 89,
+      "text": "Сбросить <FilterX size={12} />"
+    },
+    {
+      "line": 155,
+      "text": "Треки"
+    }
+  ],
+  "client\\src\\main.tsx": [
+    {
+      "line": 9,
+      "text": "<React.Suspense fallback={<div className=\"h-screen w-screen bg-background flex items-center justify-center text-primary\">Загрузка...</div>}>"
+    }
+  ],
+  "client\\src\\utils\\artistImage.ts": [
+    {
+      "line": 16,
+      "text": "'пятерка': '5opka',"
+    }
+  ]
+}

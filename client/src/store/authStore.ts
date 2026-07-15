@@ -4,9 +4,10 @@ import { persist } from 'zustand/middleware';
 interface AuthState {
   url: string;
   user: string;
-  pass: string; // Storing plain text password as required by Subsonic API for generating MD5 per request
+  token: string;
+  salt: string;
   isAuthenticated: boolean;
-  setCredentials: (url: string, user: string, pass: string) => void;
+  setCredentials: (url: string, user: string, token: string, salt: string) => void;
   logout: () => void;
   setAuthenticated: (status: boolean) => void;
 }
@@ -16,14 +17,17 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       url: '',
       user: '',
-      pass: '',
+      token: '',
+      salt: '',
       isAuthenticated: false,
-      setCredentials: (url, user, pass) => set({ url, user, pass }),
-      logout: () => set({ url: '', user: '', pass: '', isAuthenticated: false }),
+      setCredentials: (url, user, token, salt) => set({ url, user, token, salt }),
+      logout: () => set({ url: '', user: '', token: '', salt: '', isAuthenticated: false }),
       setAuthenticated: (status) => set({ isAuthenticated: status }),
     }),
     {
       name: 'auth-storage',
+      // We no longer store plaintext password, but we persist token and salt
+      partialize: (state) => ({ url: state.url, user: state.user, token: state.token, salt: state.salt, isAuthenticated: state.isAuthenticated }),
     }
   )
 );

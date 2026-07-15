@@ -13,8 +13,10 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
 
   useEffect(() => {
     if (audioRef.current) {
-      // Use exponential curve for volume (x^2) as human hearing is logarithmic
-      audioRef.current.volume = volume * volume;
+      // Scale volume so that 100% on the UI equals 30% actual volume
+      // and use exponential curve (x^2) for natural hearing response
+      const scaledVolume = volume * 0.3;
+      audioRef.current.volume = scaledVolume * scaledVolume;
       setAudioElement(audioRef.current);
       
       // Initialize AudioContext early to prevent stuttering when switching to visualizer
@@ -75,14 +77,21 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
     
     const isJamUrl = window.location.pathname.startsWith('/jam');
     
-    if (isPlaying && currentTrack && role !== 'listener' && !isJamUrl) {
-      interval = setInterval(() => {
-        if (audioRef.current) {
-          const trackIds = queue.map(t => t.id);
-          const pos = Math.floor(audioRef.current.currentTime * 1000);
-          savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
-        }
-      }, 10000);
+    const saveState = () => {
+      if (audioRef.current && currentTrack) {
+        const trackIds = queue.map(t => t.id);
+        const pos = Math.floor(audioRef.current.currentTime * 1000);
+        savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
+      }
+    };
+    
+    if (currentTrack && role !== 'listener' && !isJamUrl) {
+      // Save state immediately on track/queue/play state changes
+      saveState();
+      
+      if (isPlaying) {
+        interval = setInterval(saveState, 10000);
+      }
     }
     return () => clearInterval(interval);
   }, [queue, currentTrack, isPlaying, role]);
