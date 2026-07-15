@@ -13,10 +13,12 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
 
   useEffect(() => {
     if (audioRef.current) {
-      // Scale volume so that 100% on the UI equals 30% actual volume
-      // and use exponential curve (x^2) for natural hearing response
-      const scaledVolume = volume * 0.3;
-      audioRef.current.volume = scaledVolume * scaledVolume;
+      if (volume !== undefined && !isNaN(volume)) {
+        // Scale volume so that 100% on the UI equals 30% actual volume
+        // and use exponential curve (x^2) for natural hearing response
+        const scaledVolume = volume * 0.3;
+        audioRef.current.volume = scaledVolume * scaledVolume;
+      }
       setAudioElement(audioRef.current);
       
       // Initialize AudioContext early to prevent stuttering when switching to visualizer
@@ -43,7 +45,7 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
       }
     }
     return () => setAudioElement(null);
-  }, [volume, setAudioElement]);
+  }, [volume, setAudioElement, audioRef.current]);
 
   useEffect(() => {
     // Attempt to resume audio context on interaction, and unblock playback

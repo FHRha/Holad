@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getLyrics, getLyricsBySongId } from '../api/subsonic';
 import { parseLRC, injectInterludes } from '../utils/lyrics';
 import type { LyricLine } from '../utils/lyrics';
-import type { Track } from '../store/playerStore';
+import { usePlayerStore, type Track } from '../store/playerStore';
 
 export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTMLAudioElement | null, isActive: boolean) {
   const [lyricsText, setLyricsText] = useState<string | null>(null);
@@ -121,9 +121,38 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     
     let rafId: number;
     let lastActiveIndex = activeLyricIndex;
+    let lastRafTime = performance.now();
+    let virtualTime = audioElement.currentTime;
+    let lastNativeTime = audioElement.currentTime;
 
     const updateCurrentLyric = () => {
-      const currentTime = audioElement.currentTime;
+      const now = performance.now();
+      const delta = (now - lastRafTime) / 1000;
+      lastRafTime = now;
+
+      let currentNativeTime = audioElement.currentTime;
+      const isPlaying = usePlayerStore.getState().isPlaying;
+
+      // Detect if currentTime was changed externally (e.g. by socket sync or user seeking)
+      if (audioElement.paused && currentNativeTime !== lastNativeTime) {
+        virtualTime = currentNativeTime;
+      } else if (!audioElement.paused && Math.abs(currentNativeTime - lastNativeTime) > 1.0) {
+        virtualTime = currentNativeTime;
+      }
+      
+      lastNativeTime = currentNativeTime;
+
+      let currentTime = currentNativeTime;
+
+      // If local playback is blocked (e.g., autoplay policy) or muted/paused but the Jam is playing,
+      // we interpolate the time to keep karaoke scrolling smoothly.
+      if (isPlaying && audioElement.paused) {
+        virtualTime += delta;
+        currentTime = virtualTime;
+      } else {
+        virtualTime = currentNativeTime;
+      }
+
       let newIndex = -1;
       for (let i = 0; i < lrcLines.length; i++) {
         if (currentTime >= lrcLines[i].time) {
@@ -132,7 +161,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
           break;
         }
       }
-      
+
       if (newIndex !== -1 && lrcLines[newIndex].isInterlude) {
         const line = lrcLines[newIndex];
         const nextLine = lrcLines[newIndex + 1];

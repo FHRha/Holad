@@ -20,7 +20,7 @@ export const createPlaybackSlice: StateCreator<
   PlaybackSlice
 > = (set) => ({
   isPlaying: false,
-  volume: 1,
+  volume: 0.5,
   initialPosition: 0,
   repeatMode: 'none',
 

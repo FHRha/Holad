@@ -52,6 +52,15 @@ export const usePlayerStore = create<PlayerState>()(
           userName: state.userName,
         };
       },
+      version: 1,
+      migrate: (persistedState: any, version: number) => {
+        if (version === 0) {
+          if (persistedState.volume === 1) {
+            persistedState.volume = 0.5;
+          }
+        }
+        return persistedState;
+      },
     }
   )
 );

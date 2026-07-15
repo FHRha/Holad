@@ -229,8 +229,15 @@ export default function FullScreenPlayerUI({
                                 : 'text-white/30 hover:text-white/50'
                           }`}
                           onClick={() => {
-                            if (audioElement) audioElement.currentTime = line.time;
-                            setIsUserScrolled(false); // Snap back to sync mode when user clicks a line
+                            if (role === 'listener') return;
+                            if (audioElement) {
+                              if (audioElement.paused) {
+                                audioElement.play().catch(console.error);
+                                usePlayerStore.getState().setIsPlaying(true);
+                              }
+                              audioElement.currentTime = line.time;
+                            }
+                            setIsUserScrolled(false);
                           }}
                         >
                           {line.text}
