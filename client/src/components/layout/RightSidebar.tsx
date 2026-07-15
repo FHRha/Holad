@@ -1,17 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
-import { Clock, Heart, Download, ListVideo, X, Search, Play } from 'lucide-react';
+import { Clock, Download, Share, Shuffle, Trash2, X, Search, Play } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useUIStore } from '../../store/uiStore';
+import { createShare } from '../../api/subsonic';
 import { formatArtistName } from '../../utils/formatters';
 import TrackImage from '../common/TrackImage';
 
 export default function RightSidebar() {
-  const { queue, currentIndex, playTrack } = usePlayerStore();
+  const { queue, currentIndex, playTrack, toggleShuffle, clearQueue } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const { setSearchOpen, rightSidebarWidth, setRightSidebarWidth } = useUIStore();
   const [visibleCount, setVisibleCount] = useState(50);
   const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleShareQueue = async () => {
+    if (queue.length === 0) return;
+    try {
+      const share = await createShare(queue.map(t => t.id), 'StreamNavi Queue', 7 * 24 * 60 * 60 * 1000);
+      if (share && share.url) {
+        navigator.clipboard.writeText(share.url);
+        alert('Ссылка на очередь скопирована в буфер обмена!');
+      }
+    } catch (err) {
+      console.error('Error sharing queue:', err);
+    }
+  };
 
   const isResizing = useRef(false);
   const startX = useRef(0);
@@ -106,16 +120,17 @@ export default function RightSidebar() {
         <>
           <div className="p-4 flex items-center text-secondary">
             <div className="flex gap-4">
-              <button className="hover:text-foreground"><Download size={18} /></button>
-              <button className="hover:text-foreground"><ListVideo size={18} /></button>
+              <button className="hover:text-foreground" title="Сохранить"><Download size={18} /></button>
+              <button className="hover:text-foreground" title="Поделиться" onClick={handleShareQueue}><Share size={18} /></button>
+              <button className="hover:text-foreground" title="Перемешать" onClick={toggleShuffle}><Shuffle size={18} /></button>
+              <button className="hover:text-foreground" title="Очистить" onClick={clearQueue}><Trash2 size={18} /></button>
             </div>
           </div>
 
-          <div className="flex px-4 py-2 text-xs font-semibold tracking-wider text-secondary border-b border-white/5 uppercase">
+          <div className="flex pl-4 pr-8 py-2 text-xs font-semibold tracking-wider text-secondary border-b border-white/5 uppercase">
             <div className="w-8">#</div>
             <div className="flex-1">Title</div>
             <div className="w-10 text-right"><Clock size={14} className="inline-block" /></div>
-            <div className="w-8 flex justify-center"><Heart size={14} /></div>
           </div>
         </>
       )}
