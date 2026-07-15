@@ -21,6 +21,7 @@ export interface QueueSlice {
   prevTrack: () => void;
   toggleAutoDj: () => void;
   toggleShuffle: () => void;
+  reorderQueue: (oldIndex: number, newIndex: number) => void;
 }
 
 export const createQueueSlice: StateCreator<
@@ -142,5 +143,26 @@ export const createQueueSlice: StateCreator<
         currentIndex: newIndex !== -1 ? newIndex : 0
       };
     }
+  }),
+
+  reorderQueue: (oldIndex, newIndex) => set((state) => {
+    if (oldIndex < 0 || oldIndex >= state.queue.length || newIndex < 0 || newIndex >= state.queue.length) {
+      return state;
+    }
+    
+    const newQueue = [...state.queue];
+    const [movedItem] = newQueue.splice(oldIndex, 1);
+    newQueue.splice(newIndex, 0, movedItem);
+
+    let newCurrentIndex = state.currentIndex;
+    if (state.currentIndex === oldIndex) {
+      newCurrentIndex = newIndex;
+    } else if (oldIndex < state.currentIndex && newIndex >= state.currentIndex) {
+      newCurrentIndex--;
+    } else if (oldIndex > state.currentIndex && newIndex <= state.currentIndex) {
+      newCurrentIndex++;
+    }
+
+    return { queue: newQueue, currentIndex: newCurrentIndex };
   }),
 });

@@ -11,6 +11,8 @@ import { useLyricsSync } from '../../hooks/useLyricsSync';
 import { useSimilarTracks } from '../../hooks/useSimilarTracks';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from './LanguageSelector';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableItem } from './dnd/SortableItem';
 
 export default function FullScreenPlayerUI({ 
   onClose,
@@ -269,30 +271,46 @@ export default function FullScreenPlayerUI({
 
             {activeTab === 'queue' && (
               <div ref={queueContainerRef} className="space-y-2">
-                {queue.map((track, idx) => {
-                  const isPlayingQueue = idx === currentIndex;
-                  return (
-                    <div 
-                      key={idx} 
-                      className={`flex items-center px-4 py-3 rounded-xl transition-colors ${isPlayingQueue ? 'bg-primary/20 shadow-sm border border-primary/30' : 'hover:bg-white/10 cursor-pointer'}`}
-                      onClick={() => !readOnlyControls && setQueueAndPlay(queue, idx)}
-                    >
-                      <div className="w-8 flex justify-center text-white/50 text-sm font-medium">
-                        {isPlayingQueue ? <Play size={14} className="text-primary" fill="currentColor" /> : idx + 1}
-                      </div>
-                      <div className="w-12 h-12 flex-shrink-0 mx-4 rounded-lg overflow-hidden shadow-md">
-                        <TrackImage src={getCoverArtUrl(track.id, 100)} className="w-full h-full object-cover" alt="" />
-                      </div>
-                      <div className="flex-1 min-w-0 flex flex-col justify-center">
-                        <p className={`truncate text-base font-semibold ${isPlayingQueue ? 'text-primary drop-shadow-md' : 'text-white/90'}`}>{track.title}</p>
-                        <p className="truncate text-sm text-white/60">{formatArtistName(track.artist)}</p>
-                      </div>
-                      <div className="w-16 text-sm text-white/50 flex justify-end font-medium">
-                        {formatTime(track.duration)}
-                      </div>
-                    </div>
-                  );
-                })}
+                <SortableContext 
+                  items={queue.map((t, idx) => `${t.id}-${idx}`)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {queue.map((track, idx) => {
+                    const isPlayingQueue = idx === currentIndex;
+                    const sortableId = `${track.id}-${idx}`;
+                    return (
+                      <SortableItem key={sortableId} id={sortableId}>
+                        {({ setNodeRef, attributes, listeners, style, isDragging }) => (
+                          <div 
+                            ref={setNodeRef}
+                            style={style}
+                            {...(!readOnlyControls ? attributes : {})}
+                            {...(!readOnlyControls ? listeners : {})}
+                            className={`flex items-center px-4 py-3 rounded-xl transition-colors ${isPlayingQueue ? 'bg-primary/20 shadow-sm border border-primary/30' : 'hover:bg-white/10'} ${!readOnlyControls ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-30' : ''}`}
+                            onClick={() => {
+                              // Only handle play if it wasn't a drag
+                              if (!readOnlyControls && !isDragging) setQueueAndPlay(queue, idx);
+                            }}
+                          >
+                            <div className="w-8 flex justify-center text-white/50 text-sm font-medium select-none pointer-events-none">
+                              {isPlayingQueue ? <Play size={14} className="text-primary" fill="currentColor" /> : idx + 1}
+                            </div>
+                            <div className="w-12 h-12 flex-shrink-0 mx-4 rounded-lg overflow-hidden shadow-md select-none pointer-events-none">
+                              <TrackImage src={getCoverArtUrl(track.id, 100)} className="w-full h-full object-cover" alt="" />
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col justify-center select-none pointer-events-none">
+                              <p className={`truncate text-base font-semibold ${isPlayingQueue ? 'text-primary drop-shadow-md' : 'text-white/90'}`}>{track.title}</p>
+                              <p className="truncate text-sm text-white/60">{formatArtistName(track.artist)}</p>
+                            </div>
+                            <div className="w-16 text-sm text-white/50 flex justify-end font-medium select-none pointer-events-none">
+                              {formatTime(track.duration)}
+                            </div>
+                          </div>
+                        )}
+                      </SortableItem>
+                    );
+                  })}
+                </SortableContext>
               </div>
             )}
 

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Clock, Download, Share, Shuffle, Trash2, Play } from 'lucide-react';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableItem } from '../common/dnd/SortableItem';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
@@ -181,47 +183,60 @@ export default function RightSidebar() {
 
 
       <div className={`flex-1 overflow-y-auto overflow-x-hidden ${isSmall ? 'p-1' : 'p-2'} space-y-1`} onScroll={handleScroll}>
-        {queue.slice(0, visibleCount).map((track, idx) => {
-          const isPlaying = idx === currentIndex;
-          return (
-            <div 
-              id={`queue-item-${idx}`}
-              key={idx} 
-              onClick={() => playTrack(idx)}
-              onContextMenu={(e) => handleContextMenu(e, track, idx)}
-              onTouchStart={(e) => handleTouchStart(e, track, idx)}
-              onTouchEnd={handleTouchEnd}
-              onTouchMove={handleTouchEnd}
-              className={`flex items-center ${isSmall ? 'justify-center p-1' : 'px-2 py-2'} rounded-md cursor-pointer group ${isPlaying ? 'bg-white/10' : 'hover:bg-white/5'}`}
-              title={isSmall ? `${track.title} • ${formatArtistName(track.artist)}` : undefined}
-            >
-              {!isSmall && (
-                <div className="w-6 flex justify-center text-secondary text-xs">
-                  {isPlaying ? <Play size={12} className="text-primary" fill="currentColor" /> : idx + 1}
-                </div>
-              )}
-              <div className={`relative group rounded overflow-hidden shadow-sm flex-shrink-0 ${isSmall ? 'w-14 h-14' : 'w-10 h-10 mx-2'}`}>
-                <TrackImage src={track.coverArt} className="w-full h-full rounded object-cover" alt="" />
-                {isSmall && (
-                  <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                    <Play size={16} className={isPlaying ? "text-primary" : "text-white"} fill="currentColor" />
+        <SortableContext 
+          items={queue.slice(0, visibleCount).map((t, idx) => `${t.id}-${idx}`)}
+          strategy={verticalListSortingStrategy}
+        >
+          {queue.slice(0, visibleCount).map((track, idx) => {
+            const isPlaying = idx === currentIndex;
+            const sortableId = `${track.id}-${idx}`;
+            return (
+              <SortableItem key={sortableId} id={sortableId}>
+                {({ setNodeRef, attributes, listeners, style, isDragging }) => (
+                  <div 
+                    ref={setNodeRef}
+                    style={style}
+                    id={`queue-item-${idx}`}
+                    {...attributes}
+                    {...listeners}
+                    onClick={() => playTrack(idx)}
+                    onContextMenu={(e) => handleContextMenu(e, track, idx)}
+                    onTouchStart={(e) => handleTouchStart(e, track, idx)}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchMove={handleTouchEnd}
+                    className={`flex items-center ${isSmall ? 'justify-center p-1' : 'px-2 py-2'} rounded-md cursor-grab active:cursor-grabbing group ${isPlaying ? 'bg-white/10' : 'hover:bg-white/5'} ${isDragging ? 'opacity-30' : ''}`}
+                    title={isSmall ? `${track.title} • ${formatArtistName(track.artist)}` : undefined}
+                  >
+                    {!isSmall && (
+                      <div className="w-6 flex justify-center text-secondary text-xs select-none pointer-events-none">
+                        {isPlaying ? <Play size={12} className="text-primary" fill="currentColor" /> : idx + 1}
+                      </div>
+                    )}
+                    <div className={`relative group rounded overflow-hidden shadow-sm flex-shrink-0 ${isSmall ? 'w-14 h-14' : 'w-10 h-10 mx-2'}`}>
+                      <TrackImage src={track.coverArt} className="w-full h-full rounded object-cover pointer-events-none" alt="" />
+                      {isSmall && (
+                        <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} pointer-events-none`}>
+                          <Play size={16} className={isPlaying ? "text-primary" : "text-white"} fill="currentColor" />
+                        </div>
+                      )}
+                    </div>
+                    {!isSmall && (
+                      <>
+                        <div className="flex-1 min-w-0 flex flex-col justify-center select-none pointer-events-none">
+                          <p className={`truncate text-sm font-medium ${isPlaying ? 'text-primary' : 'text-foreground'}`}>{track.title}</p>
+                          <p className="truncate text-xs text-secondary">{formatArtistName(track.artist)}</p>
+                        </div>
+                        <div className="w-10 text-right text-xs text-secondary select-none pointer-events-none">
+                          {formatTime(track.duration)}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
-              </div>
-              {!isSmall && (
-                <>
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <p className={`truncate text-sm font-medium ${isPlaying ? 'text-primary' : 'text-foreground'}`}>{track.title}</p>
-                    <p className="truncate text-xs text-secondary">{formatArtistName(track.artist)}</p>
-                  </div>
-                  <div className="w-10 text-right text-xs text-secondary">
-                    {formatTime(track.duration)}
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })}
+              </SortableItem>
+            );
+          })}
+        </SortableContext>
         {queue.length === 0 && !isSmall && (
           <div className="text-center mt-10 text-secondary text-sm">Queue is empty</div>
         )}

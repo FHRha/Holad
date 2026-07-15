@@ -18,6 +18,7 @@ import LoginView from './components/views/LoginView';
 import RadioView from './components/views/RadioView';
 import TopBar from './components/layout/TopBar';
 import NowPlayingModal from './components/common/NowPlayingModal';
+import { GlobalDndProvider } from './components/common/dnd/GlobalDndProvider';
 
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useDocumentTitle } from './hooks/useDocumentTitle';
@@ -35,7 +36,8 @@ function AppContent() {
   const isLoginRoute = location.pathname === '/login';
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans">
+    <GlobalDndProvider>
+      <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans">
       <div className="flex flex-1 overflow-hidden relative">
         <Routes>
           <Route path="/" element={<Navigate to="/Holad" replace />} />
@@ -84,6 +86,7 @@ function AppContent() {
         </>
       )}
     </div>
+    </GlobalDndProvider>
   );
 }
 
