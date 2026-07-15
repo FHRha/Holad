@@ -24,7 +24,7 @@ export default function FullScreenPlayerUI({
   
   const isJamRoute = window.location.pathname.startsWith('/jam');
   const searchParams = new URLSearchParams(window.location.search);
-  const isStandalone = isJamRoute && !!searchParams.get('track');
+  const isStandalone = isJamRoute && (!!searchParams.get('track') || !!searchParams.get('album'));
   const readOnlyControls = isJamRoute && role === 'listener';
   
   const queueContainerRef = useRef<HTMLDivElement>(null);
