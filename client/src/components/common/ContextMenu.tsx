@@ -121,7 +121,9 @@ export default function ContextMenu() {
   };
 
   const onShare = () => {
-    const link = `${window.location.origin}/jam/?track=${item.id}`;
+    const link = isAlbum 
+      ? `${window.location.origin}/jam/?album=${item.id}`
+      : `${window.location.origin}/jam/?track=${item.id}`;
     navigator.clipboard.writeText(link);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);

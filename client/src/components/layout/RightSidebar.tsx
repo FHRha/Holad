@@ -3,7 +3,7 @@ import { Clock, Download, Share, Shuffle, Trash2, X, Search, Play } from 'lucide
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useUIStore } from '../../store/uiStore';
-import { createShare } from '../../api/subsonic';
+import { getDownloadUrl } from '../../api/subsonic';
 import { formatArtistName } from '../../utils/formatters';
 import TrackImage from '../common/TrackImage';
 
@@ -12,19 +12,47 @@ export default function RightSidebar() {
   const { openMenu } = useContextMenuStore();
   const { setSearchOpen, rightSidebarWidth, setRightSidebarWidth } = useUIStore();
   const [visibleCount, setVisibleCount] = useState(50);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shareRef = useRef<HTMLDivElement>(null);
 
-  const handleShareQueue = async () => {
-    if (queue.length === 0) return;
-    try {
-      const share = await createShare(queue.map(t => t.id), 'StreamNavi Queue', 7 * 24 * 60 * 60 * 1000);
-      if (share && share.url) {
-        navigator.clipboard.writeText(share.url);
-        alert('Ссылка на очередь скопирована в буфер обмена!');
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
+        setShowShareMenu(false);
       }
-    } catch (err) {
-      console.error('Error sharing queue:', err);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const handleDownloadAlbum = () => {
+    if (queue.length === 0 || currentIndex === -1) return;
+    const currentTrack = queue[currentIndex];
+    if (!currentTrack) return;
+    const idToDownload = currentTrack.albumId || currentTrack.id;
+    if (idToDownload) {
+      const url = getDownloadUrl(idToDownload);
+      window.open(url, '_blank');
     }
+    setShowShareMenu(false);
+  };
+
+  const handleShareItem = () => {
+    if (queue.length === 0 || currentIndex === -1) return;
+    const currentTrack = queue[currentIndex];
+    if (!currentTrack) return;
+    
+    const origin = window.location.origin;
+    const url = `${origin}/jam/?album=${currentTrack.albumId || currentTrack.album}`;
+      
+    navigator.clipboard.writeText(url);
+    setIsCopied(true);
+    setTimeout(() => {
+      setIsCopied(false);
+      setShowShareMenu(false);
+    }, 2000);
   };
 
   const isResizing = useRef(false);
@@ -107,7 +135,7 @@ export default function RightSidebar() {
 
   return (
     <div 
-      className="hidden md:flex bg-background border-l border-white/5 flex-col h-full text-sm relative z-10 flex-shrink-0"
+      className="hidden md:flex bg-background border-l border-white/5 flex-col h-full text-sm relative z-[60] flex-shrink-0"
       style={{ width: rightSidebarWidth }}
     >
       {/* Resizer */}
@@ -120,8 +148,21 @@ export default function RightSidebar() {
         <>
           <div className="p-4 flex items-center text-secondary">
             <div className="flex gap-4">
-              <button className="hover:text-foreground" title="Сохранить"><Download size={18} /></button>
-              <button className="hover:text-foreground" title="Поделиться" onClick={handleShareQueue}><Share size={18} /></button>
+              <div className="relative flex" ref={shareRef}>
+                <button className="hover:text-foreground" title="Действия с альбомом" onClick={() => setShowShareMenu(!showShareMenu)}>
+                  <Share size={16} />
+                </button>
+                {showShareMenu && (
+                  <div className="absolute top-full right-0 mt-2 py-1 bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl z-[60] flex flex-col min-w-[180px]">
+                    <button onClick={handleDownloadAlbum} className="text-left px-4 py-2 hover:bg-white/10 text-sm text-white font-medium transition-colors flex items-center gap-3 whitespace-nowrap">
+                      <Download size={18} className="shrink-0" /> Скачать альбом
+                    </button>
+                    <button onClick={handleShareItem} className={`text-left px-4 py-2 hover:bg-white/10 text-sm font-medium transition-colors border-t border-white/5 flex items-center gap-3 whitespace-nowrap ${isCopied ? 'text-primary' : 'text-white'}`}>
+                      <Share size={18} className="shrink-0" /> {isCopied ? 'Скопировано!' : 'Поделиться альбомом'}
+                    </button>
+                  </div>
+                )}
+              </div>
               <button className="hover:text-foreground" title="Перемешать" onClick={toggleShuffle}><Shuffle size={18} /></button>
               <button className="hover:text-foreground" title="Очистить" onClick={clearQueue}><Trash2 size={18} /></button>
             </div>

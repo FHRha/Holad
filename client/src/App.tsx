@@ -27,6 +27,9 @@ function AppContent() {
   const { isAuthenticated, isJamRoute } = useAppInitialization();
   const role = usePlayerStore(state => state.role);
   
+  const searchParams = new URLSearchParams(location.search);
+  const validStandalone = (searchParams.has('track') && !!searchParams.get('track')) || (searchParams.has('album') && !!searchParams.get('album'));
+  
   useDocumentTitle();
 
   const isLoginRoute = location.pathname === '/login';
@@ -74,7 +77,7 @@ function AppContent() {
         <NowPlayingModal />
       </div>
       
-      {!isLoginRoute && (isAuthenticated || (isJamRoute && role)) && (
+      {!isLoginRoute && (isAuthenticated || (isJamRoute && (role || validStandalone))) && (
         <>
           <BottomPlayer />
           <MobileBottomNav />

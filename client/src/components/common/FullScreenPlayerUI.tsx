@@ -145,7 +145,7 @@ export default function FullScreenPlayerUI({
             >
               Очередь
             </button>
-            {!isStandalone && (
+            {!isStandalone && !readOnlyControls && (
               <button 
                 onClick={() => setActiveTab('similar')}
                 className={`transition-all rounded-full px-5 py-2 ${activeTab === 'similar' ? 'bg-primary text-background shadow-md' : 'hover:bg-white/10 hover:text-white'}`}
@@ -269,7 +269,7 @@ export default function FullScreenPlayerUI({
                     <div 
                       key={idx} 
                       className={`flex items-center px-4 py-3 rounded-xl transition-colors ${isPlayingQueue ? 'bg-primary/20 shadow-sm border border-primary/30' : 'hover:bg-white/10 cursor-pointer'}`}
-                      onDoubleClick={() => !readOnlyControls && setQueueAndPlay(queue, idx)}
+                      onClick={() => !readOnlyControls && setQueueAndPlay(queue, idx)}
                     >
                       <div className="w-8 flex justify-center text-white/50 text-sm font-medium">
                         {isPlayingQueue ? <Play size={14} className="text-primary" fill="currentColor" /> : idx + 1}
@@ -296,7 +296,7 @@ export default function FullScreenPlayerUI({
                   <div 
                     key={idx} 
                     className="flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-white/10 cursor-pointer"
-                    onDoubleClick={() => !readOnlyControls && setQueueAndPlay(similarTracks, idx)}
+                    onClick={() => !readOnlyControls && setQueueAndPlay(similarTracks, idx)}
                   >
                     <div className="w-12 h-12 flex-shrink-0 mr-4 rounded-lg overflow-hidden shadow-md">
                       <TrackImage src={track.coverArt} className="w-full h-full object-cover" alt="" />

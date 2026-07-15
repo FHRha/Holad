@@ -4,7 +4,7 @@ import { jamSocket } from '../../api/socket';
 import { usePlayerStore } from '../../store/playerStore';
 import JamSessionControl from '../jam/JamSessionControl';
 import FullScreenPlayerUI from '../common/FullScreenPlayerUI';
-import { getSong, getCoverArtUrl } from '../../api/subsonic';
+import { getSong, getCoverArtUrl, getAlbumFull } from '../../api/subsonic';
 import { useState } from 'react';
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import TopBar from './TopBar';
@@ -21,6 +21,7 @@ export default function JamLayout() {
   const [searchParams] = useSearchParams();
   const roomToJoin = searchParams.get('room');
   const trackId = searchParams.get('track');
+  const albumId = searchParams.get('album');
   const { setQueueAndPlay, queue, currentIndex, jamError, role, userName, isMinimized, setUserName } = usePlayerStore();
   
   const [localName, setLocalName] = useState('');
@@ -36,11 +37,13 @@ export default function JamLayout() {
     }
   }, [roomToJoin, userName]);
 
-  // Standalone Track initialization
+  // Standalone Track/Album initialization
   useEffect(() => {
-    if (trackId && !roomToJoin) {
+    if (trackId && trackId.trim() !== '' && !roomToJoin) {
       getSong(trackId).then(t => {
         if (t) {
+          const { audioElement } = useAudioStore.getState();
+          if (audioElement) audioElement.currentTime = 0;
           setQueueAndPlay([{
             id: t.id,
             title: t.title,
@@ -52,9 +55,27 @@ export default function JamLayout() {
             duration: t.duration
           }], 0);
         }
-      });
+      }).catch(() => {});
+    } else if (albumId && albumId.trim() !== '' && !roomToJoin) {
+      getAlbumFull(albumId).then(a => {
+        if (a && a.song) {
+          const { audioElement } = useAudioStore.getState();
+          if (audioElement) audioElement.currentTime = 0;
+          const tracks = a.song.map((t: any) => ({
+            id: t.id,
+            title: t.title,
+            artist: t.artist,
+            album: t.album,
+            albumId: t.albumId || a.id,
+            artistId: t.artistId || a.artistId,
+            coverArt: getCoverArtUrl(t.coverArt || a.coverArt || a.id, 300),
+            duration: t.duration
+          }));
+          setQueueAndPlay(tracks, 0);
+        }
+      }).catch(() => {});
     }
-  }, [trackId, roomToJoin, setQueueAndPlay]);
+  }, [trackId, albumId, roomToJoin, setQueueAndPlay]);
 
   if (jamError) {
     return (
@@ -81,11 +102,14 @@ export default function JamLayout() {
     );
   }
 
-  if (!roomToJoin) {
+  const isValidStandaloneTrack = trackId && trackId.trim() !== '';
+  const isValidStandaloneAlbum = albumId && albumId.trim() !== '';
+
+  if (!roomToJoin && !isValidStandaloneTrack && !isValidStandaloneAlbum) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-screen bg-background">
         <h2 className="text-2xl font-bold mb-4">Неверная ссылка</h2>
-        <p className="text-secondary">Эта ссылка для Jam-сессии недействительна.</p>
+        <p className="text-secondary">Эта ссылка недействительна или параметр пуст.</p>
       </div>
     );
   }
@@ -93,8 +117,8 @@ export default function JamLayout() {
   const hasTrack = !!queue[currentIndex];
 
   if (!hasTrack) {
-    if (!trackId) {
-      // We already checked roomToJoin, so this might be unnecessary, but leaving for safety if trackId was expected
+    if (!trackId && !albumId) {
+      // We already checked roomToJoin, so this might be unnecessary
     } else {
       return (
         <div className="flex-1 flex flex-col items-center justify-center h-screen bg-background">
@@ -103,6 +127,16 @@ export default function JamLayout() {
         </div>
       );
     }
+  }
+
+  if (!roomToJoin && hasTrack) {
+    return (
+      <div className="w-full h-full relative overflow-hidden bg-background flex">
+        <div className="flex-1">
+          <FullScreenPlayerUI />
+        </div>
+      </div>
+    );
   }
 
   if (!hasJoined.current && !userName && !jamError && (usePlayerStore.getState().role !== 'host')) {
