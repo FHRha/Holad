@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Home, Heart, Disc, Music, Radio, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';

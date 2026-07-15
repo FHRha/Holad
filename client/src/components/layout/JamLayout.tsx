@@ -1,11 +1,11 @@
 import { useSearchParams } from 'react-router-dom';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { jamSocket } from '../../api/socket';
 import { usePlayerStore } from '../../store/playerStore';
+import { useAudioStore } from '../../store/audioStore';
 import JamSessionControl from '../jam/JamSessionControl';
 import FullScreenPlayerUI from '../common/FullScreenPlayerUI';
 import { getSong, getCoverArtUrl, getAlbumFull } from '../../api/subsonic';
-import { useState } from 'react';
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import TopBar from './TopBar';
 import AlbumsView from '../views/AlbumsView';

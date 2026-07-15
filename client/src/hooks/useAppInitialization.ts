@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { usePlayerStore } from '../store/playerStore';
 import { useAuthStore } from '../store/authStore';
@@ -10,10 +10,13 @@ export function useAppInitialization() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const roomToJoin = searchParams.get('room');
-  const role = usePlayerStore(state => state.role);
+  const trackId = searchParams.get('track');
+  const albumId = searchParams.get('album');
+  
   const setLikedItems = usePlayerStore(state => state.setLikedItems);
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const isJamRoute = location.pathname.startsWith('/jam');
+  const queueFetched = useRef(false);
 
   useEffect(() => {
     // Only connect if authenticated OR if we are on a jam route
@@ -32,7 +35,10 @@ export function useAppInitialization() {
       }).catch(e => console.error("Failed to fetch starred items", e));
     }
 
-    if (!isJamRoute || !roomToJoin) {
+    const isStandaloneJam = isJamRoute && (!!trackId || !!albumId);
+
+    if (!isStandaloneJam && !roomToJoin && !queueFetched.current) {
+      queueFetched.current = true;
       getPlayQueue().then(queueData => {
         if (queueData && queueData.entry) {
           const mappedTracks: Track[] = queueData.entry.map((t: any) => ({
@@ -62,7 +68,7 @@ export function useAppInitialization() {
         }
       }).catch(e => console.error("Failed to fetch play queue", e));
     }
-  }, [isAuthenticated, roomToJoin, role, setLikedItems, isJamRoute]);
+  }, [isAuthenticated, roomToJoin, trackId, albumId, setLikedItems, isJamRoute]);
 
   return { isAuthenticated, isJamRoute };
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Clock, Download, Share, Shuffle, Trash2, X, Search, Play } from 'lucide-react';
+import { Clock, Download, Share, Shuffle, Trash2, Play } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useUIStore } from '../../store/uiStore';
@@ -10,7 +10,7 @@ import TrackImage from '../common/TrackImage';
 export default function RightSidebar() {
   const { queue, currentIndex, playTrack, toggleShuffle, clearQueue } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
-  const { setSearchOpen, rightSidebarWidth, setRightSidebarWidth } = useUIStore();
+  const { rightSidebarWidth, setRightSidebarWidth } = useUIStore();
   const [visibleCount, setVisibleCount] = useState(50);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
