@@ -51,7 +51,7 @@ export default function BottomPlayer() {
 
   const searchParams = new URLSearchParams(window.location.search);
   const isJamRoute = window.location.pathname.startsWith('/jam');
-  const isStandalone = isJamRoute && !!searchParams.get('track');
+  const isStandalone = isJamRoute && (!!searchParams.get('track') || !!searchParams.get('album'));
   const hideSocialActions = isJamRoute && (role === 'listener' || isStandalone);
   const hideAutoDJ = isJamRoute && isStandalone;
 

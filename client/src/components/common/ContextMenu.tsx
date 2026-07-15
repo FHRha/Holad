@@ -209,7 +209,7 @@ export default function ContextMenu() {
             <ItemBtn icon={Download} label="Скачать" onClick={() => handleAction(onDownload)} />
             <ItemBtn 
               icon={Share2} 
-              label={isCopied ? "Скопировано!" : "Поделиться (Врем. ссылка)"} 
+              label={isCopied ? "Скопировано!" : "Поделиться"} 
               onClick={() => handleAction(onShare, false)} 
               color={isCopied ? "text-primary font-bold" : "text-white"}
             />

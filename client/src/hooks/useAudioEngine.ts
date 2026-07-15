@@ -21,8 +21,11 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
       const audioEl = audioRef.current as any;
       if (!audioEl._audioCtx) {
         try {
-          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const ctx = (window as any)._globalAudioContext || new (window.AudioContext || (window as any).webkitAudioContext)();
           audioEl._audioCtx = ctx;
+          if (!(window as any)._globalAudioContext) {
+            (window as any)._globalAudioContext = ctx;
+          }
           const analyser = ctx.createAnalyser();
           analyser.fftSize = 256;
           analyser.smoothingTimeConstant = 0.8;
@@ -39,6 +42,20 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
     }
     return () => setAudioElement(null);
   }, [volume, setAudioElement]);
+
+  useEffect(() => {
+    // Attempt to resume audio context on first interaction
+    const handleInteraction = () => {
+      if (audioRef.current) {
+        const audioEl = audioRef.current as any;
+        if (audioEl._audioCtx && audioEl._audioCtx.state === 'suspended') {
+          audioEl._audioCtx.resume();
+        }
+      }
+    };
+    document.addEventListener('click', handleInteraction, { once: true });
+    return () => document.removeEventListener('click', handleInteraction);
+  }, []);
 
   useEffect(() => {
     if (audioRef.current && currentTrack && initialPosition > 0) {

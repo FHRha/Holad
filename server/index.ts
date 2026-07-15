@@ -77,11 +77,18 @@ app.get('/api/stream/:id', async (req, res) => {
     const targetServer = serverUrl ? decodeURIComponent(serverUrl as string) : NAVIDROME_URL;
     const streamUrl = `${targetServer}/rest/stream?id=${id}&${authParams}`;
     
-    const response = await fetch(streamUrl);
+    const headers: Record<string, string> = {};
+    if (req.headers.range) {
+      headers['Range'] = req.headers.range;
+    }
     
-    if (!response.ok) {
+    const response = await fetch(streamUrl, { headers });
+    
+    if (!response.ok && response.status !== 206) {
       return res.status(response.status).send('Failed to fetch stream');
     }
+
+    res.status(response.status);
 
     res.set('Content-Type', response.headers.get('content-type') || 'audio/mpeg');
     res.set('Content-Length', response.headers.get('content-length') || '');

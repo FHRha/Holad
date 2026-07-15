@@ -18,8 +18,29 @@ export default function AudioVisualizer() {
 
 
 
-    const ctx = audioEl._audioCtx as AudioContext;
-    const analyser = audioEl._analyser as AnalyserNode;
+    let ctx = audioEl._audioCtx as AudioContext;
+    let analyser = audioEl._analyser as AnalyserNode;
+
+    if (!ctx) {
+      try {
+        ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioEl._audioCtx = ctx;
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.8;
+        audioEl._analyser = analyser;
+        
+        const source = ctx.createMediaElementSource(audioEl);
+        source.connect(analyser);
+        analyser.connect(ctx.destination);
+        audioEl._source = source;
+      } catch (e) {
+        console.error("Visualizer audio context error:", e);
+        return;
+      }
+    }
+
+    if (!ctx || !analyser) return;
 
     // Resume context if suspended
     if (ctx.state === 'suspended') {

@@ -40,7 +40,7 @@ export default function JamLayout() {
   // Standalone Track/Album initialization
   useEffect(() => {
     if (trackId && trackId.trim() !== '' && !roomToJoin) {
-      usePlayerStore.setState({ queue: [], currentIndex: 0 });
+      usePlayerStore.setState({ queue: [], currentIndex: 0, isAutoDjEnabled: false });
       getSong(trackId).then(t => {
         if (t) {
           const { audioElement } = useAudioStore.getState();
@@ -58,7 +58,7 @@ export default function JamLayout() {
         }
       }).catch(() => {});
     } else if (albumId && albumId.trim() !== '' && !roomToJoin) {
-      usePlayerStore.setState({ queue: [], currentIndex: 0 });
+      usePlayerStore.setState({ queue: [], currentIndex: 0, isAutoDjEnabled: false });
       getAlbumFull(albumId).then(a => {
         if (a && a.song) {
           const { audioElement } = useAudioStore.getState();
@@ -151,7 +151,18 @@ export default function JamLayout() {
         
         <form onSubmit={(e) => {
           e.preventDefault();
-          if (localName.trim()) setUserName(localName.trim());
+          if (localName.trim()) {
+            try {
+              if (!(window as any)._globalAudioContext) {
+                (window as any)._globalAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+              } else if ((window as any)._globalAudioContext.state === 'suspended') {
+                (window as any)._globalAudioContext.resume();
+              }
+            } catch (e) {
+              console.error(e);
+            }
+            setUserName(localName.trim());
+          }
         }} className="flex flex-col gap-4 w-full max-w-sm">
           <input 
             type="text" 
