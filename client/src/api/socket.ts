@@ -207,8 +207,18 @@ class JamSocketService {
     const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
 
     let trackChanged = false;
-    // Apply queue if present (initial join)
-    if (queue && queue.length > 0 && queue !== store.queue) {
+    
+    const isQueueDifferent = () => {
+      if (!queue || queue.length === 0) return false;
+      if (!store.queue || queue.length !== store.queue.length) return true;
+      for (let i = 0; i < queue.length; i++) {
+        if (queue[i].id !== store.queue[i].id) return true;
+      }
+      return false;
+    };
+
+    // Apply queue if present (initial join or real change)
+    if (isQueueDifferent()) {
       usePlayerStore.setState({ queue, currentIndex: currentIndex !== undefined ? currentIndex : 0 });
       trackChanged = true;
     } else if (currentIndex !== undefined && currentIndex !== store.currentIndex) {
@@ -225,19 +235,43 @@ class JamSocketService {
     }
 
     if (audioEl) {
-      // Drift threshold: 3.0 seconds to prevent stutters from network latency spikes
-      const drift = Math.abs(audioEl.currentTime - currentTime);
-      if (drift > 3.0) {
-        console.log(`Drift detected (${drift}s), seeking to match host`);
-        audioEl.currentTime = currentTime;
-      }
-
       if (isPlaying && audioEl.paused) {
         audioEl.play().catch(e => console.error("Playback prevented", e));
         store.setIsPlaying(true);
       } else if (!isPlaying && !audioEl.paused) {
         audioEl.pause();
         store.setIsPlaying(false);
+        audioEl.playbackRate = 1.0; // Reset rate on pause
+      }
+
+      if (isPlaying) {
+        // Compensate for network latency (~150ms)
+        const targetTime = currentTime + 0.15;
+        const drift = targetTime - audioEl.currentTime;
+
+        if (Math.abs(drift) > 4.0) {
+          console.log(`Large drift detected (${Math.abs(drift).toFixed(2)}s), hard seeking to match host`);
+          audioEl.currentTime = targetTime;
+          audioEl.playbackRate = 1.0;
+        } else if (drift > 0.15) {
+          // We are behind the host, speed up
+          if (audioEl.playbackRate !== 1.05) {
+            audioEl.playbackRate = 1.05;
+            console.log(`Soft sync: Catching up (+${drift.toFixed(2)}s)`);
+          }
+        } else if (drift < -0.15) {
+          // We are ahead of the host, slow down
+          if (audioEl.playbackRate !== 0.95) {
+            audioEl.playbackRate = 0.95;
+            console.log(`Soft sync: Waiting (-${Math.abs(drift).toFixed(2)}s)`);
+          }
+        } else {
+          // Perfect sync
+          if (audioEl.playbackRate !== 1.0) {
+            audioEl.playbackRate = 1.0;
+            console.log("Soft sync: Perfectly in sync");
+          }
+        }
       }
     }
   }
