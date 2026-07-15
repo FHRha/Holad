@@ -225,9 +225,9 @@ class JamSocketService {
     }
 
     if (audioEl) {
-      // Drift threshold: 0.4 seconds for tighter sync
+      // Drift threshold: 1.5 seconds to prevent micro-stutters from network latency
       const drift = Math.abs(audioEl.currentTime - currentTime);
-      if (drift > 0.4) {
+      if (drift > 1.5) {
         console.log(`Drift detected (${drift}s), seeking to match host`);
         audioEl.currentTime = currentTime;
       }
