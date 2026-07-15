@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import ArtistAvatar from './ArtistAvatar';
+import { useTranslation } from 'react-i18next';
 
 interface ArtistCardProps {
   artist: {
@@ -10,6 +11,7 @@ interface ArtistCardProps {
 }
 
 export default function ArtistCard({ artist }: ArtistCardProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const slug = `${encodeURIComponent(artist.name)}-${artist.id}`;
@@ -40,7 +42,7 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
       <div className="text-left mt-auto px-1">
         <p className="text-base font-bold truncate text-white">{artist.name}</p>
         <p className="text-sm truncate mt-1 font-medium text-white/60">
-          Исполнитель
+          {t('common.artist')}
         </p>
       </div>
     </div>

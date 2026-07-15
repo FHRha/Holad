@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Play, Pause, Heart, Star, MoreHorizontal, Clock, Radio, Music, ListPlus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import { formatArtistName } from '../../utils/formatters';
@@ -8,6 +9,7 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useAlbumData } from '../../hooks/useAlbumData';
 
 export default function AlbumView() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const observerTarget = useRef<HTMLDivElement>(null);
   
@@ -33,8 +35,8 @@ export default function AlbumView() {
   const formatDuration = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h} Ч ${m} М`;
-    return `${m} МИН`;
+    if (h > 0) return `${h} ${t('views.hours_abbr')} ${m} ${t('views.mins_abbr')}`;
+    return `${m} ${t('views.mins_abbr')}`;
   };
 
   const formatTime = (seconds: number) => {
@@ -63,18 +65,18 @@ export default function AlbumView() {
               <img src={coverUrl} alt="Album Cover" className="w-48 h-48 md:w-64 md:h-64 rounded-xl shadow-2xl object-cover" />
               
               <div className="flex flex-col gap-2 flex-1 w-full">
-                <span className="text-xs font-bold tracking-[0.2em] uppercase text-white/70">Альбом</span>
+                <span className="text-xs font-bold tracking-[0.2em] uppercase text-white/70">{t('views.album')}</span>
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight leading-none mb-2 line-clamp-2">{album.name}</h1>
                 
                 <div className="flex flex-wrap items-center gap-2 text-sm text-white/70 font-medium mb-1">
                   <Music size={14} className="mr-1" />
                   <span>{displayYear}</span>
                   <span>•</span>
-              <span>{album.songCount} треков</span>
+              <span>{album.songCount} {t('views.tracks')}</span>
               <span>•</span>
               <span>{formatDuration(album.duration)}</span>
               <span>•</span>
-              <span>{album.playCount || 0} прослушиваний</span>
+              <span>{album.playCount || 0} {t('views.plays')}</span>
             </div>
             
             <div className="text-xl font-bold text-white mb-4 hover:underline cursor-pointer w-max">{formatArtistName(album.artist)}</div>
@@ -82,19 +84,19 @@ export default function AlbumView() {
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-3">
               <button onClick={handlePlayAll} className="bg-white text-black px-8 py-3 rounded-full font-bold text-sm flex items-center gap-2 hover:scale-105 transition-transform">
-                <Play fill="currentColor" size={18} /> Играть
+                <Play fill="currentColor" size={18} /> {t('views.play')}
               </button>
               
               <button onClick={handlePlayNext} className="bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors flex items-center gap-2">
-                <ListPlus size={18} /> Воспроизвести следующим
+                <ListPlus size={18} /> {t('views.play_next')}
               </button>
               
               <button onClick={handleAddToEnd} className="bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors">
-                В конец
+                {t('views.add_to_queue')}
               </button>
               
               <button className="bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors flex items-center gap-2">
-                <Radio size={16} /> Радио по альбому
+                <Radio size={16} /> {t('views.album_radio')}
               </button>
               
               <div className="flex-1" />
@@ -204,7 +206,7 @@ export default function AlbumView() {
               <div className="w-full lg:w-80 flex flex-col gap-8">
                 {displayGenre && (
                   <div>
-                    <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">Жанр</h3>
+                    <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">{t('views.genre')}</h3>
                     <div className="inline-block bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-sm font-semibold text-white">
                       {displayGenre}
                     </div>
@@ -212,15 +214,15 @@ export default function AlbumView() {
                 )}
                 
                 <div>
-              <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">Теги</h3>
+              <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">{t('views.tags')}</h3>
               <div className="flex flex-wrap gap-2">
-                <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-md text-xs font-semibold text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors">Альбом</span>
+                <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-md text-xs font-semibold text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors">{t('views.album')}</span>
                 <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-md text-xs font-semibold text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors">official</span>
               </div>
             </div>
             
             <div>
-              <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">Лейбл звукозаписи</h3>
+              <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">{t('views.label')}</h3>
               <div className="inline-block bg-white/5 border border-white/10 px-4 py-1.5 rounded text-sm font-semibold text-white">
                 Unknown Label
               </div>

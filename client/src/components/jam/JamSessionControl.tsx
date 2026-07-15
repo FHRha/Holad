@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { Link, LogOut, Shield, ShieldAlert, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { jamSocket } from '../../api/socket';
 import { useAuthStore } from '../../store/authStore';
+import { copyToClipboard } from '../../utils/clipboard';
 
 export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean }) {
+  const { t } = useTranslation();
   const { roomId, role, participants } = usePlayerStore();
   const [copied, setCopied] = useState(false);
 
@@ -27,12 +30,12 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
     navigate('/Holad/');
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (roomId) {
       const origin = window.location.origin;
       const url = new URL(`${origin}/jam/`);
       url.searchParams.set('room', roomId);
-      navigator.clipboard.writeText(url.toString());
+      await copyToClipboard(url.toString());
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -46,7 +49,7 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
           onClick={handleCreate}
           className="w-full py-3 rounded-full bg-primary text-background font-bold hover:scale-105 transition-transform"
         >
-          Создать сессию
+          {t('common.create_session')}
         </button>
       </div>
     );
@@ -68,14 +71,14 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
                 <button 
                   onClick={() => jamSocket.grantRole(p.id, p.role === 'cohost' ? 'listener' : 'cohost')}
                   className={`p-1.5 rounded-md transition-colors ${p.role === 'cohost' ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/40' : 'bg-white/5 text-secondary hover:text-white hover:bg-white/10'}`}
-                  title={p.role === 'cohost' ? 'Забрать права управления' : 'Дать права управления'}
+                  title={p.role === 'cohost' ? t('common.revoke_rights') : t('common.grant_rights')}
                 >
                   {p.role === 'cohost' ? <ShieldAlert size={14} /> : <Shield size={14} />}
                 </button>
                 <button 
                   onClick={() => jamSocket.kickParticipant(p.id)}
                   className="p-1.5 rounded-md bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-                  title="Выгнать"
+                  title={t('common.kick')}
                 >
                   <X size={14} />
                 </button>
@@ -94,7 +97,7 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
           className={`w-full py-3 rounded-xl flex items-center justify-center gap-3 text-sm font-bold transition-colors ${copied ? 'bg-primary text-background' : 'bg-white/10 hover:bg-white/20 text-foreground'}`}
         >
           <Link size={18} />
-          {copied ? 'Скопировано!' : 'Скопировать ссылку'}
+          {copied ? t('common.copied') : t('common.copy_link')}
         </button>
         
         <button 
@@ -102,7 +105,7 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
           className="w-full py-3 rounded-xl flex items-center justify-center gap-3 text-sm font-bold bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
         >
           <LogOut size={18} />
-          Выйти из сессии
+          {t('common.leave_session')}
         </button>
       </div>
     </div>

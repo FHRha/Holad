@@ -3,7 +3,7 @@ import { Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export default function LanguageSelector() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -34,7 +34,7 @@ export default function LanguageSelector() {
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className="w-10 h-10 ml-2 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-secondary hover:text-foreground transition-colors"
-        title="Язык / Language"
+        title={t('topbar.language')}
       >
         <Globe size={18} />
       </button>
@@ -42,7 +42,7 @@ export default function LanguageSelector() {
       {isOpen && (
         <div 
           ref={menuRef}
-          className="absolute top-12 right-0 w-36 bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[70] flex flex-col py-1 animate-in fade-in zoom-in-95 duration-200"
+          className="absolute top-12 left-0 w-36 bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[70] flex flex-col py-1 animate-in fade-in zoom-in-95 duration-200"
         >
           <button 
             onClick={() => changeLanguage('ru')}

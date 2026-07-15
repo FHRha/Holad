@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, ChevronDown, MoreHorizontal, MoreVertical, VolumeX, Star, Maximize2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
 import { getStreamUrl, starItem, unstarItem } from '../../api/subsonic';
@@ -10,6 +11,7 @@ import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useAutoDj } from '../../hooks/useAutoDj';
 
 export default function BottomPlayer() {
+  const { t } = useTranslation();
   const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized } = usePlayerStore();
   const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -165,7 +167,7 @@ export default function BottomPlayer() {
                 disabled={role === 'listener'}
                 className={`text-[10px] font-bold tracking-widest transition-colors w-16 text-right disabled:opacity-50 ${isAutoDjEnabled ? 'text-primary' : 'text-secondary hover:text-white'}`}
               >
-                АВТО DJ
+                {t('player.auto_dj')}
               </button>
             )}
           </div>
@@ -179,7 +181,7 @@ export default function BottomPlayer() {
               <button 
                 onClick={() => setIsMinimized(!isMinimized)}
                 className={`transition-colors flex items-center justify-center w-5 ${!isMinimized ? 'text-primary' : 'text-secondary hover:text-white'}`}
-                title={isMinimized ? "Развернуть сессию" : "Свернуть сессию"}
+                title={isMinimized ? t('player.expand') : t('player.minimize_session')}
               >
                 <Maximize2 size={16} />
               </button>
@@ -187,7 +189,7 @@ export default function BottomPlayer() {
               <button 
                 onClick={toggleNowPlaying}
                 className={`transition-colors flex items-center justify-center w-5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-white'}`}
-                title="Сейчас играет"
+                title={t('player.now_playing')}
               >
                 <Maximize2 size={16} />
               </button>
@@ -258,7 +260,7 @@ export default function BottomPlayer() {
           <button onClick={() => setIsMobileExpanded(false)} className="text-white/80 p-2 -ml-2">
             <ChevronDown size={28} />
           </button>
-          <span className="text-xs font-bold tracking-widest text-secondary uppercase">Играет</span>
+          <span className="text-xs font-bold tracking-widest text-secondary uppercase">{t('player.now_playing')}</span>
           <button className="text-white/80 p-2 -mr-2">
             <MoreHorizontal size={24} />
           </button>

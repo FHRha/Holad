@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Music, Play, Loader2 } from 'lucide-react';
 import { getSongsByGenre, getCoverArtUrl } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
+import { useTranslation } from 'react-i18next';
 
 interface GenreCarouselProps {
   title: string;
@@ -10,6 +11,7 @@ interface GenreCarouselProps {
 }
 
 export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
+  const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -53,11 +55,11 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
       if (tracks && tracks.length > 0) {
         setQueueAndPlay(mapTracks(tracks), 0);
       } else {
-        alert("Не удалось загрузить треки для этой станции.");
+        alert(t('views.radio_failed'));
       }
     } catch (error) {
       console.error(error);
-      alert("Ошибка при запуске станции.");
+      alert(t('views.radio_error'));
     } finally {
       setLoadingStation(null);
     }
@@ -122,7 +124,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
                   
                   <div className="flex justify-between items-end">
                     <p className="text-xs text-white/80 font-bold drop-shadow-md">
-                      {genre.songCount} треков
+                      {genre.songCount} {t('views.tracks')}
                     </p>
                     <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out shadow-xl transform translate-y-2 group-hover:translate-y-0">
                       {isThisLoading ? <Loader2 size={20} className="animate-spin text-black" /> : <Play size={20} fill="currentColor" className="ml-1 text-black" />}

@@ -9,6 +9,8 @@ import TrackImage from './TrackImage';
 import AudioVisualizer from './AudioVisualizer';
 import { useLyricsSync } from '../../hooks/useLyricsSync';
 import { useSimilarTracks } from '../../hooks/useSimilarTracks';
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from './LanguageSelector';
 
 export default function FullScreenPlayerUI({ 
   onClose,
@@ -17,6 +19,7 @@ export default function FullScreenPlayerUI({
   onClose?: () => void,
   extraControls?: React.ReactNode
 }) {
+  const { t } = useTranslation();
   const { queue, currentIndex, setQueueAndPlay, role } = usePlayerStore();
   const currentTrack = queue[currentIndex];
   const { audioElement } = useAudioStore();
@@ -61,8 +64,8 @@ export default function FullScreenPlayerUI({
 
   const displayTrack = currentTrack || {
     id: 'empty',
-    title: 'Ожидание трека...',
-    artist: 'Пока ничего не играет',
+    title: t('player.waiting_track'),
+    artist: t('player.nothing_playing'),
     album: '',
     coverArt: '',
     duration: 0
@@ -86,7 +89,7 @@ export default function FullScreenPlayerUI({
             <button 
               onClick={onClose}
               className="p-2 bg-black/20 hover:bg-black/40 rounded-full backdrop-blur-md transition-colors border border-white/10 shadow-lg"
-              title="Закрыть"
+              title={t('player.close')}
             >
               <ChevronDown size={28} className="text-white" />
             </button>
@@ -95,7 +98,7 @@ export default function FullScreenPlayerUI({
             <button 
               onClick={() => usePlayerStore.getState().setIsMinimized(true)}
               className="p-2 bg-black/20 hover:bg-black/40 rounded-full backdrop-blur-md transition-colors border border-white/10 shadow-lg"
-              title="Свернуть окно сессии"
+              title={t('player.minimize_session')}
             >
               <ChevronDown size={28} className="text-white" />
             </button>
@@ -133,37 +136,40 @@ export default function FullScreenPlayerUI({
               onClick={forceSync}
               className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 px-8 py-3 bg-primary text-background rounded-full font-bold shadow-[0_10px_30px_rgba(29,185,84,0.4)] hover:scale-105 hover:bg-primary/90 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in flex items-center gap-2"
             >
-              Синхронизировать
+              {t('player.sync')}
             </button>
           )}
           
           {/* Pill-shaped Tabs */}
-          <div className="flex items-center justify-center gap-2 px-6 py-6 border-b border-white/10 text-sm font-bold tracking-wider text-white/60">
+          <div className="relative flex items-center justify-center gap-2 px-6 py-6 border-b border-white/10 text-sm font-bold tracking-wider text-white/60">
+            <div className="absolute left-6">
+              <LanguageSelector />
+            </div>
             <button 
               onClick={() => setActiveTab('queue')}
               className={`transition-all rounded-full px-5 py-2 ${activeTab === 'queue' ? 'bg-primary text-background shadow-md' : 'hover:bg-white/10 hover:text-white'}`}
             >
-              Очередь
+              {t('player.queue')}
             </button>
             {!isStandalone && !readOnlyControls && (
               <button 
                 onClick={() => setActiveTab('similar')}
                 className={`transition-all rounded-full px-5 py-2 ${activeTab === 'similar' ? 'bg-primary text-background shadow-md' : 'hover:bg-white/10 hover:text-white'}`}
               >
-                Похожие
+                {t('player.similar')}
               </button>
             )}
             <button 
               onClick={() => setActiveTab('lyrics')}
               className={`transition-all rounded-full px-5 py-2 ${activeTab === 'lyrics' ? 'bg-primary text-background shadow-md' : 'hover:bg-white/10 hover:text-white'}`}
             >
-              Слова
+              {t('player.lyrics')}
             </button>
             <button 
               onClick={() => setActiveTab('visualizer')}
               className={`transition-all rounded-full px-5 py-2 ${activeTab === 'visualizer' ? 'bg-primary text-background shadow-md' : 'hover:bg-white/10 hover:text-white'}`}
             >
-              Визуализатор
+              {t('player.visualizer')}
             </button>
           </div>
 
@@ -186,7 +192,7 @@ export default function FullScreenPlayerUI({
             {activeTab === 'lyrics' && (
               <div className="h-full flex flex-col items-center justify-start text-center max-w-[600px] mx-auto py-10 relative">
                 {loadingLyrics ? (
-                  <p className="text-white/50 animate-pulse text-lg">Загрузка текста...</p>
+                  <p className="text-white/50 animate-pulse text-lg">{t('player.loading_lyrics')}</p>
                 ) : lrcLines.length > 0 ? (
                   <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[350px] pb-[350px] w-full transition-all duration-300">
                     {lrcLines.map((line, idx) => {
@@ -254,7 +260,7 @@ export default function FullScreenPlayerUI({
                   </div>
                 ) : (
                   <div className="text-white/40 text-lg flex flex-col items-center gap-4 mt-20">
-                    <p>Текст песни не найден</p>
+                    <p>{t('player.lyrics_not_found')}</p>
                     <p className="text-sm">Provided by My Server</p>
                   </div>
                 )}
@@ -311,7 +317,7 @@ export default function FullScreenPlayerUI({
                   </div>
                 )) : (
                   <div className="text-white/40 text-lg flex flex-col items-center mt-20 font-medium">
-                    Похожие треки не найдены
+                    {t('player.similar_not_found')}
                   </div>
                 )}
               </div>

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Play, Shuffle, Heart, Disc, Music, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { fetchRandomTracks, getStarred, getGenres, getSongsByGenre, getCoverArtUrl } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
 
 export default function RadioView() {
+  const { t } = useTranslation();
   const [genres, setGenres] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingStation, setLoadingStation] = useState<string | null>(null);
@@ -48,11 +50,11 @@ export default function RadioView() {
       if (tracks && tracks.length > 0) {
         setQueueAndPlay(mapTracks(tracks), 0);
       } else {
-        alert("Не удалось загрузить треки для этой станции.");
+        alert(t('views.radio_failed'));
       }
     } catch (error) {
       console.error(error);
-      alert("Ошибка при запуске станции.");
+      alert(t('views.radio_error'));
     } finally {
       setLoadingStation(null);
     }
@@ -109,28 +111,28 @@ export default function RadioView() {
         
         {/* Main Stations */}
         <section>
-          <h2 className="text-2xl font-bold text-foreground mb-6">Основные Станции</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-6">{t('views.radio_main')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <StationCard 
               id="random"
-              title="Бесконечный Микс" 
-              description="Случайные треки из вашей библиотеки."
+              title={t('views.radio_infinite')} 
+              description={t('views.radio_infinite_desc')}
               icon={Shuffle}
               onClick={startRandomRadio}
               colorClass="bg-[#1E3264]"
             />
             <StationCard 
               id="favorites"
-              title="Микс из Любимых" 
-              description="Треки, которым вы поставили лайк."
+              title={t('views.radio_favs')} 
+              description={t('views.radio_favs_desc')}
               icon={Heart}
               onClick={startFavoritesRadio}
               colorClass="bg-[#E8115B]"
             />
             <StationCard 
               id="newest"
-              title="Свежая Кровь" 
-              description="Случайные треки из новых поступлений."
+              title={t('views.radio_new')} 
+              description={t('views.radio_new_desc')}
               icon={Disc}
               onClick={startNewReleases}
               colorClass="bg-[#148A08]"
@@ -141,7 +143,7 @@ export default function RadioView() {
         {/* Genre Stations */}
         {genres.length > 0 && (
           <section>
-            <h2 className="text-2xl font-bold text-foreground mb-6">Радио по жанрам</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-6">{t('views.radio_genres')}</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {genres.map((genre: any, idx: number) => {
                 const spotifyColors = [
@@ -156,7 +158,7 @@ export default function RadioView() {
                     key={genre.value}
                     id={`genre-${genre.value}`}
                     title={genre.value} 
-                    description={`${genre.songCount} треков`}
+                    description={`${genre.songCount} ${t('common.songs')}`}
                     icon={Music}
                     onClick={() => startGenreRadio(genre.value)}
                     colorClass={colorClass}

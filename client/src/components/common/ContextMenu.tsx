@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, ListPlus, SkipForward, Trash2, Heart, Star, Download, Share2, User, Disc } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { starItem, unstarItem, setItemRating, getDownloadUrl, getAlbum } from '../../api/subsonic';
@@ -8,6 +9,7 @@ import type { Track } from '../../store/playerStore';
 import { getCoverArtUrl } from '../../api/subsonic';
 
 export default function ContextMenu() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { isOpen, x, y, item, type, closeMenu } = useContextMenuStore();
   const { setQueueAndPlay, playNext, addToQueue, queue, setQueue, likedTrackIds, likedAlbumIds, toggleTrackLike, toggleAlbumLike, role } = usePlayerStore();
@@ -164,14 +166,14 @@ export default function ContextMenu() {
       </div>
 
       <div className="py-1">
-        <ItemBtn icon={Play} label="Слушать сейчас" onClick={() => handleAction(onPlayNow)} />
-        <ItemBtn icon={ListPlus} label="Слушать следующим" onClick={() => handleAction(onPlayNext)} />
-        {!isInQueue && <ItemBtn icon={SkipForward} label="Добавить в очередь" onClick={() => handleAction(onAddToQueue)} />}
+        <ItemBtn icon={Play} label={t('common.play_now')} onClick={() => handleAction(onPlayNow)} />
+        <ItemBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
+        {!isInQueue && <ItemBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
       </div>
 
       {item.queueIndex !== undefined && (
         <div className="py-1 border-t border-white/10">
-          <ItemBtn icon={Trash2} label="Удалить из очереди" onClick={() => handleAction(onRemoveFromQueue)} color="text-red-400 hover:text-red-300" />
+          <ItemBtn icon={Trash2} label={t('common.remove_from_queue')} onClick={() => handleAction(onRemoveFromQueue)} color="text-red-400 hover:text-red-300" />
         </div>
       )}
 
@@ -180,7 +182,7 @@ export default function ContextMenu() {
           <div className="py-1 border-t border-white/10">
             <ItemBtn 
               icon={Heart} 
-              label={isLiked ? "Удалить из любимых" : "Любимый"} 
+              label={isLiked ? t('common.remove_from_favs') : t('common.favorite')} 
               onClick={() => handleAction(onLike)} 
               color={isLiked ? "text-primary" : "text-white"} 
             />
@@ -189,7 +191,7 @@ export default function ContextMenu() {
             <div className="flex items-center justify-between px-4 py-2 hover:bg-white/10 transition-colors cursor-default">
               <div className="flex items-center gap-3 text-sm font-semibold text-white">
                 <Star size={16} />
-                <span>Оценить</span>
+                <span>{t('common.rate')}</span>
               </div>
               <div className="flex gap-1 text-yellow-400">
                 {[1, 2, 3, 4, 5].map(v => (
@@ -206,10 +208,10 @@ export default function ContextMenu() {
           </div>
 
           <div className="py-1 border-t border-white/10">
-            <ItemBtn icon={Download} label="Скачать" onClick={() => handleAction(onDownload)} />
+            <ItemBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />
             <ItemBtn 
               icon={Share2} 
-              label={isCopied ? "Скопировано!" : "Поделиться"} 
+              label={isCopied ? t('common.copied') : t('common.share')} 
               onClick={() => handleAction(onShare, false)} 
               color={isCopied ? "text-primary font-bold" : "text-white"}
             />
@@ -217,11 +219,11 @@ export default function ContextMenu() {
 
           <div className="py-1 border-t border-white/10">
             {item.artistId && (
-              <ItemBtn icon={User} label="Перейти к Исполнителю" onClick={() => handleAction(() => {
+              <ItemBtn icon={User} label={t('common.go_to_artist')} onClick={() => handleAction(() => {
                 navigate(`/Holad/artist/${item.artistId}`);
               })} />
             )}
-            <ItemBtn icon={Disc} label="Перейти к Альбому" onClick={() => handleAction(() => {
+            <ItemBtn icon={Disc} label={t('common.go_to_album')} onClick={() => handleAction(() => {
               if (isAlbum) navigate(`/Holad/album/${item.id}`);
               else if (item.albumId) navigate(`/Holad/album/${item.albumId}`);
             })} />

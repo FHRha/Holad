@@ -2,8 +2,10 @@ import { useEffect, useState, useMemo } from 'react';
 import { getArtists } from '../../api/subsonic';
 import ArtistCard from '../common/ArtistCard';
 import { Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function ArtistsView() {
+  const { t } = useTranslation();
   const [artists, setArtists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -44,20 +46,20 @@ export default function ArtistsView() {
   }, [artists, search]);
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center text-secondary">Загрузка исполнителей...</div>;
+    return <div className="flex-1 flex items-center justify-center text-secondary">{t('views.loading_artists')}</div>;
   }
 
   return (
     <div className="flex-1 overflow-y-auto bg-card custom-scrollbar relative pb-24">
       {/* Header section similar to Albums */}
       <div className="sticky top-0 z-20 bg-card/90 backdrop-blur p-6 pb-4 border-b border-white/5 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Исполнители</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t('views.artists')}</h1>
         
         <div className="relative w-64 hidden sm:block">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
           <input 
             type="text" 
-            placeholder="Поиск исполнителя..." 
+            placeholder={t('views.search_artist')} 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-black/50 border border-white/10 rounded-full py-1.5 pl-9 pr-4 text-sm text-white focus:outline-none focus:border-white/30 focus:bg-black/80 transition-all"
@@ -71,7 +73,7 @@ export default function ArtistsView() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
           <input 
             type="text" 
-            placeholder="Поиск исполнителя..." 
+            placeholder={t('views.search_artist')} 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-black/50 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-white/30 transition-all"
@@ -80,7 +82,7 @@ export default function ArtistsView() {
 
         {filteredArtists.length === 0 ? (
           <div className="text-center text-secondary py-12">
-            Исполнители не найдены
+            {t('views.artists_not_found')}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 md:gap-6">

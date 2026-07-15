@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { formatArtistName } from '../../utils/formatters';
 import { Play, Pause, Heart, Clock, Search, FilterX } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { searchTracks, getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
@@ -11,6 +12,7 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useTrackFilters } from '../../hooks/useTrackFilters';
 
 export default function TracksView() {
+  const { t } = useTranslation();
   const [tracks, setTracks] = useState<any[]>([]);
   const [globalArtists, setGlobalArtists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,7 @@ export default function TracksView() {
       {/* LEFT SIDEBAR: FILTERS */}
       <div className="w-64 border-r border-white/5 bg-[#121212] flex flex-col p-4 overflow-y-auto custom-scrollbar">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold">Фильтры</h2>
+          <h2 className="text-lg font-bold">{t('views.filters')}</h2>
           <button 
             onClick={() => {
               setFilterLiked('all');
@@ -84,38 +86,38 @@ export default function TracksView() {
             }}
             className="text-xs text-secondary hover:text-white flex items-center gap-1"
           >
-            Сбросить <FilterX size={12} />
+            {t('views.reset')} <FilterX size={12} />
           </button>
         </div>
 
         {/* Liked Filter */}
         <div className="mb-6">
-          <h3 className="text-xs font-semibold text-secondary uppercase mb-3">Любимые</h3>
+          <h3 className="text-xs font-semibold text-secondary uppercase mb-3">{t('views.liked')}</h3>
           <div className="flex bg-black rounded-lg border border-white/10 overflow-hidden">
-            <button onClick={() => setFilterLiked('all')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterLiked === 'all' ? 'bg-white/20 text-white' : 'text-secondary hover:bg-white/5'}`}>Все</button>
-            <button onClick={() => setFilterLiked('yes')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterLiked === 'yes' ? 'bg-white/20 text-white' : 'text-secondary hover:bg-white/5'}`}>Да</button>
-            <button onClick={() => setFilterLiked('no')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterLiked === 'no' ? 'bg-white/20 text-white' : 'text-secondary hover:bg-white/5'}`}>Нет</button>
+            <button onClick={() => setFilterLiked('all')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterLiked === 'all' ? 'bg-white/20 text-white' : 'text-secondary hover:bg-white/5'}`}>{t('views.all')}</button>
+            <button onClick={() => setFilterLiked('yes')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterLiked === 'yes' ? 'bg-white/20 text-white' : 'text-secondary hover:bg-white/5'}`}>{t('views.yes')}</button>
+            <button onClick={() => setFilterLiked('no')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterLiked === 'no' ? 'bg-white/20 text-white' : 'text-secondary hover:bg-white/5'}`}>{t('views.no')}</button>
           </div>
         </div>
 
         {/* Rated Filter */}
         <div className="mb-6">
-          <h3 className="text-xs font-semibold text-secondary uppercase mb-3">Оценённые</h3>
+          <h3 className="text-xs font-semibold text-secondary uppercase mb-3">{t('views.rated')}</h3>
           <div className="flex bg-black rounded-lg border border-white/10 overflow-hidden">
-            <button onClick={() => setFilterRated('all')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterRated === 'all' ? 'bg-white/20 text-white' : 'text-secondary hover:bg-white/5'}`}>Все</button>
-            <button onClick={() => setFilterRated('yes')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterRated === 'yes' ? 'bg-white/20 text-white' : 'text-secondary hover:bg-white/5'}`}>Да</button>
-            <button onClick={() => setFilterRated('no')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterRated === 'no' ? 'bg-white/20 text-white' : 'text-secondary hover:bg-white/5'}`}>Нет</button>
+            <button onClick={() => setFilterRated('all')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterRated === 'all' ? 'bg-white/20 text-white' : 'text-secondary hover:bg-white/5'}`}>{t('views.all')}</button>
+            <button onClick={() => setFilterRated('yes')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterRated === 'yes' ? 'bg-white/20 text-white' : 'text-secondary hover:bg-white/5'}`}>{t('views.yes')}</button>
+            <button onClick={() => setFilterRated('no')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterRated === 'no' ? 'bg-white/20 text-white' : 'text-secondary hover:bg-white/5'}`}>{t('views.no')}</button>
           </div>
         </div>
 
         {/* Artist Filter */}
         <div className="flex-1 flex flex-col min-h-[200px]">
-          <h3 className="text-xs font-semibold text-secondary uppercase mb-3">Исполнитель</h3>
+          <h3 className="text-xs font-semibold text-secondary uppercase mb-3">{t('views.artist')}</h3>
           <div className="relative mb-3">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
             <input 
               type="text" 
-              placeholder="Поиск..." 
+              placeholder={t('views.search_tracks')} 
               value={artistSearch}
               onChange={e => setArtistSearch(e.target.value)}
               className="w-full bg-black border border-white/10 rounded-md py-1.5 pl-9 pr-3 text-xs text-white focus:outline-none focus:border-white/30 transition-colors"
@@ -150,7 +152,7 @@ export default function TracksView() {
             <div className="w-10 h-10 bg-primary text-black rounded-full flex items-center justify-center">
               <Play fill="currentColor" size={20} className="ml-1" />
             </div>
-            Треки
+            {t('views.tracks')}
             <span className="bg-white/10 text-white/50 text-sm font-semibold px-3 py-1 rounded-full">{filteredTracks.length}</span>
           </h1>
         </div>
@@ -178,9 +180,9 @@ export default function TracksView() {
             }}
           >
             {loading ? (
-              <div className="flex items-center justify-center h-full text-secondary">Загрузка...</div>
+              <div className="flex items-center justify-center h-full text-secondary">{t('views.loading')}</div>
             ) : filteredTracks.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-secondary">Ничего не найдено</div>
+              <div className="flex items-center justify-center h-full text-secondary">{t('views.not_found')}</div>
             ) : (
               <div className="py-2">
                 {filteredTracks.slice(0, visibleCount).map((track, index) => {

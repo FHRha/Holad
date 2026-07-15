@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchStarred, getCoverArtUrl } from '../../api/subsonic';
 import { Play, Heart } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { formatArtistName } from '../../utils/formatters';
 import TrackImage from '../common/TrackImage';
 import AlbumCard from '../common/AlbumCard';
@@ -8,6 +9,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
 
 export default function FavoritesView() {
+  const { t } = useTranslation();
   const [albums, setAlbums] = useState<any[]>([]);
   const [tracks, setTracks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function FavoritesView() {
   if (loading) {
     return (
       <div className="flex-1 bg-background p-8 flex items-center justify-center">
-        <div className="animate-pulse text-primary font-bold text-xl">Загрузка любимого...</div>
+        <div className="animate-pulse text-primary font-bold text-xl">{t('views.loading_favorites')}</div>
       </div>
     );
   }
@@ -66,12 +68,12 @@ export default function FavoritesView() {
   return (
     <div className="flex-1 bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar">
       <div className="flex items-center gap-6 text-xl font-bold mb-10 text-foreground border-b border-white/5 pb-4">
-        <h1 className="text-2xl text-white">Избранное</h1>
+        <h1 className="text-2xl text-white">{t('views.favorites')}</h1>
       </div>
 
       {albums.length > 0 && (
         <div className="mb-12">
-          <h2 className="text-xl font-bold text-white mb-6">Любимые Альбомы</h2>
+          <h2 className="text-xl font-bold text-white mb-6">{t('views.favorite_albums')}</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {albums.map((album) => (
               <AlbumCard key={album.id} album={album} />
@@ -82,7 +84,7 @@ export default function FavoritesView() {
 
       {tracks.length > 0 && (
         <div className="mb-10">
-          <h2 className="text-xl font-bold text-white mb-6">Любимые Треки</h2>
+          <h2 className="text-xl font-bold text-white mb-6">{t('views.favorite_tracks')}</h2>
           <div className="flex flex-col gap-1">
             {tracks.map((track, index) => {
               const isLiked = likedTrackIds.includes(track.id);
@@ -135,7 +137,7 @@ export default function FavoritesView() {
       {albums.length === 0 && tracks.length === 0 && (
         <div className="flex flex-col items-center justify-center h-64 text-secondary">
           <Heart size={48} className="mb-4 text-white/10" />
-          <p>Вы ещё ничего не добавили в избранное.</p>
+          <p>{t('views.empty_favorites')}</p>
         </div>
       )}
     </div>

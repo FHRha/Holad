@@ -4,10 +4,12 @@ import AlbumCard from '../common/AlbumCard';
 import TrackImage from '../common/TrackImage';
 import { Play, Shuffle, ArrowLeft } from 'lucide-react';
 import { formatTime } from '../../utils/timeFormat';
+import { useTranslation } from 'react-i18next';
 import { useArtistData } from '../../hooks/useArtistData';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 
 export default function ArtistView() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { openMenu } = useContextMenuStore();
@@ -23,11 +25,11 @@ export default function ArtistView() {
   } = useArtistData(id);
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center text-secondary">Загрузка артиста...</div>;
+    return <div className="flex-1 flex items-center justify-center text-secondary">{t('views.loading_artist')}</div>;
   }
 
   if (!artist) {
-    return <div className="flex-1 flex items-center justify-center text-secondary">Артист не найден</div>;
+    return <div className="flex-1 flex items-center justify-center text-secondary">{t('views.artist_not_found')}</div>;
   }
 
   const albums = artist.album || [];
@@ -58,13 +60,13 @@ export default function ArtistView() {
             </div>
             <div className="flex flex-col">
               <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-white/80 mb-1 sm:mb-2 drop-shadow-md">
-                Исполнитель
+                {t('views.artist')}
               </span>
               <h1 className="text-4xl sm:text-6xl md:text-8xl font-black text-white drop-shadow-lg truncate pb-1">
                 {artist.name}
               </h1>
               <p className="text-sm sm:text-base text-white/60 font-medium mt-2">
-                Альбомов: {artist.albumCount || albums.length}
+                {t('views.albums_count')} {artist.albumCount || albums.length}
               </p>
             </div>
           </div>
@@ -91,9 +93,9 @@ export default function ArtistView() {
         
         {/* Top Songs */}
         <div className="lg:col-span-2">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">Популярные треки</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.top_tracks')}</h2>
           {topSongs.length === 0 ? (
-            <p className="text-secondary text-sm">Нет данных о треках</p>
+            <p className="text-secondary text-sm">{t('views.no_track_data')}</p>
           ) : (
             <div className="flex flex-col gap-1">
               {topSongs.slice(0, 10).map((track, index) => (
@@ -139,7 +141,7 @@ export default function ArtistView() {
         <div className="lg:col-span-1 flex flex-col gap-6">
           {artistInfo && artistInfo.biography && (
             <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-secondary mb-4">Об артисте</h3>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-secondary mb-4">{t('views.about_artist')}</h3>
               <div 
                 className="text-sm text-foreground/80 leading-relaxed line-clamp-12"
                 dangerouslySetInnerHTML={{ __html: artistInfo.biography }}
@@ -151,9 +153,9 @@ export default function ArtistView() {
 
       {/* Albums Grid */}
       <div className="p-6 sm:p-10 mt-4">
-        <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">Альбомы</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.albums')}</h2>
         {albums.length === 0 ? (
-          <p className="text-secondary text-sm">Нет альбомов</p>
+          <p className="text-secondary text-sm">{t('views.no_albums')}</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
             {albums.map((album: any) => (

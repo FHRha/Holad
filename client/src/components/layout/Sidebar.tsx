@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Home, Heart, Disc, Music, Radio, Users, Settings, LogOut, User } from 'lucide-react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 
+
 export default function Sidebar() {
+  const { t } = useTranslation();
   const { leftSidebarWidth, setLeftSidebarWidth } = useUIStore();
   const { user, url, setAuthenticated, setCredentials } = useAuthStore();
-  const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -105,10 +107,10 @@ export default function Sidebar() {
                   <User className="text-primary" size={20} />
                 </div>
                 <div className="flex flex-col overflow-hidden">
-                  <span className="font-bold text-sm truncate">{user || 'Пользователь'}</span>
+                  <span className="font-bold text-sm truncate">{user || t('sidebar.user')}</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <img src="https://github.com/navidrome/navidrome/raw/master/resources/logo-192x192.png" alt="Navidrome" className="w-3.5 h-3.5 object-contain opacity-70" />
-                    <span className="text-xs text-secondary truncate">{url ? new URL(url).hostname : 'Локальный сервер'}</span>
+                    <span className="text-xs text-secondary truncate">{url ? new URL(url).hostname : t('sidebar.local_server')}</span>
                   </div>
                 </div>
               </div>
@@ -119,7 +121,7 @@ export default function Sidebar() {
                   className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
                 >
                   <Settings size={18} />
-                  <span>Настройки</span>
+                  <span>{t('sidebar.settings')}</span>
                 </button>
               </div>
 
@@ -129,7 +131,7 @@ export default function Sidebar() {
                   className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors text-left w-full"
                 >
                   <LogOut size={18} />
-                  <span>Выйти</span>
+                  <span>{t('sidebar.logout')}</span>
                 </button>
               </div>
             </div>
@@ -137,12 +139,12 @@ export default function Sidebar() {
         </div>
 
         <div className={`flex-1 w-full flex flex-col pt-4 ${isWide ? 'gap-1' : 'gap-6'}`}>
-          <SidebarItem to="/Holad" icon={<Home size={isWide ? 20 : 22} className="flex-shrink-0" />} label="Главная" isWide={isWide} end />
-          <SidebarItem to="/Holad/favorites" icon={<Heart size={isWide ? 20 : 22} className="flex-shrink-0" />} label="Избранное" isWide={isWide} />
-          <SidebarItem to="/Holad/albums" icon={<Disc size={isWide ? 20 : 22} className="flex-shrink-0" />} label="Альбомы" isWide={isWide} />
-          <SidebarItem to="/Holad/tracks" icon={<Music size={isWide ? 20 : 22} className="flex-shrink-0" />} label="Треки" isWide={isWide} />
-          <SidebarItem to="/Holad/artists" icon={<Users size={isWide ? 20 : 22} className="flex-shrink-0" />} label="Артисты" isWide={isWide} />
-          <SidebarItem to="/Holad/radio" icon={<Radio size={isWide ? 20 : 22} className="flex-shrink-0" />} label="Радио" isWide={isWide} />
+          <SidebarItem to="/Holad" icon={<Home size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.home')} isWide={isWide} end />
+          <SidebarItem to="/Holad/favorites" icon={<Heart size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.favorites')} isWide={isWide} />
+          <SidebarItem to="/Holad/albums" icon={<Disc size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.albums')} isWide={isWide} />
+          <SidebarItem to="/Holad/tracks" icon={<Music size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.tracks')} isWide={isWide} />
+          <SidebarItem to="/Holad/artists" icon={<Users size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.artists')} isWide={isWide} />
+          <SidebarItem to="/Holad/radio" icon={<Radio size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.radio')} isWide={isWide} />
         </div>
       </div>
       

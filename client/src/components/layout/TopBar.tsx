@@ -7,8 +7,11 @@ import JamSessionControl from '../jam/JamSessionControl';
 import { useGlobalSearch } from '../../hooks/useGlobalSearch';
 import { useUIStore, LEFT_SIDEBAR_DEFAULT_WIDTH, RIGHT_SIDEBAR_DEFAULT_WIDTH } from '../../store/uiStore';
 import { PanelLeft, PanelRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from '../common/LanguageSelector';
 
 export default function TopBar() {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<HTMLDivElement>(null);
@@ -52,13 +55,14 @@ export default function TopBar() {
         <button 
           onClick={toggleLeftSidebar} 
           className="text-secondary hover:text-foreground transition-colors p-2"
-          title="Переключить меню"
+          title={t('common.toggle_menu')}
         >
           <PanelLeft size={20} />
         </button>
       </div>
-      <div className="relative w-full max-w-xl" ref={containerRef}>
-        <div className="relative flex items-center w-full bg-white/10 rounded-full hover:bg-white/15 transition-colors focus-within:bg-white/15 focus-within:ring-2 focus-within:ring-primary/50">
+      <div className="flex items-center gap-2 w-full max-w-xl">
+        <div className="relative w-full" ref={containerRef}>
+          <div className="relative flex items-center w-full bg-white/10 rounded-full hover:bg-white/15 transition-colors focus-within:bg-white/15 focus-within:ring-2 focus-within:ring-primary/50">
           <Search size={20} className="text-secondary ml-4" />
           <input 
             ref={inputRef}
@@ -66,7 +70,7 @@ export default function TopBar() {
             value={query}
             onChange={(e) => { setQuery(e.target.value); setSearchOpen(true); }}
             onFocus={() => setSearchOpen(true)}
-            placeholder="Что хочешь включить?"
+            placeholder={t('topbar.search')}
             className="flex-1 bg-transparent border-none outline-none text-sm text-foreground px-4 py-3 placeholder-secondary font-medium rounded-full"
           />
           {query && (
@@ -91,7 +95,7 @@ export default function TopBar() {
 
             {!loading && results.song.length === 0 && results.album.length === 0 && results.artist.length === 0 && (
               <div className="text-center text-secondary py-8 text-sm">
-                Ничего не найдено по запросу «{query}»
+                {t('common.search_not_found')} «{query}»
               </div>
             )}
 
@@ -101,7 +105,7 @@ export default function TopBar() {
                 {results.song.length > 0 && (
                   <section>
                     <h3 className="text-xs font-bold uppercase tracking-widest text-secondary mb-3 flex items-center gap-2">
-                      <Music size={14} /> Треки
+                      <Music size={14} /> {t('sidebar.tracks')}
                     </h3>
                     <div className="flex flex-col gap-1">
                       {results.song.slice(0, 5).map(track => (
@@ -133,7 +137,7 @@ export default function TopBar() {
                 {results.album.length > 0 && (
                   <section>
                     <h3 className="text-xs font-bold uppercase tracking-widest text-secondary mb-3 flex items-center gap-2">
-                      <Disc size={14} /> Альбомы
+                      <Disc size={14} /> {t('sidebar.albums')}
                     </h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {results.album.slice(0, 3).map(album => (
@@ -159,7 +163,7 @@ export default function TopBar() {
                 {results.artist.length > 0 && (
                   <section>
                     <h3 className="text-xs font-bold uppercase tracking-widest text-secondary mb-3 flex items-center gap-2">
-                      <Users size={14} /> Исполнители
+                      <Users size={14} /> {t('sidebar.artists')}
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {results.artist.map(artist => (
@@ -179,22 +183,24 @@ export default function TopBar() {
           </div>
         )}
       </div>
+      <LanguageSelector />
+    </div>
 
       <div className="relative flex items-center gap-2" ref={sessionRef}>
         <div className="relative">
           <button 
             onClick={() => setShowSession(!showSession)}
             className={`h-10 px-4 rounded-full flex items-center justify-center gap-2 transition-colors ${showSession ? 'bg-primary/20 text-primary' : roomId ? 'bg-primary text-background hover:scale-105' : 'bg-white/5 hover:bg-white/10 text-secondary hover:text-white'}`}
-            title="Jam Session"
+            title={t('common.jam_session')}
           >
             <Users size={18} />
-            <span className="text-sm font-bold hidden sm:inline">Совместный джэм</span>
+            <span className="text-sm font-bold hidden sm:inline">{t('common.jam_session')}</span>
           </button>
           
           {showSession && (
             <div className="absolute top-full right-0 mt-2 p-4 bg-card/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl w-80 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
-              <h3 className="font-bold text-center mb-1">Совместное прослушивание</h3>
-              <p className="text-xs text-secondary text-center mb-2">Слушайте музыку вместе с друзьями в реальном времени</p>
+              <h3 className="font-bold text-center mb-1">{t('common.jam_session_title')}</h3>
+              <p className="text-xs text-secondary text-center mb-2">{t('common.jam_session_desc')}</p>
               <JamSessionControl />
             </div>
           )}
@@ -203,7 +209,7 @@ export default function TopBar() {
         <button 
           onClick={toggleRightSidebar} 
           className="h-10 w-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-secondary hover:text-white transition-colors"
-          title="Переключить очередь"
+          title={t('common.toggle_queue')}
         >
           <PanelRight size={18} />
         </button>

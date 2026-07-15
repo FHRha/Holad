@@ -2,8 +2,10 @@ import { useEffect, useState, useMemo } from 'react';
 import { fetchAlbums, getGenres } from '../../api/subsonic';
 import AlbumCarousel from './AlbumCarousel';
 import GenreCarousel from './GenreCarousel';
+import { useTranslation } from 'react-i18next';
 
 export default function MainContent() {
+  const { t } = useTranslation();
   const [albums, setAlbums] = useState<any[]>([]);
   const [genres, setGenres] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,14 +34,14 @@ export default function MainContent() {
   };
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center text-secondary">Загрузка музыки...</div>;
+    return <div className="flex-1 flex items-center justify-center text-secondary">{t('common.loading_music')}</div>;
   }
 
   return (
     <div className="flex-1 bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar pt-10">
-      <AlbumCarousel title="Откройте новое" albums={randomAlbums} variant="hero" />
-      <GenreCarousel title="Радио по жанрам" genres={genres} />
-      <AlbumCarousel title="Слушают чаще всего" albums={albums} variant="standard" />
+      <AlbumCarousel title={t('common.discover_new')} albums={randomAlbums} variant="hero" />
+      <GenreCarousel title={t('views.radio_genres')} genres={genres} />
+      <AlbumCarousel title={t('common.most_played')} albums={albums} variant="standard" />
     </div>
   );
 }

@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { pingServer } from '../../api/subsonic';
 import { Server, User, Lock, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import md5 from 'md5';
 
 export default function LoginView() {
+  const { t } = useTranslation();
   const [url, setUrl] = useState(useAuthStore.getState().url || 'https://');
   const [username, setUsername] = useState(useAuthStore.getState().user || '');
   const [password, setPassword] = useState('');
@@ -21,7 +23,7 @@ export default function LoginView() {
     setError('');
     
     if (!url || !username || !password) {
-      setError('Заполните все поля');
+      setError(t('views.fill_all_fields'));
       return;
     }
 
@@ -38,7 +40,7 @@ export default function LoginView() {
       navigate('/Holad', { replace: true });
     } catch (err: any) {
       console.error(err);
-      setError('Не удалось подключиться к серверу. Проверьте данные.');
+      setError(t('views.connection_failed'));
       setAuthenticated(false);
     } finally {
       setLoading(false);
@@ -58,15 +60,15 @@ export default function LoginView() {
           <div className="w-16 h-16 bg-gradient-to-br from-primary to-[#4ade80] rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-primary/20">
             <Server size={32} className="text-black" />
           </div>
-          <h1 className="text-3xl font-display font-bold text-white mb-2">Вход в систему</h1>
+          <h1 className="text-3xl font-display font-bold text-white mb-2">{t('views.login_system')}</h1>
           <p className="text-sm text-secondary">
-            Holad поддерживает <span className="text-primary font-bold">только серверы Navidrome</span>. Пожалуйста, введите данные вашего сервера.
+            {t('views.login_supports')} {t('views.enter_server')}
           </p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-secondary uppercase tracking-wider mb-2 ml-1">URL Сервера</label>
+            <label className="block text-xs font-bold text-secondary uppercase tracking-wider mb-2 ml-1">{t('views.server_url')}</label>
             <div className="relative">
               <Server size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
               <input 
@@ -81,14 +83,14 @@ export default function LoginView() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-secondary uppercase tracking-wider mb-2 ml-1">Имя пользователя</label>
+            <label className="block text-xs font-bold text-secondary uppercase tracking-wider mb-2 ml-1">{t('views.username')}</label>
             <div className="relative">
               <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
               <input 
                 type="text" 
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="Ваш логин"
+                placeholder={t('views.username')}
                 className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-white/20"
                 required
               />
@@ -96,7 +98,7 @@ export default function LoginView() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-secondary uppercase tracking-wider mb-2 ml-1">Пароль</label>
+            <label className="block text-xs font-bold text-secondary uppercase tracking-wider mb-2 ml-1">{t('views.password')}</label>
             <div className="relative">
               <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
               <input 
@@ -125,7 +127,7 @@ export default function LoginView() {
             {loading ? (
               <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
             ) : (
-              'Войти в Navidrome'
+              t('views.login_btn')
             )}
           </button>
         </form>

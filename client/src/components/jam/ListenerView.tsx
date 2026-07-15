@@ -3,8 +3,11 @@ import { usePlayerStore } from '../../store/playerStore';
 import { Play, Pause } from 'lucide-react';
 import { getSong, getCoverArtUrl, getStreamUrl } from '../../api/subsonic';
 import { formatArtistName } from '../../utils/formatters';
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from '../common/LanguageSelector';
 
 export default function ListenerView({ trackId }: { trackId?: string }) {
+  const { t } = useTranslation();
   const { queue, currentIndex, setQueueAndPlay, isPlaying, setIsPlaying } = usePlayerStore();
   const audioRef = useRef<HTMLAudioElement>(null);
   const currentTrack = queue[currentIndex];
@@ -42,8 +45,8 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
     return (
       <div className="flex-1 flex items-center justify-center text-secondary h-full bg-background relative z-10">
         <div className="text-center">
-          <h2 className="text-xl font-bold mb-2">Ожидание хоста...</h2>
-          <p className="text-sm">Хост пока ничего не включил.</p>
+          <h2 className="text-xl font-bold mb-2">{t('player.waiting_track')}</h2>
+          <p className="text-sm">{t('player.nothing_playing')}</p>
         </div>
       </div>
     );
@@ -92,16 +95,19 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
 
         {/* Right: Queue Table */}
         <div className="w-[600px] bg-black/40 rounded-xl border border-white/5 flex flex-col backdrop-blur-md overflow-hidden">
-          <div className="flex items-center gap-6 px-6 py-4 border-b border-white/5 text-xs font-semibold tracking-wider text-secondary uppercase">
-            <span className="text-foreground border-b-2 border-foreground pb-1">Играет</span>
-            <span className="hover:text-foreground cursor-pointer">Похожие</span>
-            <span className="hover:text-foreground cursor-pointer">Слова</span>
+          <div className="relative flex items-center justify-center gap-6 px-6 py-4 border-b border-white/5 text-xs font-semibold tracking-wider text-secondary uppercase">
+            <div className="absolute left-6">
+              <LanguageSelector />
+            </div>
+            <span className="text-foreground border-b-2 border-foreground pb-1">{t('player.now_playing')}</span>
+            <span className="hover:text-foreground cursor-pointer">{t('player.similar')}</span>
+            <span className="hover:text-foreground cursor-pointer">{t('player.lyrics')}</span>
           </div>
 
           <div className="flex px-6 py-3 text-[10px] font-semibold tracking-wider text-secondary border-b border-white/5 uppercase mt-2">
             <div className="w-8">#</div>
             <div className="flex-1">Title</div>
-            <div className="w-20">Время</div>
+            <div className="w-20">Time</div>
           </div>
 
           <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1 hide-scrollbar">
