@@ -123,6 +123,10 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
   const handleTimeUpdate = () => {
     if (audioRef.current && !isSeeking && currentTrack) {
       setProgress((audioRef.current.currentTime / currentTrack.duration) * 100);
+      
+      // Save timing locally for F5 reloads
+      localStorage.setItem('streamnavi_time', audioRef.current.currentTime.toString());
+      localStorage.setItem('streamnavi_track', currentTrack.id);
     }
   };
 
@@ -141,6 +145,10 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
     if (role === 'listener') return;
     if (audioRef.current && currentTrack) {
       audioRef.current.currentTime = value * currentTrack.duration;
+      
+      // Save timing locally
+      localStorage.setItem('streamnavi_time', audioRef.current.currentTime.toString());
+      localStorage.setItem('streamnavi_track', currentTrack.id);
       
       const isJamRoute = window.location.pathname.startsWith('/jam');
       if (!isJamRoute) {

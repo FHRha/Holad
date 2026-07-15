@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Home, Heart, Disc, Music, Radio, Users, Settings, LogOut, User } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
@@ -117,7 +117,10 @@ export default function Sidebar() {
 
               <div className="flex flex-col py-2 px-2 gap-1">
                 <button 
-                  onClick={() => setIsProfileMenuOpen(false)}
+                  onClick={() => {
+                    useUIStore.getState().setSettingsOpen(true);
+                    setIsProfileMenuOpen(false);
+                  }}
                   className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
                 >
                   <Settings size={18} />
@@ -158,25 +161,26 @@ export default function Sidebar() {
 }
 
 function SidebarItem({ to, icon, label, end, isWide }: { to: string, icon: React.ReactNode, label: string, end?: boolean, isWide: boolean }) {
+  const location = useLocation();
+  // Properly check active state including trailing slashes which NavLink sometimes misses
+  const path = location.pathname;
+  const isActive = end ? (path === to || path === `${to}/`) : path.startsWith(to);
+
   return (
     <NavLink 
       to={to}
       end={end}
-      className={({ isActive }) => `w-full flex ${isWide ? 'flex-row items-center px-3 py-2.5 gap-3 rounded-lg' : 'flex-col items-center gap-1'} transition-colors group ${isActive ? (isWide ? 'bg-white/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+      className={`w-full flex ${isWide ? 'flex-row items-center px-3 py-2.5 gap-3 rounded-lg' : 'flex-col items-center gap-1'} transition-colors group ${isActive ? (isWide ? 'bg-white/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
       title={label}
     >
-      {({ isActive }) => (
-        <>
-          <div className={`relative flex justify-center ${!isWide ? 'w-full' : ''} ${isActive ? 'text-primary' : ''}`}>
-            {!isWide && isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-md"></div>}
-            {icon}
-          </div>
-          {isWide ? (
-            <span className="text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>
-          ) : (
-            <span className="text-[10px] font-bold leading-none mt-1 px-1 text-center truncate w-full">{label}</span>
-          )}
-        </>
+      <div className={`relative flex justify-center ${!isWide ? 'w-full' : ''} ${isActive ? 'text-primary' : ''}`}>
+        {!isWide && isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-md"></div>}
+        {icon}
+      </div>
+      {isWide ? (
+        <span className="text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>
+      ) : (
+        <span className="text-[10px] font-bold leading-none mt-1 px-1 text-center truncate w-full">{label}</span>
       )}
     </NavLink>
   );

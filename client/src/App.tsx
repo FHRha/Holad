@@ -22,12 +22,63 @@ import { GlobalDndProvider } from './components/common/dnd/GlobalDndProvider';
 
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useDocumentTitle } from './hooks/useDocumentTitle';
+import SettingsModal from './components/modals/SettingsModal';
+import { useSettingsStore } from './store/settingsStore';
+import { useUIStore } from './store/uiStore';
+import { useEffect } from 'react';
+
+// Helper to convert hex to rgb string for Tailwind's opacity to work
+function hexToRgb(hex: string) {
+  let c = hex.substring(1);
+  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  const num = parseInt(c, 16);
+  return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+}
 
 function AppContent() {
   const location = useLocation();
   const { isAuthenticated, isJamRoute } = useAppInitialization();
   const role = usePlayerStore(state => state.role);
+  const { theme, accentColor, startPage } = useSettingsStore();
+  const isSettingsOpen = useUIStore(state => state.isSettingsOpen);
   
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else if (theme === 'light') {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    } else {
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        root.classList.add('dark');
+        root.classList.remove('light');
+      } else {
+        root.classList.remove('dark');
+        root.classList.add('light');
+      }
+    }
+
+    const colors: Record<string, string> = {
+      green: '#1db954',
+      blue: '#3b82f6',
+      purple: '#a855f7',
+      red: '#ef4444',
+      orange: '#f97316',
+      pink: '#ec4899',
+      yellow: '#eab308'
+    };
+    
+    const hexColor = colors[accentColor] || (accentColor.startsWith('#') ? accentColor : colors.green);
+    const rgbStr = hexToRgb(hexColor); // e.g. "29, 185, 84"
+    const rgbSpaceStr = rgbStr.replace(/,/g, ''); // "29 185 84"
+    
+    // Set all possible variations so it works regardless of which tailwind.config.js is currently cached in dev server
+    root.style.setProperty('--color-primary', rgbSpaceStr); 
+    root.style.setProperty('--color-primary-rgb', rgbStr);
+  }, [theme, accentColor]);
+
   const searchParams = new URLSearchParams(location.search);
   const validStandalone = (searchParams.has('track') && !!searchParams.get('track')) || (searchParams.has('album') && !!searchParams.get('album'));
   
@@ -40,7 +91,7 @@ function AppContent() {
       <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans">
       <div className="flex flex-1 overflow-hidden relative">
         <Routes>
-          <Route path="/" element={<Navigate to="/Holad" replace />} />
+          <Route path="/" element={<Navigate to={startPage} replace />} />
           <Route path="/login" element={!isAuthenticated ? <LoginView /> : <Navigate to="/Holad" replace />} />
           
           <Route path="/Holad/*" element={
@@ -77,6 +128,7 @@ function AppContent() {
         </Routes>
         
         <NowPlayingModal />
+        {isSettingsOpen && <SettingsModal />}
       </div>
       
       {!isLoginRoute && (isAuthenticated || (isJamRoute && (role || validStandalone))) && (

@@ -58,12 +58,21 @@ export function useAppInitialization() {
             if (idx !== -1) initialIndex = idx;
           }
 
+          let pos = queueData.position || 0;
+          if (pos === 0) {
+            const savedTrack = localStorage.getItem('streamnavi_track');
+            const savedTime = localStorage.getItem('streamnavi_time');
+            if (savedTrack === queueData.current && savedTime) {
+              pos = parseFloat(savedTime) * 1000;
+            }
+          }
+
           usePlayerStore.setState({
             queue: mappedTracks,
             originalQueue: mappedTracks,
             currentIndex: initialIndex,
             isPlaying: false, 
-            initialPosition: queueData.position || 0
+            initialPosition: pos
           });
         }
       }).catch(e => console.error("Failed to fetch play queue", e));

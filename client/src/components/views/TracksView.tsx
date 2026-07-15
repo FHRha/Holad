@@ -10,6 +10,7 @@ import TrackImage from '../common/TrackImage';
 import ArtistAvatar from '../common/ArtistAvatar';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useTrackFilters } from '../../hooks/useTrackFilters';
+import { useSettingsStore } from '../../store/settingsStore';
 
 export default function TracksView() {
   const { t } = useTranslation();
@@ -68,7 +69,14 @@ export default function TracksView() {
       duration: t.duration,
       userRating: t.userRating
     }));
-    setQueueAndPlay(mapped, index);
+    
+    const action = useSettingsStore.getState().clickAction;
+    
+    if (action === 'play_next') {
+      usePlayerStore.getState().playNext([mapped[index]]);
+    } else {
+      setQueueAndPlay(mapped, index);
+    }
   };
 
   return (

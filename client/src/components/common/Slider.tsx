@@ -2,31 +2,49 @@ import React, { useRef, useEffect, useState } from 'react';
 
 interface SliderProps {
   value: number; // 0 to 1
-  onChange: (value: number) => void;
+  onChange?: (value: number) => void; // Optional for state updates
+  onDrag?: (value: number) => void; // Fired on every pixel move without React state lag
   onDragEnd?: (value: number) => void;
   className?: string;
   isAnimated?: boolean;
   thickness?: 'normal' | 'thick';
 }
 
-export default function Slider({ value, onChange, onDragEnd, className = '', isAnimated = false, thickness = 'normal' }: SliderProps) {
+export default function Slider({ value, onChange, onDrag, onDragEnd, className = '', isAnimated = false, thickness = 'normal' }: SliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const fillRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [localValue, setLocalValue] = useState(value);
+  
+  // Throttle onChange to avoid React state clogging the main thread
+  const lastUpdate = useRef(0);
 
   useEffect(() => {
     if (!isDragging) {
-      setLocalValue(value);
+      if (fillRef.current) fillRef.current.style.width = `${value * 100}%`;
+      if (thumbRef.current) thumbRef.current.style.left = `${value * 100}%`;
     }
   }, [value, isDragging]);
 
-  const updateValue = (clientX: number) => {
+  const updateValue = (clientX: number, isEnd = false) => {
     if (!trackRef.current) return;
     const rect = trackRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
     const newValue = x / rect.width;
-    setLocalValue(newValue);
-    onChange(newValue);
+    
+    // Direct DOM update for 120fps smoothness!
+    if (fillRef.current) fillRef.current.style.width = `${newValue * 100}%`;
+    if (thumbRef.current) thumbRef.current.style.left = `${newValue * 100}%`;
+    
+    if (onDrag) onDrag(newValue);
+    
+    const now = performance.now();
+    if (isEnd || now - lastUpdate.current > 60) { // Limit react state updates to ~15fps during drag
+      if (onChange) onChange(newValue);
+      lastUpdate.current = now;
+    }
+    
+    return newValue;
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -42,10 +60,10 @@ export default function Slider({ value, onChange, onDragEnd, className = '', isA
       setIsDragging(false);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
-      if (onDragEnd && trackRef.current) {
-        const rect = trackRef.current.getBoundingClientRect();
-        const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-        onDragEnd(x / rect.width);
+      
+      const finalValue = updateValue(e.clientX, true);
+      if (onDragEnd && finalValue !== undefined) {
+        onDragEnd(finalValue);
       }
     };
 
@@ -59,24 +77,22 @@ export default function Slider({ value, onChange, onDragEnd, className = '', isA
       onPointerDown={handlePointerDown}
       ref={trackRef}
     >
-      {/* Track Background & Mask */}
       <div className={`relative w-full rounded-full overflow-hidden bg-white/20 transition-all ${thickness === 'thick' ? 'h-2 group-hover:h-2.5' : 'h-1 group-hover:h-1.5'}`}>
-        
-        {/* Filled part */}
         <div 
+          ref={fillRef}
           className={`absolute left-0 top-0 bottom-0 ${
             isAnimated 
               ? 'bg-gradient-to-r from-primary via-[#6ee7b7] to-primary animate-volumetric' 
               : 'bg-foreground group-hover:bg-primary transition-colors duration-200'
           }`}
-          style={{ width: `${localValue * 100}%` }}
+          style={{ width: '0%' }}
         />
       </div>
 
-      {/* Thumb circle */}
       <div 
+        ref={thumbRef}
         className="absolute top-1/2 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.5)] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-        style={{ left: `${localValue * 100}%`, transform: 'translate(-50%, -50%)' }}
+        style={{ left: '0%', transform: 'translate(-50%, -50%)' }}
       />
     </div>
   );

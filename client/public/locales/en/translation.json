@@ -11,6 +11,22 @@
     "settings": "Settings",
     "logout": "Log out"
   },
+  "settings": {
+    "general": "General",
+    "appearance": "Appearance",
+    "player": "Player",
+    "reset": "Reset settings",
+    "reset_done": "✅ Settings reset!",
+    "confirm_reset": "Are you sure you want to reset all settings to default?",
+    "language": "Interface language",
+    "startPage": "Start page",
+    "theme": "App theme",
+    "accentColor": "Accent color",
+    "customColor": "Custom color",
+    "clickAction": "Track click behavior",
+    "autoDj": "AUTO DJ by default",
+    "defaultVolume": "Volume"
+  },
   "topbar": {
     "search": "Search library...",
     "language": "Language"

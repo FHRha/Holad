@@ -31,8 +31,11 @@ export default function BottomPlayer() {
 
   const currentTrack = queue[currentIndex];
 
-  const handleVolumeChange = (newVolume: number) => {
-    setVolume(newVolume);
+  const handleVolumeDrag = (newVolume: number) => {
+    if (audioRef.current) {
+      const scaledVolume = newVolume * 0.3;
+      audioRef.current.volume = scaledVolume * scaledVolume;
+    }
   };
 
   const handleLike = () => {
@@ -200,7 +203,12 @@ export default function BottomPlayer() {
                 {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
               </button>
               <div className="flex-1">
-                <Slider value={volume} onChange={handleVolumeChange} thickness="thick" />
+                <Slider 
+                  value={volume} 
+                  onDrag={handleVolumeDrag}
+                  onDragEnd={setVolume} 
+                  thickness="thick" 
+                />
               </div>
               <span className="text-xs font-bold w-9 text-right">{Math.round(volume * 100)}%</span>
             </div>

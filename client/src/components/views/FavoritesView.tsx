@@ -7,6 +7,7 @@ import TrackImage from '../common/TrackImage';
 import AlbumCard from '../common/AlbumCard';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
+import { useSettingsStore } from '../../store/settingsStore';
 
 export default function FavoritesView() {
   const { t } = useTranslation();
@@ -54,7 +55,14 @@ export default function FavoritesView() {
       duration: t.duration,
       userRating: t.userRating
     }));
-    setQueueAndPlay(mappedTracks, index);
+    
+    const action = useSettingsStore.getState().clickAction;
+    
+    if (action === 'play_next') {
+      usePlayerStore.getState().playNext([mappedTracks[index]]);
+    } else {
+      setQueueAndPlay(mappedTracks, index);
+    }
   };
 
   if (loading) {

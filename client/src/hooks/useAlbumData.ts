@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getAlbumFull, getCoverArtUrl, starItem, unstarItem, setItemRating } from '../api/subsonic';
 import { usePlayerStore } from '../store/playerStore';
 import { extractDominantColor } from '../utils/colorExtractor';
+import { useSettingsStore } from '../store/settingsStore';
 
 export function useAlbumData(id: string | undefined, observerTarget: React.RefObject<HTMLDivElement | null>) {
   const [album, setAlbum] = useState<any>(null);
@@ -87,7 +88,13 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
   const handlePlaySong = (index: number) => {
     const tracks = getMappedTracks();
     if (tracks.length === 0) return;
-    setQueueAndPlay(tracks, index);
+    const action = useSettingsStore.getState().clickAction;
+    
+    if (action === 'play_next') {
+      playNext([tracks[index]]);
+    } else {
+      setQueueAndPlay(tracks, index);
+    }
   };
 
   const handleLike = () => {
