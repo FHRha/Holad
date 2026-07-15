@@ -44,18 +44,23 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
   }, [volume, setAudioElement]);
 
   useEffect(() => {
-    // Attempt to resume audio context on first interaction
+    // Attempt to resume audio context on interaction, and unblock playback
     const handleInteraction = () => {
       if (audioRef.current) {
         const audioEl = audioRef.current as any;
         if (audioEl._audioCtx && audioEl._audioCtx.state === 'suspended') {
           audioEl._audioCtx.resume();
         }
+        // If it should be playing but browser blocked it, start it now
+        if (usePlayerStore.getState().isPlaying && audioRef.current.paused) {
+          audioRef.current.play().catch(e => console.error("Playback still prevented:", e));
+        }
       }
     };
-    document.addEventListener('click', handleInteraction, { once: true });
+    // Listen to every click so users can always "fix" blocked audio by clicking anywhere
+    document.addEventListener('click', handleInteraction);
     return () => document.removeEventListener('click', handleInteraction);
-  }, []);
+  }, [audioRef]);
 
   useEffect(() => {
     if (audioRef.current && currentTrack && initialPosition > 0) {
@@ -92,7 +97,9 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
           }
         }).catch(e => {
           console.error("Playback error:", e);
-          if (e.name === 'NotAllowedError') {
+          const isListener = usePlayerStore.getState().role === 'listener';
+          // Listeners shouldn't have their state reset, so they can unblock it via click
+          if (e.name === 'NotAllowedError' && !isListener) {
             setIsPlaying(false);
           }
         });

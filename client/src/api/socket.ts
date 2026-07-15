@@ -166,16 +166,19 @@ class JamSocketService {
       if (this.isApplyingRemoteState) return;
       
       if (newState.roomId && (newState.role === 'host' || newState.role === 'cohost')) {
-        if (newState.queue !== prevState.queue || newState.currentIndex !== prevState.currentIndex) {
+        const queueChanged = newState.queue !== prevState.queue;
+        const indexChanged = newState.currentIndex !== prevState.currentIndex;
+
+        if (queueChanged || indexChanged) {
           this.socket?.emit('syncQueue', { roomId: newState.roomId, queue: newState.queue, currentIndex: newState.currentIndex });
         }
-        if (newState.isPlaying !== prevState.isPlaying) {
+        if (newState.isPlaying !== prevState.isPlaying || queueChanged || indexChanged) {
           const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
           if (audioEl) {
             this.socket?.emit('syncState', {
               roomId: newState.roomId,
               trackId: newState.queue[newState.currentIndex]?.id,
-              currentTime: audioEl.currentTime,
+              currentTime: (queueChanged || indexChanged) ? 0 : audioEl.currentTime,
               isPlaying: newState.isPlaying,
               currentIndex: newState.currentIndex,
               isAutoDjEnabled: newState.isAutoDjEnabled,
@@ -203,11 +206,18 @@ class JamSocketService {
     const store = usePlayerStore.getState();
     const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
 
+    let trackChanged = false;
     // Apply queue if present (initial join)
     if (queue && queue.length > 0 && queue !== store.queue) {
       usePlayerStore.setState({ queue, currentIndex: currentIndex !== undefined ? currentIndex : 0 });
+      trackChanged = true;
     } else if (currentIndex !== undefined && currentIndex !== store.currentIndex) {
       usePlayerStore.setState({ currentIndex });
+      trackChanged = true;
+    }
+
+    if (trackChanged && currentTime > 0) {
+      usePlayerStore.getState().setInitialPosition(currentTime * 1000);
     }
 
     if (isAutoDjEnabled !== undefined && isAutoDjEnabled !== store.isAutoDjEnabled) {
@@ -215,9 +225,9 @@ class JamSocketService {
     }
 
     if (audioEl) {
-      // Drift threshold: 1.5 seconds
+      // Drift threshold: 0.4 seconds for tighter sync
       const drift = Math.abs(audioEl.currentTime - currentTime);
-      if (drift > 1.5) {
+      if (drift > 0.4) {
         console.log(`Drift detected (${drift}s), seeking to match host`);
         audioEl.currentTime = currentTime;
       }
