@@ -39,9 +39,11 @@ export default function JamLayout() {
 
   // Standalone Track/Album initialization
   useEffect(() => {
+    let ignore = false;
     if (trackId && trackId.trim() !== '' && !roomToJoin) {
       usePlayerStore.setState({ queue: [], currentIndex: 0, isAutoDjEnabled: false });
       getSong(trackId).then(t => {
+        if (ignore) return;
         if (t) {
           const { audioElement } = useAudioStore.getState();
           if (audioElement) audioElement.currentTime = 0;
@@ -60,6 +62,7 @@ export default function JamLayout() {
     } else if (albumId && albumId.trim() !== '' && !roomToJoin) {
       usePlayerStore.setState({ queue: [], currentIndex: 0, isAutoDjEnabled: false });
       getAlbumFull(albumId).then(a => {
+        if (ignore) return;
         if (a && a.song) {
           const { audioElement } = useAudioStore.getState();
           if (audioElement) audioElement.currentTime = 0;
@@ -78,7 +81,18 @@ export default function JamLayout() {
         }
       }).catch(() => {});
     }
+    return () => { ignore = true; };
   }, [trackId, albumId, roomToJoin, setQueueAndPlay]);
+
+  // Handle unmounting of JamLayout (leaving /jam/ routes entirely)
+  useEffect(() => {
+    return () => {
+      const state = usePlayerStore.getState();
+      if (state.role !== 'host') {
+        (usePlayerStore as any).persist?.rehydrate();
+      }
+    };
+  }, []);
 
   if (jamError) {
     return (

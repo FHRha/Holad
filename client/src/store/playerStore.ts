@@ -27,16 +27,31 @@ export const usePlayerStore = create<PlayerState>()(
     }),
     {
       name: 'streamnavi-storage',
-      partialize: (state) => ({
-        localPlaylists: state.localPlaylists,
-        volume: state.volume,
-        queue: state.queue,
-        currentIndex: state.currentIndex,
-        isShuffle: state.isShuffle,
-        repeatMode: state.repeatMode,
-        isAutoDjEnabled: state.isAutoDjEnabled,
-        userName: state.userName,
-      }),
+      partialize: (state) => {
+        // Isolate Jam environment for listeners and standalone links
+        // If we are in /jam/ and not a host, DO NOT save queue/currentIndex to localStorage
+        const isJamRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/jam');
+        const shouldIsolateQueue = isJamRoute && state.role !== 'host';
+
+        if (shouldIsolateQueue) {
+          return {
+            localPlaylists: state.localPlaylists,
+            volume: state.volume,
+            userName: state.userName,
+          };
+        }
+
+        return {
+          localPlaylists: state.localPlaylists,
+          volume: state.volume,
+          queue: state.queue,
+          currentIndex: state.currentIndex,
+          isShuffle: state.isShuffle,
+          repeatMode: state.repeatMode,
+          isAutoDjEnabled: state.isAutoDjEnabled,
+          userName: state.userName,
+        };
+      },
     }
   )
 );

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, LogOut, Shield, ShieldAlert, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../../store/playerStore';
 import { jamSocket } from '../../api/socket';
 import { useAuthStore } from '../../store/authStore';
@@ -8,13 +9,22 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
   const { roomId, role, participants } = usePlayerStore();
   const [copied, setCopied] = useState(false);
 
+  const navigate = useNavigate();
+
   const handleCreate = () => {
     const { user } = useAuthStore.getState();
     jamSocket.createRoom(user || 'Host');
   };
 
   const handleLeave = () => {
+    const isHost = usePlayerStore.getState().role === 'host';
     jamSocket.leaveRoom();
+    
+    // If listener, revert their memory state to their original saved localStorage state
+    if (!isHost) {
+      (usePlayerStore as any).persist?.rehydrate();
+    }
+    navigate('/Holad/');
   };
 
   const handleCopyLink = () => {
