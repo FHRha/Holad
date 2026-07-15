@@ -225,9 +225,9 @@ class JamSocketService {
     }
 
     if (audioEl) {
-      // Drift threshold: 1.5 seconds to prevent micro-stutters from network latency
+      // Drift threshold: 3.0 seconds to prevent stutters from network latency spikes
       const drift = Math.abs(audioEl.currentTime - currentTime);
-      if (drift > 1.5) {
+      if (drift > 3.0) {
         console.log(`Drift detected (${drift}s), seeking to match host`);
         audioEl.currentTime = currentTime;
       }
