@@ -35,7 +35,7 @@ export default function ArtistView() {
   const albums = artist.album || [];
 
   return (
-    <div className="flex-1 overflow-y-auto bg-card custom-scrollbar relative pb-24">
+    <div className="flex-1 overflow-y-auto bg-transparent md:bg-card custom-scrollbar relative pb-24">
       
       {/* Header section */}
       <div className="relative w-full h-80 sm:h-96">
@@ -54,15 +54,15 @@ export default function ArtistView() {
             <ArrowLeft size={20} />
           </button>
           
-          <div className="flex items-end gap-6 sm:gap-8">
-            <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-full shadow-2xl overflow-hidden flex-shrink-0 bg-white/5">
-               <ArtistAvatar artistName={artist.name} artistId={artist.id} fallbackSize={60} className="w-full h-full" />
+          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-8 text-center sm:text-left mt-auto">
+            <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-full shadow-2xl overflow-hidden flex-shrink-0 bg-white/5 mx-auto sm:mx-0">
+               <ArtistAvatar artistName={artist.name} artistId={artist.id} fallbackSize={60} className="w-full h-full object-cover" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-white/80 mb-1 sm:mb-2 drop-shadow-md">
+              <span className="hidden sm:block text-xs sm:text-sm font-bold uppercase tracking-widest text-white/80 mb-1 sm:mb-2 drop-shadow-md">
                 {t('views.artist')}
               </span>
-              <h1 className="text-4xl sm:text-6xl md:text-8xl font-black text-white drop-shadow-lg truncate pb-1">
+              <h1 className="text-3xl sm:text-6xl md:text-8xl font-black text-white drop-shadow-lg truncate pb-1">
                 {artist.name}
               </h1>
               <p className="text-sm sm:text-base text-white/60 font-medium mt-2">
@@ -74,10 +74,10 @@ export default function ArtistView() {
       </div>
 
       {/* Action buttons */}
-      <div className="p-6 sm:px-10 flex items-center gap-4">
+      <div className="p-4 sm:p-6 sm:px-10 flex items-center justify-center sm:justify-start gap-4">
         <button 
           onClick={handlePlayArtist}
-          className="w-12 h-12 sm:w-14 sm:h-14 bg-primary text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-xl"
+          className="w-14 h-14 bg-primary text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-xl"
         >
           <Play size={24} fill="currentColor" className="ml-1" />
         </button>

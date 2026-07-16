@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, ChevronDown, MoreHorizontal, MoreVertical, VolumeX, Star, Maximize2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Star, Maximize2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
@@ -8,6 +8,7 @@ import Slider from '../common/Slider';
 import LiquidSeekBar from '../common/LiquidSeekBar';
 import ArtistLinks from '../common/ArtistLinks';
 import TrackImage from '../common/TrackImage';
+import MobilePlayerUI from './MobilePlayerUI';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useAutoDj } from '../../hooks/useAutoDj';
 import { useNavigate } from 'react-router-dom';
@@ -241,14 +242,17 @@ export default function BottomPlayer() {
   );
 
   const MobileMiniPlayer = (
-    <div 
-      className="md:hidden flex h-14 bg-card mx-2 mb-1 rounded-lg items-center px-3 gap-3 relative z-40 overflow-hidden shadow-lg border border-white/5"
-      onClick={() => setIsMobileExpanded(true)}
-    >
+    <div className="md:hidden fixed bottom-[56px] left-0 right-0 z-40 px-2 pb-2">
       <div 
-        className="absolute bottom-0 left-0 h-[2px] bg-primary z-10 transition-all" 
-        style={{ width: `${progress}%` }} 
-      />
+        className="flex h-14 bg-[#121212]/40 backdrop-blur-xl border border-white/10 rounded-[16px] items-center px-3 gap-3 relative overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+        onClick={() => setIsMobileExpanded(true)}
+      >
+        <div className="absolute bottom-0 left-4 right-4 h-[2px] overflow-hidden rounded-t-full">
+          <div 
+            className="absolute bottom-0 left-0 h-full bg-primary z-10 transition-all opacity-80" 
+            style={{ width: `${progress}%` }} 
+          />
+        </div>
       
       <TrackImage 
         src={currentTrack.coverArt} 
@@ -274,79 +278,6 @@ export default function BottomPlayer() {
       >
         <SkipForward fill="currentColor" size={20} />
       </button>
-    </div>
-  );
-
-  const MobileFullScreenPlayer = (
-    <div className={`fixed inset-0 z-[100] bg-background flex flex-col transition-transform duration-300 ${isMobileExpanded ? 'translate-y-0' : 'translate-y-full'}`}>
-      {/* Blurred background for mobile player */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center blur-[80px] opacity-30 scale-125 pointer-events-none"
-        style={{ backgroundImage: `url(${currentTrack.coverArt})` }}
-      />
-      
-      <div className="relative z-10 flex flex-col h-full p-6">
-        <div className="flex justify-between items-center mb-8">
-          <button onClick={() => setIsMobileExpanded(false)} className="text-white/80 p-2 -ml-2">
-            <ChevronDown size={28} />
-          </button>
-          <span className="text-xs font-bold tracking-widest text-secondary uppercase">{t('player.now_playing')}</span>
-          <button className="text-white/80 p-2 -mr-2" onClick={(e) => { e.stopPropagation(); openMenu(e.clientX, e.clientY, currentTrack, 'track'); }}>
-            <MoreHorizontal size={24} />
-          </button>
-        </div>
-
-        <div className="w-full aspect-square bg-muted rounded-xl shadow-2xl overflow-hidden mb-8">
-          <TrackImage src={currentTrack.coverArt} className="w-full h-full object-cover" alt="" />
-        </div>
-
-        <div className="flex justify-between items-end mb-6">
-          <div className="flex-1 min-w-0 pr-4">
-            <h2 onClick={() => { setIsMobileExpanded(false); navigate(`/Holad/album/${currentTrack.albumId}`); }} className="text-2xl font-bold text-white truncate mb-1 cursor-pointer hover:underline">{currentTrack.title}</h2>
-            <ArtistLinks artistString={currentTrack.artist} artistId={currentTrack.artistId} className="text-lg text-white/70 truncate" onLinkClick={() => setIsMobileExpanded(false)} />
-          </div>
-          <button onClick={handleLike} className="hover:scale-110 transition-transform">
-            <Heart size={28} className={likedTrackIds.includes(currentTrack.id) ? "text-primary" : "text-white/70"} fill={likedTrackIds.includes(currentTrack.id) ? "currentColor" : "none"} />
-          </button>
-        </div>
-
-        {/* Timeline */}
-        <div className="mb-8">
-          <LiquidSeekBar 
-            value={progress / 100} 
-            onChange={handleSeekChange} 
-            onDragEnd={handleSeekEnd} 
-            className={role === 'listener' ? 'pointer-events-none mb-2' : 'mb-2'}
-            isAnimated={isPlaying}
-          />
-          <div className="flex justify-between text-xs text-white/50 font-medium">
-            <span>{formatTime((progress / 100) * (currentTrack?.duration || 0))}</span>
-            <span>{formatTime(currentTrack.duration)}</span>
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center justify-between mb-8">
-          <button onClick={toggleShuffle} disabled={role === 'listener'} className={`transition-colors disabled:opacity-50 ${isShuffle ? 'text-primary' : 'text-white/70 hover:text-white'}`}>
-            <Shuffle size={24} />
-          </button>
-          <button onClick={prevTrack} disabled={role === 'listener'} className="text-white hover:text-primary transition-colors disabled:opacity-50">
-            <SkipBack fill="currentColor" size={32} />
-          </button>
-          <button 
-            onClick={() => setIsPlaying(!isPlaying)}
-            disabled={role === 'listener'}
-            className="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-          >
-            {isPlaying ? <Pause fill="currentColor" size={32} /> : <Play fill="currentColor" size={36} className="ml-2" />}
-          </button>
-          <button onClick={nextTrack} disabled={role === 'listener'} className="text-white hover:text-primary transition-colors disabled:opacity-50">
-            <SkipForward fill="currentColor" size={32} />
-          </button>
-          <button onClick={cycleRepeatMode} disabled={role === 'listener'} className={`transition-colors disabled:opacity-50 ${repeatMode !== 'none' ? 'text-primary' : 'text-white/70 hover:text-white'}`}>
-            {repeatMode === 'one' ? <Repeat1 size={24} /> : <Repeat size={24} />}
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -382,7 +313,9 @@ export default function BottomPlayer() {
       />
       {DesktopPlayer}
       {!isMobileExpanded && MobileMiniPlayer}
-      {MobileFullScreenPlayer}
+      <div className="md:hidden">
+        {isMobileExpanded && <MobilePlayerUI onClose={() => setIsMobileExpanded(false)} />}
+      </div>
     </>
   );
 }

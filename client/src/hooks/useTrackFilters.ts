@@ -8,6 +8,9 @@ export function useTrackFilters(tracks: any[], globalArtists: any[]) {
   const [selectedArtists, setSelectedArtists] = useState<Set<string>>(new Set());
   const { likedTrackIds } = usePlayerStore();
 
+  const [albumSearch, setAlbumSearch] = useState('');
+  const [selectedAlbums, setSelectedAlbums] = useState<Set<string>>(new Set());
+
   const allArtists = useMemo(() => {
     const artistMap = new Map<string, { id: string, name: string }>();
     
@@ -41,7 +44,18 @@ export function useTrackFilters(tracks: any[], globalArtists: any[]) {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [tracks, globalArtists]);
 
+  const allAlbums = useMemo(() => {
+    const albumSet = new Set<string>();
+    tracks.forEach(t => {
+      if (t.album) {
+        albumSet.add(t.album);
+      }
+    });
+    return Array.from(albumSet).sort((a, b) => a.localeCompare(b));
+  }, [tracks]);
+
   const filteredArtists = allArtists.filter(a => a.name.toLowerCase().includes(artistSearch.toLowerCase()));
+  const filteredAlbums = allAlbums.filter(a => a.toLowerCase().includes(albumSearch.toLowerCase()));
 
   const filteredTracks = useMemo(() => {
     return tracks.filter(t => {
@@ -61,15 +75,26 @@ export function useTrackFilters(tracks: any[], globalArtists: any[]) {
         if (!hasSelected) return false;
       }
 
+      if (selectedAlbums.size > 0) {
+        if (!t.album || !selectedAlbums.has(t.album)) return false;
+      }
+
       return true;
     });
-  }, [tracks, filterLiked, filterRated, selectedArtists, likedTrackIds]);
+  }, [tracks, filterLiked, filterRated, selectedArtists, selectedAlbums, likedTrackIds]);
 
   const toggleArtist = (artist: string) => {
     const newSet = new Set(selectedArtists);
     if (newSet.has(artist)) newSet.delete(artist);
     else newSet.add(artist);
     setSelectedArtists(newSet);
+  };
+
+  const toggleAlbum = (album: string) => {
+    const newSet = new Set(selectedAlbums);
+    if (newSet.has(album)) newSet.delete(album);
+    else newSet.add(album);
+    setSelectedAlbums(newSet);
   };
 
   return {
@@ -79,11 +104,18 @@ export function useTrackFilters(tracks: any[], globalArtists: any[]) {
     setFilterRated,
     artistSearch,
     setArtistSearch,
+    albumSearch,
+    setAlbumSearch,
     selectedArtists,
     setSelectedArtists,
+    selectedAlbums,
+    setSelectedAlbums,
     allArtists,
+    allAlbums,
     filteredArtists,
+    filteredAlbums,
     filteredTracks,
-    toggleArtist
+    toggleArtist,
+    toggleAlbum
   };
 }

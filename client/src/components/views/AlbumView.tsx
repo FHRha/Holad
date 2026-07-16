@@ -50,7 +50,7 @@ export default function AlbumView() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto relative h-full bg-background custom-scrollbar">
+    <div className="flex-1 overflow-y-auto relative h-full bg-transparent md:bg-background custom-scrollbar">
       {/* Background Gradient */}
       <div 
         className="absolute top-0 left-0 right-0 h-[500px] opacity-30 pointer-events-none transition-colors duration-1000"

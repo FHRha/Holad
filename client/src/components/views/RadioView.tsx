@@ -106,7 +106,7 @@ export default function RadioView() {
   };
 
   return (
-    <div className="flex-1 bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar pt-10">
+    <div className="flex-1 bg-transparent md:bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar pt-10">
       <div className="max-w-6xl mx-auto space-y-12">
         
         {/* Main Stations */}

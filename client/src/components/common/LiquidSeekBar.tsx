@@ -114,17 +114,22 @@ export default function LiquidSeekBar({ value, onChange, onDrag, onDragEnd, clas
     let width = 0;
     let height = 0;
 
-    const resizeObserver = new ResizeObserver(entries => {
-      for (let entry of entries) {
-        const rect = entry.contentRect;
-        const dpr = window.devicePixelRatio || 1;
-        width = rect.width;
-        height = rect.height;
-        
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
-        ctx.scale(dpr, dpr);
-      }
+    const resizeObserver = new ResizeObserver(() => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      // Supersampling: force at least 2x internal resolution for ultra smooth rendering
+      const baseDpr = window.devicePixelRatio || 1;
+      const dpr = Math.max(2, baseDpr * 1.5); 
+      width = rect.width;
+      height = rect.height;
+      
+      canvas.width = Math.ceil(width * dpr);
+      canvas.height = Math.ceil(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
+      ctx.scale(dpr, dpr);
     });
 
     if (containerRef.current) {
@@ -150,7 +155,7 @@ export default function LiquidSeekBar({ value, onChange, onDrag, onDragEnd, clas
       // Breathing effect: modulating amplitude
       const currentAmp = baseAmp * (0.8 + 0.2 * Math.sin(time * speed * 0.5));
       
-      const step = Math.max(1, width / 200);
+      const step = 0.5; // Ultra smooth precision
 
       for (let x = 0; x <= width + step; x += step) {
         const t = time * speed;

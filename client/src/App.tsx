@@ -16,8 +16,10 @@ import ArtistView from './components/views/ArtistView';
 import ArtistsView from './components/views/ArtistsView';
 import LoginView from './components/views/LoginView';
 import RadioView from './components/views/RadioView';
+import MobileSettingsView from './components/views/MobileSettingsView';
 import TopBar from './components/layout/TopBar';
 import NowPlayingModal from './components/common/NowPlayingModal';
+import MobileSearchOverlay from './components/modals/MobileSearchOverlay';
 import { GlobalDndProvider } from './components/common/dnd/GlobalDndProvider';
 
 import { useAppInitialization } from './hooks/useAppInitialization';
@@ -95,9 +97,10 @@ function AppContent() {
 
   return (
     <GlobalDndProvider>
-      <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans">
-      <div className="flex flex-1 overflow-hidden relative">
-        <Routes>
+      <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans relative">
+        <MobileBackground />
+        <div className="flex flex-1 overflow-hidden relative z-10">
+          <Routes>
           <Route path="/" element={<Navigate to={startPage} replace />} />
           <Route path="/login" element={!isAuthenticated ? <LoginView /> : <Navigate to="/Holad" replace />} />
           
@@ -107,7 +110,9 @@ function AppContent() {
               <Sidebar />
               <div className="flex-1 overflow-hidden relative">
                 <div className="absolute inset-0 flex flex-col">
-                  <TopBar />
+                  <div className="hidden md:block">
+                    <TopBar />
+                  </div>
                   <div className="flex-1 overflow-y-auto relative hide-scrollbar">
                     <Routes>
                       <Route path="/" element={<MainContent />} />
@@ -119,6 +124,7 @@ function AppContent() {
                       <Route path="/album/:id" element={<AlbumView />} />
                       <Route path="/favorites" element={<FavoritesView />} />
                       <Route path="/radio" element={<RadioView />} />
+                      <Route path="/settings" element={<MobileSettingsView />} />
                       <Route path="*" element={<MainContent />} />
                     </Routes>
                   </div>
@@ -135,6 +141,7 @@ function AppContent() {
         </Routes>
         
         <NowPlayingModal />
+        <MobileSearchOverlay />
         {isSettingsOpen && <SettingsModal />}
       </div>
       
@@ -142,6 +149,29 @@ function AppContent() {
       {showMobileNav && <MobileBottomNav />}
     </div>
     </GlobalDndProvider>
+  );
+}
+
+function MobileBackground() {
+  const { queue, currentIndex } = usePlayerStore();
+  const currentTrack = queue[currentIndex];
+
+  if (currentTrack?.coverArt) {
+    return (
+      <div className="md:hidden absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
+        <div 
+          className="absolute inset-0 bg-cover bg-center blur-[40px] opacity-60 saturate-150 scale-[1.15] transition-all duration-1000"
+          style={{ backgroundImage: `url(${currentTrack.coverArt})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="md:hidden absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-black/90 to-[var(--color-primary)] opacity-40" />
+    </div>
   );
 }
 

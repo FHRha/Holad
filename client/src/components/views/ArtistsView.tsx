@@ -50,9 +50,9 @@ export default function ArtistsView() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-card custom-scrollbar relative pb-24">
+    <div className="flex-1 overflow-y-auto bg-transparent md:bg-card hide-scrollbar md:custom-scrollbar relative pb-24 px-4 pt-4 md:p-0">
       {/* Header section similar to Albums */}
-      <div className="sticky top-0 z-20 bg-card/90 backdrop-blur p-6 pb-4 border-b border-white/5 flex items-center justify-between">
+      <div className="hidden md:flex sticky top-0 z-20 bg-card/90 backdrop-blur p-6 pb-4 border-b border-white/5 items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">{t('views.artists')}</h1>
         
         <div className="relative w-64 hidden sm:block">
@@ -67,16 +67,16 @@ export default function ArtistsView() {
         </div>
       </div>
       
-      <div className="p-6">
+      <div className="md:p-6">
         {/* Mobile search */}
-        <div className="relative w-full mb-6 sm:hidden">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
+        <div className="relative w-full mb-6 md:hidden">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b3b3b3]" />
           <input 
             type="text" 
             placeholder={t('views.search_artist')} 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-black/50 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-white/30 transition-all"
+            className="w-full bg-[#282828] border-none rounded-xl py-2.5 pl-10 pr-4 text-[15px] font-medium text-white placeholder-[#b3b3b3] outline-none transition-all"
           />
         </div>
 
@@ -85,7 +85,7 @@ export default function ArtistsView() {
             {t('views.artists_not_found')}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 md:gap-6 pr-6 md:pr-0">
             {filteredArtists.map(artist => (
               <ArtistCard key={artist.id} artist={artist} />
             ))}

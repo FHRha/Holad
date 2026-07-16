@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import ArtistAvatar from './ArtistAvatar';
 import { useTranslation } from 'react-i18next';
+import { useUIStore } from '../../store/uiStore';
 
 interface ArtistCardProps {
   artist: {
@@ -8,24 +9,31 @@ interface ArtistCardProps {
     name: string;
     albumCount?: number;
   };
+  onClick?: () => void;
 }
 
-export default function ArtistCard({ artist }: ArtistCardProps) {
+export default function ArtistCard({ artist, onClick }: ArtistCardProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { setSearchOpen } = useUIStore();
 
   const slug = `${encodeURIComponent(artist.name)}-${artist.id}`;
 
   return (
     <div 
       onClick={() => {
-        const isJam = window.location.pathname.startsWith('/jam');
-        const searchParams = new URLSearchParams(window.location.search);
-        const room = searchParams.get('room');
-        if (isJam && room) {
-          navigate(`/jam/library/artist/${slug}?room=${room}`);
+        if (onClick) {
+          onClick();
         } else {
-          navigate(`/Holad/artist/${slug}`);
+          setSearchOpen(false);
+          const isJam = window.location.pathname.startsWith('/jam');
+          const searchParams = new URLSearchParams(window.location.search);
+          const room = searchParams.get('room');
+          if (isJam && room) {
+            navigate(`/jam/library/artist/${slug}?room=${room}`);
+          } else {
+            navigate(`/Holad/artist/${slug}`);
+          }
         }
       }}
       className="group relative bg-[#181818] hover:bg-[#282828] rounded-xl cursor-pointer flex flex-col p-4 flex-shrink-0 transition-colors duration-300 shadow-sm hover:shadow-lg"

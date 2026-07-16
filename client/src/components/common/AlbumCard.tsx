@@ -124,7 +124,11 @@ export default function AlbumCard({ album }: { album: any }) {
 
   return (
     <div 
-      onClick={() => {
+      onClick={(e) => {
+        if (window.innerWidth < 768) {
+          handlePlayNow(e);
+          return;
+        }
         const isJam = window.location.pathname.startsWith('/jam');
         const searchParams = new URLSearchParams(window.location.search);
         const room = searchParams.get('room');
@@ -154,12 +158,27 @@ export default function AlbumCard({ album }: { album: any }) {
           }}
         />
 
-        {/* Top Banner (Rating Square) */}
+        {/* Top Banner (Rating Square - Desktop Only) */}
         {rating > 0 && (
-          <div className="absolute top-0 right-0 w-8 h-8 bg-primary text-background text-sm font-bold rounded-bl-lg z-10 flex items-center justify-center group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
+          <div className="hidden md:flex absolute top-0 right-0 w-8 h-8 bg-primary text-background text-sm font-bold rounded-bl-lg z-10 items-center justify-center group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
             {rating}
           </div>
         )}
+
+        {/* Mobile Info Overlay (Stars and Heart) */}
+        <div className="md:hidden absolute bottom-2 left-2 right-2 flex justify-between items-center z-10 pointer-events-none">
+          {rating > 0 && (
+            <div className="flex items-center gap-1 text-primary text-xs font-bold bg-black/40 px-1.5 py-0.5 rounded-full pointer-events-auto">
+              <Star size={10} fill="currentColor" />
+              {rating}
+            </div>
+          )}
+          {isLiked && (
+            <div className="text-primary bg-black/40 p-1 rounded-full pointer-events-auto ml-auto">
+              <Heart size={14} fill="currentColor" className="border-none" />
+            </div>
+          )}
+        </div>
 
         {/* Hover Overlay Buttons on Image */}
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-between p-3 bg-black/50">

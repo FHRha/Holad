@@ -30,11 +30,16 @@ export default function TracksView() {
     setFilterRated,
     artistSearch,
     setArtistSearch,
+    albumSearch,
+    setAlbumSearch,
     selectedArtists,
     setSelectedArtists,
+    selectedAlbums,
     filteredArtists,
+    filteredAlbums,
     filteredTracks,
-    toggleArtist
+    toggleArtist,
+    toggleAlbum
   } = useTrackFilters(tracks, globalArtists);
 
   useEffect(() => {
@@ -80,9 +85,9 @@ export default function TracksView() {
   };
 
   return (
-    <div className="flex h-full bg-background text-foreground">
+    <div className="flex h-full bg-transparent md:bg-background text-foreground pb-24 md:pb-0 relative">
       {/* LEFT SIDEBAR: FILTERS */}
-      <div className="w-64 border-r border-white/5 bg-[#121212] flex flex-col p-4 overflow-y-auto custom-scrollbar">
+      <div className="hidden md:flex w-64 border-r border-white/5 bg-[#121212] flex-col p-4 overflow-y-auto custom-scrollbar">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold">{t('views.filters')}</h2>
           <button 
@@ -119,7 +124,7 @@ export default function TracksView() {
         </div>
 
         {/* Artist Filter */}
-        <div className="flex-1 flex flex-col min-h-[200px]">
+        <div className="flex flex-col min-h-[160px] mb-6">
           <h3 className="text-xs font-semibold text-secondary uppercase mb-3">{t('views.artist')}</h3>
           <div className="relative mb-3">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
@@ -151,11 +156,39 @@ export default function TracksView() {
             ))}
           </div>
         </div>
+
+        {/* Album Filter */}
+        <div className="flex-1 flex flex-col min-h-[160px]">
+          <h3 className="text-xs font-semibold text-secondary uppercase mb-3">{t('views.albums')}</h3>
+          <div className="relative mb-3">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
+            <input 
+              type="text" 
+              placeholder="Поиск альбома..." 
+              value={albumSearch}
+              onChange={e => setAlbumSearch(e.target.value)}
+              className="w-full bg-black border border-white/10 rounded-md py-1.5 pl-9 pr-3 text-xs text-white focus:outline-none focus:border-white/30 transition-colors"
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
+            {filteredAlbums.map(album => (
+              <div 
+                key={album}
+                onClick={() => toggleAlbum(album)}
+                className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-colors group ${selectedAlbums.has(album) ? 'bg-primary/20 border border-primary/30' : 'hover:bg-white/5 border border-transparent'}`}
+              >
+                <span className={`text-xs truncate ${selectedAlbums.has(album) ? 'text-primary font-bold' : 'text-secondary group-hover:text-white'}`}>
+                  {album}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* RIGHT MAIN CONTENT: TABLE */}
-      <div className="flex-1 flex flex-col p-6 overflow-hidden">
-        <div className="flex items-center justify-between mb-6">
+      {/* RIGHT MAIN CONTENT: TABLE / MOBILE LIST */}
+      <div className="flex-1 flex flex-col p-0 md:p-6 overflow-hidden">
+        <div className="hidden md:flex items-center justify-between mb-6">
           <h1 className="text-2xl font-black flex items-center gap-3">
             <div className="w-10 h-10 bg-primary text-black rounded-full flex items-center justify-center">
               <Play fill="currentColor" size={20} className="ml-1" />
@@ -165,9 +198,9 @@ export default function TracksView() {
           </h1>
         </div>
 
-        <div className="flex flex-col flex-1 bg-card rounded-xl border border-white/5 overflow-hidden">
+        <div className="flex flex-col flex-1 bg-transparent md:bg-card md:rounded-xl md:border border-white/5 overflow-hidden">
           {/* Table Header */}
-          <div className="flex items-center px-6 py-3 border-b border-white/5 text-[11px] font-bold tracking-widest text-secondary uppercase bg-[#181818]">
+          <div className="hidden md:flex items-center px-6 py-3 border-b border-white/5 text-[11px] font-bold tracking-widest text-secondary uppercase bg-[#181818]">
             <div className="w-10 text-center">#</div>
             <div className="flex-1 min-w-[200px]">Title</div>
             <div className="w-16 flex justify-center"><Clock size={14} /></div>
@@ -179,7 +212,7 @@ export default function TracksView() {
 
           {/* Table Body */}
           <div 
-            className="flex-1 overflow-y-auto custom-scrollbar"
+            className="flex-1 overflow-y-auto hide-scrollbar md:custom-scrollbar pt-2 px-4 md:px-0"
             onScroll={(e) => {
               const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 200;
               if (bottom && visibleCount < filteredTracks.length) {
@@ -192,7 +225,7 @@ export default function TracksView() {
             ) : filteredTracks.length === 0 ? (
               <div className="flex items-center justify-center h-full text-secondary">{t('views.not_found')}</div>
             ) : (
-              <div className="py-2">
+              <div className="py-2 flex flex-col gap-3 md:gap-0">
                 {filteredTracks.slice(0, visibleCount).map((track, index) => {
                   const currentPlaying = queue[currentIndex]?.id === track.id;
                   const isTrackLiked = likedTrackIds.includes(track.id);
@@ -205,9 +238,9 @@ export default function TracksView() {
                         e.preventDefault(); 
                         openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId, 300) }, 'track'); 
                       }}
-                      className={`flex items-center px-6 py-2 cursor-pointer group hover:bg-white/5 transition-colors ${currentPlaying ? 'bg-white/10' : ''}`}
+                      className={`flex items-center md:px-6 md:py-2 cursor-pointer group hover:bg-white/5 transition-colors ${currentPlaying ? 'md:bg-white/10' : ''}`}
                     >
-                      <div className="w-10 text-center text-xs font-semibold text-secondary flex justify-center">
+                      <div className="w-10 hidden md:flex text-center text-xs font-semibold text-secondary justify-center">
                         {currentPlaying ? (
                           isPlaying ? <Pause size={14} className="text-primary" fill="currentColor" /> : <Play size={14} className="text-primary" fill="currentColor" />
                         ) : (
@@ -218,19 +251,19 @@ export default function TracksView() {
                         )}
                       </div>
                       
-                      <div className="flex-1 min-w-[200px] flex items-center gap-3 pr-4">
-                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId, 300)} alt="" className="w-10 h-10 rounded object-cover shadow-sm" />
-                        <div className="flex flex-col min-w-0">
-                          <span className={`text-sm font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-white'}`}>{track.title}</span>
-                          <span className="text-xs text-secondary truncate">{formatArtistName(track.artist)}</span>
+                      <div className="flex-1 min-w-0 md:min-w-[200px] flex items-center gap-3 pr-2 md:pr-4">
+                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId, 300)} alt="" className="w-12 h-12 md:w-10 md:h-10 rounded-md md:rounded object-cover shadow-sm flex-shrink-0" />
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className={`text-[15px] md:text-sm font-bold md:font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-white'}`}>{track.title}</span>
+                          <span className="text-[13px] md:text-xs text-[#b3b3b3] md:text-secondary truncate">{formatArtistName(track.artist)}{track.album ? ` • ${track.album}` : ''}</span>
                         </div>
                       </div>
 
-                      <div className="w-16 flex justify-center text-xs font-medium text-secondary">
+                      <div className="w-16 hidden md:flex justify-center text-xs font-medium text-secondary">
                         {formatTime(track.duration)}
                       </div>
 
-                      <div className="flex-1 min-w-[150px] text-xs text-secondary truncate pr-4">
+                      <div className="flex-1 min-w-[150px] text-xs text-secondary truncate hidden md:block pr-4">
                         {track.album}
                       </div>
 
@@ -242,10 +275,10 @@ export default function TracksView() {
                         {track.year || '-'}
                       </div>
 
-                      <div className="w-16 flex justify-center ml-4">
+                      <div className="w-10 md:w-16 flex items-center justify-end md:justify-center md:ml-4">
                         <Heart 
-                          size={16} 
-                          className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-white/30 hover:text-white'}`}
+                          size={18} 
+                          className={`md:opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3] md:text-white/30 hover:text-white'}`}
                           fill={isTrackLiked ? "currentColor" : "none"}
                           onClick={(e) => {
                             e.stopPropagation();

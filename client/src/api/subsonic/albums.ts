@@ -7,6 +7,20 @@ export const fetchAlbums = async () => {
   return data['subsonic-response']?.albumList2?.album || [];
 };
 
+export const fetchFrequentAlbums = async () => {
+  const url = buildUrl('getAlbumList2', { type: 'frequent', size: '500' });
+  const res = await fetchWithRetry(url);
+  const data = await res.json();
+  return data['subsonic-response']?.albumList2?.album || [];
+};
+
+export const fetchRecentAlbums = async () => {
+  const url = buildUrl('getAlbumList2', { type: 'recent', size: '500' });
+  const res = await fetchWithRetry(url);
+  const data = await res.json();
+  return data['subsonic-response']?.albumList2?.album || [];
+};
+
 export const getAlbum = async (id: string) => {
   const url = buildUrl('getAlbum', { id });
   const res = await fetchWithRetry(url);
