@@ -112,7 +112,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     
     autoScrollTimeoutRef.current = setTimeout(() => {
       isAutoScrolling.current = false;
-    }, 600) as unknown as number;
+    }, 1200) as unknown as number;
   };
 
   // Karaoke Loop

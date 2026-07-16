@@ -48,7 +48,15 @@
     "visualizer": "Визуализатор",
     "loading_lyrics": "Загрузка текста...",
     "lyrics_not_found": "Текст песни не найден",
-    "similar_not_found": "Похожие треки не найдены"
+    "similar_not_found": "Похожие треки не найдены",
+    "duration": "Длительность",
+    "year": "Год",
+    "format": "Формат",
+    "bitrate": "Битрейт",
+    "about_artist": "Об артисте",
+    "no_biography": "Биография отсутствует.",
+    "next_in_queue": "Далее в очереди",
+    "queue_is_empty": "Очередь пуста"
   },
   "views": {
     "loading_albums": "Загрузка альбомов...",

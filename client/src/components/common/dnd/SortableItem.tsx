@@ -30,15 +30,11 @@ export function SortableItem({ id, children }: SortableItemProps) {
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? (hidePhantom ? 0 : 0.4) : 1, // Visually fade or hide
+    opacity: isDragging ? 0 : 1, // Completely hide phantom to create a clean gap
     height: hidePhantom ? 0 : undefined,
-    margin: hidePhantom ? 0 : (isDragging ? '8px 0' : undefined), // add gap for the phantom
-    padding: hidePhantom ? 0 : undefined,
     overflow: hidePhantom ? 'hidden' : undefined,
-    border: isDragging && !hidePhantom ? '2px dashed rgba(255, 255, 255, 0.3)' : undefined, // visual drop cue
-    borderRadius: isDragging && !hidePhantom ? '8px' : undefined,
-    zIndex: isDragging ? 0 : 1,
     position: 'relative',
+    zIndex: isDragging ? 0 : 1,
   };
 
   return <>{children({ setNodeRef, attributes, listeners, style, isDragging })}</>;

@@ -4,7 +4,8 @@ import {
   DragOverlay, 
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   defaultDropAnimationSideEffects,
@@ -34,9 +35,15 @@ export function GlobalDndProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 5, // Requires a 5px movement to start drag, avoiding accidental clicks
+        distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {

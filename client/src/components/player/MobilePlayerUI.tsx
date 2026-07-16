@@ -13,6 +13,9 @@ import TrackImage from '../common/TrackImage';
 import LiquidSeekBar from '../common/LiquidSeekBar';
 import { useTranslation } from 'react-i18next';
 import { useContextMenuStore } from '../../store/contextMenuStore';
+import MobileQueueTab from './MobileQueueTab';
+import MobileInfoTab from './MobileInfoTab';
+import MobileLyricsTab from './MobileLyricsTab';
 
 export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -111,25 +114,25 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       <div className="relative z-10 flex-1 flex flex-col items-center justify-between px-6 pb-6 w-full max-w-md mx-auto min-h-0 overflow-y-auto hide-scrollbar">
         
         {/* Conditional Content based on Active Tab */}
-        <div className="w-full flex-1 flex flex-col justify-center min-h-[40vh] my-auto">
+        <div className="w-full flex-1 flex flex-col justify-center min-h-[40vh] my-auto overflow-hidden">
           {activeTab === 'player' && (
-            <div className="w-full aspect-square rounded-3xl overflow-hidden shadow-2xl mb-8 border border-white/10 bg-black/20">
+            <div className="w-full aspect-square rounded-3xl overflow-hidden shadow-2xl mb-8 border border-white/10 bg-black/20 flex-shrink-0">
               <TrackImage src={coverArtHighRes} className="w-full h-full object-cover" alt={currentTrack.title} />
             </div>
           )}
           {activeTab === 'queue' && (
-            <div className="flex-1 flex flex-col items-center justify-center text-white/50 font-medium">Очередь (в разработке)</div>
+            <MobileQueueTab />
           )}
           {activeTab === 'info' && (
-            <div className="flex-1 flex flex-col items-center justify-center text-white/50 font-medium">Инфо (в разработке)</div>
+            <MobileInfoTab currentTrack={currentTrack} />
           )}
           {activeTab === 'lyrics' && (
-            <div className="flex-1 flex flex-col items-center justify-center text-white/50 font-medium">Тексты (в разработке)</div>
+            <MobileLyricsTab currentTrack={currentTrack} isActive={activeTab === 'lyrics'} />
           )}
         </div>
 
         {/* Info & Controls Section (Always visible) */}
-        <div className="w-full flex flex-col gap-6">
+        <div className="w-full flex flex-col gap-6 mt-6">
           {/* Track Info */}
           <div className="flex items-center justify-between">
             <div className="flex flex-col overflow-hidden mr-4">

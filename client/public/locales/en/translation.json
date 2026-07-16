@@ -48,7 +48,15 @@
     "visualizer": "Visualizer",
     "loading_lyrics": "Loading lyrics...",
     "lyrics_not_found": "Lyrics not found",
-    "similar_not_found": "Similar tracks not found"
+    "similar_not_found": "Similar tracks not found",
+    "duration": "Duration",
+    "year": "Year",
+    "format": "Format",
+    "bitrate": "Bitrate",
+    "about_artist": "About Artist",
+    "no_biography": "No biography available.",
+    "next_in_queue": "Next in Queue",
+    "queue_is_empty": "Queue is empty"
   },
   "views": {
     "loading_albums": "Loading albums...",
