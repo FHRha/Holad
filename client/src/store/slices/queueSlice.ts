@@ -1,6 +1,16 @@
 import type { StateCreator } from 'zustand';
 import type { PlayerState } from '../playerStore';
 import type { Track } from '../../types';
+import { useHoladStore } from '../holadStore';
+import { useAudioStore } from '../audioStore';
+
+const triggerPlay = () => {
+  const store = useHoladStore.getState();
+  const isDeviceActive = store.roomId === null || store.activeDeviceId === store.deviceId || store.activeDeviceId === null;
+  if (isDeviceActive) {
+    useAudioStore.getState().audioElement?.play().catch(() => {});
+  }
+};
 
 export interface QueueSlice {
   queue: Track[];
@@ -40,7 +50,10 @@ export const createQueueSlice: StateCreator<
   isProcessing: false,
 
   setQueue: (tracks) => set({ queue: tracks, originalQueue: tracks, currentIndex: tracks.length > 0 ? 0 : -1, isShuffle: false }),
-  setQueueAndPlay: (tracks, startIndex = 0) => set({ queue: tracks, originalQueue: tracks, currentIndex: startIndex, isPlaying: true, isShuffle: false }),
+  setQueueAndPlay: (tracks, startIndex = 0) => {
+    triggerPlay();
+    set({ queue: tracks, originalQueue: tracks, currentIndex: startIndex, isPlaying: true, isShuffle: false });
+  },
   playNext: (tracks) => set((state) => {
     let newQueue = [...state.queue];
     let newCurrentIndex = state.currentIndex === -1 ? 0 : state.currentIndex;
@@ -93,26 +106,35 @@ export const createQueueSlice: StateCreator<
   }),
   setCurrentIndex: (index) => set({ currentIndex: index }),
   
-  playTrack: (index) => set({ currentIndex: index, isPlaying: true }),
+  playTrack: (index) => {
+    triggerPlay();
+    set({ currentIndex: index, isPlaying: true });
+  },
   
-  nextTrack: () => set((state) => {
-    if (state.repeatMode === 'one') {
-      return { currentIndex: state.currentIndex, initialPosition: 0, isPlaying: true };
-    }
-    if (state.currentIndex < state.queue.length - 1) {
-      return { currentIndex: state.currentIndex + 1, isPlaying: true };
-    } else if (state.repeatMode === 'all') {
-      return { currentIndex: 0, isPlaying: true };
-    }
-    return state;
-  }),
+  nextTrack: () => {
+    triggerPlay();
+    set((state) => {
+      if (state.repeatMode === 'one') {
+        return { currentIndex: state.currentIndex, initialPosition: 0, isPlaying: true };
+      }
+      if (state.currentIndex < state.queue.length - 1) {
+        return { currentIndex: state.currentIndex + 1, isPlaying: true };
+      } else if (state.repeatMode === 'all') {
+        return { currentIndex: 0, isPlaying: true };
+      }
+      return state;
+    });
+  },
   
-  prevTrack: () => set((state) => {
-    if (state.currentIndex > 0) {
-      return { currentIndex: state.currentIndex - 1, isPlaying: true };
-    }
-    return state;
-  }),
+  prevTrack: () => {
+    triggerPlay();
+    set((state) => {
+      if (state.currentIndex > 0) {
+        return { currentIndex: state.currentIndex - 1, isPlaying: true };
+      }
+      return state;
+    });
+  },
 
   toggleAutoDj: () => set((state) => ({ isAutoDjEnabled: !state.isAutoDjEnabled })),
 

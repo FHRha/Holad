@@ -13,6 +13,9 @@ import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useAutoDj } from '../../hooks/useAutoDj';
 import { useNavigate } from 'react-router-dom';
 import { useContextMenuStore } from '../../store/contextMenuStore';
+import HoladConnectMenu from './HoladConnectMenu';
+import { useHoladStore } from '../../store/holadStore';
+import { Tv2 } from 'lucide-react';
 
 export default function BottomPlayer() {
   const navigate = useNavigate();
@@ -23,6 +26,13 @@ export default function BottomPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const [dragVolume, setDragVolume] = useState<number | null>(null);
+
+  const activeDeviceId = useHoladStore(s => s.activeDeviceId);
+  const localDeviceId = useHoladStore(s => s.deviceId);
+  const devices = useHoladStore(s => s.devices);
+  const isConnected = useHoladStore(s => s.roomId !== null);
+  const isActiveDevice = !isConnected || activeDeviceId === localDeviceId || activeDeviceId === null;
+  const activeDeviceObj = devices.find(d => d.id === activeDeviceId);
 
   const {
     progress,
@@ -68,6 +78,11 @@ export default function BottomPlayer() {
 
   const handlePlayPause = () => {
     if (role === 'listener') return; 
+    
+    if (!isPlaying && audioRef.current && isActiveDevice) {
+       audioRef.current.play().catch(() => {});
+    }
+    
     setIsPlaying(!isPlaying);
   };
 
@@ -97,6 +112,12 @@ export default function BottomPlayer() {
           <ArtistLinks artistString={currentTrack.artist} artistId={currentTrack.artistId} className="text-sm font-medium text-secondary truncate mt-0.5" />
           {currentTrack.album && (
             <span onClick={() => navigate(`/Holad/album/${currentTrack.albumId}`)} className="text-sm text-secondary/70 truncate hover:underline cursor-pointer">{currentTrack.album}</span>
+          )}
+          {!isActiveDevice && activeDeviceObj && (
+            <div className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full flex items-center gap-1.5 border border-primary/20 w-fit mt-1 whitespace-nowrap">
+              <Tv2 size={10} className="flex-shrink-0" /> 
+              <span className="truncate">Играет на {activeDeviceObj.name}</span>
+            </div>
           )}
         </div>
       </div>
@@ -206,13 +227,18 @@ export default function BottomPlayer() {
                 <Maximize2 size={16} />
               </button>
             ) : (
-              <button 
-                onClick={toggleNowPlaying}
-                className={`transition-colors flex items-center justify-center w-5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-white'}`}
-                title={t('player.now_playing')}
-              >
-                <Maximize2 size={16} />
-              </button>
+              <>
+                <div className="flex items-center gap-4 mr-auto">
+                  <HoladConnectMenu />
+                  <button 
+                    onClick={toggleNowPlaying}
+                    className={`transition-colors flex items-center justify-center w-5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-white'}`}
+                    title={t('player.now_playing')}
+                  >
+                    <Maximize2 size={16} />
+                  </button>
+                </div>
+              </>
             )}
             
             <div className="flex items-center gap-3 flex-1">
@@ -266,6 +292,10 @@ export default function BottomPlayer() {
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         <p className="text-sm font-bold text-foreground truncate">{currentTrack.title}</p>
         <ArtistLinks artistString={currentTrack.artist} artistId={currentTrack.artistId} className="text-xs text-secondary truncate" />
+      </div>
+
+      <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center">
+        <HoladConnectMenu />
       </div>
 
       <button 

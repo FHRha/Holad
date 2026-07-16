@@ -4,6 +4,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { useAuthStore } from '../store/authStore';
 import { fetchStarred, getPlayQueue, getCoverArtUrl } from '../api/subsonic';
 import { jamSocket } from '../api/socket';
+import { useHoladStore } from '../store/holadStore';
 import type { Track } from '../types';
 
 export function useAppInitialization() {
@@ -23,6 +24,13 @@ export function useAppInitialization() {
     if (!isAuthenticated && !isJamRoute) return;
     
     jamSocket.connect();
+    
+    if (isAuthenticated) {
+      const user = useAuthStore.getState().user;
+      if (user && typeof user === 'string') {
+         useHoladStore.getState().connect(user);
+      }
+    }
     
     // Connection logic is now handled in JamLayout if needed
     // We only connect for global listeners if needed, but jam routing handles the join.

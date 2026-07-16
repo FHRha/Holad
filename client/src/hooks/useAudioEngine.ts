@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { savePlayQueue } from '../api/subsonic';
 import { useAudioStore } from '../store/audioStore';
+import { useHoladStore } from '../store/holadStore';
 
 export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null>) {
   const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, volume, role, playbackRate, sleepTimer, setSleepTimer } = usePlayerStore();
-  const { setAudioElement } = useAudioStore();
-  const [progress, setProgress] = useState(0);
-  const [isSeeking, setIsSeeking] = useState(false);
+  const { setAudioElement, progress, setProgress, isSeeking, setIsSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
+
+  const holadDeviceId = useHoladStore(s => s.deviceId);
+  const holadActiveDeviceId = useHoladStore(s => s.activeDeviceId);
+  const isHoladConnected = useHoladStore(s => s.roomId !== null);
+  const isActiveDevice = !isHoladConnected || holadActiveDeviceId === holadDeviceId || holadActiveDeviceId === null;
 
   const currentTrack = queue[currentIndex];
 
@@ -77,7 +81,9 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
           audioEl._audioCtx.resume();
         }
         // If it should be playing but browser blocked it, start it now
-        if (usePlayerStore.getState().isPlaying && audioRef.current.paused) {
+        const store = useHoladStore.getState();
+        const isDeviceActive = store.roomId === null || store.activeDeviceId === store.deviceId || store.activeDeviceId === null;
+        if (usePlayerStore.getState().isPlaying && audioRef.current.paused && isDeviceActive) {
           audioRef.current.play().catch(e => console.error("Playback still prevented:", e));
         }
       }
@@ -113,7 +119,7 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
 
   useEffect(() => {
     if (audioRef.current && currentTrack) {
-      if (isPlaying) {
+      if (isPlaying && isActiveDevice) {
         audioRef.current.play().then(() => {
           const audioEl = audioRef.current as any;
           if (audioEl && audioEl._audioCtx && audioEl._audioCtx.state === 'suspended') {
@@ -122,7 +128,6 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
         }).catch(e => {
           console.error("Playback error:", e);
           const isListener = usePlayerStore.getState().role === 'listener';
-          // Listeners shouldn't have their state reset, so they can unblock it via click
           if (e.name === 'NotAllowedError' && !isListener) {
             setIsPlaying(false);
           }
@@ -131,17 +136,76 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
         audioRef.current.pause();
       }
     }
-  }, [isPlaying, currentTrack, setIsPlaying]);
+  }, [isPlaying, currentTrack, setIsPlaying, isActiveDevice]);
 
   const handleTimeUpdate = () => {
     if (audioRef.current && !isSeeking && currentTrack) {
-      setProgress((audioRef.current.currentTime / currentTrack.duration) * 100);
-      
-      // Save timing locally for F5 reloads
-      localStorage.setItem('streamnavi_time', audioRef.current.currentTime.toString());
-      localStorage.setItem('streamnavi_track', currentTrack.id);
+      if (isActiveDevice) {
+        setProgress((audioRef.current.currentTime / currentTrack.duration) * 100);
+        localStorage.setItem('streamnavi_time', audioRef.current.currentTime.toString());
+        localStorage.setItem('streamnavi_track', currentTrack.id);
+      }
     }
   };
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (isPlaying && isActiveDevice && isHoladConnected) {
+       interval = setInterval(() => {
+          if (audioRef.current) {
+             const roomId = useHoladStore.getState().roomId;
+             if (roomId) {
+               useHoladStore.getState().socket?.emit('holad_syncTime', { roomId, currentTime: audioRef.current.currentTime });
+             }
+          }
+       }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying, isActiveDevice, isHoladConnected]);
+
+  useEffect(() => {
+    if (isActiveDevice || !isHoladConnected) return;
+    
+    let animationFrame: number;
+    let lastTime = performance.now();
+    let localCurrentTime = (progress / 100) * (currentTrack?.duration || 1);
+    
+    const socket = useHoladStore.getState().socket;
+    
+    const onSyncTime = (data: { currentTime: number }) => {
+       localCurrentTime = data.currentTime;
+       lastTime = performance.now();
+       if (currentTrack && currentTrack.duration) {
+          setProgress((localCurrentTime / currentTrack.duration) * 100);
+       }
+    };
+    
+    if (socket) {
+        socket.on('holad_syncTime', onSyncTime);
+    }
+    
+    const tick = () => {
+       if (usePlayerStore.getState().isPlaying && currentTrack && currentTrack.duration) {
+           const now = performance.now();
+           const delta = (now - lastTime) / 1000;
+           lastTime = now;
+           localCurrentTime += delta;
+           if (localCurrentTime <= currentTrack.duration) {
+              setProgress((localCurrentTime / currentTrack.duration) * 100);
+           }
+       } else {
+           lastTime = performance.now();
+       }
+       animationFrame = requestAnimationFrame(tick);
+    };
+    
+    animationFrame = requestAnimationFrame(tick);
+    
+    return () => {
+       cancelAnimationFrame(animationFrame);
+       if (socket) socket.off('holad_syncTime', onSyncTime);
+    };
+  }, [isActiveDevice, currentTrack, isHoladConnected]);
 
   const handleEnded = () => {
     if (role === 'listener') return;
@@ -155,30 +219,6 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
     nextTrack();
   };
 
-  const handleSeekChange = (value: number) => {
-    if (role === 'listener') return;
-    setIsSeeking(true);
-    setProgress(value * 100);
-  };
-
-  const handleSeekEnd = (value: number) => {
-    if (role === 'listener') return;
-    if (audioRef.current && currentTrack) {
-      audioRef.current.currentTime = value * currentTrack.duration;
-      
-      // Save timing locally
-      localStorage.setItem('streamnavi_time', audioRef.current.currentTime.toString());
-      localStorage.setItem('streamnavi_track', currentTrack.id);
-      
-      const isJamRoute = window.location.pathname.startsWith('/jam');
-      if (!isJamRoute) {
-        const trackIds = queue.map(t => t.id);
-        const pos = Math.floor(audioRef.current.currentTime * 1000);
-        savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
-      }
-    }
-    setIsSeeking(false);
-  };
 
   return {
     progress,

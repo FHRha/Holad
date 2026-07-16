@@ -13,9 +13,11 @@ import TrackImage from '../common/TrackImage';
 import LiquidSeekBar from '../common/LiquidSeekBar';
 import { useTranslation } from 'react-i18next';
 import { useContextMenuStore } from '../../store/contextMenuStore';
+import { useHoladStore } from '../../store/holadStore';
 import MobileQueueTab from './MobileQueueTab';
 import MobileInfoTab from './MobileInfoTab';
 import MobileLyricsTab from './MobileLyricsTab';
+import HoladConnectMenu from './HoladConnectMenu';
 
 export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -25,14 +27,16 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     repeatMode, cycleRepeatMode, playbackRate, cyclePlaybackRate, 
     sleepTimer, setSleepTimer
   } = usePlayerStore();
-  const { audioElement } = useAudioStore();
+  const { audioElement, progress, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
   const { openMenu } = useContextMenuStore();
+  
+  const isConnected = useHoladStore(s => s.roomId !== null);
+  const activeDeviceId = useHoladStore(s => s.activeDeviceId);
+  const localDeviceId = useHoladStore(s => s.deviceId);
   
   const currentTrack = queue[currentIndex];
   
   const [activeTab, setActiveTab] = useState<'player' | 'queue' | 'info' | 'lyrics'>('player');
-  const [progress, setProgress] = useState(0);
-  const [isSeeking, setIsSeeking] = useState(false);
   
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [bookmarkPlaylistId, setBookmarkPlaylistId] = useState<string | null>(null);
@@ -119,35 +123,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 1000) : '', [currentTrack?.id]);
   const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 300) : '', [currentTrack?.id]);
 
-  useEffect(() => {
-    if (!audioElement || isSeeking) return;
-
-    if (currentTrack?.duration) {
-      setProgress((audioElement.currentTime / currentTrack.duration) * 100);
-    }
-
-    const updateProgress = () => {
-      if (currentTrack?.duration) {
-        setProgress((audioElement.currentTime / currentTrack.duration) * 100);
-      }
-    };
-
-    audioElement.addEventListener('timeupdate', updateProgress);
-    return () => audioElement.removeEventListener('timeupdate', updateProgress);
-  }, [audioElement, currentTrack, isSeeking]);
-
-  const handleSeekChange = (val: number) => {
-    setIsSeeking(true);
-    setProgress(val * 100);
-  };
-
-  const handleSeekEnd = (val: number) => {
-    if (audioElement && currentTrack) {
-      audioElement.currentTime = val * currentTrack.duration;
-    }
-    setIsSeeking(false);
-  };
-
   const handleLike = () => {
     if (!currentTrack) return;
     const isLiked = likedTrackIds.includes(currentTrack.id);
@@ -161,6 +136,11 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
   const handlePlayPause = () => {
     if (role === 'listener') return; 
+    
+    if (!isPlaying && audioElement && (!isConnected || activeDeviceId === localDeviceId || activeDeviceId === null)) {
+      audioElement.play().catch(() => {});
+    }
+    
     setIsPlaying(!isPlaying);
   };
 
@@ -189,12 +169,15 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
         <span className="text-white font-bold text-sm tracking-wider">
           {t('player.now_playing', { defaultValue: 'Играет' })}
         </span>
-        <button 
-          onClick={(e) => openMenu(e.clientX, e.clientY, currentTrack, 'track')}
-          className="p-2 text-white hover:bg-white/10 rounded-full transition-colors active:scale-95"
-        >
-          <MoreHorizontal size={24} />
-        </button>
+        <div className="flex items-center gap-1">
+          <HoladConnectMenu />
+          <button 
+            onClick={(e) => openMenu(e.clientX, e.clientY, currentTrack, 'track')}
+            className="p-2 text-white hover:bg-white/10 rounded-full transition-colors active:scale-95"
+          >
+            <MoreHorizontal size={24} />
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}

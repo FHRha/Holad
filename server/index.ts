@@ -136,6 +136,21 @@ interface Room {
 
 const rooms = new Map<string, Room>();
 
+// Holad Connect
+interface HoladDevice {
+  id: string;
+  name: string;
+  socketId: string;
+}
+
+interface HoladRoom {
+  activeDeviceId: string | null;
+  devices: HoladDevice[];
+  cachedState: any | null;
+}
+
+const holadRooms = new Map<string, HoladRoom>();
+
 const broadcastParticipants = (roomId: string) => {
   const room = rooms.get(roomId);
   if (room) {
@@ -151,6 +166,65 @@ const isHostOrCohost = (room: Room, socketId: string) => {
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
+
+  // --- Holad Connect Events ---
+  socket.on('holad_joinRoom', (data: { roomId: string, deviceId: string, deviceName: string }) => {
+    const { roomId, deviceId, deviceName } = data;
+    socket.join(`holad_${roomId}`);
+    
+    let room = holadRooms.get(roomId);
+    if (!room) {
+      room = { activeDeviceId: null, devices: [], cachedState: null };
+      holadRooms.set(roomId, room);
+    }
+    
+    room.devices = room.devices.filter(d => d.id !== deviceId);
+    room.devices.push({ id: deviceId, name: deviceName, socketId: socket.id });
+    
+    if (!room.activeDeviceId) {
+      room.activeDeviceId = deviceId;
+    }
+    
+    (socket as any).holadData = { roomId, deviceId };
+    
+    io.to(`holad_${roomId}`).emit('holad_devices', { devices: room.devices, activeDeviceId: room.activeDeviceId });
+    
+    if (room.cachedState) {
+      socket.emit('holad_syncState', room.cachedState);
+    }
+  });
+
+  socket.on('holad_setActiveDevice', (deviceId: string) => {
+    const data = (socket as any).holadData;
+    if (!data) return;
+    const room = holadRooms.get(data.roomId);
+    if (room) {
+      room.activeDeviceId = deviceId;
+      io.to(`holad_${data.roomId}`).emit('holad_devices', { devices: room.devices, activeDeviceId: room.activeDeviceId });
+    }
+  });
+
+  socket.on('holad_updateState', (state: any) => {
+    const data = (socket as any).holadData;
+    if (!data) return;
+    const room = holadRooms.get(data.roomId);
+    if (room && room.activeDeviceId === data.deviceId) {
+      room.cachedState = state;
+      socket.to(`holad_${data.roomId}`).emit('holad_syncState', state);
+    }
+  });
+
+  socket.on('holad_remoteCommand', (command: { type: string, payload?: any }) => {
+    const data = (socket as any).holadData;
+    if (!data) return;
+    io.to(`holad_${data.roomId}`).emit('holad_remoteCommand', command);
+  });
+  socket.on('holad_syncTime', (data: any) => {
+    const holadData = (socket as any).holadData;
+    if (!holadData) return;
+    socket.to(`holad_${holadData.roomId}`).emit('holad_syncTime', data);
+  });
+  // --- End Holad Connect Events ---
 
   socket.on('createRoom', (name?: string) => {
     const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -292,6 +366,27 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
+
+    // Holad Connect disconnect
+    const holadData = (socket as any).holadData;
+    if (holadData) {
+      const room = holadRooms.get(holadData.roomId);
+      if (room) {
+        room.devices = room.devices.filter(d => d.socketId !== socket.id);
+        
+        if (room.activeDeviceId === holadData.deviceId) {
+          room.activeDeviceId = null;
+        }
+        
+        io.to(`holad_${holadData.roomId}`).emit('holad_devices', { devices: room.devices, activeDeviceId: room.activeDeviceId });
+        
+        if (room.devices.length === 0) {
+          holadRooms.delete(holadData.roomId);
+        }
+      }
+    }
+
+    // Jam disconnect
     for (const [roomId, room] of rooms.entries()) {
       if (room.hostId === socket.id) {
         io.to(roomId).emit('error', 'Host disconnected');
