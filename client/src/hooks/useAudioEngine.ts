@@ -4,7 +4,7 @@ import { savePlayQueue } from '../api/subsonic';
 import { useAudioStore } from '../store/audioStore';
 
 export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null>) {
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, volume, role } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, volume, role, playbackRate, sleepTimer, setSleepTimer } = usePlayerStore();
   const { setAudioElement } = useAudioStore();
   const [progress, setProgress] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
@@ -46,6 +46,27 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
     }
     return () => setAudioElement(null);
   }, [volume, setAudioElement, audioRef.current]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackRate;
+    }
+  }, [playbackRate, audioRef.current]);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (sleepTimer.type === 'time' && sleepTimer.endTime && isPlaying) {
+      interval = setInterval(() => {
+        if (Date.now() >= sleepTimer.endTime!) {
+          setIsPlaying(false);
+          setSleepTimer(null);
+        }
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [sleepTimer, isPlaying, setIsPlaying, setSleepTimer]);
 
   useEffect(() => {
     // Attempt to resume audio context on interaction, and unblock playback
@@ -124,6 +145,13 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
 
   const handleEnded = () => {
     if (role === 'listener') return;
+    
+    if (sleepTimer.type === 'track_end') {
+      setIsPlaying(false);
+      setSleepTimer(null);
+      return;
+    }
+
     nextTrack();
   };
 

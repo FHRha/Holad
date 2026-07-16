@@ -56,7 +56,16 @@
     "about_artist": "About Artist",
     "no_biography": "No biography available.",
     "next_in_queue": "Next in Queue",
-    "queue_is_empty": "Queue is empty"
+    "queue_is_empty": "Queue is empty",
+    "sleepTimer": "Sleep Timer",
+    "timer": {
+      "15m": "15 Minutes",
+      "30m": "30 Minutes",
+      "60m": "1 Hour",
+      "trackEnd": "End of Track",
+      "off": "Turn Off"
+    },
+    "bookmarksPlaylist": "Bookmarks"
   },
   "views": {
     "loading_albums": "Loading albums...",

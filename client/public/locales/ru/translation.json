@@ -56,7 +56,16 @@
     "about_artist": "Об артисте",
     "no_biography": "Биография отсутствует.",
     "next_in_queue": "Далее в очереди",
-    "queue_is_empty": "Очередь пуста"
+    "queue_is_empty": "Очередь пуста",
+    "sleepTimer": "Таймер сна",
+    "timer": {
+      "15m": "15 минут",
+      "30m": "30 минут",
+      "60m": "1 час",
+      "trackEnd": "Конец трека",
+      "off": "Выключить"
+    },
+    "bookmarksPlaylist": "Отложенное"
   },
   "views": {
     "loading_albums": "Загрузка альбомов...",

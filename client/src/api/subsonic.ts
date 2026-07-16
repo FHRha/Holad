@@ -2,6 +2,7 @@ export * from './subsonic-core';
 export * from './subsonic/tracks';
 export * from './subsonic/albums';
 export * from './subsonic/social';
+export * from './subsonic/playlists';
 
 import { buildUrl, getBaseUrl, getAuthParams } from './subsonic-core';
 import { useAuthStore } from '../store/authStore';

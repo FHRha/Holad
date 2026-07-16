@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
-import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
+import { getCoverArtUrl, starItem, unstarItem, getPlaylists, createPlaylist, updatePlaylist, getPlaylist, deletePlaylist } from '../../api/subsonic';
 import { formatArtistName } from '../../utils/formatters';
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from '../common/TrackImage';
@@ -22,7 +22,8 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const { 
     queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, 
     role, likedTrackIds, toggleTrackLike, isShuffle, toggleShuffle, 
-    repeatMode, cycleRepeatMode
+    repeatMode, cycleRepeatMode, playbackRate, cyclePlaybackRate, 
+    sleepTimer, setSleepTimer
   } = usePlayerStore();
   const { audioElement } = useAudioStore();
   const { openMenu } = useContextMenuStore();
@@ -32,12 +33,98 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<'player' | 'queue' | 'info' | 'lyrics'>('player');
   const [progress, setProgress] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
+  
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarkPlaylistId, setBookmarkPlaylistId] = useState<string | null>(null);
+  const [showSleepTimerMenu, setShowSleepTimerMenu] = useState(false);
+
+  useEffect(() => {
+    if (!currentTrack) return;
+    const checkBookmark = async () => {
+      try {
+        const playlists = await getPlaylists();
+        const playlistName = t('player.bookmarksPlaylist', { defaultValue: 'Отложенное' });
+        const bookmarkPlaylist = playlists.find((p: any) => p.name === playlistName);
+        if (bookmarkPlaylist) {
+          setBookmarkPlaylistId(bookmarkPlaylist.id);
+          const fullPlaylist = await getPlaylist(bookmarkPlaylist.id);
+          const tracks = fullPlaylist?.entry || [];
+          setIsBookmarked(tracks.some((t: any) => t.id === currentTrack.id));
+        } else {
+          setIsBookmarked(false);
+          setBookmarkPlaylistId(null);
+        }
+      } catch (e) {
+        console.error("Failed to check bookmarks:", e);
+      }
+    };
+    checkBookmark();
+  }, [currentTrack, t]);
+
+  const handleBookmark = async () => {
+    if (!currentTrack) return;
+    const playlistName = t('player.bookmarksPlaylist', { defaultValue: 'Отложенное' });
+    try {
+      if (!bookmarkPlaylistId) {
+        const success = await createPlaylist(playlistName, currentTrack.id);
+        if (success) {
+          const playlists = await getPlaylists();
+          const p = playlists.find((x: any) => x.name === playlistName);
+          if (p) {
+            setBookmarkPlaylistId(p.id);
+            setIsBookmarked(true);
+          }
+        }
+      } else {
+        if (isBookmarked) {
+          const fullPlaylist = await getPlaylist(bookmarkPlaylistId);
+          const tracks = fullPlaylist?.entry || [];
+          const index = tracks.findIndex((t: any) => t.id === currentTrack.id);
+          if (index !== -1) {
+            await updatePlaylist(bookmarkPlaylistId, undefined, index);
+            setIsBookmarked(false);
+            if (tracks.length === 1) {
+              await deletePlaylist(bookmarkPlaylistId);
+              setBookmarkPlaylistId(null);
+            }
+          }
+        } else {
+          await updatePlaylist(bookmarkPlaylistId, currentTrack.id);
+          setIsBookmarked(true);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to toggle bookmark:", e);
+    }
+  };
+
+  const handleRewind = () => {
+    if (audioElement && currentTrack) {
+      audioElement.currentTime = Math.max(0, audioElement.currentTime - 15);
+    }
+  };
+
+  const handleFastForward = () => {
+    if (audioElement && currentTrack) {
+      audioElement.currentTime = Math.min(currentTrack.duration, audioElement.currentTime + 30);
+    }
+  };
+
+  const handleSetSleepTimer = (val: number | 'track_end' | null) => {
+    setSleepTimer(val);
+    setShowSleepTimerMenu(false);
+  };
+
 
   const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 1000) : '', [currentTrack?.id]);
   const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 300) : '', [currentTrack?.id]);
 
   useEffect(() => {
     if (!audioElement || isSeeking) return;
+
+    if (currentTrack?.duration) {
+      setProgress((audioElement.currentTime / currentTrack.duration) * 100);
+    }
 
     const updateProgress = () => {
       if (currentTrack?.duration) {
@@ -207,17 +294,23 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
           {/* Secondary Controls Row */}
           <div className="flex items-center justify-between w-full px-4 pt-2 text-white/60">
-            <button className="hover:text-white transition-colors active:scale-95"><Moon size={20} /></button>
-            <button className="hover:text-white transition-colors active:scale-95 relative flex items-center justify-center">
+            <button onClick={() => setShowSleepTimerMenu(true)} className={`hover:text-white transition-colors active:scale-95 ${sleepTimer.type ? 'text-primary' : ''}`}>
+              <Moon size={20} />
+            </button>
+            <button onClick={handleRewind} className="hover:text-white transition-colors active:scale-95 relative flex items-center justify-center">
               <RotateCcw size={20} />
               <span className="absolute text-[8px] font-bold mt-0.5">15</span>
             </button>
-            <button className="hover:text-white transition-colors active:scale-95 font-bold text-sm tracking-wider">1x</button>
-            <button className="hover:text-white transition-colors active:scale-95 relative flex items-center justify-center">
+            <button onClick={cyclePlaybackRate} className={`hover:text-white transition-colors active:scale-95 font-bold text-sm tracking-wider ${playbackRate !== 1 ? 'text-primary' : ''}`}>
+              {playbackRate}x
+            </button>
+            <button onClick={handleFastForward} className="hover:text-white transition-colors active:scale-95 relative flex items-center justify-center">
               <RotateCw size={20} />
               <span className="absolute text-[8px] font-bold mt-0.5">30</span>
             </button>
-            <button className="hover:text-white transition-colors active:scale-95"><Bookmark size={20} /></button>
+            <button onClick={handleBookmark} className={`hover:text-white transition-colors active:scale-95 ${isBookmarked ? 'text-primary' : ''}`}>
+              <Bookmark size={20} fill={isBookmarked ? 'currentColor' : 'none'} />
+            </button>
           </div>
         </div>
       </div>
@@ -242,6 +335,48 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
           <MessageSquareQuote size={24} />
         </button>
       </div>
+
+      {/* Sleep Timer Modal */}
+      {showSleepTimerMenu && (
+        <div className="absolute inset-0 z-[200] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="w-full sm:w-[400px] bg-background/90 backdrop-blur-xl border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 flex flex-col gap-2 animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Moon size={24} className="text-primary" />
+                {t('player.sleepTimer', { defaultValue: 'Sleep Timer' })}
+              </h3>
+              <button onClick={() => setShowSleepTimerMenu(false)} className="p-2 text-white/50 hover:text-white transition-colors rounded-full active:scale-95">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            
+            <button onClick={() => handleSetSleepTimer(15)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-white">
+              <span>{t('player.timer.15m', { defaultValue: '15 Minutes' })}</span>
+              {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) <= 15 && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 0 && <span className="w-2 h-2 rounded-full bg-primary" />}
+            </button>
+            <button onClick={() => handleSetSleepTimer(30)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-white">
+              <span>{t('player.timer.30m', { defaultValue: '30 Minutes' })}</span>
+              {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 15 && Math.round((sleepTimer.endTime - Date.now()) / 60000) <= 30 && <span className="w-2 h-2 rounded-full bg-primary" />}
+            </button>
+            <button onClick={() => handleSetSleepTimer(60)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-white">
+              <span>{t('player.timer.60m', { defaultValue: '1 Hour' })}</span>
+              {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 30 && <span className="w-2 h-2 rounded-full bg-primary" />}
+            </button>
+            <button onClick={() => handleSetSleepTimer('track_end')} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-white">
+              <span>{t('player.timer.trackEnd', { defaultValue: 'End of Track' })}</span>
+              {sleepTimer.type === 'track_end' && <span className="w-2 h-2 rounded-full bg-primary" />}
+            </button>
+            <div className="w-full h-px bg-white/10 my-2" />
+            <button onClick={() => handleSetSleepTimer(null)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-red-400">
+              <span>{t('player.timer.off', { defaultValue: 'Turn Off' })}</span>
+            </button>
+          </div>
+          <div className="absolute inset-0 z-[-1]" onClick={() => setShowSleepTimerMenu(false)} />
+        </div>
+      )}
     </div>
   );
 }
