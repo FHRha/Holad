@@ -242,10 +242,13 @@ export default function BottomPlayer() {
   );
 
   const MobileMiniPlayer = (
-    <div className="md:hidden fixed bottom-[56px] left-0 right-0 z-40 px-2 pb-2">
+    <div className={`md:hidden fixed bottom-[56px] left-0 right-0 z-40 px-2 pb-2 ${isJamRoute && !isMinimized ? 'hidden' : ''}`}>
       <div 
         className="flex h-14 bg-[#121212]/40 backdrop-blur-xl border border-white/10 rounded-[16px] items-center px-3 gap-3 relative overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
-        onClick={() => setIsMobileExpanded(true)}
+        onClick={() => {
+          if (isJamRoute) setIsMinimized(false);
+          else setIsMobileExpanded(true);
+        }}
       >
         <div className="absolute bottom-0 left-4 right-4 h-[2px] overflow-hidden rounded-t-full">
           <div 
@@ -314,7 +317,7 @@ export default function BottomPlayer() {
       {DesktopPlayer}
       {!isMobileExpanded && MobileMiniPlayer}
       <div className="md:hidden">
-        {isMobileExpanded && <MobilePlayerUI onClose={() => setIsMobileExpanded(false)} />}
+        {isMobileExpanded && !isJamRoute && <MobilePlayerUI onClose={() => setIsMobileExpanded(false)} />}
       </div>
     </>
   );

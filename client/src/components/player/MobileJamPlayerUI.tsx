@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { 
-  ChevronDown, MoreHorizontal, Heart, Shuffle, SkipBack, 
+  ChevronDown, MoreHorizontal, Shuffle, SkipBack, 
   Play, Pause, SkipForward, Repeat, Repeat1, Moon, 
-  Bookmark, Music, Info, MessageSquareQuote, RotateCcw, RotateCw 
+  Music, RotateCcw, RotateCw, Users
 } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
-import { getCoverArtUrl, starItem, unstarItem, getPlaylists, createPlaylist, updatePlaylist, getPlaylist, deletePlaylist } from '../../api/subsonic';
+import { getCoverArtUrl } from '../../api/subsonic';
 import { formatArtistName } from '../../utils/formatters';
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from '../common/TrackImage';
@@ -14,89 +14,31 @@ import LiquidSeekBar from '../common/LiquidSeekBar';
 import { useTranslation } from 'react-i18next';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import MobileQueueTab from './MobileQueueTab';
-import MobileInfoTab from './MobileInfoTab';
-import MobileLyricsTab from './MobileLyricsTab';
+import JamSessionControl from '../jam/JamSessionControl';
 
-export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
+export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const { 
     queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, 
-    role, likedTrackIds, toggleTrackLike, isShuffle, toggleShuffle, 
+    role, isShuffle, toggleShuffle, 
     repeatMode, cycleRepeatMode, playbackRate, cyclePlaybackRate, 
-    sleepTimer, setSleepTimer
+    sleepTimer, setSleepTimer, roomId
   } = usePlayerStore();
   const { audioElement } = useAudioStore();
   const { openMenu } = useContextMenuStore();
   
   const currentTrack = queue[currentIndex];
   
-  const [activeTab, setActiveTab] = useState<'player' | 'queue' | 'info' | 'lyrics'>('player');
+  const [activeTab, setActiveTab] = useState<'player' | 'queue'>('player');
   const [progress, setProgress] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
-  
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [bookmarkPlaylistId, setBookmarkPlaylistId] = useState<string | null>(null);
   const [showSleepTimerMenu, setShowSleepTimerMenu] = useState(false);
+  const [showSessionMenu, setShowSessionMenu] = useState(false);
 
-  useEffect(() => {
-    if (!currentTrack) return;
-    const checkBookmark = async () => {
-      try {
-        const playlists = await getPlaylists();
-        const playlistName = t('player.bookmarksPlaylist', { defaultValue: 'Отложенное' });
-        const bookmarkPlaylist = playlists.find((p: any) => p.name === playlistName);
-        if (bookmarkPlaylist) {
-          setBookmarkPlaylistId(bookmarkPlaylist.id);
-          const fullPlaylist = await getPlaylist(bookmarkPlaylist.id);
-          const tracks = fullPlaylist?.entry || [];
-          setIsBookmarked(tracks.some((t: any) => t.id === currentTrack.id));
-        } else {
-          setIsBookmarked(false);
-          setBookmarkPlaylistId(null);
-        }
-      } catch (e) {
-        console.error("Failed to check bookmarks:", e);
-      }
-    };
-    checkBookmark();
-  }, [currentTrack, t]);
-
-  const handleBookmark = async () => {
-    if (!currentTrack) return;
-    const playlistName = t('player.bookmarksPlaylist', { defaultValue: 'Отложенное' });
-    try {
-      if (!bookmarkPlaylistId) {
-        const success = await createPlaylist(playlistName, currentTrack.id);
-        if (success) {
-          const playlists = await getPlaylists();
-          const p = playlists.find((x: any) => x.name === playlistName);
-          if (p) {
-            setBookmarkPlaylistId(p.id);
-            setIsBookmarked(true);
-          }
-        }
-      } else {
-        if (isBookmarked) {
-          const fullPlaylist = await getPlaylist(bookmarkPlaylistId);
-          const tracks = fullPlaylist?.entry || [];
-          const index = tracks.findIndex((t: any) => t.id === currentTrack.id);
-          if (index !== -1) {
-            await updatePlaylist(bookmarkPlaylistId, undefined, index);
-            setIsBookmarked(false);
-            if (tracks.length === 1) {
-              await deletePlaylist(bookmarkPlaylistId);
-              setBookmarkPlaylistId(null);
-            }
-          }
-        } else {
-          await updatePlaylist(bookmarkPlaylistId, currentTrack.id);
-          setIsBookmarked(true);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to toggle bookmark:", e);
-    }
-  };
+  // Check if standalone
+  const searchParams = new URLSearchParams(window.location.search);
+  const isJamRoute = window.location.pathname.startsWith('/jam');
+  const isStandalone = isJamRoute && (!!searchParams.get('track') || !!searchParams.get('album')) && !roomId;
 
   const handleRewind = () => {
     if (audioElement && currentTrack) {
@@ -114,7 +56,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     setSleepTimer(val);
     setShowSleepTimerMenu(false);
   };
-
 
   const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 1000) : '', [currentTrack?.id]);
   const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 300) : '', [currentTrack?.id]);
@@ -148,17 +89,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     setIsSeeking(false);
   };
 
-  const handleLike = () => {
-    if (!currentTrack) return;
-    const isLiked = likedTrackIds.includes(currentTrack.id);
-    toggleTrackLike(currentTrack.id);
-    if (isLiked) {
-      unstarItem(currentTrack.id);
-    } else {
-      starItem(currentTrack.id);
-    }
-  };
-
   const handlePlayPause = () => {
     if (role === 'listener') return; 
     setIsPlaying(!isPlaying);
@@ -166,8 +96,10 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
   if (!currentTrack) return null;
 
-  const isLiked = likedTrackIds.includes(currentTrack.id);
   const currentTime = (progress / 100) * currentTrack.duration;
+  
+  const showMinimizeButton = role !== 'listener' && !isStandalone;
+  const showSessionButton = !isStandalone;
 
   return (
     <div className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-300">
@@ -180,21 +112,29 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
       {/* Top Bar */}
       <div className="relative z-10 flex items-center justify-between px-4 py-4 w-full">
-        <button 
-          onClick={onClose}
-          className="p-2 text-white hover:bg-white/10 rounded-full transition-colors active:scale-95"
-        >
-          <ChevronDown size={28} />
-        </button>
+        {showMinimizeButton ? (
+          <button 
+            onClick={onClose}
+            className="p-2 text-white hover:bg-white/10 rounded-full transition-colors active:scale-95"
+          >
+            <ChevronDown size={28} />
+          </button>
+        ) : (
+          <div className="w-11" /> // Placeholder for alignment
+        )}
         <span className="text-white font-bold text-sm tracking-wider">
           {t('player.now_playing', { defaultValue: 'Играет' })}
         </span>
-        <button 
-          onClick={(e) => openMenu(e.clientX, e.clientY, currentTrack, 'track')}
-          className="p-2 text-white hover:bg-white/10 rounded-full transition-colors active:scale-95"
-        >
-          <MoreHorizontal size={24} />
-        </button>
+        {showSessionButton ? (
+          <button 
+            onClick={() => setShowSessionMenu(true)}
+            className="p-2 text-white hover:bg-white/10 rounded-full transition-colors active:scale-95"
+          >
+            <Users size={24} />
+          </button>
+        ) : (
+          <div className="w-10" />
+        )}
       </div>
 
       {/* Main Content Area */}
@@ -212,12 +152,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
           {activeTab === 'queue' && (
             <MobileQueueTab />
           )}
-          {activeTab === 'info' && (
-            <MobileInfoTab currentTrack={currentTrack} />
-          )}
-          {activeTab === 'lyrics' && (
-            <MobileLyricsTab currentTrack={currentTrack} isActive={activeTab === 'lyrics'} />
-          )}
         </div>
 
         {/* Info & Controls Section (Always visible) */}
@@ -228,12 +162,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               <h1 className="text-2xl font-bold text-white truncate drop-shadow-md">{currentTrack.title}</h1>
               <h2 className="text-base text-white/70 truncate drop-shadow-md">{formatArtistName(currentTrack.artist)}</h2>
             </div>
-            <button 
-              onClick={handleLike}
-              className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${isLiked ? 'text-primary' : 'text-white/70 hover:text-white'}`}
-            >
-              <Heart size={24} fill={isLiked ? 'currentColor' : 'none'} />
-            </button>
           </div>
 
           {/* Progress Bar */}
@@ -295,25 +223,24 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
           </div>
 
           {/* Secondary Controls Row */}
-          <div className="flex items-center justify-between w-full px-4 pt-2 text-white/60">
-            <button onClick={() => setShowSleepTimerMenu(true)} className={`hover:text-white transition-colors active:scale-95 ${sleepTimer.type ? 'text-primary' : ''}`}>
-              <Moon size={20} />
-            </button>
-            <button onClick={handleRewind} className="hover:text-white transition-colors active:scale-95 relative flex items-center justify-center">
-              <RotateCcw size={20} />
-              <span className="absolute text-[8px] font-bold mt-0.5">15</span>
-            </button>
-            <button onClick={cyclePlaybackRate} className={`hover:text-white transition-colors active:scale-95 font-bold text-sm tracking-wider ${playbackRate !== 1 ? 'text-primary' : ''}`}>
-              {playbackRate}x
-            </button>
-            <button onClick={handleFastForward} className="hover:text-white transition-colors active:scale-95 relative flex items-center justify-center">
-              <RotateCw size={20} />
-              <span className="absolute text-[8px] font-bold mt-0.5">30</span>
-            </button>
-            <button onClick={handleBookmark} className={`hover:text-white transition-colors active:scale-95 ${isBookmarked ? 'text-primary' : ''}`}>
-              <Bookmark size={20} fill={isBookmarked ? 'currentColor' : 'none'} />
-            </button>
-          </div>
+          {role !== 'listener' && (
+            <div className="flex items-center justify-between w-full px-4 pt-2 text-white/60">
+              <button onClick={() => setShowSleepTimerMenu(true)} className={`hover:text-white transition-colors active:scale-95 ${sleepTimer.type ? 'text-primary' : ''}`}>
+                <Moon size={20} />
+              </button>
+              <button onClick={handleRewind} className="hover:text-white transition-colors active:scale-95 relative flex items-center justify-center">
+                <RotateCcw size={20} />
+                <span className="absolute text-[8px] font-bold mt-0.5">15</span>
+              </button>
+              <button onClick={cyclePlaybackRate} className={`hover:text-white transition-colors active:scale-95 font-bold text-sm tracking-wider ${playbackRate !== 1 ? 'text-primary' : ''}`}>
+                {playbackRate}x
+              </button>
+              <button onClick={handleFastForward} className="hover:text-white transition-colors active:scale-95 relative flex items-center justify-center">
+                <RotateCw size={20} />
+                <span className="absolute text-[8px] font-bold mt-0.5">30</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -329,12 +256,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             <line x1="12" y1="18" x2="21" y2="18"></line>
             <polygon points="3 5 9 8.5 3 12 3 5" fill="currentColor" stroke="none"></polygon>
           </svg>
-        </button>
-        <button onClick={() => setActiveTab('info')} className={`p-3 rounded-full transition-colors ${activeTab === 'info' ? 'text-primary bg-primary/10' : 'text-white/50 hover:text-white/80'}`}>
-          <Info size={24} />
-        </button>
-        <button onClick={() => setActiveTab('lyrics')} className={`p-3 rounded-full transition-colors ${activeTab === 'lyrics' ? 'text-primary bg-primary/10' : 'text-white/50 hover:text-white/80'}`}>
-          <MessageSquareQuote size={24} />
         </button>
       </div>
 
@@ -377,6 +298,30 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             </button>
           </div>
           <div className="absolute inset-0 z-[-1]" onClick={() => setShowSleepTimerMenu(false)} />
+        </div>
+      )}
+
+      {/* Session Menu Modal */}
+      {showSessionMenu && (
+        <div className="absolute inset-0 z-[200] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="w-full sm:w-[400px] bg-background/90 backdrop-blur-xl border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 flex flex-col gap-4 animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Users size={24} className="text-primary" />
+                {t('jam.session', { defaultValue: 'Jam Session' })}
+              </h3>
+              <button onClick={() => setShowSessionMenu(false)} className="p-2 text-white/50 hover:text-white transition-colors rounded-full active:scale-95">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            
+            <JamSessionControl hideCreate={true} />
+            
+          </div>
+          <div className="absolute inset-0 z-[-1]" onClick={() => setShowSessionMenu(false)} />
         </div>
       )}
     </div>

@@ -55,12 +55,12 @@ export default function LoginView() {
         <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-blue-500/20 rounded-full blur-[100px]" />
       </div>
 
-      <div className="w-full max-w-md bg-card/80 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl relative z-10">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-primary to-[#4ade80] rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-primary/20">
-            <Server size={32} className="text-black" />
+      <div className="w-full max-w-md bg-card/80 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 shadow-2xl relative z-10 mx-4">
+        <div className="text-center mb-6 md:mb-8">
+          <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-primary to-[#4ade80] rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-primary/20">
+            <Server className="text-black w-6 h-6 md:w-8 md:h-8" />
           </div>
-          <h1 className="text-3xl font-display font-bold text-white mb-2">{t('views.login_system')}</h1>
+          <h1 className="text-2xl md:text-3xl font-display font-bold text-white mb-2">{t('views.login_system')}</h1>
           <p className="text-sm text-secondary">
             {t('views.login_supports')} {t('views.enter_server')}
           </p>
