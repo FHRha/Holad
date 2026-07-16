@@ -5,6 +5,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
 import { getStreamUrl, starItem, unstarItem } from '../../api/subsonic';
 import Slider from '../common/Slider';
+import LiquidSeekBar from '../common/LiquidSeekBar';
 import { formatArtistName } from '../../utils/formatters';
 import TrackImage from '../common/TrackImage';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
@@ -127,7 +128,7 @@ export default function BottomPlayer() {
 
         <div className="w-full flex items-center gap-3 text-[11px] text-secondary font-medium px-4">
           <span className="min-w-[35px] text-right">{formatTime((progress / 100) * (currentTrack?.duration || 0))}</span>
-          <Slider 
+          <LiquidSeekBar 
             value={progress / 100} 
             onChange={handleSeekChange} 
             onDragEnd={handleSeekEnd} 
@@ -307,11 +308,12 @@ export default function BottomPlayer() {
 
         {/* Timeline */}
         <div className="mb-8">
-          <Slider 
+          <LiquidSeekBar 
             value={progress / 100} 
             onChange={handleSeekChange} 
             onDragEnd={handleSeekEnd} 
             className={role === 'listener' ? 'pointer-events-none mb-2' : 'mb-2'}
+            isAnimated={isPlaying}
           />
           <div className="flex justify-between text-xs text-white/50 font-medium">
             <span>{formatTime((progress / 100) * (currentTrack?.duration || 0))}</span>
