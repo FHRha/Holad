@@ -11,6 +11,7 @@ import ArtistAvatar from '../common/ArtistAvatar';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useTrackFilters } from '../../hooks/useTrackFilters';
 import { useSettingsStore } from '../../store/settingsStore';
+import LongPressWrapper from '../common/LongPressWrapper';
 
 export default function TracksView() {
   const { t } = useTranslation();
@@ -231,10 +232,10 @@ export default function TracksView() {
                   const isTrackLiked = likedTrackIds.includes(track.id);
 
                   return (
-                    <div 
+                    <LongPressWrapper 
                       key={track.id}
                       onClick={() => handlePlay(index)}
-                      onContextMenu={(e) => { 
+                      onLongPress={(e: any) => { 
                         e.preventDefault(); 
                         openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId, 300) }, 'track'); 
                       }}
@@ -288,7 +289,7 @@ export default function TracksView() {
                           }}
                         />
                       </div>
-                    </div>
+                    </LongPressWrapper>
                   );
                 })}
               </div>

@@ -259,7 +259,7 @@ export default function BottomPlayer() {
       
       <TrackImage 
         src={currentTrack.coverArt} 
-        className="w-9 h-9 rounded shadow" 
+        className="w-9 h-9 rounded shadow flex-shrink-0 object-cover" 
         alt="" 
       />
       

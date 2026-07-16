@@ -26,19 +26,20 @@ export default function ArtistLinks({ artistString, artistId, className = "", on
   const handleArtistClick = (e: React.MouseEvent, index: number, artistName: string) => {
     e.stopPropagation();
     e.preventDefault();
-    if (onLinkClick) onLinkClick();
 
     const isJam = window.location.pathname.startsWith('/jam');
     const searchParams = new URLSearchParams(window.location.search);
     const room = searchParams.get('room');
     
     if (index === 0 && artistId) {
+       if (onLinkClick) onLinkClick(); // Close search overlay if passed
        const path = `/artist/${artistId}`;
        if (isJam && room) {
           navigate(`/jam/library${path}?room=${room}`);
        } else {
           navigate(`/Holad${path}`);
        }
+       useUIStore.getState().setSearchOpen(false); // Also close globally just in case
     } else {
        useUIStore.getState().setSearchQuery(artistName);
        useUIStore.getState().setSearchOpen(true);

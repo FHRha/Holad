@@ -21,6 +21,7 @@ import TopBar from './components/layout/TopBar';
 import NowPlayingModal from './components/common/NowPlayingModal';
 import MobileSearchOverlay from './components/modals/MobileSearchOverlay';
 import { GlobalDndProvider } from './components/common/dnd/GlobalDndProvider';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useDocumentTitle } from './hooks/useDocumentTitle';
@@ -101,53 +102,56 @@ function AppContent() {
         <MobileBackground />
         <div className="flex flex-1 overflow-hidden relative z-10">
           <Routes>
-          <Route path="/" element={<Navigate to={startPage} replace />} />
-          <Route path="/login" element={!isAuthenticated ? <LoginView /> : <Navigate to="/Holad" replace />} />
-          
-          <Route path="/Holad/*" element={
-            isAuthenticated ? (
-            <>
-              <Sidebar />
-              <div className="flex-1 overflow-hidden relative">
-                <div className="absolute inset-0 flex flex-col">
-                  <div className="hidden md:block">
-                    <TopBar />
-                  </div>
-                  <div className="flex-1 overflow-y-auto relative hide-scrollbar">
-                    <Routes>
-                      <Route path="/" element={<MainContent />} />
-                      <Route path="/library/*" element={<LibraryView />} />
-                      <Route path="/albums" element={<AlbumsView />} />
-                      <Route path="/artists" element={<ArtistsView />} />
-                      <Route path="/artist/:id" element={<ArtistView />} />
-                      <Route path="/tracks" element={<TracksView />} />
-                      <Route path="/album/:id" element={<AlbumView />} />
-                      <Route path="/favorites" element={<FavoritesView />} />
-                      <Route path="/radio" element={<RadioView />} />
-                      <Route path="/settings" element={<MobileSettingsView />} />
-                      <Route path="*" element={<MainContent />} />
-                    </Routes>
+            <Route path="/" element={<Navigate to={startPage} replace />} />
+            <Route path="/login" element={!isAuthenticated ? <LoginView /> : <Navigate to="/Holad" replace />} />
+            
+            <Route path="/Holad/*" element={
+              isAuthenticated ? (
+              <>
+                <Sidebar />
+                <div className="flex-1 overflow-hidden relative">
+                  <div className="absolute inset-0 flex flex-col">
+                    <div className="hidden md:block">
+                      <TopBar />
+                    </div>
+                    <div className="flex-1 overflow-y-auto relative hide-scrollbar">
+                      <Routes>
+                        <Route path="/" element={<MainContent />} />
+                        <Route path="/library/*" element={<LibraryView />} />
+                        <Route path="/albums" element={<AlbumsView />} />
+                        <Route path="/artists" element={<ArtistsView />} />
+                        <Route path="/artist/:id" element={<ArtistView />} />
+                        <Route path="/tracks" element={<TracksView />} />
+                        <Route path="/album/:id" element={<AlbumView />} />
+                        <Route path="/favorites" element={<FavoritesView />} />
+                        <Route path="/radio" element={<RadioView />} />
+                        <Route path="/settings" element={<MobileSettingsView />} />
+                        <Route path="*" element={<MainContent />} />
+                      </Routes>
+                    </div>
                   </div>
                 </div>
-                <ContextMenu />
-              </div>
-              <RightSidebar />
-            </>
-            ) : <Navigate to="/login" replace />
-          } />
+                <RightSidebar />
+              </>
+              ) : <Navigate to="/login" replace />
+            } />
+            
+            <Route path="/jam/*" element={<JamLayout />} />
+            <Route path="*" element={<Navigate to="/Holad" replace />} />
+          </Routes>
           
-          <Route path="/jam/*" element={<JamLayout />} />
-          <Route path="*" element={<Navigate to="/Holad" replace />} />
-        </Routes>
+          <NowPlayingModal />
+          <MobileSearchOverlay />
+          {isSettingsOpen && <SettingsModal />}
+        </div>
         
-        <NowPlayingModal />
-        <MobileSearchOverlay />
-        {isSettingsOpen && <SettingsModal />}
+        {showBottomPlayer && <BottomPlayer />}
+        {showMobileNav && <MobileBottomNav />}
+        
+        <ErrorBoundary>
+          <ContextMenu />
+        </ErrorBoundary>
       </div>
-      
-      {showBottomPlayer && <BottomPlayer />}
-      {showMobileNav && <MobileBottomNav />}
-    </div>
     </GlobalDndProvider>
   );
 }

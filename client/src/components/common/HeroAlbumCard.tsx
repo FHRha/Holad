@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Heart, Star, ChevronDown, MoreHorizontal, SkipForward, ListPlus } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating, getDownloadUrl } from '../../api/subsonic';
@@ -8,6 +8,7 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import type { Track } from '../../store/playerStore';
 import { extractDominantColor } from '../../utils/colorExtractor';
 import ArtistLinks from './ArtistLinks';
+import { useLongPress } from '../../hooks/useLongPress';
 
 const isLightColor = (color: string | null): boolean => {
   if (!color) return false;
@@ -59,7 +60,6 @@ export default function HeroAlbumCard({ album }: { album: any }) {
   const setIsProcessing = usePlayerStore(state => state.setIsProcessing);
   
   const [dominantColor, setDominantColor] = useState<string | null>(null);
-  const touchTimer = useRef<number | null>(null);
 
   const isLiked = likedAlbumIds.includes(album.id);
   const [rating, setRatingState] = useState(album.userRating || 0);
@@ -79,16 +79,18 @@ export default function HeroAlbumCard({ album }: { album: any }) {
     openMenu(e.clientX, e.clientY, album, 'album');
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    touchTimer.current = setTimeout(() => {
-      openMenu(touch.clientX, touch.clientY, album, 'album');
-    }, 500);
-  };
-
-  const handleTouchEnd = () => {
-    if (touchTimer.current) clearTimeout(touchTimer.current);
-  };
+  const longPressProps = useLongPress(
+    (e) => {
+      let clientX = e.clientX;
+      let clientY = e.clientY;
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      }
+      openMenu(clientX, clientY, album, 'album');
+    },
+    () => navigate(`/Holad/album/${album.id}`)
+  );
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -172,15 +174,11 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
   return (
     <div 
-      onClick={() => navigate(`/Holad/album/${album.id}`)}
       className="group relative rounded-xl cursor-pointer flex flex-col p-6 flex-shrink-0 h-full"
       style={{
         backgroundColor: dominantColor ? dominantColor : '#181818'
       }}
-      onContextMenu={handleContextMenu}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchMove={handleTouchEnd}
+      {...longPressProps}
     >
       <div className="text-center mb-4">
         <h3 className={`font-bold text-lg truncate drop-shadow-md leading-normal ${isLight ? 'text-black' : 'text-white'}`}>{album.name}</h3>
@@ -202,13 +200,13 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
         {/* Rating Square */}
         {rating > 0 && (
-          <div className="absolute top-0 right-0 w-8 h-8 bg-primary text-background text-sm font-bold rounded-bl-lg z-10 flex items-center justify-center group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
+          <div className="absolute top-0 right-0 w-8 h-8 bg-primary text-background text-sm font-bold rounded-bl-lg z-10 flex items-center justify-center [@media(hover:hover)]:group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
             {rating}
           </div>
         )}
 
         {/* Hover Overlay Buttons on Image */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-between p-3 bg-black/50">
+        <div className="absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 hidden md:flex [@media(hover:none)]:!hidden flex-col justify-between p-3 bg-black/50">
           <div className="flex justify-between items-start">
             <Heart 
               size={24} 

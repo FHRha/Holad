@@ -7,6 +7,7 @@ import { formatTime } from '../../utils/timeFormat';
 import { useTranslation } from 'react-i18next';
 import { useArtistData } from '../../hooks/useArtistData';
 import { useContextMenuStore } from '../../store/contextMenuStore';
+import LongPressWrapper from '../common/LongPressWrapper';
 
 export default function ArtistView() {
   const { t } = useTranslation();
@@ -99,10 +100,10 @@ export default function ArtistView() {
           ) : (
             <div className="flex flex-col gap-1">
               {topSongs.slice(0, 10).map((track, index) => (
-                <div 
+                <LongPressWrapper 
                   key={track.id}
                   onClick={() => handlePlaySong(index)}
-                  onContextMenu={(e) => {
+                  onLongPress={(e: any) => {
                     e.preventDefault();
                     openMenu(e.clientX, e.clientY, track, 'track');
                   }}
@@ -131,7 +132,7 @@ export default function ArtistView() {
                   <div className="text-xs sm:text-sm text-secondary/70 font-medium">
                     {formatTime(track.duration)}
                   </div>
-                </div>
+                </LongPressWrapper>
               ))}
             </div>
           )}

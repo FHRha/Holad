@@ -45,7 +45,7 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
   if (!currentTrack) return null;
 
   return (
-    <div className="w-full h-full flex flex-col overflow-y-auto hide-scrollbar px-6 pt-4 pb-24">
+    <div className="w-full h-full flex flex-col overflow-y-auto hide-scrollbar px-6 pt-4 pb-4">
       <div className="flex items-center gap-4 mb-6">
         <div className="w-24 h-24 rounded-lg overflow-hidden shadow-lg flex-shrink-0 bg-black/20">
           <TrackImage src={getCoverArtUrl(currentTrack.id, 300)} className="w-full h-full object-cover" alt={currentTrack.title} />
@@ -62,17 +62,19 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
           <span className="text-xs text-white/40 uppercase font-bold tracking-wider mb-1">{t('player.duration', { defaultValue: 'Duration' })}</span>
           <span className="text-sm font-medium text-white">{formatTime(currentTrack.duration)}</span>
         </div>
-        <div className="bg-white/5 rounded-xl p-4 flex flex-col justify-center items-center">
-          <span className="text-xs text-white/40 uppercase font-bold tracking-wider mb-1">{t('player.year', { defaultValue: 'Year' })}</span>
-          <span className="text-sm font-medium text-white">{currentTrack.year || '-'}</span>
+        <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center justify-center">
+          <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.year', { defaultValue: 'Год' })}</span>
+          <span className="font-bold text-sm text-white">{(currentTrack as any).year || '—'}</span>
         </div>
-        <div className="bg-white/5 rounded-xl p-4 flex flex-col justify-center items-center">
-          <span className="text-xs text-white/40 uppercase font-bold tracking-wider mb-1">{t('player.format', { defaultValue: 'Format' })}</span>
-          <span className="text-sm font-medium text-white">{currentTrack.suffix?.toUpperCase() || 'MP3'}</span>
+        
+        <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center justify-center">
+          <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.format', { defaultValue: 'Формат' })}</span>
+          <span className="font-bold text-sm text-white uppercase">{(currentTrack as any).suffix || 'MP3'}</span>
         </div>
-        <div className="bg-white/5 rounded-xl p-4 flex flex-col justify-center items-center">
-          <span className="text-xs text-white/40 uppercase font-bold tracking-wider mb-1">{t('player.bitrate', { defaultValue: 'Bitrate' })}</span>
-          <span className="text-sm font-medium text-white">{currentTrack.bitRate ? `${currentTrack.bitRate} kbps` : '-'}</span>
+        
+        <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center justify-center">
+          <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.bitrate', { defaultValue: 'Битрейт' })}</span>
+          <span className="font-bold text-sm text-white">{(currentTrack as any).bitRate ? `${(currentTrack as any).bitRate} kbps` : '320 kbps'}</span>
         </div>
       </div>
 

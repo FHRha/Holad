@@ -15,6 +15,7 @@ import TracksView from '../views/TracksView';
 import AlbumView from '../views/AlbumView';
 import ArtistView from '../views/ArtistView';
 import ContextMenu from '../common/ContextMenu';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import RightSidebar from './RightSidebar';
 import { Menu, Disc, Music, Users, LogOut, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -287,7 +288,9 @@ export default function JamLayout() {
                 <Route path="*" element={<Navigate to={`/jam/albums?room=${roomToJoin}`} replace />} />
               </Routes>
             </div>
-            <ContextMenu />
+            <ErrorBoundary>
+              <ContextMenu />
+            </ErrorBoundary>
           </div>
           <RightSidebar />
           <MobileJamNav roomToJoin={roomToJoin} role={role} />
@@ -315,7 +318,7 @@ export default function JamLayout() {
   );
 }
 
-function MobileJamNav({ roomToJoin, role }: { roomToJoin: string | null, role: string }) {
+function MobileJamNav({ roomToJoin, role }: { roomToJoin: string | null, role: string | null }) {
   const { t } = useTranslation();
   return (
     <div className="md:hidden flex items-center justify-around bg-[#121212]/70 backdrop-blur-2xl border-t border-white/10 h-[56px] pb-[env(safe-area-inset-bottom)] px-4 z-50 rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.4)] fixed bottom-0 left-0 right-0">

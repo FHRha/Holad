@@ -7,6 +7,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useAlbumData } from '../../hooks/useAlbumData';
 import ArtistLinks from '../common/ArtistLinks';
+import LongPressWrapper from '../common/LongPressWrapper';
 
 export default function AlbumView() {
   const { t } = useTranslation();
@@ -149,9 +150,9 @@ export default function AlbumView() {
               const isTrackLiked = likedTrackIds.includes(track.id);
               
               return (
-                <div 
+                <LongPressWrapper 
                   key={track.id}
-                  onContextMenu={(e) => { 
+                  onLongPress={(e: any) => { 
                     e.preventDefault(); 
                     openMenu(e.clientX, e.clientY, { ...track, artistId: track.artistId || album.artistId, coverArt: getCoverArtUrl(track.coverArt || album.id, 300), albumId: album.id }, 'track'); 
                   }}
@@ -190,7 +191,7 @@ export default function AlbumView() {
                   <div className="w-16 text-right text-sm text-secondary font-medium">
                     {formatTime(track.duration)}
                   </div>
-                </div>
+                </LongPressWrapper>
               );
             })}
             

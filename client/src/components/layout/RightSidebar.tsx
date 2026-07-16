@@ -9,6 +9,7 @@ import { useUIStore } from '../../store/uiStore';
 import { getDownloadUrl } from '../../api/subsonic';
 import { formatArtistName } from '../../utils/formatters';
 import TrackImage from '../common/TrackImage';
+import LongPressWrapper from '../common/LongPressWrapper';
 
 export default function RightSidebar() {
   const { t } = useTranslation();
@@ -18,7 +19,6 @@ export default function RightSidebar() {
   const [visibleCount, setVisibleCount] = useState(50);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shareRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -122,17 +122,6 @@ export default function RightSidebar() {
     openMenu(e.clientX, e.clientY, { ...track, queueIndex: idx }, 'track');
   };
 
-  const handleTouchStart = (e: React.TouchEvent, track: any, idx: number) => {
-    const touch = e.touches[0];
-    touchTimer.current = setTimeout(() => {
-      openMenu(touch.clientX, touch.clientY, { ...track, queueIndex: idx }, 'track');
-    }, 500);
-  };
-
-  const handleTouchEnd = () => {
-    if (touchTimer.current) clearTimeout(touchTimer.current);
-  };
-
   if (rightSidebarWidth === 0) return null;
 
   const isSmall = rightSidebarWidth <= 100;
@@ -198,17 +187,14 @@ export default function RightSidebar() {
             return (
               <SortableItem key={sortableId} id={sortableId}>
                 {({ setNodeRef, attributes, listeners, style, isDragging }) => (
-                  <div 
+                  <LongPressWrapper 
                     ref={setNodeRef}
                     style={style}
                     id={`queue-item-${idx}`}
                     {...attributes}
                     {...listeners}
                     onClick={() => playTrack(idx)}
-                    onContextMenu={(e) => handleContextMenu(e, track, idx)}
-                    onTouchStart={(e) => handleTouchStart(e, track, idx)}
-                    onTouchEnd={handleTouchEnd}
-                    onTouchMove={handleTouchEnd}
+                    onLongPress={(e: any) => handleContextMenu(e, track, idx)}
                     className={`flex items-center ${isSmall ? 'justify-center p-1' : 'px-2 py-2'} rounded-md cursor-grab active:cursor-grabbing group ${isPlaying ? 'bg-white/10' : 'hover:bg-white/5'} ${isDragging ? 'opacity-30' : ''}`}
                     title={isSmall ? `${track.title} • ${formatArtistName(track.artist)}` : undefined}
                   >
@@ -236,7 +222,7 @@ export default function RightSidebar() {
                         </div>
                       </>
                     )}
-                  </div>
+                  </LongPressWrapper>
                 )}
               </SortableItem>
             );

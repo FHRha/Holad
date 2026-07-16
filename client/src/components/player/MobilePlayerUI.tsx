@@ -201,7 +201,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       <div className="relative z-10 flex-1 flex flex-col items-center justify-between px-6 pb-6 w-full max-w-md mx-auto min-h-0 overflow-y-auto hide-scrollbar">
         
         {/* Conditional Content based on Active Tab */}
-        <div className="w-full flex-1 flex flex-col justify-center min-h-0 overflow-hidden mb-6 mt-2">
+        <div className="w-full flex-1 flex flex-col justify-start min-h-0 overflow-hidden mb-2 mt-2">
           {activeTab === 'player' && (
             <div className="w-full h-full flex items-center justify-center">
               <div className="h-full max-h-full max-w-full aspect-square">
@@ -221,7 +221,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Info & Controls Section (Always visible) */}
-        <div className="w-full flex flex-col gap-6 mt-6">
+        <div className="w-full flex flex-col gap-5 mt-auto">
           {/* Track Info */}
           <div className="flex items-center justify-between">
             <div className="flex flex-col overflow-hidden mr-4">

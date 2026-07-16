@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Heart, Star, ChevronDown, MoreHorizontal, SkipForward, ListPlus } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating, getDownloadUrl } from '../../api/subsonic';
@@ -7,6 +7,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import type { Track } from '../../store/playerStore';
 import ArtistLinks from './ArtistLinks';
+import { useLongPress } from '../../hooks/useLongPress';
 
 export default function AlbumCard({ album }: { album: any }) {
   const navigate = useNavigate();
@@ -20,7 +21,6 @@ export default function AlbumCard({ album }: { album: any }) {
 
   const isLiked = likedAlbumIds.includes(album.id);
   const [rating, setRatingState] = useState(album.userRating || 0);
-  const touchTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const handleRatingUpdate = (e: any) => {
@@ -37,16 +37,31 @@ export default function AlbumCard({ album }: { album: any }) {
     openMenu(e.clientX, e.clientY, album, 'album');
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    touchTimer.current = setTimeout(() => {
-      openMenu(touch.clientX, touch.clientY, album, 'album');
-    }, 500);
-  };
-
-  const handleTouchEnd = () => {
-    if (touchTimer.current) clearTimeout(touchTimer.current);
-  };
+  const longPressProps = useLongPress(
+    (e) => {
+      let clientX = e.clientX;
+      let clientY = e.clientY;
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      }
+      openMenu(clientX, clientY, album, 'album');
+    },
+    (e) => {
+      if (window.innerWidth < 768) {
+        handlePlayNow(e);
+        return;
+      }
+      const isJam = window.location.pathname.startsWith('/jam');
+      const searchParams = new URLSearchParams(window.location.search);
+      const room = searchParams.get('room');
+      if (isJam && room) {
+        navigate(`/jam/library/album/${album.id}?room=${room}`);
+      } else {
+        navigate(`/Holad/album/${album.id}`);
+      }
+    }
+  );
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -124,25 +139,8 @@ export default function AlbumCard({ album }: { album: any }) {
 
   return (
     <div 
-      onClick={(e) => {
-        if (window.innerWidth < 768) {
-          handlePlayNow(e);
-          return;
-        }
-        const isJam = window.location.pathname.startsWith('/jam');
-        const searchParams = new URLSearchParams(window.location.search);
-        const room = searchParams.get('room');
-        if (isJam && room) {
-          navigate(`/jam/library/album/${album.id}?room=${room}`);
-        } else {
-          navigate(`/Holad/album/${album.id}`);
-        }
-      }}
       className="group relative bg-[#181818] hover:bg-[#282828] rounded-xl cursor-pointer flex flex-col p-4 flex-shrink-0 transition-colors duration-300 shadow-sm hover:shadow-lg h-full"
-      onContextMenu={handleContextMenu}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchMove={handleTouchEnd}
+      {...longPressProps}
     >
       <div className="relative aspect-square overflow-hidden rounded-t-lg bg-black/20">
         <img 
@@ -160,7 +158,7 @@ export default function AlbumCard({ album }: { album: any }) {
 
         {/* Top Banner (Rating Square - Desktop Only) */}
         {rating > 0 && (
-          <div className="hidden md:flex absolute top-0 right-0 w-8 h-8 bg-primary text-background text-sm font-bold rounded-bl-lg z-10 items-center justify-center group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
+          <div className="hidden md:flex absolute top-0 right-0 w-8 h-8 bg-primary text-background text-sm font-bold rounded-bl-lg z-10 items-center justify-center [@media(hover:hover)]:group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
             {rating}
           </div>
         )}
@@ -181,7 +179,7 @@ export default function AlbumCard({ album }: { album: any }) {
         </div>
 
         {/* Hover Overlay Buttons on Image */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-between p-3 bg-black/50">
+        <div className="absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 hidden md:flex [@media(hover:none)]:!hidden flex-col justify-between p-3 bg-black/50">
           <div className="flex justify-between items-start">
             <Heart 
               size={20} 

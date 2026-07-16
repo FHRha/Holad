@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { 
-  ChevronDown, MoreHorizontal, Shuffle, SkipBack, 
+  ChevronDown, Shuffle, SkipBack, 
   Play, Pause, SkipForward, Repeat, Repeat1, Moon, 
   Music, RotateCcw, RotateCw, Users
 } from 'lucide-react';
@@ -12,7 +12,7 @@ import { formatTime } from '../../utils/timeFormat';
 import TrackImage from '../common/TrackImage';
 import LiquidSeekBar from '../common/LiquidSeekBar';
 import { useTranslation } from 'react-i18next';
-import { useContextMenuStore } from '../../store/contextMenuStore';
+
 import MobileQueueTab from './MobileQueueTab';
 import JamSessionControl from '../jam/JamSessionControl';
 
@@ -25,7 +25,6 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
     sleepTimer, setSleepTimer, roomId
   } = usePlayerStore();
   const { audioElement } = useAudioStore();
-  const { openMenu } = useContextMenuStore();
   
   const currentTrack = queue[currentIndex];
   

@@ -10,6 +10,12 @@ interface UIState {
   isSearchOpen: boolean;
   toggleSearch: () => void;
   setSearchOpen: (open: boolean) => void;
+  
+  searchResults: { song: any[], album: any[], artist: any[] };
+  setSearchResults: (results: { song: any[], album: any[], artist: any[] }) => void;
+  isSearchLoading: boolean;
+  setSearchLoading: (loading: boolean) => void;
+  
   isNowPlayingOpen: boolean;
   toggleNowPlaying: () => void;
   setNowPlayingOpen: (open: boolean) => void;
@@ -30,6 +36,12 @@ export const useUIStore = create<UIState>()(
       isSearchOpen: false,
       toggleSearch: () => set((state) => ({ isSearchOpen: !state.isSearchOpen })),
       setSearchOpen: (open) => set({ isSearchOpen: open }),
+      
+      searchResults: { song: [], album: [], artist: [] },
+      setSearchResults: (results) => set({ searchResults: results }),
+      isSearchLoading: false,
+      setSearchLoading: (loading) => set({ isSearchLoading: loading }),
+      
       isNowPlayingOpen: false,
       toggleNowPlaying: () => set((state) => ({ isNowPlayingOpen: !state.isNowPlayingOpen })),
       setNowPlayingOpen: (open) => set({ isNowPlayingOpen: open }),

@@ -7,7 +7,7 @@ import { useGlobalSearch } from '../../hooks/useGlobalSearch';
 import { useUIStore } from '../../store/uiStore';
 import { useTranslation } from 'react-i18next';
 import TrackImage from '../common/TrackImage';
-import ArtistCard from '../common/ArtistCard';
+import ArtistLinks from '../common/ArtistLinks';
 
 export default function MobileSearchOverlay() {
   const { t } = useTranslation();
@@ -22,7 +22,8 @@ export default function MobileSearchOverlay() {
     results,
     loading,
     handlePlaySong,
-    navigateToAlbum
+    navigateToAlbum,
+    navigateToArtist
   } = useGlobalSearch(inputRef, containerRef, sessionRef);
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function MobileSearchOverlay() {
 
   return (
     <div 
+      id="mobile-search-overlay"
       className="md:hidden fixed inset-0 z-[100] flex flex-col animate-in slide-in-from-bottom-4 duration-300 bg-gradient-to-b from-black via-black/95 to-primary/30"
     >
       {/* Top Search Bar */}
@@ -119,7 +121,15 @@ export default function MobileSearchOverlay() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-[15px] text-white truncate">{track.title}</p>
-                        <p className="text-[13px] text-secondary truncate">{formatArtistName(track.artist)} • {track.album}</p>
+                        <div className="text-[13px] text-secondary truncate flex items-center gap-1">
+                          <ArtistLinks 
+                            artistString={track.artist} 
+                            artistId={track.artistId} 
+                            onLinkClick={() => setSearchOpen(false)}
+                            className="hover:text-white transition-colors relative z-10"
+                          />
+                          <span className="pointer-events-none">• {track.album}</span>
+                        </div>
                       </div>
                       <div className="text-[13px] text-secondary font-medium">
                         {formatTime(track.duration)}
@@ -165,10 +175,14 @@ export default function MobileSearchOverlay() {
                 <h3 className="text-sm font-bold tracking-widest text-secondary mb-4 flex items-center gap-2">
                   <Users size={16} /> {t('sidebar.artists', { defaultValue: 'Исполнители' })}
                 </h3>
-                <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 -mx-4 px-4 snap-x snap-mandatory">
+                <div className="flex flex-wrap gap-2">
                   {results.artist.map(artist => (
-                    <div key={artist.id} className="w-36 flex-shrink-0 snap-start">
-                      <ArtistCard artist={artist} />
+                    <div 
+                      key={artist.id}
+                      onClick={() => navigateToArtist(artist)}
+                      className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/5 cursor-pointer text-sm font-medium transition-colors"
+                    >
+                      {formatArtistName(artist.name)}
                     </div>
                   ))}
                 </div>
