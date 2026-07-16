@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, ChevronDown, MoreHorizontal, MoreVertical, VolumeX, Star, Maximize2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
@@ -12,10 +12,11 @@ import { useAutoDj } from '../../hooks/useAutoDj';
 
 export default function BottomPlayer() {
   const { t } = useTranslation();
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized, initialPosition, setInitialPosition } = usePlayerStore();
   const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  const [dragVolume, setDragVolume] = useState<number | null>(null);
 
   const {
     progress,
@@ -27,9 +28,19 @@ export default function BottomPlayer() {
     handleSeekEnd
   } = useAudioEngine(audioRef);
 
-  useAutoDj();
-
   const currentTrack = queue[currentIndex];
+
+  useEffect(() => {
+    if (initialPosition > 0 && audioRef.current && currentTrack) {
+      if (audioRef.current.readyState >= 1) {
+        audioRef.current.currentTime = initialPosition / 1000;
+        setProgress((initialPosition / 1000 / currentTrack.duration) * 100);
+        setInitialPosition(0);
+      }
+    }
+  }, [initialPosition, currentTrack]);
+
+  useAutoDj();
 
   const handleVolumeDrag = (newVolume: number) => {
     if (audioRef.current) {
@@ -205,12 +216,18 @@ export default function BottomPlayer() {
               <div className="flex-1">
                 <Slider 
                   value={volume} 
-                  onDrag={handleVolumeDrag}
-                  onDragEnd={setVolume} 
+                  onDrag={(newVolume) => {
+                    setDragVolume(newVolume);
+                    handleVolumeDrag(newVolume);
+                  }}
+                  onDragEnd={(newVolume) => {
+                    setDragVolume(null);
+                    setVolume(newVolume);
+                  }} 
                   thickness="thick" 
                 />
               </div>
-              <span className="text-xs font-bold w-9 text-right">{Math.round(volume * 100)}%</span>
+              <span className="text-xs font-bold w-9 text-right">{Math.round((dragVolume !== null ? dragVolume : volume) * 100)}%</span>
             </div>
           </div>
         </div>
@@ -339,13 +356,20 @@ export default function BottomPlayer() {
         onEnded={handleEnded}
         onLoadedMetadata={(e) => {
           const scaledVolume = volume * 0.3;
-          (e.target as HTMLAudioElement).volume = scaledVolume * scaledVolume;
+          const target = e.target as HTMLAudioElement;
+          target.volume = scaledVolume * scaledVolume;
+          
+          if (initialPosition > 0) {
+            target.currentTime = initialPosition / 1000;
+            setProgress((initialPosition / 1000 / currentTrack.duration) * 100);
+            setInitialPosition(0);
+          }
         }}
         onSeeking={() => setIsSeeking(true)}
         onSeeked={() => {
           setIsSeeking(false);
-          if (audioRef.current) {
-            setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
+          if (audioRef.current && currentTrack) {
+            setProgress((audioRef.current.currentTime / currentTrack.duration) * 100);
           }
         }}
         loop={repeatMode === 'one'}

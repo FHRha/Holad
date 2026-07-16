@@ -4,7 +4,7 @@ import { savePlayQueue } from '../api/subsonic';
 import { useAudioStore } from '../store/audioStore';
 
 export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null>) {
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, volume, initialPosition, setInitialPosition, role } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, volume, role } = usePlayerStore();
   const { setAudioElement } = useAudioStore();
   const [progress, setProgress] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
@@ -67,14 +67,6 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
   }, [audioRef]);
 
   useEffect(() => {
-    if (audioRef.current && currentTrack && initialPosition > 0) {
-      audioRef.current.currentTime = initialPosition / 1000;
-      setProgress((initialPosition / 1000 / currentTrack.duration) * 100);
-      setInitialPosition(0);
-    }
-  }, [currentTrack, initialPosition, setInitialPosition]);
-
-  useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     
     const isJamUrl = window.location.pathname.startsWith('/jam');
@@ -92,7 +84,7 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
       saveState();
       
       if (isPlaying) {
-        interval = setInterval(saveState, 10000);
+        interval = setInterval(saveState, 2000);
       }
     }
     return () => clearInterval(interval);

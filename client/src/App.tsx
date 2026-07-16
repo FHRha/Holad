@@ -38,7 +38,7 @@ function hexToRgb(hex: string) {
 function AppContent() {
   const location = useLocation();
   const { isAuthenticated, isJamRoute } = useAppInitialization();
-  const role = usePlayerStore(state => state.role);
+  const roomId = usePlayerStore(state => state.roomId);
   const { theme, accentColor, startPage } = useSettingsStore();
   const isSettingsOpen = useUIStore(state => state.isSettingsOpen);
   
@@ -79,12 +79,19 @@ function AppContent() {
     root.style.setProperty('--color-primary-rgb', rgbStr);
   }, [theme, accentColor]);
 
-  const searchParams = new URLSearchParams(location.search);
-  const validStandalone = (searchParams.has('track') && !!searchParams.get('track')) || (searchParams.has('album') && !!searchParams.get('album'));
-  
   useDocumentTitle();
 
   const isLoginRoute = location.pathname === '/login';
+  
+  const searchParams = new URLSearchParams(location.search);
+  const validStandalone = (searchParams.has('track') && !!searchParams.get('track')) || (searchParams.has('album') && !!searchParams.get('album'));
+
+  const showBottomPlayer = !isLoginRoute && (
+    (!isJamRoute && isAuthenticated) ||
+    (isJamRoute && (!!roomId || validStandalone))
+  );
+
+  const showMobileNav = !isLoginRoute && !isJamRoute && isAuthenticated;
 
   return (
     <GlobalDndProvider>
@@ -131,12 +138,8 @@ function AppContent() {
         {isSettingsOpen && <SettingsModal />}
       </div>
       
-      {!isLoginRoute && (isAuthenticated || (isJamRoute && (role || validStandalone))) && (
-        <>
-          <BottomPlayer />
-          <MobileBottomNav />
-        </>
-      )}
+      {showBottomPlayer && <BottomPlayer />}
+      {showMobileNav && <MobileBottomNav />}
     </div>
     </GlobalDndProvider>
   );
