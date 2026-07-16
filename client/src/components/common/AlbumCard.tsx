@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Heart, Star, ChevronDown, MoreHorizontal, SkipForward, ListPlus } from 'lucide-react';
-import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
+import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating, getDownloadUrl } from '../../api/subsonic';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import type { Track } from '../../store/playerStore';
-import { formatArtistName } from '../../utils/formatters';
+import ArtistLinks from './ArtistLinks';
 
 export default function AlbumCard({ album }: { album: any }) {
   const navigate = useNavigate();
@@ -15,6 +15,7 @@ export default function AlbumCard({ album }: { album: any }) {
   const addToQueue = usePlayerStore(state => state.addToQueue);
   const likedAlbumIds = usePlayerStore(state => state.likedAlbumIds);
   const toggleAlbumLike = usePlayerStore(state => state.toggleAlbumLike);
+  const setIsProcessing = usePlayerStore(state => state.setIsProcessing);
   const { openMenu } = useContextMenuStore();
 
   const isLiked = likedAlbumIds.includes(album.id);
@@ -90,20 +91,35 @@ export default function AlbumCard({ album }: { album: any }) {
 
   const handlePlayNow = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const tracks = await getAlbum(album.id);
-    setQueueAndPlay(mapTracks(tracks), 0);
+    setIsProcessing(true);
+    try {
+      const tracks = await getAlbum(album.id);
+      setQueueAndPlay(mapTracks(tracks), 0);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handlePlayNext = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const tracks = await getAlbum(album.id);
-    playNext(mapTracks(tracks));
+    setIsProcessing(true);
+    try {
+      const tracks = await getAlbum(album.id);
+      playNext(mapTracks(tracks));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleAddToQueue = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const tracks = await getAlbum(album.id);
-    addToQueue(mapTracks(tracks));
+    setIsProcessing(true);
+    try {
+      const tracks = await getAlbum(album.id);
+      addToQueue(mapTracks(tracks));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -191,15 +207,15 @@ export default function AlbumCard({ album }: { album: any }) {
           </div>
 
           <div className="flex justify-between items-end">
-            <ChevronDown size={20} className="text-white/70 hover:text-white cursor-pointer" />
-            <MoreHorizontal size={20} className="text-white/70 hover:text-white cursor-pointer" />
+            <ChevronDown size={20} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); window.open(getDownloadUrl(album.id), '_blank'); }} />
+            <MoreHorizontal size={20} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>
       </div>
 
       <div className="p-3 mt-auto">
-        <h3 className="font-semibold text-sm text-foreground truncate">{album.name}</h3>
-        <p className="text-xs text-secondary truncate mt-1">{formatArtistName(album.artist)}</p>
+        <h3 className="font-semibold text-sm text-foreground truncate leading-normal">{album.name}</h3>
+        <ArtistLinks artistString={album.artist} artistId={album.artistId} className="text-xs text-secondary truncate mt-1" />
         <p className="text-[10px] text-foreground/40 mt-1 uppercase">
           {album.genre || 'MP3'} &nbsp;&nbsp; {album.year || ''}
         </p>

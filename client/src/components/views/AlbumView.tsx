@@ -4,9 +4,9 @@ import { Play, Pause, Heart, Star, MoreHorizontal, Clock, Radio, Music, ListPlus
 import { useTranslation } from 'react-i18next';
 import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
-import { formatArtistName } from '../../utils/formatters';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useAlbumData } from '../../hooks/useAlbumData';
+import ArtistLinks from '../common/ArtistLinks';
 
 export default function AlbumView() {
   const { t } = useTranslation();
@@ -21,12 +21,15 @@ export default function AlbumView() {
     dominantColor,
     visibleCount,
     isLiked,
+    isAddedToQueue,
+    isRadioLoading,
     handlePlayAll,
     handlePlayNext,
     handleAddToEnd,
     handleLike,
     handleRate,
-    handlePlaySong
+    handlePlaySong,
+    handleAlbumRadio
   } = useAlbumData(id, observerTarget);
 
   if (!album) return <div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
@@ -66,7 +69,7 @@ export default function AlbumView() {
               
               <div className="flex flex-col gap-2 flex-1 w-full">
                 <span className="text-xs font-bold tracking-[0.2em] uppercase text-white/70">{t('views.album')}</span>
-                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight leading-none mb-2 line-clamp-2">{album.name}</h1>
+                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight leading-tight pt-1 mb-2 line-clamp-2">{album.name}</h1>
                 
                 <div className="flex flex-wrap items-center gap-2 text-sm text-white/70 font-medium mb-1">
                   <Music size={14} className="mr-1" />
@@ -79,7 +82,7 @@ export default function AlbumView() {
               <span>{album.playCount || 0} {t('views.plays')}</span>
             </div>
             
-            <div className="text-xl font-bold text-white mb-4 hover:underline cursor-pointer w-max">{formatArtistName(album.artist)}</div>
+            <div className="text-xl font-bold text-white mb-4 w-max"><ArtistLinks artistString={album.artist} artistId={album.artistId} /></div>
             
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-3">
@@ -92,11 +95,12 @@ export default function AlbumView() {
               </button>
               
               <button onClick={handleAddToEnd} className="bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors">
-                {t('views.add_to_queue')}
+                {isAddedToQueue ? 'Отправлено' : t('views.add_to_queue')}
               </button>
               
-              <button className="bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors flex items-center gap-2">
-                <Radio size={16} /> {t('views.album_radio')}
+              <button onClick={handleAlbumRadio} disabled={isRadioLoading} className="bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors flex items-center gap-2">
+                {isRadioLoading ? <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" /> : <Radio size={16} />}
+                {t('views.album_radio')}
               </button>
               
               <div className="flex-1" />
@@ -168,7 +172,7 @@ export default function AlbumView() {
                   </div>
                   <div className="flex-1 flex flex-col min-w-0 pr-4">
                     <span className={`text-sm font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-white'}`}>{track.title}</span>
-                    <span className="text-xs text-secondary truncate">{formatArtistName(track.artist || album.artist)}</span>
+                    <ArtistLinks artistString={track.artist || album.artist} artistId={track.artistId || album.artistId} className="text-xs text-secondary truncate" />
                   </div>
                   <div className="w-16 flex justify-center">
                     <Heart 

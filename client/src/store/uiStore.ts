@@ -5,6 +5,8 @@ export const LEFT_SIDEBAR_DEFAULT_WIDTH = 96;
 export const RIGHT_SIDEBAR_DEFAULT_WIDTH = 320;
 
 interface UIState {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
   isSearchOpen: boolean;
   toggleSearch: () => void;
   setSearchOpen: (open: boolean) => void;
@@ -23,6 +25,8 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
+      searchQuery: '',
+      setSearchQuery: (query) => set({ searchQuery: query }),
       isSearchOpen: false,
       toggleSearch: () => set((state) => ({ isSearchOpen: !state.isSearchOpen })),
       setSearchOpen: (open) => set({ isSearchOpen: open }),

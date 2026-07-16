@@ -12,7 +12,7 @@ import TrackImage from '../common/TrackImage';
 
 export default function RightSidebar() {
   const { t } = useTranslation();
-  const { queue, currentIndex, playTrack, toggleShuffle, clearQueue } = usePlayerStore();
+  const { queue, currentIndex, playTrack, toggleShuffle, clearQueue, isProcessing } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const { rightSidebarWidth, setRightSidebarWidth } = useUIStore();
   const [visibleCount, setVisibleCount] = useState(50);
@@ -182,7 +182,12 @@ export default function RightSidebar() {
 
 
 
-      <div className={`flex-1 overflow-y-auto overflow-x-hidden ${isSmall ? 'p-1' : 'p-2'} space-y-1`} onScroll={handleScroll}>
+      <div className={`flex-1 overflow-y-auto overflow-x-hidden ${isSmall ? 'p-1' : 'p-2'} space-y-1 relative`} onScroll={handleScroll}>
+        {isProcessing && (
+          <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
         <SortableContext 
           items={queue.slice(0, visibleCount).map((t, idx) => `${t.id}-${idx}`)}
           strategy={verticalListSortingStrategy}

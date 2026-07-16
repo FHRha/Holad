@@ -19,7 +19,7 @@ export default function LiquidSeekBar({ value, onChange, onDrag, onDragEnd, clas
 
   // Animation Refs
   const timeRef = useRef(0);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
   const amplitudeMultiplierRef = useRef(isAnimated ? 1 : 0);
 
   useEffect(() => {

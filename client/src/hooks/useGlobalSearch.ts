@@ -9,11 +9,9 @@ export function useGlobalSearch(
   containerRef: React.RefObject<HTMLDivElement | null>,
   sessionRef: React.RefObject<HTMLDivElement | null>
 ) {
-  const { isSearchOpen, setSearchOpen } = useUIStore();
+  const { isSearchOpen, setSearchOpen, searchQuery: query, setSearchQuery: setQuery } = useUIStore();
   const { setQueueAndPlay, roomId } = usePlayerStore();
   const navigate = useNavigate();
-  
-  const [query, setQuery] = useState('');
   const [results, setResults] = useState<{song: any[], album: any[], artist: any[]}>({ song: [], album: [], artist: [] });
   const [loading, setLoading] = useState(false);
   const [showSession, setShowSession] = useState(false);

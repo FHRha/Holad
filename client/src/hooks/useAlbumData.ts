@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAlbumFull, getCoverArtUrl, starItem, unstarItem, setItemRating } from '../api/subsonic';
+import { getAlbumFull, getCoverArtUrl, starItem, unstarItem, setItemRating, getSimilarSongs } from '../api/subsonic';
 import { usePlayerStore } from '../store/playerStore';
 import { extractDominantColor } from '../utils/colorExtractor';
 import { useSettingsStore } from '../store/settingsStore';
@@ -8,8 +8,10 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
   const [album, setAlbum] = useState<any>(null);
   const [dominantColor, setDominantColor] = useState<string>('#181818');
   const [visibleCount, setVisibleCount] = useState(50);
+  const [isAddedToQueue, setIsAddedToQueue] = useState(false);
+  const [isRadioLoading, setIsRadioLoading] = useState(false);
   
-  const { setQueueAndPlay, playNext, addToQueue, likedAlbumIds, toggleAlbumLike } = usePlayerStore();
+  const { setQueueAndPlay, playNext, addToQueue, likedAlbumIds, toggleAlbumLike, setIsProcessing } = usePlayerStore();
 
   useEffect(() => {
     if (!id) return;
@@ -83,6 +85,8 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
     const tracks = getMappedTracks();
     if (tracks.length === 0) return;
     addToQueue(tracks);
+    setIsAddedToQueue(true);
+    setTimeout(() => setIsAddedToQueue(false), 2000);
   };
 
   const handlePlaySong = (index: number) => {
@@ -111,16 +115,56 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
     setItemRating(album.id, newRating);
   };
 
+  const handleAlbumRadio = async () => {
+    if (!album) return;
+    setIsRadioLoading(true);
+    setIsProcessing(true);
+    try {
+      const albumTracks = getMappedTracks();
+      const tracksData = await getSimilarSongs(album.id);
+      
+      let mapped: any[] = [];
+      if (tracksData && tracksData.length > 0) {
+        mapped = tracksData.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          album: t.album,
+          albumId: t.albumId,
+          artistId: t.artistId,
+          coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
+          duration: t.duration
+        }));
+      }
+      
+      const combined = [...albumTracks, ...mapped];
+      if (combined.length > 0) {
+        setQueueAndPlay(combined, 0);
+      } else {
+        alert("Не удалось найти треки для радио");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Ошибка запуска радио");
+    } finally {
+      setIsRadioLoading(false);
+      setIsProcessing(false);
+    }
+  };
+
   return {
     album,
     dominantColor,
     visibleCount,
     isLiked,
+    isAddedToQueue,
+    isRadioLoading,
     handlePlayAll,
     handlePlayNext,
     handleAddToEnd,
     handleLike,
     handleRate,
-    handlePlaySong
+    handlePlaySong,
+    handleAlbumRadio
   };
 }

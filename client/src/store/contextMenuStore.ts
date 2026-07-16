@@ -19,16 +19,7 @@ export const useContextMenuStore = create<ContextMenuState>((set) => ({
   item: null,
   type: 'track',
   openMenu: (x, y, item, type) => {
-    // Basic screen boundary protection
-    const maxX = window.innerWidth - 230; // approx menu width
-    const maxY = window.innerHeight - 380; // approx menu height
-    set({ 
-      isOpen: true, 
-      x: Math.min(x, maxX), 
-      y: Math.min(y, maxY), 
-      item, 
-      type 
-    });
+    set({ isOpen: true, x, y, item, type });
   },
   closeMenu: () => set({ isOpen: false, item: null }),
 }));

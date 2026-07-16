@@ -6,12 +6,16 @@ import { useUIStore } from '../../store/uiStore';
 import { getStreamUrl, starItem, unstarItem } from '../../api/subsonic';
 import Slider from '../common/Slider';
 import LiquidSeekBar from '../common/LiquidSeekBar';
-import { formatArtistName } from '../../utils/formatters';
+import ArtistLinks from '../common/ArtistLinks';
 import TrackImage from '../common/TrackImage';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useAutoDj } from '../../hooks/useAutoDj';
+import { useNavigate } from 'react-router-dom';
+import { useContextMenuStore } from '../../store/contextMenuStore';
 
 export default function BottomPlayer() {
+  const navigate = useNavigate();
+  const { openMenu } = useContextMenuStore();
   const { t } = useTranslation();
   const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized, initialPosition, setInitialPosition } = usePlayerStore();
   const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
@@ -86,12 +90,12 @@ export default function BottomPlayer() {
         </div>
         <div className="flex flex-col overflow-hidden leading-tight justify-center gap-0.5">
           <div className="flex items-center gap-1.5">
-            <span className="font-bold text-base text-foreground truncate hover:underline cursor-pointer">{currentTrack.title}</span>
-            <MoreVertical size={16} className="text-secondary/50 hover:text-foreground cursor-pointer flex-shrink-0" />
+            <span onClick={() => navigate(`/Holad/album/${currentTrack.albumId}`)} className="font-bold text-base text-foreground truncate hover:underline cursor-pointer">{currentTrack.title}</span>
+            <MoreVertical size={16} className="text-secondary/50 hover:text-foreground cursor-pointer flex-shrink-0" onClick={(e) => { e.stopPropagation(); openMenu(e.clientX, e.clientY, currentTrack, 'track'); }} />
           </div>
-          <span className="text-sm font-medium text-secondary truncate hover:underline cursor-pointer mt-0.5">{formatArtistName(currentTrack.artist)}</span>
+          <ArtistLinks artistString={currentTrack.artist} artistId={currentTrack.artistId} className="text-sm font-medium text-secondary truncate mt-0.5" />
           {currentTrack.album && (
-            <span className="text-sm text-secondary/70 truncate hover:underline cursor-pointer">{currentTrack.album}</span>
+            <span onClick={() => navigate(`/Holad/album/${currentTrack.albumId}`)} className="text-sm text-secondary/70 truncate hover:underline cursor-pointer">{currentTrack.album}</span>
           )}
         </div>
       </div>
@@ -254,7 +258,7 @@ export default function BottomPlayer() {
       
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         <p className="text-sm font-bold text-foreground truncate">{currentTrack.title}</p>
-        <p className="text-xs text-secondary truncate">{formatArtistName(currentTrack.artist)}</p>
+        <ArtistLinks artistString={currentTrack.artist} artistId={currentTrack.artistId} className="text-xs text-secondary truncate" />
       </div>
 
       <button 
@@ -287,7 +291,7 @@ export default function BottomPlayer() {
             <ChevronDown size={28} />
           </button>
           <span className="text-xs font-bold tracking-widest text-secondary uppercase">{t('player.now_playing')}</span>
-          <button className="text-white/80 p-2 -mr-2">
+          <button className="text-white/80 p-2 -mr-2" onClick={(e) => { e.stopPropagation(); openMenu(e.clientX, e.clientY, currentTrack, 'track'); }}>
             <MoreHorizontal size={24} />
           </button>
         </div>
@@ -298,8 +302,8 @@ export default function BottomPlayer() {
 
         <div className="flex justify-between items-end mb-6">
           <div className="flex-1 min-w-0 pr-4">
-            <h2 className="text-2xl font-bold text-white truncate mb-1">{currentTrack.title}</h2>
-            <p className="text-lg text-white/70 truncate">{formatArtistName(currentTrack.artist)}</p>
+            <h2 onClick={() => { setIsMobileExpanded(false); navigate(`/Holad/album/${currentTrack.albumId}`); }} className="text-2xl font-bold text-white truncate mb-1 cursor-pointer hover:underline">{currentTrack.title}</h2>
+            <ArtistLinks artistString={currentTrack.artist} artistId={currentTrack.artistId} className="text-lg text-white/70 truncate" onLinkClick={() => setIsMobileExpanded(false)} />
           </div>
           <button onClick={handleLike} className="hover:scale-110 transition-transform">
             <Heart size={28} className={likedTrackIds.includes(currentTrack.id) ? "text-primary" : "text-white/70"} fill={likedTrackIds.includes(currentTrack.id) ? "currentColor" : "none"} />

@@ -93,7 +93,7 @@ export default function ArtistView() {
         
         {/* Top Songs */}
         <div className="lg:col-span-2">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.top_tracks')}</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.popular_tracks')}</h2>
           {topSongs.length === 0 ? (
             <p className="text-secondary text-sm">{t('views.no_track_data')}</p>
           ) : (

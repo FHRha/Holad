@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Heart, Star, ChevronDown, MoreHorizontal, SkipForward, ListPlus } from 'lucide-react';
-import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
+import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating, getDownloadUrl } from '../../api/subsonic';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import type { Track } from '../../store/playerStore';
 import { extractDominantColor } from '../../utils/colorExtractor';
-import { formatArtistName } from '../../utils/formatters';
+import ArtistLinks from './ArtistLinks';
 
 const isLightColor = (color: string | null): boolean => {
   if (!color) return false;
@@ -56,6 +56,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
   const likedAlbumIds = usePlayerStore(state => state.likedAlbumIds);
   const toggleAlbumLike = usePlayerStore(state => state.toggleAlbumLike);
   const { openMenu } = useContextMenuStore();
+  const setIsProcessing = usePlayerStore(state => state.setIsProcessing);
   
   const [dominantColor, setDominantColor] = useState<string | null>(null);
   const touchTimer = useRef<number | null>(null);
@@ -138,20 +139,35 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
   const handlePlayNow = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const tracks = await getAlbum(album.id);
-    setQueueAndPlay(mapTracks(tracks), 0);
+    setIsProcessing(true);
+    try {
+      const tracks = await getAlbum(album.id);
+      setQueueAndPlay(mapTracks(tracks), 0);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handlePlayNext = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const tracks = await getAlbum(album.id);
-    playNext(mapTracks(tracks));
+    setIsProcessing(true);
+    try {
+      const tracks = await getAlbum(album.id);
+      playNext(mapTracks(tracks));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleAddToQueue = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const tracks = await getAlbum(album.id);
-    addToQueue(mapTracks(tracks));
+    setIsProcessing(true);
+    try {
+      const tracks = await getAlbum(album.id);
+      addToQueue(mapTracks(tracks));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -167,7 +183,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
       onTouchMove={handleTouchEnd}
     >
       <div className="text-center mb-4">
-        <h3 className={`font-bold text-lg truncate drop-shadow-md ${isLight ? 'text-black' : 'text-white'}`}>{album.name}</h3>
+        <h3 className={`font-bold text-lg truncate drop-shadow-md leading-normal ${isLight ? 'text-black' : 'text-white'}`}>{album.name}</h3>
       </div>
 
       <div className="relative aspect-square overflow-hidden rounded-lg shadow-2xl mb-5 mx-2 bg-black/20">
@@ -237,14 +253,14 @@ export default function HeroAlbumCard({ album }: { album: any }) {
           </div>
 
           <div className="flex justify-between items-end">
-            <ChevronDown size={24} className="text-white/70 hover:text-white cursor-pointer" />
-            <MoreHorizontal size={24} className="text-white/70 hover:text-white cursor-pointer" />
+            <ChevronDown size={24} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); window.open(getDownloadUrl(album.id), '_blank'); }} />
+            <MoreHorizontal size={24} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>
       </div>
 
       <div className="text-center mt-auto">
-        <p className={`text-sm font-semibold truncate drop-shadow-md ${isLight ? 'text-black' : 'text-white'}`}>{formatArtistName(album.artist)}</p>
+        <ArtistLinks artistString={album.artist} artistId={album.artistId} className={`text-sm font-semibold truncate drop-shadow-md ${isLight ? 'text-black' : 'text-white'}`} />
         <p className={`text-xs truncate mt-1 font-medium tracking-widest uppercase drop-shadow-md ${isLight ? 'text-black/70' : 'text-white/70'}`}>
           {album.genre || 'MP3'} &nbsp;&nbsp; {album.year || ''}
         </p>

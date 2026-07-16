@@ -8,6 +8,7 @@ export interface QueueSlice {
   currentIndex: number;
   isShuffle: boolean;
   isAutoDjEnabled: boolean;
+  isProcessing: boolean;
 
   setQueue: (tracks: Track[]) => void;
   setQueueAndPlay: (tracks: Track[], index: number) => void;
@@ -22,6 +23,7 @@ export interface QueueSlice {
   toggleAutoDj: () => void;
   toggleShuffle: () => void;
   reorderQueue: (oldIndex: number, newIndex: number) => void;
+  setIsProcessing: (val: boolean) => void;
 }
 
 export const createQueueSlice: StateCreator<
@@ -35,6 +37,7 @@ export const createQueueSlice: StateCreator<
   currentIndex: -1,
   isShuffle: false,
   isAutoDjEnabled: false,
+  isProcessing: false,
 
   setQueue: (tracks) => set({ queue: tracks, originalQueue: tracks, currentIndex: tracks.length > 0 ? 0 : -1, isShuffle: false }),
   setQueueAndPlay: (tracks, startIndex = 0) => set({ queue: tracks, originalQueue: tracks, currentIndex: startIndex, isPlaying: true, isShuffle: false }),
@@ -165,4 +168,5 @@ export const createQueueSlice: StateCreator<
 
     return { queue: newQueue, currentIndex: newCurrentIndex };
   }),
+  setIsProcessing: (val) => set({ isProcessing: val }),
 });

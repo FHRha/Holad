@@ -146,9 +146,9 @@ export default function ContextMenu() {
       ref={menuRef}
       className="fixed z-[9999] bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl overflow-hidden py-1 min-w-[220px] backdrop-blur-xl"
       style={{ 
-        top: y, 
-        left: x,
-        transform: y > window.innerHeight - 400 ? 'translateY(-100%)' : 'none'
+        top: Math.min(y, window.innerHeight - 50), 
+        left: Math.min(x, window.innerWidth - 230),
+        transform: y > window.innerHeight - 380 ? 'translateY(-100%)' : 'none'
       }}
       onContextMenu={(e) => e.preventDefault()} // prevent native menu on the custom menu
     >
