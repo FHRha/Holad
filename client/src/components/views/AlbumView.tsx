@@ -1,6 +1,6 @@
 import { useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import { Play, Pause, Heart, Star, MoreHorizontal, Clock, Radio, Music, ListPlus } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Play, Pause, Heart, Star, MoreHorizontal, Clock, Radio, Music, ListPlus, ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
@@ -12,6 +12,7 @@ import LongPressWrapper from '../common/LongPressWrapper';
 export default function AlbumView() {
   const { t } = useTranslation();
   const { id } = useParams();
+  const navigate = useNavigate();
   const observerTarget = useRef<HTMLDivElement>(null);
   
   const { queue, currentIndex, likedTrackIds, toggleTrackLike, isPlaying } = usePlayerStore();
@@ -58,22 +59,28 @@ export default function AlbumView() {
         style={{ background: `linear-gradient(to bottom, ${dominantColor}, transparent)` }}
       />
 
-      <div className="relative z-10 px-8 py-10 flex flex-col gap-10 min-h-full">
+      <div className="relative z-10 px-4 md:px-8 py-6 md:py-10 flex flex-col gap-6 md:gap-10 min-h-full pb-32 md:pb-10">
         {/* Header Section */}
         {(() => {
           const firstSong = album.song?.[0];
           const displayYear = album.year || firstSong?.year || '2023';
           
           return (
-            <div className="flex flex-col md:flex-row gap-8 items-end">
-              <img src={coverUrl} alt="Album Cover" className="w-48 h-48 md:w-64 md:h-64 rounded-xl shadow-2xl object-cover" />
+            <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-end text-center md:text-left relative">
+              <button 
+                onClick={() => navigate(-1)}
+                className="md:hidden absolute -top-2 left-0 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors z-20"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <img src={coverUrl} alt="Album Cover" className="w-48 h-48 md:w-64 md:h-64 rounded-xl shadow-2xl object-cover mx-auto md:mx-0" />
               
-              <div className="flex flex-col gap-2 flex-1 w-full">
+              <div className="flex flex-col gap-2 flex-1 w-full items-center md:items-start">
                 <span className="text-xs font-bold tracking-[0.2em] uppercase text-white/70">{t('views.album')}</span>
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight leading-tight pt-1 mb-2 line-clamp-2">{album.name}</h1>
                 
-                <div className="flex flex-wrap items-center gap-2 text-sm text-white/70 font-medium mb-1">
-                  <Music size={14} className="mr-1" />
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-xs md:text-sm text-white/70 font-medium mb-1">
+                  <Music size={14} className="mr-1 hidden md:block" />
                   <span>{displayYear}</span>
                   <span>•</span>
               <span>{album.songCount} {t('views.tracks')}</span>
@@ -83,42 +90,42 @@ export default function AlbumView() {
               <span>{album.playCount || 0} {t('views.plays')}</span>
             </div>
             
-            <div className="text-xl font-bold text-white mb-4 w-max"><ArtistLinks artistString={album.artist} artistId={album.artistId} /></div>
+            <div className="text-lg md:text-xl font-bold text-white mb-4 w-max"><ArtistLinks artistString={album.artist} artistId={album.artistId} /></div>
             
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-3">
-              <button onClick={handlePlayAll} className="bg-white text-black px-8 py-3 rounded-full font-bold text-sm flex items-center gap-2 hover:scale-105 transition-transform">
-                <Play fill="currentColor" size={18} /> {t('views.play')}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 w-full">
+              <button onClick={handlePlayAll} className="w-14 h-14 md:w-auto md:h-auto md:px-8 md:py-3 bg-primary md:bg-white text-black rounded-full font-bold text-sm flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-xl">
+                <Play fill="currentColor" size={24} className="md:size-18 ml-1 md:ml-0" /> <span className="hidden md:inline">{t('views.play')}</span>
               </button>
               
-              <button onClick={handlePlayNext} className="bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors flex items-center gap-2">
+              <button onClick={handlePlayNext} className="hidden md:flex bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors items-center gap-2">
                 <ListPlus size={18} /> {t('views.play_next')}
               </button>
               
-              <button onClick={handleAddToEnd} className="bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors">
+              <button onClick={handleAddToEnd} className="hidden md:block bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors">
                 {isAddedToQueue ? 'Отправлено' : t('views.add_to_queue')}
               </button>
               
-              <button onClick={handleAlbumRadio} disabled={isRadioLoading} className="bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors flex items-center gap-2">
+              <button onClick={handleAlbumRadio} disabled={isRadioLoading} className="hidden md:flex bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors items-center gap-2">
                 {isRadioLoading ? <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" /> : <Radio size={16} />}
                 {t('views.album_radio')}
               </button>
               
-              <div className="flex-1" />
+              <div className="hidden md:block flex-1" />
               
-              <div className="flex gap-1 text-yellow-400 mr-4">
+              <div className="flex gap-1 text-yellow-400">
                 {[1, 2, 3, 4, 5].map(v => (
                   <Star 
                     key={v} 
-                    size={20} 
+                    size={24} 
                     fill={v <= (album.userRating || 0) ? 'currentColor' : 'transparent'} 
-                    className={`cursor-pointer hover:scale-125 transition-transform ${v > (album.userRating || 0) ? 'text-white/30' : ''}`}
+                    className={`cursor-pointer md:w-5 md:h-5 hover:scale-125 transition-transform ${v > (album.userRating || 0) ? 'text-white/30' : ''}`}
                     onClick={() => handleRate(v)}
                   />
                 ))}
               </div>
               
-              <button onClick={handleLike} className="hover:scale-110 transition-transform">
+              <button onClick={handleLike} className="hover:scale-110 transition-transform ml-2">
                 <Heart size={28} className={isLiked ? "text-primary" : "text-white/70 hover:text-white"} fill={isLiked ? "currentColor" : "none"} />
               </button>
               
@@ -138,7 +145,7 @@ export default function AlbumView() {
         <div className="flex flex-col lg:flex-row gap-10 mt-6">
           {/* Tracks List */}
           <div className="flex-1 flex flex-col">
-            <div className="flex px-4 py-2 text-xs font-semibold tracking-widest text-secondary border-b border-white/10 uppercase mb-2">
+            <div className="hidden md:flex px-4 py-2 text-xs font-semibold tracking-widest text-secondary border-b border-white/10 uppercase mb-2">
               <div className="w-12 text-center">#</div>
               <div className="flex-1">Title</div>
               <div className="w-16 flex justify-center"><Heart size={14} /></div>
@@ -159,9 +166,9 @@ export default function AlbumView() {
                   onClick={() => {
                      handlePlaySong(index);
                   }}
-                  className={`flex items-center px-4 py-3 rounded-lg cursor-pointer group hover:bg-white/5 transition-colors ${currentPlaying ? 'bg-white/10' : ''}`}
+                  className={`flex items-center px-2 sm:px-4 py-2 sm:py-3 rounded-lg cursor-pointer group hover:bg-white/5 transition-colors ${currentPlaying ? 'bg-white/10' : ''}`}
                 >
-                  <div className="w-12 text-center text-sm font-medium text-secondary">
+                  <div className="w-8 sm:w-12 text-center text-xs sm:text-sm font-medium text-secondary">
                     {currentPlaying ? (
                       isPlaying ? <Pause size={14} className="text-primary mx-auto" fill="currentColor" /> : <Play size={14} className="text-primary mx-auto" fill="currentColor" />
                     ) : (
@@ -171,11 +178,11 @@ export default function AlbumView() {
                       </>
                     )}
                   </div>
-                  <div className="flex-1 flex flex-col min-w-0 pr-4">
-                    <span className={`text-sm font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-white'}`}>{track.title}</span>
+                  <div className="flex-1 flex flex-col min-w-0 pr-2 sm:pr-4">
+                    <span className={`text-sm sm:text-base font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-white'}`}>{track.title}</span>
                     <ArtistLinks artistString={track.artist || album.artist} artistId={track.artistId || album.artistId} className="text-xs text-secondary truncate" />
                   </div>
-                  <div className="w-16 flex justify-center">
+                  <div className="hidden md:flex w-16 justify-center">
                     <Heart 
                       size={16} 
                       className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-white/50 hover:text-white'}`}
@@ -188,7 +195,7 @@ export default function AlbumView() {
                       }}
                     />
                   </div>
-                  <div className="w-16 text-right text-sm text-secondary font-medium">
+                  <div className="w-12 sm:w-16 text-right text-xs sm:text-sm text-secondary font-medium">
                     {formatTime(track.duration)}
                   </div>
                 </LongPressWrapper>

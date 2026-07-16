@@ -39,7 +39,7 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-transparent px-4 pt-4 pb-20 md:p-8 relative scroll-smooth">
+    <div className="flex-1 overflow-y-auto bg-transparent px-4 pt-4 pb-32 md:p-8 relative scroll-smooth">
       <h1 className="text-2xl font-bold mb-8 text-foreground hidden md:block">{t('views.albums')}</h1>
       
       <div className={viewMode === 'grid' 
