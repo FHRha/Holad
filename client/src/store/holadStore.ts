@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { usePlayerStore } from './playerStore';
 import { useAudioStore } from './audioStore';
 import { useSettingsStore } from './settingsStore';
+import { useAuthStore } from './authStore';
 
 export interface HoladDevice {
   id: string;
@@ -77,7 +78,18 @@ export const useHoladStore = create<HoladState>((set, get) => {
       set({ socket, roomId });
 
       socket.on('connect', () => {
-        socket!.emit('holad_joinRoom', { roomId, deviceId, deviceName });
+        const { user, salt, token, url } = useAuthStore.getState();
+        socket!.emit('holad_joinRoom', { 
+          roomId, 
+          deviceId, 
+          deviceName,
+          auth: { user, salt, token, url } 
+        });
+      });
+
+      socket.on('holad_authError', (message: string) => {
+        console.error('[Holad] Auth Error:', message);
+        get().disconnect();
       });
 
       socket.on('holad_devices', (data: { devices: HoladDevice[], activeDeviceId: string | null }) => {

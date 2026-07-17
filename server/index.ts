@@ -418,8 +418,38 @@ io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
   // --- Holad Connect Events ---
-  socket.on('holad_joinRoom', (data: { roomId: string, deviceId: string, deviceName: string }) => {
-    const { roomId, deviceId, deviceName } = data;
+  socket.on('holad_joinRoom', async (data: { roomId: string, deviceId: string, deviceName: string, auth?: { user: string, salt: string, token: string, url: string } }) => {
+    const { roomId, deviceId, deviceName, auth } = data;
+    
+    if (!auth || !auth.user || !auth.salt || !auth.token || !auth.url) {
+      socket.emit('holad_authError', 'Missing authentication credentials');
+      socket.disconnect();
+      return;
+    }
+    
+    const isWhitelisted = navidromeAccounts.some(a => a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
+    if (!isWhitelisted) {
+      socket.emit('holad_authError', 'Unauthorized server URL');
+      socket.disconnect();
+      return;
+    }
+
+    try {
+      const pingUrl = `${auth.url.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(auth.user)}&t=${encodeURIComponent(auth.token)}&s=${encodeURIComponent(auth.salt)}&v=1.16.1&c=StreamNavi&f=json`;
+      const response = await fetch(pingUrl);
+      const json = await response.json();
+      
+      if (!response.ok || json['subsonic-response']?.status !== 'ok') {
+        socket.emit('holad_authError', 'Invalid Subsonic credentials');
+        socket.disconnect();
+        return;
+      }
+    } catch (error) {
+      socket.emit('holad_authError', 'Failed to reach Subsonic server for validation');
+      socket.disconnect();
+      return;
+    }
+
     socket.join(`holad_${roomId}`);
     
     let room = holadRooms.get(roomId);
