@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { 
   ChevronDown, Shuffle, SkipBack, 
   Play, Pause, SkipForward, Repeat, Repeat1, Moon, 
-  Music, RotateCcw, RotateCw, Users
+  Music, RotateCcw, RotateCw, Users, MessageSquareQuote
 } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
@@ -14,6 +14,7 @@ import LiquidSeekBar from '../common/LiquidSeekBar';
 import { useTranslation } from 'react-i18next';
 
 import MobileQueueTab from './MobileQueueTab';
+import MobileLyricsTab from './MobileLyricsTab';
 import JamSessionControl from '../jam/JamSessionControl';
 
 export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) {
@@ -28,7 +29,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
   
   const currentTrack = queue[currentIndex];
   
-  const [activeTab, setActiveTab] = useState<'player' | 'queue'>('player');
+  const [activeTab, setActiveTab] = useState<'player' | 'queue' | 'lyrics'>('player');
   const [progress, setProgress] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
   const [showSleepTimerMenu, setShowSleepTimerMenu] = useState(false);
@@ -151,6 +152,9 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
           {activeTab === 'queue' && (
             <MobileQueueTab />
           )}
+          {activeTab === 'lyrics' && (
+            <MobileLyricsTab currentTrack={currentTrack} isActive={activeTab === 'lyrics'} />
+          )}
         </div>
 
         {/* Info & Controls Section (Always visible) */}
@@ -255,6 +259,9 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             <line x1="12" y1="18" x2="21" y2="18"></line>
             <polygon points="3 5 9 8.5 3 12 3 5" fill="currentColor" stroke="none"></polygon>
           </svg>
+        </button>
+        <button onClick={() => setActiveTab('lyrics')} className={`p-3 rounded-full transition-colors ${activeTab === 'lyrics' ? 'text-primary bg-primary/10' : 'text-white/50 hover:text-white/80'}`}>
+          <MessageSquareQuote size={24} />
         </button>
       </div>
 
