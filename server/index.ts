@@ -355,6 +355,7 @@ app.get('/api/stream/:id', async (req, res) => {
       res.set('Content-Type', response.headers.get('content-type') || 'audio/mpeg');
       res.set('Content-Length', response.headers.get('content-length') || '');
       if (response.headers.get('accept-ranges')) res.set('Accept-Ranges', response.headers.get('accept-ranges') || '');
+      if (response.headers.get('content-range')) res.set('Content-Range', response.headers.get('content-range') || '');
       
       if (response.body) {
         const reader = response.body.getReader();
@@ -391,6 +392,7 @@ app.get('/api/stream/:id', async (req, res) => {
       res.set('Content-Type', response.headers.get('content-type') || 'audio/mpeg');
       res.set('Content-Length', response.headers.get('content-length') || '');
       if (response.headers.get('accept-ranges')) res.set('Accept-Ranges', response.headers.get('accept-ranges') || '');
+      if (response.headers.get('content-range')) res.set('Content-Range', response.headers.get('content-range') || '');
       
       if (response.body) {
         const reader = response.body.getReader();
