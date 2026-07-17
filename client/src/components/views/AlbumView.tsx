@@ -103,7 +103,7 @@ export default function AlbumView() {
               </button>
               
               <button onClick={handleAddToEnd} className="hidden md:block bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors">
-                {isAddedToQueue ? 'Отправлено' : t('views.add_to_queue')}
+                {isAddedToQueue ? t('views.sent', { defaultValue: 'Отправлено' }) : t('views.add_to_queue')}
               </button>
               
               <button onClick={handleAlbumRadio} disabled={isRadioLoading} className="hidden md:flex bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors items-center gap-2">
@@ -147,7 +147,7 @@ export default function AlbumView() {
           <div className="flex-1 flex flex-col">
             <div className="hidden md:flex px-4 py-2 text-xs font-semibold tracking-widest text-secondary border-b border-white/10 uppercase mb-2">
               <div className="w-12 text-center">#</div>
-              <div className="flex-1">Title</div>
+              <div className="flex-1">{t('views.title', { defaultValue: 'Title' })}</div>
               <div className="w-16 flex justify-center"><Heart size={14} /></div>
               <div className="w-16 text-right"><Clock size={14} className="inline-block" /></div>
             </div>
@@ -236,7 +236,7 @@ export default function AlbumView() {
             <div>
               <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">{t('views.label')}</h3>
               <div className="inline-block bg-white/5 border border-white/10 px-4 py-1.5 rounded text-sm font-semibold text-white">
-                Unknown Label
+                {t('views.unknown_label', { defaultValue: 'Unknown Label' })}
               </div>
             </div>
               </div>

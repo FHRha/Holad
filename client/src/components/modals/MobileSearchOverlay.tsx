@@ -79,8 +79,8 @@ export default function MobileSearchOverlay() {
         {!query && (
           <div className="h-full flex flex-col items-center justify-center opacity-70 px-8 text-center -mt-20">
             <Search size={56} className="mb-6 text-primary" />
-            <h3 className="text-xl font-bold mb-2 text-white">Найдите любимую музыку</h3>
-            <p className="text-sm text-secondary font-medium">Введите название трека, исполнителя или альбома для поиска.</p>
+            <h3 className="text-xl font-bold mb-2 text-white">{t('views.search_favorite_music', { defaultValue: 'Найдите любимую музыку' })}</h3>
+            <p className="text-sm text-secondary font-medium">{t('views.search_desc', { defaultValue: 'Введите название трека, исполнителя или альбома для поиска.' })}</p>
           </div>
         )}
         {loading && (

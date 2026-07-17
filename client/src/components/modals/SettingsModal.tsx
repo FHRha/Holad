@@ -6,6 +6,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import type { AppTheme, AccentColor, StartPage } from '../../store/settingsStore';
 import { usePlayerStore } from '../../store/playerStore';
 import Slider from '../common/Slider';
+import Dropdown from '../common/Dropdown';
 
 // Helper for HSL -> HEX conversion
 function hslToHex(h: number, s: number, l: number) {
@@ -186,27 +187,27 @@ export default function SettingsModal() {
             {activeTab === 'general' && (
               <div className="space-y-6">
                 <SettingSection title={t('settings.language') || 'Язык'}>
-                  <select 
-                    value={settings.language} 
-                    onChange={(e) => settings.setLanguage(e.target.value)}
-                    className="w-full bg-background border border-white/10 rounded-lg p-2 text-sm outline-none focus:border-primary"
-                  >
-                    <option value="ru">Русский</option>
-                    <option value="en">English</option>
-                  </select>
+                  <Dropdown
+                    value={settings.language}
+                    onChange={(val) => settings.setLanguage(val)}
+                    options={[
+                      { label: 'Русский', value: 'ru' },
+                      { label: 'English', value: 'en' }
+                    ]}
+                  />
                 </SettingSection>
 
-                <SettingSection title={t('settings.startPage') || 'Стартовая страница'}>
-                  <select 
-                    value={settings.startPage} 
-                    onChange={(e) => settings.setStartPage(e.target.value as StartPage)}
-                    className="w-full bg-background border border-white/10 rounded-lg p-2 text-sm outline-none focus:border-primary"
-                  >
-                    <option value="/Holad">Главная</option>
-                    <option value="/Holad/albums">Альбомы</option>
-                    <option value="/Holad/radio">Радио</option>
-                    <option value="/Holad/favorites">Избранное</option>
-                  </select>
+                <SettingSection title={t('settings.startPage', { defaultValue: 'Стартовая страница' })}>
+                  <Dropdown
+                    value={settings.startPage}
+                    onChange={(val) => settings.setStartPage(val as StartPage)}
+                    options={[
+                      { label: t('settings.start_home', { defaultValue: 'Главная' }), value: '/Holad' },
+                      { label: t('settings.start_albums', { defaultValue: 'Альбомы' }), value: '/Holad/albums' },
+                      { label: t('settings.start_radio', { defaultValue: 'Радио' }), value: '/Holad/radio' },
+                      { label: t('settings.start_favorites', { defaultValue: 'Избранное' }), value: '/Holad/favorites' }
+                    ]}
+                  />
                 </SettingSection>
               </div>
             )}
@@ -254,7 +255,7 @@ export default function SettingsModal() {
                                   : 'border-white/10 hover:border-white/30 hover:scale-110'
                             }`}
                             style={color ? { backgroundColor: color } : {}}
-                            title={isEmpty ? 'Добавить цвет' : isSelected ? 'Редактировать цвет' : 'Выбрать цвет'}
+                            title={isEmpty ? t('settings.add_color', { defaultValue: 'Добавить цвет' }) : isSelected ? t('settings.edit_color', { defaultValue: 'Редактировать цвет' }) : t('settings.custom_color_select', { defaultValue: 'Выбрать цвет' })}
                           >
                             {isEmpty && <span className="text-white/40 text-lg font-light">+</span>}
                             {isSelected && (
@@ -279,7 +280,7 @@ export default function SettingsModal() {
                 >
                   <X size={20} />
                 </button>
-                <h3 className="text-xl font-bold mb-2">Выбор своего цвета</h3>
+                <h3 className="text-xl font-bold mb-2">{t('settings.custom_color_select', { defaultValue: 'Выбор своего цвета' })}</h3>
                 
                 <div className="flex flex-col items-center justify-center flex-1 w-full max-w-md mx-auto space-y-4">
                   {/* Big Preview */}
@@ -293,7 +294,7 @@ export default function SettingsModal() {
                     {/* Hue Slider */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs text-secondary font-medium">
-                        <span>Оттенок</span>
+                        <span>{t('settings.hue', { defaultValue: 'Оттенок' })}</span>
                         <span>{hue}°</span>
                       </div>
                       <input 
@@ -307,7 +308,7 @@ export default function SettingsModal() {
                     {/* Saturation Slider */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs text-secondary font-medium">
-                        <span>Насыщенность</span>
+                        <span>{t('settings.saturation', { defaultValue: 'Насыщенность' })}</span>
                         <span>{sat}%</span>
                       </div>
                       <input 
@@ -321,7 +322,7 @@ export default function SettingsModal() {
                     {/* Lightness Slider */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs text-secondary font-medium">
-                        <span>Яркость</span>
+                        <span>{t('settings.lightness', { defaultValue: 'Яркость' })}</span>
                         <span>{light}%</span>
                       </div>
                       <input 
@@ -360,7 +361,7 @@ export default function SettingsModal() {
                     className="w-full py-2.5 bg-white text-black font-bold rounded-xl hover:bg-gray-200 flex items-center justify-center gap-2 transition-colors"
                   >
                     <Check size={20} />
-                    Сохранить и закрыть
+                    {t('settings.save_and_close', { defaultValue: 'Сохранить и закрыть' })}
                   </button>
                 </div>
               </div>
@@ -380,7 +381,7 @@ export default function SettingsModal() {
                         className="accent-primary w-4 h-4 cursor-pointer"
                       />
                       <span className="group-hover:text-primary transition-colors text-sm">
-                        Заменить очередь (Play Now)
+                        {t('settings.replace_queue', { defaultValue: 'Заменить очередь (Play Now)' })}
                       </span>
                     </label>
                     <label className="flex items-center gap-3 cursor-pointer group">
@@ -393,7 +394,7 @@ export default function SettingsModal() {
                         className="accent-primary w-4 h-4 cursor-pointer"
                       />
                       <span className="group-hover:text-primary transition-colors text-sm">
-                        Добавить в конец (Play Next)
+                        {t('settings.add_to_end', { defaultValue: 'Добавить в конец (Play Next)' })}
                       </span>
                     </label>
                   </div>
@@ -408,7 +409,7 @@ export default function SettingsModal() {
                       className="accent-primary w-4 h-4 rounded cursor-pointer"
                     />
                     <span className="group-hover:text-primary transition-colors text-sm">
-                      Автоматически добавлять похожие треки по окончании очереди
+                      {t('settings.auto_dj_desc', { defaultValue: 'Автоматически добавлять похожие треки по окончании очереди' })}
                     </span>
                   </label>
                 </SettingSection>

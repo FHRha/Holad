@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { usePlayerStore } from '../store/playerStore';
+import i18n from '../i18n';
 
 // Assuming Vite proxy handles /socket.io
 // In production, this would be the actual server URL if different
@@ -87,7 +88,7 @@ class JamSocketService {
     });
 
     this.socket.on('kicked', () => {
-      usePlayerStore.getState().setJamError('Вас исключили из сессии');
+      usePlayerStore.getState().setJamError(i18n.t('jam.kicked', { defaultValue: 'Вас исключили из сессии' }));
       usePlayerStore.getState().setRoomInfo(null, null);
       this.stopHostSync();
       if (window.location.pathname.startsWith('/jam') && window.location.pathname !== '/jam/') {

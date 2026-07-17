@@ -3,8 +3,10 @@ import { Monitor, Smartphone, Tv2 } from 'lucide-react';
 import { useAudioStore } from '../../store/audioStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
+import { useTranslation } from 'react-i18next';
 
 export default function AudioVisualizer() {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { audioElement } = useAudioStore();
   const isPlaying = usePlayerStore(s => s.isPlaying);
@@ -165,7 +167,7 @@ export default function AudioVisualizer() {
           {getDeviceIcon(activeDevice?.name || '', "w-16 h-16 text-primary")}
         </div>
         <p className="text-xl md:text-2xl font-medium text-foreground text-center">
-          Музыка играет на устройстве <span className="text-primary font-bold">{activeDevice?.name || 'Holad Connect'}</span>
+          {t('player.playing_on_device', { defaultValue: 'Музыка играет на устройстве ' })}<span className="text-primary font-bold">{activeDevice?.name || 'Holad Connect'}</span>
         </p>
       </div>
     );

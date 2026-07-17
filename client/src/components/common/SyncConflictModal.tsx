@@ -2,8 +2,10 @@ import { useUIStore } from '../../store/uiStore';
 import { useHistoryStore } from '../../store/historyStore';
 import { useHoladStore } from '../../store/holadStore';
 import { AlertTriangle, Server, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function SyncConflictModal() {
+  const { t } = useTranslation();
   const pendingHistorySync = useUIStore(s => s.pendingHistorySync);
   const setPendingHistorySync = useUIStore(s => s.setPendingHistorySync);
 
@@ -28,15 +30,15 @@ export default function SyncConflictModal() {
             <AlertTriangle size={32} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Синхронизация Истории</h2>
-            <p className="text-sm">Конфликт устройств</p>
+            <h2 className="text-xl font-bold text-white">{t('sync.title', { defaultValue: 'Синхронизация Истории' })}</h2>
+            <p className="text-sm">{t('sync.conflict', { defaultValue: 'Конфликт устройств' })}</p>
           </div>
         </div>
 
         <p className="text-secondary text-sm mb-6 leading-relaxed">
-          На твоём устройстве сейчас пустая история прослушиваний. Однако по сети <span className="text-primary font-medium">Holad Connect</span> найдена история с другого устройства ({pendingHistorySync.length} треков).
+          {t('sync.description_part1', { count: pendingHistorySync.length, defaultValue: 'На твоём устройстве сейчас пустая история прослушиваний. Однако по сети <span className="text-primary font-medium">Holad Connect</span> найдена история с другого устройства ({{count}} треков).' })}
           <br /><br />
-          Хочешь восстановить эту историю сюда, или ты специально очистил кэш и хочешь удалить историю отовсюду?
+          {t('sync.description_part2', { defaultValue: 'Хочешь восстановить эту историю сюда, или ты специально очистил кэш и хочешь удалить историю отовсюду?' })}
         </p>
 
         <div className="flex flex-col gap-3">
@@ -45,14 +47,14 @@ export default function SyncConflictModal() {
             className="flex items-center justify-center gap-2 w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-colors"
           >
             <Server size={18} />
-            Восстановить историю
+            {t('sync.restore', { defaultValue: 'Восстановить историю' })}
           </button>
           <button 
             onClick={handleWipe}
             className="flex items-center justify-center gap-2 w-full py-3 bg-white/5 text-red-400 font-bold rounded-xl hover:bg-white/10 transition-colors"
           >
             <Trash2 size={18} />
-            Удалить отовсюду
+            {t('sync.delete_everywhere', { defaultValue: 'Удалить отовсюду' })}
           </button>
         </div>
       </div>

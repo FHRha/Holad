@@ -3,6 +3,7 @@ import { getAlbumFull, getCoverArtUrl, starItem, unstarItem, setItemRating, getS
 import { usePlayerStore } from '../store/playerStore';
 import { extractDominantColor } from '../utils/colorExtractor';
 import { useSettingsStore } from '../store/settingsStore';
+import i18n from '../i18n';
 
 export function useAlbumData(id: string | undefined, observerTarget: React.RefObject<HTMLDivElement | null>) {
   const [album, setAlbum] = useState<any>(null);
@@ -141,11 +142,11 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
       if (combined.length > 0) {
         setQueueAndPlay(combined, 0);
       } else {
-        alert("Не удалось найти треки для радио");
+        alert(i18n.t('views.radio_no_tracks', { defaultValue: 'Не удалось найти треки для радио' }));
       }
     } catch (e) {
       console.error(e);
-      alert("Ошибка запуска радио");
+      alert(i18n.t('views.radio_error', { defaultValue: 'Ошибка запуска радио' }));
     } finally {
       setIsRadioLoading(false);
       setIsProcessing(false);

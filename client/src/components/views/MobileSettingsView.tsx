@@ -6,6 +6,8 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import Slider from '../common/Slider';
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from '../common/LanguageSelector';
 
 function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
   return (
@@ -82,6 +84,7 @@ function hslToHex(h: number, s: number, l: number) {
 }
 
 export default function MobileSettingsView() {
+  const { t } = useTranslation();
   const { setAuthenticated, setCredentials } = useAuthStore();
   const { setSearchOpen } = useUIStore();
   const settings = useSettingsStore();
@@ -129,26 +132,26 @@ export default function MobileSettingsView() {
   const sections = [
     {
       id: 'server',
-      title: 'Сервер и аккаунт',
-      subtitle: 'Данные сервера, сканирование библиотеки, учетные данные, выход из аккаунта',
+      title: t('views.settings_server_account', { defaultValue: 'Сервер и аккаунт' }),
+      subtitle: t('views.settings_server_desc', { defaultValue: 'Данные сервера, сканирование библиотеки, учетные данные, выход из аккаунта' }),
       icon: <Database className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-4 mt-4">
           <button onClick={handleLogout} className="w-full bg-red-500/10 text-red-500 font-bold py-3 rounded-xl border border-red-500/20">
-            Выйти из аккаунта
+            {t('views.logout', { defaultValue: 'Выйти из аккаунта' })}
           </button>
         </div>
       )
     },
     {
       id: 'appearance',
-      title: 'Внешний вид',
-      subtitle: 'Тема, цвет приложения, сортировка, представления коллекций (сеткой/списком)',
+      title: t('views.settings_appearance', { defaultValue: 'Внешний вид' }),
+      subtitle: t('views.settings_appearance_desc', { defaultValue: 'Тема, цвет приложения, сортировка, представления коллекций (сеткой/списком)' }),
       icon: <Palette className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-6 mt-4">
           <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">Тема</span>
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_theme', { defaultValue: 'Тема' })}</span>
             <div className="flex gap-2">
               <ThemeOption label="Dark" value="dark" current={settings.theme} onSelect={settings.setTheme} />
               <ThemeOption label="Light" value="light" current={settings.theme} onSelect={settings.setTheme} />
@@ -157,7 +160,7 @@ export default function MobileSettingsView() {
           </div>
           
           <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">Цвет акцента</span>
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_accent', { defaultValue: 'Цвет акцента' })}</span>
             <div className="flex gap-2 flex-wrap">
               <ColorOption color="green" hex="#1db954" current={settings.accentColor} onSelect={settings.setAccentColor} />
               <ColorOption color="blue" hex="#3b82f6" current={settings.accentColor} onSelect={settings.setAccentColor} />
@@ -206,7 +209,7 @@ export default function MobileSettingsView() {
             {editingColorIndex !== null && (
               <div className="bg-black/30 p-4 rounded-2xl border border-white/10 mt-2 space-y-4">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="font-bold text-sm">Настройка цвета</span>
+                  <span className="font-bold text-sm">{t('views.settings_color_setup', { defaultValue: 'Настройка цвета' })}</span>
                   <button onClick={() => setEditingColorIndex(null)}><Check size={18} className="text-primary" /></button>
                 </div>
                 <input 
@@ -232,13 +235,13 @@ export default function MobileSettingsView() {
     },
     {
       id: 'audio',
-      title: 'Звук и воспроизведение',
-      subtitle: 'Качество стриминга, качество загрузки, управление плеером',
+      title: t('views.settings_audio', { defaultValue: 'Звук и воспроизведение' }),
+      subtitle: t('views.settings_audio_desc', { defaultValue: 'Качество стриминга, качество загрузки, управление плеером' }),
       icon: <Music className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-6 mt-4">
           <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">Действие по клику</span>
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_click_action', { defaultValue: 'Действие по клику' })}</span>
             <div className="flex flex-col gap-3 bg-black/20 p-4 rounded-xl">
               <label className="flex items-center gap-3">
                 <input 
@@ -247,7 +250,7 @@ export default function MobileSettingsView() {
                   onChange={() => settings.setClickAction('play_now')}
                   className="accent-primary w-5 h-5"
                 />
-                <span className="text-[15px] font-medium text-white">Заменить очередь</span>
+                <span className="text-[15px] font-medium text-white">{t('views.settings_play_now', { defaultValue: 'Заменить очередь' })}</span>
               </label>
               <label className="flex items-center gap-3">
                 <input 
@@ -256,13 +259,13 @@ export default function MobileSettingsView() {
                   onChange={() => settings.setClickAction('play_next')}
                   className="accent-primary w-5 h-5"
                 />
-                <span className="text-[15px] font-medium text-white">Добавить в конец</span>
+                <span className="text-[15px] font-medium text-white">{t('views.settings_play_next', { defaultValue: 'Добавить в конец' })}</span>
               </label>
             </div>
           </div>
           
           <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">Громкость по умолчанию</span>
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_default_volume', { defaultValue: 'Громкость по умолчанию' })}</span>
             <div className="bg-black/20 p-4 rounded-xl">
               <Slider value={volume} onChange={setVolume} thickness="thick" />
             </div>
@@ -270,8 +273,8 @@ export default function MobileSettingsView() {
           
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
             <div className="flex flex-col">
-              <span className="text-[15px] font-medium text-white">Авто DJ</span>
-              <span className="text-[13px] text-[#b3b3b3]">Добавлять похожие треки</span>
+              <span className="text-[15px] font-medium text-white">{t('views.settings_autodj', { defaultValue: 'Авто DJ' })}</span>
+              <span className="text-[13px] text-[#b3b3b3]">{t('views.settings_autodj_desc', { defaultValue: 'Добавлять похожие треки' })}</span>
             </div>
             <input 
               type="checkbox" 
@@ -285,40 +288,45 @@ export default function MobileSettingsView() {
     },
     {
       id: 'network',
-      title: 'Сетевое подключение',
-      subtitle: 'Офлайн-режим, доверенные SSL-сертификаты',
+      title: t('views.settings_network', { defaultValue: 'Сетевое подключение' }),
+      subtitle: t('views.settings_network_desc', { defaultValue: 'Офлайн-режим, доверенные SSL-сертификаты' }),
       icon: <Globe className="text-primary" size={24} />,
       content: (
-        <div className="text-[#b3b3b3] text-sm mt-4 italic">В разработке...</div>
+        <div className="text-[#b3b3b3] text-sm mt-4 italic">{t('views.settings_wip', { defaultValue: 'В разработке...' })}</div>
       )
     },
     {
       id: 'storage',
-      title: 'Хранилище',
-      subtitle: 'Управление кешами, загрузки, лимиты хранения',
+      title: t('views.settings_storage', { defaultValue: 'Хранилище' }),
+      subtitle: t('views.settings_storage_desc', { defaultValue: 'Управление кешами, загрузки, лимиты хранения' }),
       icon: <HardDrive className="text-primary" size={24} />,
       content: (
-        <div className="text-[#b3b3b3] text-sm mt-4 italic">В разработке...</div>
+        <div className="text-[#b3b3b3] text-sm mt-4 italic">{t('views.settings_wip', { defaultValue: 'В разработке...' })}</div>
       )
     }
   ];
 
   return (
     <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32 w-full">
-      <div className="px-4 pt-4 pb-2 sticky top-0 bg-black/40 backdrop-blur-xl z-10 w-full">
-        <div 
-          className="flex items-center bg-[#282828] rounded-xl px-3 py-2.5 mb-4 w-full border border-white/5 cursor-text"
-          onClick={() => setSearchOpen(true)}
-        >
-          <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
-          <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
-            Поиск...
+      <div className="px-4 pt-4 pb-2 sticky top-0 bg-black/40 backdrop-blur-xl z-[60] w-full">
+        <div className="flex items-center gap-3 mb-4 w-full relative z-[70]">
+          <div 
+            className="flex items-center flex-1 bg-[#282828] rounded-xl px-3 py-2.5 border border-white/5 cursor-text"
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
+            <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
+              {t('views.search_placeholder', { defaultValue: 'Поиск...' })}
+            </div>
+          </div>
+          <div className="flex-shrink-0">
+            <LanguageSelector align="right" />
           </div>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-2">
           <FilterChip 
             icon={<CloudOff size={16} />} 
-            label="Офлайн" 
+            label={t('views.filter_offline', { defaultValue: 'Офлайн' })} 
           />
         </div>
       </div>

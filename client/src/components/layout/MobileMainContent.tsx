@@ -7,6 +7,7 @@ import { useUIStore } from '../../store/uiStore';
 import type { Track } from '../../store/playerStore';
 import { useHistoryStore, getFilteredHistory, calculateStats } from '../../store/historyStore';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 function ScrollableSection({ title, children, onRefresh }: { title: string, children: React.ReactNode, onRefresh?: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -76,6 +77,7 @@ interface MobileMainContentProps {
 }
 
 export default function MobileMainContent({ albums, recentTracks, frequentAlbums, genres }: MobileMainContentProps) {
+  const { t } = useTranslation();
   const { setSearchOpen } = useUIStore();
   const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
@@ -163,25 +165,25 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
         >
           <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
           <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
-            Поиск...
+            {t('views.search_tracks', { defaultValue: 'Поиск...' })}
           </div>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-2">
           <FilterChip 
             icon={<CloudOff size={16} />} 
-            label="Офлайн" 
+            label={t('common.offline', { defaultValue: 'Офлайн' })} 
             isActive={activeFilter === 'Offline'} 
             onClick={() => toggleFilter('Offline')} 
           />
           <FilterChip 
             icon={<Download size={16} />} 
-            label="Загружено" 
+            label={t('common.downloaded', { defaultValue: 'Загружено' })} 
             isActive={activeFilter === 'Downloaded'} 
             onClick={() => toggleFilter('Downloaded')} 
           />
           <FilterChip 
             icon={<Heart size={16} />} 
-            label="Избранное" 
+            label={t('sidebar.favorites', { defaultValue: 'Избранное' })} 
             isActive={activeFilter === 'Favorites'} 
             onClick={() => toggleFilter('Favorites')} 
           />
@@ -193,26 +195,26 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
         {/* Listening History */}
         <section onClick={() => navigate('/Holad/history')} className="cursor-pointer group">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white tracking-tight group-hover:text-primary transition-colors">История прослушивания</h2>
+            <h2 className="text-2xl font-bold text-white tracking-tight group-hover:text-primary transition-colors">{t('views.listening_history', { defaultValue: 'История прослушивания' })}</h2>
             <ChevronRight size={24} className="text-[#b3b3b3] group-hover:text-white transition-colors" />
           </div>
           <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-            <StatCard icon={<Music size={18} className="text-primary" />} value={stats.totalPlays.toString()} label="треки" />
-            <StatCard icon={<Clock size={18} className="text-primary" />} value={Math.floor(stats.totalListeningSeconds / 3600) + 'h'} label="время" />
-            <StatCard icon={<Users size={18} className="text-primary" />} value={stats.uniqueArtists.toString()} label="исполн." />
-            <StatCard icon={<Flame size={18} className="text-primary" />} value={stats.streak + 'd'} label="серия" />
+            <StatCard icon={<Music size={18} className="text-primary" />} value={stats.totalPlays.toString()} label={t('views.tracks_count_label', { defaultValue: 'треки' })} />
+            <StatCard icon={<Clock size={18} className="text-primary" />} value={Math.floor(stats.totalListeningSeconds / 3600) + t('views.time_h', { defaultValue: 'ч' })} label={t('views.time_label', { defaultValue: 'время' })} />
+            <StatCard icon={<Users size={18} className="text-primary" />} value={stats.uniqueArtists.toString()} label={t('views.artists_short', { defaultValue: 'исполн.' })} />
+            <StatCard icon={<Flame size={18} className="text-primary" />} value={stats.streak + t('views.days_short', { defaultValue: 'дн.' })} label={t('views.streak_label', { defaultValue: 'серия' })} />
           </div>
         </section>
 
         {/* On the wave */}
-        <ScrollableSection title="На волне">
+        <ScrollableSection title={t('views.on_the_wave', { defaultValue: 'На волне' })}>
             <button 
               onClick={startRandomRadio}
               disabled={loadingStation === 'random'}
               className="flex-shrink-0 flex items-center bg-primary/10 text-primary border border-primary/20 rounded-full pl-4 pr-3 py-2 font-bold text-[15px] transition-colors hover:bg-primary/20 disabled:opacity-50"
             >
               {loadingStation === 'random' ? <Loader2 size={18} className="animate-spin mr-2" /> : <Shuffle size={18} className="mr-2" />}
-              Перемешать
+              {t('common.shuffle', { defaultValue: 'Перемешать' })}
               <div className="w-0 h-0 border-t-4 border-t-transparent border-l-6 border-l-primary border-b-4 border-b-transparent ml-2"></div>
             </button>
             {genres.map((g, idx) => (
@@ -230,7 +232,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
         </ScrollableSection>
 
         {/* Recently Played */}
-        <ScrollableSection title="Недавно играло" onRefresh={() => setRefreshRecentKey(k => k + 1)}>
+        <ScrollableSection title={t('views.recently_played', { defaultValue: 'Недавно играло' })} onRefresh={() => setRefreshRecentKey(k => k + 1)}>
             {actualRecent.map(track => (
               <div 
                 key={track.id} 
@@ -260,7 +262,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
         </ScrollableSection>
 
         {/* Frequently Listened */}
-        <ScrollableSection title="Часто слушаете" onRefresh={() => setRefreshFrequentKey(k => k + 1)}>
+        <ScrollableSection title={t('views.frequently_played', { defaultValue: 'Часто слушаете' })} onRefresh={() => setRefreshFrequentKey(k => k + 1)}>
             {actualFrequent.map(album => (
               <div 
                 key={album.id} 

@@ -183,19 +183,19 @@ export default function FavoritesView() {
           >
             <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
             <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
-              Поиск...
+              {t('views.search_placeholder', { defaultValue: 'Поиск...' })}
             </div>
           </div>
           <div className="flex items-center justify-between mb-4 relative">
             <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar flex-1 pr-14">
               <FilterChip 
                 icon={<CloudOff size={16} />} 
-                label="Офлайн" 
+                label={t('views.filter_offline', { defaultValue: 'Офлайн' })} 
                 isActive={false} 
               />
               <FilterChip 
                 icon={<Download size={16} />} 
-                label="Загружено" 
+                label={t('views.filter_downloaded', { defaultValue: 'Загружено' })} 
                 isActive={false} 
               />
             </div>
@@ -208,9 +208,9 @@ export default function FavoritesView() {
           </div>
 
           <div className="flex bg-[#282828] rounded-xl overflow-hidden w-full p-1 mb-2">
-             <button onClick={() => setMobileTab('tracks')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'tracks' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>Песни</button>
-             <button onClick={() => setMobileTab('albums')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'albums' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>Альбомы</button>
-             <button onClick={() => setMobileTab('artists')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'artists' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>Исполнители</button>
+             <button onClick={() => setMobileTab('tracks')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'tracks' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>{t('views.tab_tracks', { defaultValue: 'Песни' })}</button>
+             <button onClick={() => setMobileTab('albums')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'albums' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>{t('views.tab_albums', { defaultValue: 'Альбомы' })}</button>
+             <button onClick={() => setMobileTab('artists')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'artists' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>{t('views.tab_artists', { defaultValue: 'Исполнители' })}</button>
           </div>
         </div>
         
@@ -219,9 +219,9 @@ export default function FavoritesView() {
             searchedTracks.length === 0 ? (
               <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
                 <Heart size={64} className="mb-6 text-primary" strokeWidth={1.5} />
-                <h2 className="text-2xl font-bold text-white mb-4">Нет избранных песен</h2>
+                <h2 className="text-2xl font-bold text-white mb-4">{t('views.no_favorite_tracks', { defaultValue: 'Нет избранных песен' })}</h2>
                 <p className="text-[#b3b3b3] text-[15px] leading-relaxed max-w-[280px]">
-                  Отметьте ваши любимые песни, и они появятся здесь или проверьте фильтры
+                  {t('views.no_favorite_tracks_desc', { defaultValue: 'Отметьте ваши любимые песни, и они появятся здесь или проверьте фильтры' })}
                 </p>
               </div>
             ) : (
@@ -263,9 +263,9 @@ export default function FavoritesView() {
             searchedAlbums.length === 0 ? (
               <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
                 <Heart size={64} className="mb-6 text-primary" strokeWidth={1.5} />
-                <h2 className="text-2xl font-bold text-white mb-4">Нет избранных альбомов</h2>
+                <h2 className="text-2xl font-bold text-white mb-4">{t('views.no_favorite_albums', { defaultValue: 'Нет избранных альбомов' })}</h2>
                 <p className="text-[#b3b3b3] text-[15px] leading-relaxed max-w-[280px]">
-                  Отметьте ваши любимые альбомы, и они появятся здесь или проверьте фильтры
+                  {t('views.no_favorite_albums_desc', { defaultValue: 'Отметьте ваши любимые альбомы, и они появятся здесь или проверьте фильтры' })}
                 </p>
               </div>
             ) : (
@@ -318,9 +318,9 @@ export default function FavoritesView() {
           {mobileTab === 'artists' && (
             <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
               <Heart size={64} className="mb-6 text-primary" strokeWidth={1.5} />
-              <h2 className="text-2xl font-bold text-white mb-4">Нет избранных исполнителей</h2>
+              <h2 className="text-2xl font-bold text-white mb-4">{t('views.no_favorite_artists', { defaultValue: 'Нет избранных исполнителей' })}</h2>
               <p className="text-[#b3b3b3] text-[15px] leading-relaxed max-w-[280px]">
-                Отметьте ваших любимых исполнителей, и они появятся здесь или проверьте фильтры
+                {t('views.no_favorite_artists_desc', { defaultValue: 'Отметьте ваших любимых исполнителей, и они появятся здесь или проверьте фильтры' })}
               </p>
             </div>
           )}

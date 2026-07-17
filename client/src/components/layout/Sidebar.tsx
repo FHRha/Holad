@@ -135,7 +135,7 @@ export default function Sidebar() {
                   className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
                 >
                   <Clock size={18} />
-                  <span>История прослушивания</span>
+                  <span>{t('views.listening_history', { defaultValue: 'История прослушивания' })}</span>
                 </button>
               </div>
 

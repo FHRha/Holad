@@ -126,7 +126,7 @@ export default function BottomPlayer() {
                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
                 {getDeviceIcon(activeDeviceObj.name, 12, "flex-shrink-0 text-primary z-10")}
                 <span className="truncate max-w-[120px] md:max-w-[200px] z-10 drop-shadow-sm">
-                  Играет на <span className="font-bold text-white">{activeDeviceObj.name}</span>
+                  {t('player.playing_on', { defaultValue: 'Играет на' })} <span className="font-bold text-white">{activeDeviceObj.name}</span>
                 </span>
                 <div className="relative flex items-center justify-center w-2.5 h-2.5 ml-1 z-10 flex-shrink-0">
                   {isPlaying && <div className="absolute inset-0 bg-primary/80 rounded-full animate-ping"></div>}

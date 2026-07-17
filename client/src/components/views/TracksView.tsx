@@ -165,7 +165,7 @@ export default function TracksView() {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
             <input 
               type="text" 
-              placeholder="Поиск альбома..." 
+              placeholder={t('views.search_albums', { defaultValue: 'Поиск альбома...' })} 
               value={albumSearch}
               onChange={e => setAlbumSearch(e.target.value)}
               className="w-full bg-black border border-white/10 rounded-md py-1.5 pl-9 pr-3 text-xs text-white focus:outline-none focus:border-white/30 transition-colors"
@@ -203,11 +203,11 @@ export default function TracksView() {
           {/* Table Header */}
           <div className="hidden md:flex items-center px-6 py-3 border-b border-white/5 text-[11px] font-bold tracking-widest text-secondary uppercase bg-[#181818]">
             <div className="w-10 text-center">#</div>
-            <div className="flex-1 min-w-[200px]">Title</div>
+            <div className="flex-1 min-w-[200px]">{t('views.title', { defaultValue: 'Title' })}</div>
             <div className="w-16 flex justify-center"><Clock size={14} /></div>
-            <div className="flex-1 min-w-[150px]">Album</div>
-            <div className="w-32 hidden md:block">Genre</div>
-            <div className="w-16 text-right hidden lg:block">Year</div>
+            <div className="flex-1 min-w-[150px]">{t('views.album', { defaultValue: 'Album' })}</div>
+            <div className="w-32 hidden md:block">{t('views.genre', { defaultValue: 'Genre' })}</div>
+            <div className="w-16 text-right hidden lg:block">{t('views.year', { defaultValue: 'Year' })}</div>
             <div className="w-16 flex justify-center ml-4"><Heart size={14} /></div>
           </div>
 

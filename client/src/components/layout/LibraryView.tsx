@@ -36,14 +36,14 @@ export default function LibraryView() {
         >
           <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
           <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
-            Поиск...
+            {t('views.search_tracks', { defaultValue: 'Поиск...' })}
           </div>
         </div>
         <div className="flex items-center justify-between mb-4 relative">
           <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar flex-1 pr-14" style={{ maskImage: 'linear-gradient(to right, black 85%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)' }}>
-            <FilterChip icon={<CloudOff size={16} />} label="Офлайн" isActive={activeFilter === 'Offline'} onClick={() => toggleFilter('Offline')} />
-            <FilterChip icon={<Download size={16} />} label="Загружено" isActive={activeFilter === 'Downloaded'} onClick={() => toggleFilter('Downloaded')} />
-            <FilterChip icon={<Heart size={16} />} label="Избранное" isActive={activeFilter === 'Favorites'} onClick={() => toggleFilter('Favorites')} />
+            <FilterChip icon={<CloudOff size={16} />} label={t('common.offline', { defaultValue: 'Офлайн' })} isActive={activeFilter === 'Offline'} onClick={() => toggleFilter('Offline')} />
+            <FilterChip icon={<Download size={16} />} label={t('common.downloaded', { defaultValue: 'Загружено' })} isActive={activeFilter === 'Downloaded'} onClick={() => toggleFilter('Downloaded')} />
+            <FilterChip icon={<Heart size={16} />} label={t('sidebar.favorites', { defaultValue: 'Избранное' })} isActive={activeFilter === 'Favorites'} onClick={() => toggleFilter('Favorites')} />
           </div>
 
           <button 
@@ -56,10 +56,10 @@ export default function LibraryView() {
         
         {/* Mobile Tabs */}
         <div className="flex bg-[#282828] rounded-2xl p-1 gap-1 overflow-x-auto hide-scrollbar">
-          <MobileNavTab to="/Holad/library/tracks" label="Песни" />
-          <MobileNavTab to="/Holad/library/albums" label="Альбомы" />
-          <MobileNavTab to="/Holad/library/artists" label="Исполните..." />
-          <MobileNavTab to="/Holad/library/playlists" label="Плейлисты" />
+          <MobileNavTab to="/Holad/library/tracks" label={t('sidebar.tracks')} />
+          <MobileNavTab to="/Holad/library/albums" label={t('sidebar.albums')} />
+          <MobileNavTab to="/Holad/library/artists" label={t('views.artists_short_tab', { defaultValue: 'Исполните...' })} />
+          <MobileNavTab to="/Holad/library/playlists" label={t('common.playlists', { defaultValue: 'Плейлисты' })} />
         </div>
       </div>
 
