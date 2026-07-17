@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Star, Maximize2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Star, Maximize2, Monitor, Smartphone, Tv2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
@@ -15,7 +15,6 @@ import { useNavigate } from 'react-router-dom';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import HoladConnectMenu from './HoladConnectMenu';
 import { useHoladStore } from '../../store/holadStore';
-import { Tv2 } from 'lucide-react';
 
 export default function BottomPlayer() {
   const navigate = useNavigate();
@@ -94,6 +93,13 @@ export default function BottomPlayer() {
 
   if (!currentTrack) return null;
 
+  const getDeviceIcon = (name: string, size = 10, className = "") => {
+    const n = name.toLowerCase();
+    if (n.includes('mobile') || n.includes('iphone') || n.includes('android')) return <Smartphone size={size} className={className} />;
+    if (n.includes('tv')) return <Tv2 size={size} className={className} />;
+    return <Monitor size={size} className={className} />;
+  };
+
   const DesktopPlayer = (
     <div className="hidden md:flex h-28 bg-background border-t border-white/5 items-center px-4 justify-between z-20 relative">
       <div className="flex items-center gap-4 w-[30%] min-w-[200px]">
@@ -114,9 +120,19 @@ export default function BottomPlayer() {
             <span onClick={() => navigate(`/Holad/album/${currentTrack.albumId}`)} className="text-sm text-secondary/70 truncate hover:underline cursor-pointer">{currentTrack.album}</span>
           )}
           {!isActiveDevice && activeDeviceObj && (
-            <div className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full flex items-center gap-1.5 border border-primary/20 w-fit mt-1 whitespace-nowrap">
-              <Tv2 size={10} className="flex-shrink-0" /> 
-              <span className="truncate">Играет на {activeDeviceObj.name}</span>
+            <div className="relative shrink-0 mt-1">
+              <div className={`absolute -inset-0.5 bg-gradient-to-r from-primary/70 to-primary/20 rounded-full blur-[6px] opacity-60 transition duration-1000 ${isPlaying ? 'animate-pulse' : 'opacity-20'}`}></div>
+              <div className="text-[11px] font-medium text-white/90 bg-[#121212]/60 backdrop-blur-[20px] backdrop-saturate-[150%] px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/10 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.3)] w-fit cursor-default overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
+                {getDeviceIcon(activeDeviceObj.name, 12, "flex-shrink-0 text-primary z-10")}
+                <span className="truncate max-w-[120px] md:max-w-[200px] z-10 drop-shadow-sm">
+                  Играет на <span className="font-bold text-white">{activeDeviceObj.name}</span>
+                </span>
+                <div className="relative flex items-center justify-center w-2.5 h-2.5 ml-1 z-10 flex-shrink-0">
+                  {isPlaying && <div className="absolute inset-0 bg-primary/80 rounded-full animate-ping"></div>}
+                  <div className={`w-1.5 h-1.5 rounded-full ${isPlaying ? 'bg-primary shadow-[0_0_8px_rgba(var(--primary),0.8)]' : 'bg-primary/40'}`}></div>
+                </div>
+              </div>
             </div>
           )}
         </div>

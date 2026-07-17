@@ -1,11 +1,24 @@
 import { useEffect, useRef } from 'react';
+import { Monitor, Smartphone, Tv2 } from 'lucide-react';
 import { useAudioStore } from '../../store/audioStore';
+import { usePlayerStore } from '../../store/playerStore';
+import { useHoladStore } from '../../store/holadStore';
 
 export default function AudioVisualizer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { audioElement } = useAudioStore();
+  const isPlaying = usePlayerStore(s => s.isPlaying);
+  
+  const activeDeviceId = useHoladStore(s => s.activeDeviceId);
+  const localDeviceId = useHoladStore(s => s.deviceId);
+  const devices = useHoladStore(s => s.devices);
+  
+  const isRemotePlaying = audioElement && audioElement.paused && isPlaying && activeDeviceId !== localDeviceId && activeDeviceId !== null;
+  const activeDevice = devices.find(d => d.id === activeDeviceId);
+
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number>(0);
+  const prevDataRef = useRef<number[]>([]);
 
   useEffect(() => {
     if (!audioElement) return;
@@ -64,8 +77,6 @@ export default function AudioVisualizer() {
       const width = canvas.width;
       const height = canvas.height;
       
-      analyser.getByteFrequencyData(dataArray);
-      
       canvasCtx.clearRect(0, 0, width, height);
       
       // We will draw the spectrum in the top half, and a reflection in the bottom half.
@@ -83,9 +94,11 @@ export default function AudioVisualizer() {
       
       let x = (width - (totalBars * (barWidth + barGap))) / 2; // Center horizontally
       
+      analyser.getByteFrequencyData(dataArray);
+      
       for (let i = 0; i < totalBars; i++) {
-        // Linearly map the bar index (0 to totalBars) to the frequency bin index (0 to usefulBuffer)
-        // You can also use exponential mapping for better bass representation
+        let value = 0;
+        
         const dataIndex = Math.floor(Math.pow(i / totalBars, 1.2) * usefulBuffer);
         const nextDataIndex = Math.floor(Math.pow((i + 1) / totalBars, 1.2) * usefulBuffer);
         
@@ -96,7 +109,8 @@ export default function AudioVisualizer() {
            count++;
         }
         
-        const value = count > 0 ? sum / count : dataArray[dataIndex];
+        value = count > 0 ? sum / count : dataArray[dataIndex];
+        
         const normalized = value / 255; // 0 to 1
         
         // Calculate number of segments based on intensity
@@ -136,6 +150,26 @@ export default function AudioVisualizer() {
       }
     };
   }, [audioElement]);
+
+  if (isRemotePlaying) {
+    const getDeviceIcon = (name: string, className: string) => {
+      const n = name.toLowerCase();
+      if (n.includes('mobile') || n.includes('iphone') || n.includes('android')) return <Smartphone className={className} />;
+      if (n.includes('tv')) return <Tv2 className={className} />;
+      return <Monitor className={className} />;
+    };
+
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center p-4 gap-6 animate-in fade-in duration-500">
+        <div className="p-5 rounded-full bg-primary/10 animate-pulse">
+          {getDeviceIcon(activeDevice?.name || '', "w-16 h-16 text-primary")}
+        </div>
+        <p className="text-xl md:text-2xl font-medium text-foreground text-center">
+          Музыка играет на устройстве <span className="text-primary font-bold">{activeDevice?.name || 'Holad Connect'}</span>
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex items-center justify-center p-4">
