@@ -94,10 +94,10 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
         </div>
 
         {/* Right: Queue Table */}
-        <div className="w-[600px] bg-black/40 rounded-xl border border-white/5 flex flex-col backdrop-blur-md overflow-hidden">
-          <div className="relative flex items-center justify-center gap-6 px-6 py-4 border-b border-white/5 text-xs font-semibold tracking-wider text-secondary uppercase">
+        <div className="w-[600px] bg-black/40 rounded-xl border border-white/5 flex flex-col backdrop-blur-md">
+          <div className="relative flex items-center justify-center gap-6 px-6 py-4 border-b border-white/5 text-xs font-semibold tracking-wider text-secondary uppercase z-50">
             <div className="absolute left-6">
-              <LanguageSelector />
+              <LanguageSelector align="left" />
             </div>
             <span className="text-foreground border-b-2 border-foreground pb-1">{t('player.now_playing')}</span>
             <span className="hover:text-foreground cursor-pointer">{t('player.similar')}</span>

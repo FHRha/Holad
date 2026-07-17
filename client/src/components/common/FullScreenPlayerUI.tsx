@@ -145,7 +145,7 @@ export default function FullScreenPlayerUI({
           {/* Pill-shaped Tabs */}
           <div className="relative flex items-center justify-center gap-2 px-6 py-6 border-b border-white/10 text-sm font-bold tracking-wider text-white/60">
             <div className="absolute left-6">
-              <LanguageSelector />
+              <LanguageSelector align="left" />
             </div>
             <button 
               onClick={() => setActiveTab('queue')}

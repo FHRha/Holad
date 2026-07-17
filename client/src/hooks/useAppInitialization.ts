@@ -28,7 +28,11 @@ export function useAppInitialization() {
     if (isAuthenticated) {
       const user = useAuthStore.getState().user;
       if (user && typeof user === 'string') {
-         useHoladStore.getState().connect(user);
+         if (!isJamRoute) {
+            useHoladStore.getState().connect(user);
+         } else {
+            useHoladStore.getState().disconnect();
+         }
       }
     }
     

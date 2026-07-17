@@ -147,7 +147,7 @@ class JamSocketService {
 
     this.syncInterval = setInterval(() => {
       const state = usePlayerStore.getState();
-      if (state.roomId && state.queue.length > 0 && state.currentIndex >= 0 && (state.role === 'host' || state.role === 'cohost')) {
+      if (state.roomId && state.queue.length > 0 && state.currentIndex >= 0 && state.currentIndex < state.queue.length && (state.role === 'host' || state.role === 'cohost')) {
         const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
         if (audioEl) {
           this.socket?.emit('syncState', {
@@ -176,10 +176,14 @@ class JamSocketService {
         if (newState.isPlaying !== prevState.isPlaying || queueChanged || indexChanged) {
           const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
           if (audioEl) {
+            const currentTrackId = newState.queue[newState.currentIndex]?.id;
+            const prevTrackId = prevState.queue[prevState.currentIndex]?.id;
+            const trackChanged = currentTrackId !== prevTrackId;
+            
             this.socket?.emit('syncState', {
               roomId: newState.roomId,
-              trackId: newState.queue[newState.currentIndex]?.id,
-              currentTime: (queueChanged || indexChanged) ? 0 : audioEl.currentTime,
+              trackId: currentTrackId,
+              currentTime: trackChanged ? 0 : audioEl.currentTime,
               isPlaying: newState.isPlaying,
               currentIndex: newState.currentIndex,
               isAutoDjEnabled: newState.isAutoDjEnabled,
@@ -218,16 +222,20 @@ class JamSocketService {
       return false;
     };
 
+    const currentTrackId = store.queue && store.queue[store.currentIndex]?.id;
+    const newQueue = queue || store.queue;
+    const newIndex = currentIndex !== undefined ? currentIndex : store.currentIndex;
+    const newTrackId = newQueue && newQueue[newIndex]?.id;
+    const actualTrackChanged = currentTrackId !== newTrackId;
+
     // Apply queue if present (initial join or real change)
     if (isQueueDifferent()) {
       usePlayerStore.setState({ queue, currentIndex: currentIndex !== undefined ? currentIndex : 0 });
-      trackChanged = true;
     } else if (currentIndex !== undefined && currentIndex !== store.currentIndex) {
       usePlayerStore.setState({ currentIndex });
-      trackChanged = true;
     }
 
-    if (trackChanged && currentTime > 0) {
+    if (actualTrackChanged && currentTime > 0) {
       usePlayerStore.getState().setInitialPosition(currentTime * 1000);
     }
 

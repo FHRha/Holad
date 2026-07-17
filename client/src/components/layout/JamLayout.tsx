@@ -232,10 +232,9 @@ export default function JamLayout() {
       return (
         <div className="flex-1 overflow-hidden relative h-full flex flex-row bg-background pb-[56px] md:pb-0">
           <div className="hidden md:flex w-24 bg-background flex-col items-center py-4 border-r border-white/5 relative z-10 space-y-6">
-            <button className="text-secondary hover:text-foreground flex flex-col items-center gap-1 transition-colors">
-              <Menu size={24} />
-              <span className="text-[10px] font-bold uppercase tracking-wider mt-1">{t('common.menu')}</span>
-            </button>
+            <div className="text-foreground flex flex-col items-center justify-center gap-2 px-2 w-full mb-2">
+              <img src="/icons/favicon_tab.png" alt="Holad" className="w-14 h-14 rounded-lg shadow-lg object-cover flex-shrink-0 cursor-default" />
+            </div>
             <div className="flex-1 w-full flex flex-col gap-6 pt-4">
               <Link to={`/jam/albums?room=${roomToJoin}`} className="w-full flex flex-col items-center gap-1 transition-colors group text-secondary hover:text-foreground">
                 <div className="relative flex justify-center w-full">
