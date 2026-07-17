@@ -53,7 +53,11 @@ echo "Installing production dependencies..."
 sudo pnpm install --prod || npm install --production
 
 echo "Configuring environment..."
-echo "PORT=$HOLAD_PORT" | sudo tee .env > /dev/null
+if [ ! -f .env ]; then
+    echo "PORT=$HOLAD_PORT" | sudo tee .env > /dev/null
+else
+    echo ".env already exists, preserving it."
+fi
 
 # 2. Setup Systemd Service
 if [[ "$ENABLE_SYSTEMD" == "Y" || "$ENABLE_SYSTEMD" == "y" ]]; then

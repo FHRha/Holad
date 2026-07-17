@@ -90,7 +90,7 @@ while true; do
             
             # Download new release
             echo "Downloading latest release..."
-            curl -sSL https://github.com/FHRha/Holad/releases/latest/download/holad-linux-release.tar.gz -o /tmp/holad-update.tar.gz
+            curl -# -L https://github.com/FHRha/Holad/releases/latest/download/holad-linux-release.tar.gz -o /tmp/holad-update.tar.gz
             
             if [ -f "/tmp/holad-update.tar.gz" ]; then
                 echo "Extracting release..."
