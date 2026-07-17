@@ -66,53 +66,7 @@ EOL
     echo "Systemd service started and enabled."
 fi
 
-# 3. Generate Nginx Configuration
-echo "Generating Nginx configuration..."
-NGINX_CONF="/etc/nginx/sites-available/holad.conf"
-sudo bash -c "cat > $NGINX_CONF" <<EOL
-server {
-    listen 80;
-    server_name $HOLAD_DOMAIN;
 
-    # Backend API / Sockets
-    location /api/ {
-        proxy_pass http://localhost:$HOLAD_PORT/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-    }
-    
-    # Sockets specifically
-    location /socket.io/ {
-        proxy_pass http://localhost:$HOLAD_PORT/socket.io/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host \$host;
-    }
-
-    # Frontend pages
-    location /Holad {
-        alias $INSTALL_DIR/client/dist;
-        try_files \$uri \$uri/ /index.html;
-    }
-
-    location /jam {
-        alias $INSTALL_DIR/client/dist;
-        try_files \$uri \$uri/ /index.html;
-    }
-
-    location / {
-        root $INSTALL_DIR/client/dist;
-        try_files \$uri \$uri/ /index.html;
-    }
-}
-EOL
-
-echo "Nginx configuration generated at $NGINX_CONF."
-echo "To enable it, run: sudo ln -s $NGINX_CONF /etc/nginx/sites-enabled/ && sudo systemctl reload nginx"
 
 # 4. Setup CLI
 echo "Setting up Holad CLI..."
