@@ -37,7 +37,7 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
       if (isDeviceActive) {
         state.audioElement.currentTime = val * currentTrack.duration;
       } else {
-        useHoladStore.getState().sendRemoteCommand('seek', val * currentTrack.duration);
+        useHoladStore.getState().sendRemoteCommand('seek', val * currentTrack.duration * 1000);
       }
     }
   }
