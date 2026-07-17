@@ -74,7 +74,7 @@ function saveAccountsToEnv() {
     
     const accountsStr = Buffer.from(JSON.stringify(navidromeAccounts)).toString('base64');
     
-    if (envContent.includes('NAVIDROME_ACCOUNTS=')) {
+    if (/^NAVIDROME_ACCOUNTS=/m.test(envContent)) {
       envContent = envContent.replace(/^NAVIDROME_ACCOUNTS=.*/gm, `NAVIDROME_ACCOUNTS='${accountsStr}'`);
     } else {
       envContent += `\nNAVIDROME_ACCOUNTS='${accountsStr}'\n`;
@@ -370,7 +370,12 @@ const holadRooms = new Map<string, HoladRoom>();
 const broadcastParticipants = (roomId: string) => {
   const room = rooms.get(roomId);
   if (room) {
-    io.to(roomId).emit('participants', room.participants);
+    const safeParticipants = room.participants.map(p => ({
+      id: p.id,
+      name: p.name,
+      role: p.role
+    }));
+    io.to(roomId).emit('participantsUpdated', safeParticipants);
   }
 };
 
