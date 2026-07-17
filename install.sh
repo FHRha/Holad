@@ -8,9 +8,24 @@ echo "==================================="
 
 
 # 1. Ask for configuration
-read -p "Enter the internal port for the Node.js backend [3000]: " HOLAD_PORT < /dev/tty
+if [ -z "$HOLAD_PORT" ]; then
+    if [ -c /dev/tty ]; then
+        printf "Enter the internal port for the Node.js backend [3000]: " >/dev/tty
+        read -r HOLAD_PORT </dev/tty
+    else
+        echo "Non-interactive environment detected. Using default port 3000."
+    fi
+fi
 HOLAD_PORT=${HOLAD_PORT:-3000}
-read -p "Do you want to enable systemd autostart? (Y/n): " ENABLE_SYSTEMD < /dev/tty
+
+if [ -z "$ENABLE_SYSTEMD" ]; then
+    if [ -c /dev/tty ]; then
+        printf "Do you want to enable systemd autostart? (Y/n): " >/dev/tty
+        read -r ENABLE_SYSTEMD </dev/tty
+    else
+        echo "Non-interactive environment detected. Enabling systemd by default."
+    fi
+fi
 ENABLE_SYSTEMD=${ENABLE_SYSTEMD:-Y}
 
 INSTALL_DIR="/opt/holad"
