@@ -25,7 +25,7 @@ const io = new Server(httpServer, {
 });
 
 app.use(cors());
-app.use(express.json({ limit: '100mb' }));
+app.use(express.json({ limit: '1mb' }));
 
 const PORT = process.env.PORT || 4000;
 
@@ -123,6 +123,7 @@ const ALLOWED_GUEST_ENDPOINTS = new Set([
 function isValidHttpUrl(string: string) {
   try {
     const url = new URL(string);
+    if (url.hash || url.search) return false;
     return url.protocol === 'http:' || url.protocol === 'https:';
   } catch (_) {
     return false;
@@ -209,26 +210,63 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
 
 // Proxy generic subsonic API requests for guests
 const holadHistoryCache = new Map<string, any[]>();
+const historyTimers = new Map<string, NodeJS.Timeout>();
 
-app.post('/api/holad/history/:roomId', (req, res) => {
-  const roomId = req.params.roomId;
+const validateRestAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const roomId = req.params.roomId as string;
+  const user = req.headers['x-user'] as string;
+  const token = req.headers['x-token'] as string;
+  const salt = req.headers['x-salt'] as string;
+  const url = req.headers['x-url'] as string;
+
+  if (!user || !token || !salt || !url || user !== roomId) {
+    return res.status(401).send('Unauthorized or Room mismatch');
+  }
+
+  const isWhitelisted = navidromeAccounts.some(a => a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
+  if (!isWhitelisted) {
+    return res.status(403).send('Forbidden: Unauthorized server URL');
+  }
+
+  try {
+    const pingUrl = `${url.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(user)}&t=${encodeURIComponent(token)}&s=${encodeURIComponent(salt)}&v=1.16.1&c=StreamNavi&f=json`;
+    const response = await fetch(pingUrl);
+    const json = await response.json();
+    
+    if (!response.ok || json['subsonic-response']?.status !== 'ok') {
+      return res.status(401).send('Invalid Subsonic credentials');
+    }
+  } catch (error) {
+    return res.status(502).send('Bad Gateway: Failed to reach Subsonic server');
+  }
+
+  next();
+};
+
+app.post('/api/holad/history/:roomId', express.json({ limit: '10mb' }), validateRestAuth, (req, res) => {
+  const roomId = req.params.roomId as string;
   const history = req.body;
+  
   if (!Array.isArray(history)) {
     return res.status(400).send('Expected JSON array');
   }
+  
   holadHistoryCache.set(roomId, history);
   io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'historyAvailable' });
   
-  // Cleanup after 2 minutes
-  setTimeout(() => {
+  if (historyTimers.has(roomId)) {
+    clearTimeout(historyTimers.get(roomId)!);
+  }
+  historyTimers.set(roomId, setTimeout(() => {
     holadHistoryCache.delete(roomId);
-  }, 2 * 60 * 1000);
+    historyTimers.delete(roomId);
+  }, 2 * 60 * 1000));
   
   res.status(200).send('OK');
 });
 
-app.get('/api/holad/history/:roomId', (req, res) => {
-  const roomId = req.params.roomId;
+app.get('/api/holad/history/:roomId', validateRestAuth, (req, res) => {
+  const roomId = req.params.roomId as string;
   const history = holadHistoryCache.get(roomId);
   if (history) {
     res.json(history);
@@ -421,8 +459,14 @@ io.on('connection', (socket) => {
   socket.on('holad_joinRoom', async (data: { roomId: string, deviceId: string, deviceName: string, auth?: { user: string, salt: string, token: string, url: string } }) => {
     const { roomId, deviceId, deviceName, auth } = data;
     
-    if (!auth || !auth.user || !auth.salt || !auth.token || !auth.url) {
-      socket.emit('holad_authError', 'Missing authentication credentials');
+    if (!auth || typeof auth.user !== 'string' || typeof auth.salt !== 'string' || typeof auth.token !== 'string' || typeof auth.url !== 'string') {
+      socket.emit('holad_authError', 'Missing or invalid authentication credentials');
+      socket.disconnect();
+      return;
+    }
+
+    if (auth.user !== roomId) {
+      socket.emit('holad_authError', 'Room mismatch: You can only join your own room');
       socket.disconnect();
       return;
     }

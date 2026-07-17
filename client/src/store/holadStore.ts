@@ -193,10 +193,15 @@ export const useHoladStore = create<HoladState>((set, get) => {
                const history = useHistoryStore.getState().history;
                console.log('[Holad] Emitting history via REST API with tracks:', history.length);
                if (history.length > 0) {
+                 const { user, token, salt, url } = useAuthStore.getState();
                  fetch(`/api/holad/history/${get().roomId}`, {
                    method: 'POST',
                    headers: {
-                     'Content-Type': 'application/json'
+                     'Content-Type': 'application/json',
+                     'x-user': user,
+                     'x-token': token,
+                     'x-salt': salt,
+                     'x-url': url
                    },
                    body: JSON.stringify(history)
                  }).catch(err => console.error('[Holad] Failed to upload history:', err));
@@ -208,7 +213,15 @@ export const useHoladStore = create<HoladState>((set, get) => {
         
         if (command.type === 'historyAvailable') {
            console.log('[Holad] Received historyAvailable, fetching from API...');
-           fetch(`/api/holad/history/${get().roomId}`)
+           const { user, token, salt, url } = useAuthStore.getState();
+           fetch(`/api/holad/history/${get().roomId}`, {
+             headers: {
+               'x-user': user,
+               'x-token': token,
+               'x-salt': salt,
+               'x-url': url
+             }
+           })
              .then(res => res.json())
              .then(historyData => {
                console.log('[Holad] Downloaded history with tracks:', historyData.length);
