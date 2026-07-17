@@ -21,11 +21,11 @@ const io = new Server(httpServer, {
     origin: '*', // For development. In production, restrict this.
     methods: ['GET', 'POST']
   },
-  maxHttpBufferSize: 1e8 // 100 MB just in case
+  maxHttpBufferSize: 1e6 // 1 MB limit to prevent OOM DoS
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '100mb' }));
 
 const PORT = process.env.PORT || 4000;
 
@@ -208,6 +208,35 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
 }
 
 // Proxy generic subsonic API requests for guests
+const holadHistoryCache = new Map<string, any[]>();
+
+app.post('/api/holad/history/:roomId', (req, res) => {
+  const roomId = req.params.roomId;
+  const history = req.body;
+  if (!Array.isArray(history)) {
+    return res.status(400).send('Expected JSON array');
+  }
+  holadHistoryCache.set(roomId, history);
+  io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'historyAvailable' });
+  
+  // Cleanup after 2 minutes
+  setTimeout(() => {
+    holadHistoryCache.delete(roomId);
+  }, 2 * 60 * 1000);
+  
+  res.status(200).send('OK');
+});
+
+app.get('/api/holad/history/:roomId', (req, res) => {
+  const roomId = req.params.roomId;
+  const history = holadHistoryCache.get(roomId);
+  if (history) {
+    res.json(history);
+  } else {
+    res.status(404).send('Not found or expired');
+  }
+});
+
 app.get('/api/subsonic/:endpoint', async (req, res) => {
   const { endpoint } = req.params;
   

@@ -38,7 +38,7 @@ export default function SyncConflictModal() {
         </div>
 
         <p className="text-secondary text-sm mb-6 leading-relaxed">
-          {t('sync.description_part1', { count: pendingHistorySync.length, defaultValue: 'На твоём устройстве сейчас пустая история прослушиваний. Однако по сети <span className="text-primary font-medium">Holad Connect</span> найдена история с другого устройства ({{count}} треков).' })}
+          <span dangerouslySetInnerHTML={{ __html: t('sync.description_part1', { count: pendingHistorySync.length, defaultValue: 'На твоём устройстве сейчас пустая история прослушиваний. Однако по сети <span className="text-primary font-medium">Holad Connect</span> найдена история с другого устройства ({{count}} треков).' }) }} />
           <br /><br />
           {t('sync.description_part2', { defaultValue: 'Хочешь восстановить эту историю сюда, или ты специально очистил кэш и хочешь удалить историю отовсюду?' })}
         </p>
