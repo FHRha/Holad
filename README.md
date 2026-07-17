@@ -90,6 +90,17 @@ curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash
         expires 30d;
     }
 ```
+*(Примечание: `include snippets/proxy-params.conf;` подключает стандартные заголовки для проксирования. В Ubuntu/Debian вы можете использовать встроенный `include proxy_params;`. Если вы используете свой файл `snippets/proxy-params.conf`, убедитесь, что в нём прописано следующее:)*
+```nginx
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_http_version 1.1;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+```
+
 После внесения изменений выполните `sudo nginx -s reload`.
 
 ### Решение проблем со входом (NAT Loopback)
