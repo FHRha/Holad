@@ -194,7 +194,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
                console.log('[Holad] Emitting history via REST API with tracks:', history.length);
                if (history.length > 0) {
                  const { user, token, salt, url } = useAuthStore.getState();
-                 fetch(`/api/holad/history/${get().roomId}`, {
+                 fetch(`${import.meta.env.BASE_URL}api/holad/history/${get().roomId}`, {
                    method: 'POST',
                    headers: {
                      'Content-Type': 'application/json',
@@ -214,7 +214,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
         if (command.type === 'historyAvailable') {
            console.log('[Holad] Received historyAvailable, fetching from API...');
            const { user, token, salt, url } = useAuthStore.getState();
-           fetch(`/api/holad/history/${get().roomId}`, {
+           fetch(`${import.meta.env.BASE_URL}api/holad/history/${get().roomId}`, {
              headers: {
                'x-user': user,
                'x-token': token,

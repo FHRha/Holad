@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/authStore';
 export const getBaseUrl = () => {
   const { isAuthenticated, url } = useAuthStore.getState();
   if (!isAuthenticated) {
-    const proxyUrl = import.meta.env.VITE_SERVER_URL || '';
+    const proxyUrl = import.meta.env.VITE_SERVER_URL || import.meta.env.BASE_URL.replace(/\/$/, '');
     return `${proxyUrl}/api/subsonic`;
   }
   return url.endsWith('/') ? url.slice(0, -1) : url;
