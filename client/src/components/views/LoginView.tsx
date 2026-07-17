@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { pingServer } from '../../api/subsonic';
+// pingServer removed as it's no longer needed
 import { Server, User, Lock, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import md5 from 'md5';
@@ -31,10 +31,20 @@ export default function LoginView() {
       setLoading(true);
       const salt = Math.random().toString(36).substring(2, 15);
       const token = md5(password + salt);
-      // Temporarily set credentials in store to test ping
-      setCredentials(url, username, token, salt);
+
+      const proxyUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000';
+      const response = await fetch(`${proxyUrl}/api/save-credentials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, username, token, salt })
+      });
       
-      await pingServer();
+      if (!response.ok) {
+        throw new Error('Invalid credentials');
+      }
+
+      // If valid, save locally to Zustand store
+      setCredentials(url, username, token, salt);
       
       setAuthenticated(true);
       navigate('/Holad', { replace: true });

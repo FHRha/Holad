@@ -211,7 +211,7 @@ class JamSocketService {
     const store = usePlayerStore.getState();
     const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
 
-    let trackChanged = false;
+    // trackChanged removed
     
     const isQueueDifferent = () => {
       if (!queue || queue.length === 0) return false;

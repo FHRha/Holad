@@ -17,7 +17,7 @@ import ArtistView from '../views/ArtistView';
 import ContextMenu from '../common/ContextMenu';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import RightSidebar from './RightSidebar';
-import { Menu, Disc, Music, Users, LogOut, Search } from 'lucide-react';
+import { Disc, Music, Users, LogOut, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 
