@@ -5,15 +5,12 @@ echo "==================================="
 echo "       Holad Installer             "
 echo "==================================="
 
-# Fix stdin for piped execution (curl | bash)
-if [ ! -t 0 ]; then
-    exec < /dev/tty
-fi
+
 
 # 1. Ask for configuration
-read -p "Enter the internal port for the Node.js backend [3000]: " HOLAD_PORT
+read -p "Enter the internal port for the Node.js backend [3000]: " HOLAD_PORT < /dev/tty
 HOLAD_PORT=${HOLAD_PORT:-3000}
-read -p "Do you want to enable systemd autostart? (Y/n): " ENABLE_SYSTEMD
+read -p "Do you want to enable systemd autostart? (Y/n): " ENABLE_SYSTEMD < /dev/tty
 ENABLE_SYSTEMD=${ENABLE_SYSTEMD:-Y}
 
 INSTALL_DIR="/opt/holad"
