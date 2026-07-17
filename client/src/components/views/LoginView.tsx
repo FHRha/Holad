@@ -32,7 +32,7 @@ export default function LoginView() {
       const salt = Math.random().toString(36).substring(2, 15);
       const token = md5(password + salt);
 
-      const proxyUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000';
+      const proxyUrl = import.meta.env.VITE_SERVER_URL || '';
       const response = await fetch(`${proxyUrl}/api/save-credentials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

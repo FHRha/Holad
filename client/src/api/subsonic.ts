@@ -13,7 +13,7 @@ export const getDownloadUrl = (id: string) => {
 
 export const getStreamUrl = (id: string) => {
   const { isAuthenticated, url } = useAuthStore.getState();
-  const proxyUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000';
+  const proxyUrl = import.meta.env.VITE_SERVER_URL || '';
   if (!isAuthenticated) {
     return `${proxyUrl}/api/stream/${id}`;
   }
