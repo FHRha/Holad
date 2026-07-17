@@ -16,22 +16,14 @@ INSTALL_DIR="/opt/holad"
 
 echo "Installing to $INSTALL_DIR..."
 sudo mkdir -p $INSTALL_DIR
-# In a real scenario, this script would download the tar.gz from GitHub releases:
-# curl -sSL https://github.com/FHRha/Holad/releases/latest/download/holad-linux-release.tar.gz -o /tmp/holad.tar.gz
-# sudo tar -xzf /tmp/holad.tar.gz -C /opt
-# For now, assuming the archive is extracted into /opt/holad-release and we rename it:
-# sudo mv /opt/holad-release/* $INSTALL_DIR/
+echo "Downloading latest release..."
+curl -sSL https://github.com/FHRha/Holad/releases/latest/download/holad-linux-release.tar.gz -o /tmp/holad.tar.gz
 
-# Let's mock the process since the user will use this from the repo
 echo "Extracting release..."
-# (Assuming archive is already downloaded as holad.tar.gz in current dir for local testing)
-if [ -f "holad-linux-release.tar.gz" ]; then
-    sudo tar -xzf holad-linux-release.tar.gz -C /tmp/
-    sudo cp -r /tmp/holad-release/* $INSTALL_DIR/
-    sudo rm -rf /tmp/holad-release
-else
-    echo "Warning: holad-linux-release.tar.gz not found in current directory. Please ensure it's downloaded."
-fi
+sudo tar -xzf /tmp/holad.tar.gz -C /tmp/
+sudo cp -r /tmp/holad-release/* $INSTALL_DIR/
+sudo rm -rf /tmp/holad-release
+sudo rm /tmp/holad.tar.gz
 
 # Fetch and save current version from GitHub
 LATEST_VERSION=$(curl -sSL https://api.github.com/repos/FHRha/Holad/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
