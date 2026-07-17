@@ -5,6 +5,7 @@ import type { AppTheme, AccentColor } from '../../store/settingsStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
+import { clearAppCache } from '../../utils/storage';
 import Slider from '../common/Slider';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../common/LanguageSelector';
@@ -125,7 +126,7 @@ export default function MobileSettingsView() {
   const handleLogout = () => {
     setAuthenticated(false);
     setCredentials('', '', '', '');
-    localStorage.clear();
+    clearAppCache();
     window.location.href = '/';
   };
 

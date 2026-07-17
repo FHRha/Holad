@@ -3,6 +3,7 @@ import { useHistoryStore } from '../../store/historyStore';
 import { useHoladStore } from '../../store/holadStore';
 import { AlertTriangle, Server, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { clearAppCache } from '../../utils/storage';
 
 export default function SyncConflictModal() {
   const { t } = useTranslation();
@@ -19,6 +20,7 @@ export default function SyncConflictModal() {
   const handleWipe = () => {
     useHistoryStore.getState().clearHistory();
     useHoladStore.getState().sendRemoteCommand('clearHistory', {});
+    clearAppCache();
     setPendingHistorySync(null);
   };
 

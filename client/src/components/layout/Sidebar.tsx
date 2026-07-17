@@ -4,6 +4,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
+import { clearAppCache } from '../../utils/storage';
 
 
 export default function Sidebar() {
@@ -74,7 +75,7 @@ export default function Sidebar() {
   const handleLogout = () => {
     setAuthenticated(false);
     setCredentials('', '', '', '');
-    localStorage.clear();
+    clearAppCache();
     window.location.href = '/';
   };
 
