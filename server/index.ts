@@ -41,7 +41,12 @@ let navidromeAccounts: NavidromeAccount[] = [];
 
 try {
   if (process.env.NAVIDROME_ACCOUNTS) {
-    navidromeAccounts = JSON.parse(process.env.NAVIDROME_ACCOUNTS);
+    const raw = process.env.NAVIDROME_ACCOUNTS;
+    if (raw.trim().startsWith('[') || raw.trim().startsWith('{')) {
+      navidromeAccounts = JSON.parse(raw);
+    } else {
+      navidromeAccounts = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+    }
   }
 } catch (e) {
   console.error('Failed to parse NAVIDROME_ACCOUNTS');
@@ -67,7 +72,7 @@ function saveAccountsToEnv() {
       envContent = fs.readFileSync(targetPath, 'utf8');
     }
     
-    const accountsStr = JSON.stringify(navidromeAccounts);
+    const accountsStr = Buffer.from(JSON.stringify(navidromeAccounts)).toString('base64');
     
     if (envContent.includes('NAVIDROME_ACCOUNTS=')) {
       envContent = envContent.replace(/NAVIDROME_ACCOUNTS=.*/g, `NAVIDROME_ACCOUNTS='${accountsStr}'`);
@@ -128,6 +133,10 @@ app.post('/api/save-credentials', async (req, res) => {
   const { url, username, token, salt } = req.body;
   if (!url || !username || !token || !salt) return res.status(400).send('Missing fields');
   if (!isValidHttpUrl(url)) return res.status(400).send('Invalid URL');
+  
+  if (navidromeAccounts.length > 0 && navidromeAccounts[0]!.url !== url) {
+    return res.status(403).send('Proxy server is already bound to a different Navidrome URL.');
+  }
   
   const authParams = `u=${encodeURIComponent(username)}&t=${token}&s=${salt}&v=1.16.1&c=StreamNavi&f=json`;
   
@@ -250,7 +259,7 @@ app.get('/api/stream/:id', async (req, res) => {
       let targetServer = navidromeAccounts[0]?.url || '';
       if (serverUrl) {
         const decodedUrl = decodeURIComponent(serverUrl as string);
-        if (isValidHttpUrl(decodedUrl)) {
+        if (isValidHttpUrl(decodedUrl) && !decodedUrl.includes('#') && !decodedUrl.includes('?') && !decodedUrl.includes('169.254.169.254')) {
           targetServer = decodedUrl;
         } else {
           return res.status(400).send('Invalid Server URL');
