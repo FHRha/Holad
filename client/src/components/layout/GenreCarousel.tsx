@@ -107,7 +107,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
           const isThisLoading = loadingStation === genre.value;
 
           return (
-            <div key={genre.value} className="snap-start flex-shrink-0 h-[160px]" style={{ width: 'calc(20% - 13px)', minWidth: '160px' }}>
+            <div key={genre.value} className="snap-start flex-shrink-0 h-[160px] transition-all" style={{ width: 'calc(20% - 13px)', minWidth: '160px', maxWidth: '240px' }}>
               <div 
                 onClick={isThisLoading ? undefined : () => startGenreRadio(genre.value)}
                 className={`w-full h-full relative overflow-hidden rounded-xl cursor-pointer group transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${colorClass}`}

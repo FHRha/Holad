@@ -63,7 +63,11 @@ export default function AlbumCarousel({ title, albums, variant = 'standard' }: A
         style={{ scrollSnapType: 'x mandatory' }}
       >
         {albums.map((album) => (
-          <div key={album.id} className="snap-start flex-shrink-0 h-full" style={{ width: variant === 'hero' ? 'calc(25% - 12px)' : 'calc(20% - 13px)' }}>
+          <div key={album.id} className="snap-start flex-shrink-0 h-full transition-all" style={{ 
+            width: variant === 'hero' ? 'calc(25% - 12px)' : 'calc(20% - 13px)', 
+            minWidth: variant === 'hero' ? '220px' : '150px',
+            maxWidth: variant === 'hero' ? '320px' : '220px'
+          }}>
             {variant === 'hero' ? <HeroAlbumCard album={album} /> : <AlbumCard album={album} />}
           </div>
         ))}

@@ -102,7 +102,7 @@ export default function BottomPlayer() {
 
   const DesktopPlayer = (
     <div className="hidden md:flex h-28 bg-background border-t border-white/5 items-center px-4 justify-between z-20 relative">
-      <div className="flex items-center gap-4 w-[30%] min-w-[200px]">
+      <div className="flex items-center gap-4 flex-1 min-w-0 max-w-[30%] md:min-w-[180px] lg:min-w-[250px]">
         <div className="w-[92px] h-[92px] rounded-md overflow-hidden relative group shadow-sm flex-shrink-0">
           <TrackImage 
             src={currentTrack.coverArt} 
@@ -110,8 +110,8 @@ export default function BottomPlayer() {
             className="w-full h-full object-cover" 
           />
         </div>
-        <div className="flex flex-col overflow-hidden leading-tight justify-center gap-0.5">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-col leading-tight justify-center gap-0.5 flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 w-full">
             <span onClick={() => navigate(`/Holad/album/${currentTrack.albumId}`)} className="font-bold text-base text-foreground truncate hover:underline cursor-pointer">{currentTrack.title}</span>
             <MoreVertical size={16} className="text-secondary/50 hover:text-foreground cursor-pointer flex-shrink-0" onClick={(e) => { e.stopPropagation(); openMenu(e.clientX, e.clientY, currentTrack, 'track'); }} />
           </div>
@@ -120,9 +120,9 @@ export default function BottomPlayer() {
             <span onClick={() => navigate(`/Holad/album/${currentTrack.albumId}`)} className="text-sm text-secondary/70 truncate hover:underline cursor-pointer">{currentTrack.album}</span>
           )}
           {!isActiveDevice && activeDeviceObj && (
-            <div className="relative shrink-0 mt-1">
+            <div className="relative shrink-0 mt-1 max-w-full">
               <div className={`absolute -inset-0.5 bg-gradient-to-r from-primary/70 to-primary/20 rounded-full blur-[6px] opacity-60 transition duration-1000 ${isPlaying ? 'animate-pulse' : 'opacity-20'}`}></div>
-              <div className="text-[11px] font-medium text-white/90 bg-[#121212]/60 backdrop-blur-[20px] backdrop-saturate-[150%] px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/10 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.3)] w-fit cursor-default overflow-hidden relative">
+              <div className="text-[11px] font-medium text-white/90 bg-[#121212]/60 backdrop-blur-[20px] backdrop-saturate-[150%] px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/10 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.3)] w-fit max-w-full cursor-default overflow-hidden relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
                 {getDeviceIcon(activeDeviceObj.name, 12, "flex-shrink-0 text-primary z-10")}
                 <span className="truncate max-w-[120px] md:max-w-[200px] z-10 drop-shadow-sm">
@@ -139,7 +139,7 @@ export default function BottomPlayer() {
       </div>
 
       {/* Controls (Center) */}
-      <div className="flex flex-col items-center justify-center flex-1 max-w-[40%] gap-3 mt-0">
+      <div className="flex flex-col items-center justify-center flex-[1.5] lg:flex-[2] min-w-[200px] gap-3 mt-0 mx-2">
         <div className="flex items-center justify-center gap-4">
           <button 
             onClick={toggleShuffle} 
@@ -182,8 +182,8 @@ export default function BottomPlayer() {
       </div>
 
       {/* Right Controls */}
-      <div className="flex flex-col justify-center items-end w-[30%] min-w-[200px] text-secondary pr-2">
-        <div className="flex flex-col gap-3 w-[240px]">
+      <div className="flex flex-col justify-center items-end flex-1 min-w-0 max-w-[30%] md:min-w-[150px] lg:min-w-[250px] text-secondary pr-2">
+        <div className="flex flex-col gap-3 w-full max-w-[240px]">
           {/* Top row: Favorite, Stars, Auto DJ */}
           <div className="flex items-center gap-4 w-full justify-end">
             {!hideSocialActions && (
@@ -257,11 +257,11 @@ export default function BottomPlayer() {
               </>
             )}
             
-            <div className="flex items-center gap-3 flex-1">
-              <button onClick={() => setVolume(volume === 0 ? 1 : 0)} className="hover:text-foreground transition-colors">
+            <div className="flex items-center gap-3 flex-1 min-w-0 justify-end">
+              <button onClick={() => setVolume(volume === 0 ? 1 : 0)} className="hover:text-foreground transition-colors flex-shrink-0">
                 {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
               </button>
-              <div className="flex-1">
+              <div className="hidden lg:block flex-1 min-w-[60px] max-w-[100px]">
                 <Slider 
                   value={volume} 
                   onDrag={(newVolume) => {
@@ -275,7 +275,7 @@ export default function BottomPlayer() {
                   thickness="thick" 
                 />
               </div>
-              <span className="text-xs font-bold w-9 text-right">{Math.round((dragVolume !== null ? dragVolume : volume) * 100)}%</span>
+              <span className="hidden lg:block text-xs font-bold w-9 text-right flex-shrink-0">{Math.round((dragVolume !== null ? dragVolume : volume) * 100)}%</span>
             </div>
           </div>
         </div>

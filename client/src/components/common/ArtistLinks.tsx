@@ -47,7 +47,7 @@ export default function ArtistLinks({ artistString, artistId, className = "", on
   };
 
   return (
-    <span className={`inline-flex flex-wrap items-center whitespace-pre-wrap ${className}`}>
+    <span className={`block truncate ${className}`}>
       {parts.map((part, index) => {
         const isLast = index === parts.length - 1;
         const isSecondToLast = index === parts.length - 2;

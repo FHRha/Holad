@@ -83,7 +83,8 @@ export default function RightSidebar() {
       } else if (newWidth < 200) {
          setRightSidebarWidth(80); // Snap to small mode
       } else {
-         setRightSidebarWidth(Math.min(newWidth, 500));
+         const maxWidth = Math.min(500, window.innerWidth * 0.35);
+         setRightSidebarWidth(Math.min(newWidth, maxWidth));
       }
     };
     
@@ -128,8 +129,8 @@ export default function RightSidebar() {
 
   return (
     <div 
-      className="hidden md:flex bg-background border-l border-white/5 flex-col h-full text-sm relative z-[60] flex-shrink-0"
-      style={{ width: rightSidebarWidth }}
+      className={`hidden md:flex flex-col h-full text-sm relative z-[60] flex-shrink-0 transition-[max-width,background-color] ${isSmall ? 'bg-gradient-to-r from-transparent to-background/90 border-l border-transparent' : 'bg-background border-l border-white/5'}`}
+      style={{ width: rightSidebarWidth, maxWidth: '35vw' }}
     >
       {/* Resizer */}
       <div 
@@ -195,7 +196,7 @@ export default function RightSidebar() {
                     {...listeners}
                     onClick={() => playTrack(idx)}
                     onLongPress={(e: any) => handleContextMenu(e, track, idx)}
-                    className={`flex items-center ${isSmall ? 'justify-center p-1' : 'px-2 py-2'} rounded-md cursor-grab active:cursor-grabbing group ${isPlaying ? 'bg-white/10' : 'hover:bg-white/5'} ${isDragging ? 'opacity-30' : ''}`}
+                    className={`flex items-center ${isSmall ? 'justify-center p-1 hover:scale-105 transition-transform' : `px-2 py-2 rounded-md ${isPlaying ? 'bg-white/10' : 'hover:bg-white/5'}`} cursor-grab active:cursor-grabbing group ${isDragging ? 'opacity-30' : ''}`}
                     title={isSmall ? `${track.title} • ${formatArtistName(track.artist)}` : undefined}
                   >
                     {!isSmall && (
