@@ -47,19 +47,27 @@ export async function fetchArtistImage(artistName: string): Promise<string | nul
       const script = document.createElement('script');
       
       let timeoutId = setTimeout(() => {
-        cleanup();
-        if (retries > 0) resolve(fetchDeezer(retries - 1));
-        else resolve(null);
+        handleFail();
       }, 5000); // 5s timeout for JSONP
 
       const cleanup = () => {
         clearTimeout(timeoutId);
-        delete (window as any)[callbackName];
         if (script.parentNode) script.parentNode.removeChild(script);
+      };
+      
+      const handleFail = () => {
+        cleanup();
+        // Prevent ReferenceError if script loads late
+        (window as any)[callbackName] = () => {
+          delete (window as any)[callbackName];
+        };
+        if (retries > 0) resolve(fetchDeezer(retries - 1));
+        else resolve(null);
       };
 
       (window as any)[callbackName] = (data: any) => {
         cleanup();
+        delete (window as any)[callbackName];
         let url: string | null = null;
         if (data && data.data && data.data.length > 0) {
           const exactMatches = data.data.filter((a: any) => a.name.toLowerCase() === searchQuery.toLowerCase());
@@ -75,11 +83,7 @@ export async function fetchArtistImage(artistName: string): Promise<string | nul
       };
 
       script.src = `https://api.deezer.com/search/artist?q=${encodeURIComponent(searchQuery)}&output=jsonp&callback=${callbackName}`;
-      script.onerror = () => {
-        cleanup();
-        if (retries > 0) resolve(fetchDeezer(retries - 1));
-        else resolve(null);
-      };
+      script.onerror = handleFail;
       document.body.appendChild(script);
     });
   };
