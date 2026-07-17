@@ -35,16 +35,69 @@
 ### Player & Visualization
 ![Player](.github/assets/en-visual.png)
 
-## Quick Start (Production)
+## Quick Start (Linux)
 
-To install Holad on your Linux server in one command, run:
+To install Holad on your server in one command, run:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash
 ```
 
-The script will guide you through the setup, including systemd service creation, Nginx configuration, and environment setup.
-For manual builds, use `build_release.sh` (Linux/macOS) or `build_release.bat` (Windows).
+The script will download the latest release, install it to `/opt/holad`, fetch dependencies, and create a `systemd` service for background execution on port 4000. 
+*For manual builds, use `build_release.sh` (Linux/macOS) or `build_release.bat` (Windows).*
+
+### Nginx Configuration
+
+If you are using **Nginx** as a reverse proxy (recommended), add the following `location` blocks inside your server block (e.g., in `/etc/nginx/sites-available/...`) to proxy requests to the player without conflicts:
+
+```nginx
+    # --- Holad Player ---
+    
+    # 1. Player Interface
+    location /Holad {
+        proxy_pass http://127.0.0.1:4000/Holad;
+        include snippets/proxy-params.conf;
+    }
+
+    # 2. Login Page
+    location /login {
+        proxy_pass http://127.0.0.1:4000/login;
+        include snippets/proxy-params.conf;
+    }
+
+    # 3. Jam Sessions Interface
+    location /jam {
+        proxy_pass http://127.0.0.1:4000/jam;
+        include snippets/proxy-params.conf;
+    }
+
+    # 4. Internal API
+    location /api/ {
+        proxy_pass http://127.0.0.1:4000/api/;
+        include snippets/proxy-params.conf;
+    }
+
+    # 5. WebSockets for HoladConnect and Jam Sessions
+    location /socket.io/ {
+        proxy_pass http://127.0.0.1:4000/socket.io/;
+        include snippets/proxy-params.conf;
+    }
+
+    # 6. Static files (styles, scripts, localization)
+    location ~ ^/(assets|locales|icons|favicon\.svg|icons\.svg)/? {
+        proxy_pass http://127.0.0.1:4000;
+        include snippets/proxy-params.conf;
+        expires 30d;
+    }
+```
+After making these changes, run `sudo nginx -s reload`.
+
+### Login Issues (NAT Loopback)
+To protect against SSRF, the Holad server only allows login if the URL you enter in the browser matches the external domain exactly. However, if Holad is installed on your home network, the server's attempt to verify this domain might hang due to your router blocking "u-turn" traffic (lack of Hairpin NAT).
+To fix this, tell the server to route its own domain to localhost directly:
+```bash
+echo "127.0.0.1 YOUR_DOMAIN" | sudo tee -a /etc/hosts
+```
 
 ## Architecture
 
