@@ -25,7 +25,6 @@ const io = new Server(httpServer, {
 });
 
 app.use(cors());
-app.use(express.json({ limit: '1mb' }));
 
 const PORT = process.env.PORT || 4000;
 
@@ -130,7 +129,7 @@ function isValidHttpUrl(string: string) {
   }
 }
 
-app.post('/api/save-credentials', async (req, res) => {
+app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, res) => {
   const { url, username, token, salt } = req.body;
   if (!url || !username || !token || !salt) return res.status(400).send('Missing fields');
   if (!isValidHttpUrl(url)) return res.status(400).send('Invalid URL');
@@ -211,6 +210,7 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
 // Proxy generic subsonic API requests for guests
 const holadHistoryCache = new Map<string, any[]>();
 const historyTimers = new Map<string, NodeJS.Timeout>();
+const validateAuthCache = new Map<string, number>();
 
 const validateRestAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const roomId = req.params.roomId as string;
@@ -228,6 +228,12 @@ const validateRestAuth = async (req: express.Request, res: express.Response, nex
     return res.status(403).send('Forbidden: Unauthorized server URL');
   }
 
+  const cacheKey = `${user}:${token}`;
+  const now = Date.now();
+  if (validateAuthCache.has(cacheKey) && now - validateAuthCache.get(cacheKey)! < 5 * 60 * 1000) {
+    return next();
+  }
+
   try {
     const pingUrl = `${url.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(user)}&t=${encodeURIComponent(token)}&s=${encodeURIComponent(salt)}&v=1.16.1&c=StreamNavi&f=json`;
     const response = await fetch(pingUrl);
@@ -236,6 +242,8 @@ const validateRestAuth = async (req: express.Request, res: express.Response, nex
     if (!response.ok || json['subsonic-response']?.status !== 'ok') {
       return res.status(401).send('Invalid Subsonic credentials');
     }
+    
+    validateAuthCache.set(cacheKey, now);
   } catch (error) {
     return res.status(502).send('Bad Gateway: Failed to reach Subsonic server');
   }
@@ -243,7 +251,7 @@ const validateRestAuth = async (req: express.Request, res: express.Response, nex
   next();
 };
 
-app.post('/api/holad/history/:roomId', express.json({ limit: '10mb' }), validateRestAuth, (req, res) => {
+app.post('/api/holad/history/:roomId', validateRestAuth, express.json({ limit: '10mb' }), (req, res) => {
   const roomId = req.params.roomId as string;
   const history = req.body;
   
