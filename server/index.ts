@@ -759,6 +759,7 @@ io.on('connection', (socket) => {
 const clientPath = path.resolve(process.cwd(), '../client/dist');
 if (fs.existsSync(clientPath)) {
   app.use(express.static(clientPath));
+  app.use('/Holad', express.static(clientPath));
   
   // SPA fallback (using regex for Express 5 compatibility)
   app.get(/^(.*)$/, (req, res, next) => {
