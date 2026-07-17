@@ -44,7 +44,8 @@ copy "server\package.json" "artifacts\holad-release\server\"
 echo Creating .env.example...
 (
 echo PORT=4000
-echo NAVIDROME_ACCOUNTS="[]"
+echo # If you want to manually bind the server, uncomment and edit the line below:
+echo # NAVIDROME_ACCOUNTS='[{"url":"https://your-navidrome.com","user":"admin","token":"...","salt":"..."}]'
 ) > "artifacts\holad-release\server\.env.example"
 
 copy "holad_cli.sh" "artifacts\holad-release\"

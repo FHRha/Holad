@@ -43,7 +43,8 @@ cp server/package.json artifacts/holad-release/server/
 echo "Creating .env.example..."
 cat << 'EOF' > artifacts/holad-release/server/.env.example
 PORT=4000
-NAVIDROME_ACCOUNTS="[]"
+# If you want to manually bind the server, uncomment and edit the line below:
+# NAVIDROME_ACCOUNTS='[{"url":"https://your-navidrome.com","user":"admin","token":"...","salt":"..."}]'
 EOF
 
 cp holad_cli.sh artifacts/holad-release/

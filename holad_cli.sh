@@ -14,13 +14,14 @@ show_menu() {
     echo "5) Logs        (Посмотреть логи)"
     echo "6) Config      (Отредактировать .env)"
     echo "7) Update      (Обновить с GitHub / Переустановить)"
+    echo "8) Uninstall   (Полностью удалить Holad)"
     echo "0) Exit"
     echo "==================================="
 }
 
 while true; do
     show_menu
-    read -p "Select an option [0-7]: " choice
+    read -p "Select an option [0-8]: " choice
     case $choice in
         1)
             sudo systemctl status holad
@@ -121,6 +122,29 @@ while true; do
                 echo "Error: Failed to download release from GitHub."
             fi
             read -p "Press Enter to continue..."
+            ;;
+        8)
+            echo "WARNING: This will completely remove Holad, including all settings and the systemd service."
+            read -p "Are you absolutely sure? (Type 'YES' to confirm): " CONFIRM_UNINSTALL
+            if [ "$CONFIRM_UNINSTALL" == "YES" ]; then
+                echo "Stopping and disabling service..."
+                sudo systemctl stop holad
+                sudo systemctl disable holad
+                sudo rm -f /etc/systemd/system/holad.service
+                sudo systemctl daemon-reload
+                
+                echo "Removing installation directory..."
+                sudo rm -rf $INSTALL_DIR
+                
+                echo "Removing CLI symlink..."
+                sudo rm -f /usr/local/bin/holad
+                
+                echo "Holad has been completely uninstalled."
+                exit 0
+            else
+                echo "Uninstall cancelled."
+                read -p "Press Enter to continue..."
+            fi
             ;;
         0)
             echo "Exiting..."
