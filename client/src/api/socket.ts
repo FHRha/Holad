@@ -106,11 +106,20 @@ class JamSocketService {
     });
   }
   createRoom(name?: string) {
-    this.socket?.emit('createRoom', name);
+    this.socket?.emit('createRoom', { name, sessionId: this.getSessionId() });
   }
 
-  joinRoom(roomId: string, name: string) {
-    this.socket?.emit('joinRoom', { roomId, name });
+  private getSessionId() {
+    let sid = localStorage.getItem('jam_session_id');
+    if (!sid) {
+      sid = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      localStorage.setItem('jam_session_id', sid);
+    }
+    return sid;
+  }
+
+  joinRoom(roomId: string, name?: string) {
+    this.socket?.emit('joinRoom', { roomId, name, sessionId: this.getSessionId() });
   }
 
   grantRole(userId: string, role: 'host' | 'cohost' | 'listener') {

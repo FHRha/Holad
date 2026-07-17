@@ -75,7 +75,7 @@ function saveAccountsToEnv() {
     const accountsStr = Buffer.from(JSON.stringify(navidromeAccounts)).toString('base64');
     
     if (envContent.includes('NAVIDROME_ACCOUNTS=')) {
-      envContent = envContent.replace(/NAVIDROME_ACCOUNTS=.*/g, `NAVIDROME_ACCOUNTS='${accountsStr}'`);
+      envContent = envContent.replace(/^NAVIDROME_ACCOUNTS=.*/gm, `NAVIDROME_ACCOUNTS='${accountsStr}'`);
     } else {
       envContent += `\nNAVIDROME_ACCOUNTS='${accountsStr}'\n`;
     }
@@ -167,8 +167,8 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
     return res.status(503).send('No available Navidrome accounts for guest access.');
   }
 
-  for (let i = 0; i < navidromeAccounts.length; i++) {
-    const account = navidromeAccounts[i]!;
+  const accountsToTry = [...navidromeAccounts];
+  for (const account of accountsToTry) {
     try {
       const url = buildUrlFn(account);
       const headers: Record<string, string> = {};
@@ -178,9 +178,8 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
       
       if (response.status === 401 || response.status === 403) {
         console.warn(`Account ${account.user} failed auth. Removing.`);
-        navidromeAccounts.splice(i, 1);
+        navidromeAccounts = navidromeAccounts.filter(a => a.user !== account.user || a.url !== account.url);
         saveAccountsToEnv();
-        i--;
         continue;
       }
       
@@ -191,9 +190,8 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
             const data = await clonedResponse.json();
             if (data['subsonic-response']?.status === 'failed' && data['subsonic-response']?.error?.code === 40) {
                console.warn(`Account ${account.user} failed auth (code 40). Removing.`);
-               navidromeAccounts.splice(i, 1);
+               navidromeAccounts = navidromeAccounts.filter(a => a.user !== account.user || a.url !== account.url);
                saveAccountsToEnv();
-               i--;
                continue;
             }
          }
@@ -259,13 +257,18 @@ app.get('/api/stream/:id', async (req, res) => {
       let targetServer = navidromeAccounts[0]?.url || '';
       if (serverUrl) {
         const decodedUrl = decodeURIComponent(serverUrl as string);
-        if (isValidHttpUrl(decodedUrl) && !decodedUrl.includes('#') && !decodedUrl.includes('?') && !decodedUrl.includes('169.254.169.254')) {
-          targetServer = decodedUrl;
+        if (isValidHttpUrl(decodedUrl) && !decodedUrl.includes('#') && !decodedUrl.includes('?')) {
+          if (navidromeAccounts.some(a => a.url === decodedUrl)) {
+            targetServer = decodedUrl;
+          } else {
+            return res.status(403).send('Target server is not in the allowed proxy pool.');
+          }
         } else {
           return res.status(400).send('Invalid Server URL');
         }
       }
-      const streamUrl = `${targetServer}/rest/stream?id=${id}&${authParams}`;
+      const safeId = encodeURIComponent(id as string);
+      const streamUrl = `${targetServer}/rest/stream?id=${safeId}&${authParams}`;
       
       const headers: Record<string, string> = {};
       if (req.headers.range) headers['Range'] = req.headers.range;
@@ -333,7 +336,7 @@ app.get('/api/stream/:id', async (req, res) => {
 });
 
 type Role = 'host' | 'cohost' | 'listener';
-type Participant = { id: string; name: string; role: Role };
+type Participant = { id: string; name: string; role: Role; sessionId?: string | undefined };
 
 interface Room {
   hostId: string;
@@ -449,7 +452,17 @@ io.on('connection', (socket) => {
   });
   // --- End Holad Connect Events ---
 
-  socket.on('createRoom', (name?: string) => {
+  socket.on('createRoom', (data: { name?: string; sessionId?: string } | string | undefined) => {
+    let name: string | undefined;
+    let sessionId: string | undefined;
+    
+    if (typeof data === 'object' && data !== null) {
+      name = data.name;
+      sessionId = data.sessionId;
+    } else if (typeof data === 'string') {
+      name = data;
+    }
+
     const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     socket.join(roomId);
     
@@ -463,7 +476,7 @@ io.on('connection', (socket) => {
       currentIndex: 0,
       isAutoDjEnabled: false,
       stateVersion: 0,
-      participants: [{ id: socket.id, name: hostName, role: 'host' }]
+      participants: [{ id: socket.id, name: hostName, role: 'host', sessionId }]
     };
     rooms.set(roomId, newRoom);
     
@@ -472,8 +485,8 @@ io.on('connection', (socket) => {
     console.log(`Room ${roomId} created by host ${socket.id}`);
   });
 
-  socket.on('joinRoom', (data: { roomId: string, name: string }) => {
-    const { roomId, name } = data;
+  socket.on('joinRoom', (data: { roomId: string; name: string; sessionId?: string }) => {
+    const { roomId, name, sessionId } = data;
     const room = rooms.get(roomId);
     if (!room) {
       socket.emit('error', 'Room not found');
@@ -482,8 +495,7 @@ io.on('connection', (socket) => {
     socket.join(roomId);
     
     const guestName = name || 'Guest';
-    const existingIndex = room.participants.findIndex(p => p.name === guestName && p.role !== 'host');
-    
+    const existingIndex = room.participants.findIndex(p => p.sessionId === sessionId && sessionId !== undefined);
     if (existingIndex !== -1) {
       const oldId = room.participants[existingIndex]!.id;
       // Disconnect the old socket to prevent duplicates
@@ -495,7 +507,7 @@ io.on('connection', (socket) => {
       room.participants[existingIndex]!.id = socket.id;
       socket.emit('roomJoined', { roomId, role: room.participants[existingIndex]!.role, state: room });
     } else {
-      room.participants.push({ id: socket.id, name: guestName, role: 'listener' });
+      room.participants.push({ id: socket.id, name: guestName, role: 'listener', sessionId });
       socket.emit('roomJoined', { roomId, role: 'listener', state: room });
     }
     
