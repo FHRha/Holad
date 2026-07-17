@@ -95,7 +95,7 @@ export default function Sidebar() {
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             className={`text-foreground flex items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 ${!isWide ? 'flex-col' : 'px-2'} w-full`}
           >
-            <img src="/icons/favicon_tab.png" alt="Holad" className={`${isWide ? 'w-10 h-10' : 'w-14 h-14'} rounded-lg shadow-lg object-cover flex-shrink-0`} />
+            <img src={`${import.meta.env.BASE_URL}icons/favicon_tab.png`} alt="Holad" className={`${isWide ? 'w-10 h-10' : 'w-14 h-14'} rounded-lg shadow-lg object-cover flex-shrink-0`} />
             {isWide && <span className="font-bold text-lg whitespace-nowrap overflow-hidden text-ellipsis">Holad</span>}
           </button>
 
