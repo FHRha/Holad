@@ -11,6 +11,9 @@ interface UIState {
   toggleSearch: () => void;
   setSearchOpen: (open: boolean) => void;
   
+  activeFilter: string | null;
+  setActiveFilter: (filter: string | null) => void;
+  
   searchResults: { song: any[], album: any[], artist: any[] };
   setSearchResults: (results: { song: any[], album: any[], artist: any[] }) => void;
   isSearchLoading: boolean;
@@ -39,6 +42,9 @@ export const useUIStore = create<UIState>()(
       isSearchOpen: false,
       toggleSearch: () => set((state) => ({ isSearchOpen: !state.isSearchOpen })),
       setSearchOpen: (open) => set({ isSearchOpen: open }),
+      
+      activeFilter: null,
+      setActiveFilter: (filter) => set({ activeFilter: filter }),
       
       searchResults: { song: [], album: [], artist: [] },
       setSearchResults: (results) => set({ searchResults: results }),

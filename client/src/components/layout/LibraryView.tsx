@@ -10,12 +10,11 @@ import { useUIStore } from '../../store/uiStore';
 
 export default function LibraryView() {
   const { t } = useTranslation();
-  const { setSearchOpen } = useUIStore();
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const { setSearchOpen, activeFilter, setActiveFilter } = useUIStore();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const toggleFilter = (filter: string) => {
-    setActiveFilter(prev => prev === filter ? null : filter);
+    setActiveFilter(activeFilter === filter ? null : filter);
   };
 
   return (

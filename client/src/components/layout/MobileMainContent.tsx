@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, CloudOff, Download, Heart, Music, Clock, Users, Flame, Shuffle, RefreshCw, ChevronRight, ChevronLeft, Star, Loader2, Play } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import TrackImage from '../common/TrackImage';
@@ -78,9 +78,8 @@ interface MobileMainContentProps {
 
 export default function MobileMainContent({ albums, recentTracks, frequentAlbums, genres }: MobileMainContentProps) {
   const { t } = useTranslation();
-  const { setSearchOpen } = useUIStore();
+  const { setSearchOpen, activeFilter, setActiveFilter } = useUIStore();
   const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [loadingStation, setLoadingStation] = useState<string | null>(null);
   const [refreshRecentKey, setRefreshRecentKey] = useState(0);
   const [refreshFrequentKey, setRefreshFrequentKey] = useState(0);
@@ -103,17 +102,31 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
     return activeFilter === 'Offline' || activeFilter === 'Downloaded' ? [] : displayFrequent;
   }, [activeFilter, frequentAlbums]);
 
-  // Fallbacks using `albums` or `recentTracks` if empty, wrapped in useMemo with refresh key
+  const [isOfflineApp, setIsOfflineApp] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOfflineApp(false);
+    const handleOffline = () => setIsOfflineApp(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const actualRecent = useMemo(() => {
+    if (activeFilter) return finalRecent;
     return finalRecent.length > 0 ? finalRecent : [...recentTracks].sort(() => Math.random() - 0.5).slice(0, 10);
-  }, [recentTracks, finalRecent, refreshRecentKey]);
+  }, [recentTracks, finalRecent, refreshRecentKey, activeFilter]);
 
   const actualFrequent = useMemo(() => {
+    if (activeFilter) return finalFrequent;
     return finalFrequent.length > 0 ? finalFrequent : [...albums].sort(() => Math.random() - 0.5).slice(0, 10);
-  }, [albums, finalFrequent, refreshFrequentKey]);
+  }, [albums, finalFrequent, refreshFrequentKey, activeFilter]);
 
   const toggleFilter = (filter: string) => {
-    setActiveFilter(prev => prev === filter ? null : filter);
+    setActiveFilter(activeFilter === filter ? null : filter);
   };
 
   const mapTracks = (tracks: any[]): Track[] => {
@@ -172,7 +185,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
           <FilterChip 
             icon={<CloudOff size={16} />} 
             label={t('common.offline', { defaultValue: 'Офлайн' })} 
-            isActive={activeFilter === 'Offline'} 
+            isActive={activeFilter === 'Offline' || isOfflineApp} 
             onClick={() => toggleFilter('Offline')} 
           />
           <FilterChip 

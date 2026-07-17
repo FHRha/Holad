@@ -11,6 +11,7 @@ import ArtistAvatar from '../common/ArtistAvatar';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useTrackFilters } from '../../hooks/useTrackFilters';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useUIStore } from '../../store/uiStore';
 import LongPressWrapper from '../common/LongPressWrapper';
 
 export default function TracksView() {
@@ -20,6 +21,8 @@ export default function TracksView() {
   const [loading, setLoading] = useState(true);
   
   const [visibleCount, setVisibleCount] = useState(50);
+
+  const activeFilter = useUIStore(s => s.activeFilter);
 
   const { setQueueAndPlay, queue, currentIndex, likedTrackIds, toggleTrackLike, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
@@ -63,8 +66,18 @@ export default function TracksView() {
     loadTracks();
   }, []);
 
+  const finalTracks = (() => {
+    let result = filteredTracks;
+    if (activeFilter === 'Favorites') {
+      result = filteredTracks.filter(t => t.userRating && t.userRating >= 4);
+    } else if (activeFilter === 'Downloaded' || activeFilter === 'Offline') {
+      result = [];
+    }
+    return result;
+  })();
+
   const handlePlay = (index: number) => {
-    const mapped: Track[] = filteredTracks.map(t => ({
+    const mapped: Track[] = finalTracks.map(t => ({
       id: t.id,
       title: t.title,
       artist: t.artist,
@@ -195,7 +208,7 @@ export default function TracksView() {
               <Play fill="currentColor" size={20} className="ml-1" />
             </div>
             {t('views.tracks')}
-            <span className="bg-white/10 text-white/50 text-sm font-semibold px-3 py-1 rounded-full">{filteredTracks.length}</span>
+            <span className="bg-white/10 text-white/50 text-sm font-semibold px-3 py-1 rounded-full">{finalTracks.length}</span>
           </h1>
         </div>
 
@@ -216,18 +229,18 @@ export default function TracksView() {
             className="flex-1 overflow-y-auto hide-scrollbar md:custom-scrollbar pt-2 px-4 md:px-0"
             onScroll={(e) => {
               const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 200;
-              if (bottom && visibleCount < filteredTracks.length) {
+              if (bottom && visibleCount < finalTracks.length) {
                 setVisibleCount(prev => prev + 50);
               }
             }}
           >
             {loading ? (
               <div className="flex items-center justify-center h-full text-secondary">{t('views.loading')}</div>
-            ) : filteredTracks.length === 0 ? (
+            ) : finalTracks.length === 0 ? (
               <div className="flex items-center justify-center h-full text-secondary">{t('views.not_found')}</div>
             ) : (
               <div className="py-2 flex flex-col gap-3 md:gap-0">
-                {filteredTracks.slice(0, visibleCount).map((track, index) => {
+                {finalTracks.slice(0, visibleCount).map((track, index) => {
                   const currentPlaying = queue[currentIndex]?.id === track.id;
                   const isTrackLiked = likedTrackIds.includes(track.id);
 

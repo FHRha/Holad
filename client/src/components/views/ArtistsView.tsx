@@ -3,9 +3,11 @@ import { getArtists } from '../../api/subsonic';
 import ArtistCard from '../common/ArtistCard';
 import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useUIStore } from '../../store/uiStore';
 
 export default function ArtistsView() {
   const { t } = useTranslation();
+  const activeFilter = useUIStore(s => s.activeFilter);
   const [artists, setArtists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -40,10 +42,17 @@ export default function ArtistsView() {
   }, []);
 
   const filteredArtists = useMemo(() => {
-    if (!search.trim()) return artists;
+    let result = artists;
+    if (activeFilter === 'Favorites') {
+      result = result.filter(a => a.starred);
+    } else if (activeFilter === 'Downloaded' || activeFilter === 'Offline') {
+      result = [];
+    }
+    
+    if (!search.trim()) return result;
     const lower = search.toLowerCase();
-    return artists.filter(a => a.name.toLowerCase().includes(lower));
-  }, [artists, search]);
+    return result.filter(a => a.name.toLowerCase().includes(lower));
+  }, [artists, search, activeFilter]);
 
   if (loading) {
     return <div className="flex-1 flex items-center justify-center text-secondary">{t('views.loading_artists')}</div>;

@@ -46,7 +46,7 @@ export const createQueueSlice: StateCreator<
   originalQueue: [],
   currentIndex: -1,
   isShuffle: false,
-  isAutoDjEnabled: false,
+  isAutoDjEnabled: true,
   isProcessing: false,
 
   setQueue: (tracks) => set({ queue: tracks, originalQueue: tracks, currentIndex: tracks.length > 0 ? 0 : -1, isShuffle: false }),
