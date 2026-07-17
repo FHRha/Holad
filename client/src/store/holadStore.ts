@@ -149,6 +149,22 @@ export const useHoladStore = create<HoladState>((set, get) => {
         setTimeout(() => { isApplyingRemoteState = false; }, 50);
       });
 
+      socket.on('holad_syncSettings', (settings: any) => {
+        isApplyingRemoteState = true;
+        
+        const settingsStore = useSettingsStore.getState();
+        if (settings.accentColor !== undefined && settings.accentColor !== settingsStore.accentColor) {
+           settingsStore.setAccentColor(settings.accentColor);
+        }
+        if (settings.customColors !== undefined) {
+           if (settings.customColors[0] !== settingsStore.customColors[0]) settingsStore.setCustomColor(0, settings.customColors[0]);
+           if (settings.customColors[1] !== settingsStore.customColors[1]) settingsStore.setCustomColor(1, settings.customColors[1]);
+           if (settings.customColors[2] !== settingsStore.customColors[2]) settingsStore.setCustomColor(2, settings.customColors[2]);
+        }
+        
+        setTimeout(() => { isApplyingRemoteState = false; }, 50);
+      });
+
       socket.on('holad_remoteCommand', (command: { type: string, payload?: any }) => {
         
         if (command.type === 'syncHistory') {
@@ -301,7 +317,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
         const customColorsChanged = state.customColors !== prevState?.customColors;
 
         if (accentColorChanged || customColorsChanged) {
-           socket?.emit('holad_updateState', { 
+           socket?.emit('holad_updateSettings', { 
                roomId: get().roomId, 
                deviceId, 
                accentColor: state.accentColor,

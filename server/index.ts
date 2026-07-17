@@ -210,8 +210,18 @@ io.on('connection', (socket) => {
     if (!data) return;
     const room = holadRooms.get(data.roomId);
     if (room && room.activeDeviceId === data.deviceId) {
-      room.cachedState = state;
+      room.cachedState = { ...room.cachedState, ...state };
       socket.to(`holad_${data.roomId}`).emit('holad_syncState', state);
+    }
+  });
+
+  socket.on('holad_updateSettings', (settings: any) => {
+    const data = (socket as any).holadData;
+    if (!data) return;
+    const room = holadRooms.get(data.roomId);
+    if (room) {
+      room.cachedState = { ...room.cachedState, ...settings };
+      io.to(`holad_${data.roomId}`).emit('holad_syncSettings', settings);
     }
   });
 
