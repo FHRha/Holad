@@ -71,23 +71,10 @@ If you are using **Nginx** as a reverse proxy (recommended), add the following `
         include snippets/proxy-params.conf;
     }
 
-    # 4. Internal API
-    location /api/ {
-        proxy_pass http://127.0.0.1:4000/api/;
-        include snippets/proxy-params.conf;
-    }
-
-    # 5. WebSockets for HoladConnect and Jam Sessions
+    # 4. WebSockets for HoladConnect and Jam Sessions
     location /socket.io/ {
         proxy_pass http://127.0.0.1:4000/socket.io/;
         include snippets/proxy-params.conf;
-    }
-
-    # 6. Static files (styles, scripts, localization)
-    location ~ ^/(assets|locales|icons|favicon\.svg|icons\.svg)/? {
-        proxy_pass http://127.0.0.1:4000;
-        include snippets/proxy-params.conf;
-        expires 30d;
     }
 ```
 *(Note: `include snippets/proxy-params.conf;` includes standard proxy headers. On Ubuntu/Debian, you can use the built-in `include proxy_params;`. If you are using your own `snippets/proxy-params.conf` file, make sure it contains the following:)*

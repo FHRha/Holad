@@ -71,23 +71,10 @@ curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash
         include snippets/proxy-params.conf;
     }
 
-    # 4. Внутреннее API плеера
-    location /api/ {
-        proxy_pass http://127.0.0.1:4000/api/;
-        include snippets/proxy-params.conf;
-    }
-
-    # 5. Веб-сокеты для HoladConnect и Jam-сессий
+    # 4. Веб-сокеты для HoladConnect и Jam-сессий
     location /socket.io/ {
         proxy_pass http://127.0.0.1:4000/socket.io/;
         include snippets/proxy-params.conf;
-    }
-
-    # 6. Статические файлы (стили, скрипты, локализация)
-    location ~ ^/(assets|locales|icons|favicon\.svg|icons\.svg)/? {
-        proxy_pass http://127.0.0.1:4000;
-        include snippets/proxy-params.conf;
-        expires 30d;
     }
 ```
 *(Примечание: `include snippets/proxy-params.conf;` подключает стандартные заголовки для проксирования. В Ubuntu/Debian вы можете использовать встроенный `include proxy_params;`. Если вы используете свой файл `snippets/proxy-params.conf`, убедитесь, что в нём прописано следующее:)*
