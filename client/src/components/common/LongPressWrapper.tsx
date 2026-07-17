@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import type { ReactNode } from 'react';
 import { useLongPress } from '../../hooks/useLongPress';
 
-interface LongPressWrapperProps {
+interface LongPressWrapperProps extends React.HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   onLongPress: (e: any) => void;
   onClick?: (e: any) => void;
@@ -10,20 +10,26 @@ interface LongPressWrapperProps {
   delay?: number;
 }
 
-const LongPressWrapper: React.FC<LongPressWrapperProps> = ({
+const LongPressWrapper = forwardRef<HTMLDivElement, LongPressWrapperProps>(({
   children,
   onLongPress,
   onClick = () => {},
   className = '',
-  delay = 500
-}) => {
+  delay = 500,
+  ...props
+}, ref) => {
   const longPressProps = useLongPress(onLongPress, onClick, { delay });
 
   return (
-    <div className={className} {...longPressProps}>
+    <div 
+      ref={ref}
+      className={className} 
+      {...props}
+      {...longPressProps}
+    >
       {children}
     </div>
   );
-};
+});
 
 export default LongPressWrapper;
