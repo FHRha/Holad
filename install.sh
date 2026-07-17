@@ -6,7 +6,6 @@ echo "       Holad Installer             "
 echo "==================================="
 
 # 1. Ask for configuration
-read -p "Enter the domain or IP for Holad (e.g., example.com): " HOLAD_DOMAIN
 read -p "Enter the internal port for the Node.js backend [3000]: " HOLAD_PORT
 HOLAD_PORT=${HOLAD_PORT:-3000}
 read -p "Do you want to enable systemd autostart? (Y/n): " ENABLE_SYSTEMD
