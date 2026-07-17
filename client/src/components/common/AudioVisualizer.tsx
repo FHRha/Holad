@@ -18,7 +18,7 @@ export default function AudioVisualizer() {
 
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number>(0);
-  const prevDataRef = useRef<number[]>([]);
+
 
   useEffect(() => {
     if (!audioElement) return;

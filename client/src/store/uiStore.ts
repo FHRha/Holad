@@ -26,6 +26,9 @@ interface UIState {
   setLeftSidebarWidth: (width: number) => void;
   rightSidebarWidth: number;
   setRightSidebarWidth: (width: number) => void;
+  
+  pendingHistorySync: any[] | null;
+  setPendingHistorySync: (sync: any[] | null) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -52,6 +55,9 @@ export const useUIStore = create<UIState>()(
       setLeftSidebarWidth: (width) => set({ leftSidebarWidth: width }),
       rightSidebarWidth: RIGHT_SIDEBAR_DEFAULT_WIDTH,
       setRightSidebarWidth: (width) => set({ rightSidebarWidth: width }),
+      
+      pendingHistorySync: null,
+      setPendingHistorySync: (sync) => set({ pendingHistorySync: sync }),
     }),
     {
       name: 'ui-storage',

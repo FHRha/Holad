@@ -13,7 +13,8 @@ const io = new Server(httpServer, {
   cors: {
     origin: '*', // For development. In production, restrict this.
     methods: ['GET', 'POST']
-  }
+  },
+  maxHttpBufferSize: 1e8 // 100 MB just in case
 });
 
 app.use(cors());

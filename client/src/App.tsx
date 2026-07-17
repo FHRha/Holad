@@ -17,6 +17,8 @@ import ArtistsView from './components/views/ArtistsView';
 import LoginView from './components/views/LoginView';
 import RadioView from './components/views/RadioView';
 import MobileSettingsView from './components/views/MobileSettingsView';
+import SyncConflictModal from './components/common/SyncConflictModal';
+import HistoryView from './components/views/HistoryView';
 import TopBar from './components/layout/TopBar';
 import NowPlayingModal from './components/common/NowPlayingModal';
 import MobileSearchOverlay from './components/modals/MobileSearchOverlay';
@@ -124,6 +126,7 @@ function AppContent() {
                         <Route path="/tracks" element={<TracksView />} />
                         <Route path="/album/:id" element={<AlbumView />} />
                         <Route path="/favorites" element={<FavoritesView />} />
+                        <Route path="/history" element={<HistoryView />} />
                         <Route path="/radio" element={<RadioView />} />
                         <Route path="/settings" element={<MobileSettingsView />} />
                         <Route path="*" element={<MainContent />} />
@@ -141,6 +144,7 @@ function AppContent() {
           </Routes>
           
           <NowPlayingModal />
+          <SyncConflictModal />
           <MobileSearchOverlay />
           {isSettingsOpen && <SettingsModal />}
         </div>

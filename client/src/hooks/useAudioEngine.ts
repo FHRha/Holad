@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { savePlayQueue } from '../api/subsonic';
 import { useAudioStore } from '../store/audioStore';
 import { useHoladStore } from '../store/holadStore';
+import { useHistoryStore } from '../store/historyStore';
 
 export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null>) {
   const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, volume, role, playbackRate, sleepTimer, setSleepTimer } = usePlayerStore();
@@ -138,12 +139,38 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
     }
   }, [isPlaying, currentTrack, setIsPlaying, isActiveDevice]);
 
+  const accumulatedTimeRef = useRef(0);
+  const lastTimeRef = useRef(0);
+  const trackIdRef = useRef<string | null>(null);
+  const syncedRef = useRef<boolean>(false);
+
   const handleTimeUpdate = () => {
     if (audioRef.current && !isSeeking && currentTrack) {
       if (isActiveDevice) {
-        setProgress((audioRef.current.currentTime / currentTrack.duration) * 100);
+        if (trackIdRef.current !== currentTrack.id) {
+          trackIdRef.current = currentTrack.id;
+          accumulatedTimeRef.current = 0;
+          lastTimeRef.current = audioRef.current.currentTime;
+          syncedRef.current = false;
+        }
+
+        const delta = Math.abs(audioRef.current.currentTime - lastTimeRef.current);
+        if (delta > 0 && delta < 1) {
+          accumulatedTimeRef.current += delta;
+        }
+        lastTimeRef.current = audioRef.current.currentTime;
+
+        const pct = (audioRef.current.currentTime / currentTrack.duration) * 100;
+        setProgress(pct);
         localStorage.setItem('streamnavi_time', audioRef.current.currentTime.toString());
         localStorage.setItem('streamnavi_track', currentTrack.id);
+
+        if (!syncedRef.current && (accumulatedTimeRef.current >= 30 || (accumulatedTimeRef.current / currentTrack.duration) >= 0.5)) {
+          syncedRef.current = true;
+          const now = Date.now();
+          useHistoryStore.getState().addTrackToHistory(currentTrack, now);
+          useHoladStore.getState().sendRemoteCommand('syncHistory', { track: currentTrack, playedAt: now });
+        }
       }
     }
   };

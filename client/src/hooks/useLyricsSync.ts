@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getLyrics, getLyricsBySongId } from '../api/subsonic';
 import { parseLRC, injectInterludes } from '../utils/lyrics';
 import type { LyricLine } from '../utils/lyrics';
-import { usePlayerStore, type Track } from '../store/playerStore';
+import { type Track } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 
 export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTMLAudioElement | null, isActive: boolean) {
@@ -124,11 +124,9 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     let lastActiveIndex = activeLyricIndex;
 
     const updateCurrentLyric = () => {
-      const isPlaying = usePlayerStore.getState().isPlaying;
-      
       const audioStore = useAudioStore.getState();
       const duration = currentTrack?.duration || 1;
-      let currentTime = (audioStore.progress / 100) * duration;
+      const currentTime = (audioStore.progress / 100) * duration;
 
       let newIndex = -1;
       for (let i = 0; i < lrcLines.length; i++) {

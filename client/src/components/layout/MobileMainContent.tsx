@@ -5,6 +5,8 @@ import TrackImage from '../common/TrackImage';
 import { getCoverArtUrl, fetchRandomTracks, getSongsByGenre } from '../../api/subsonic';
 import { useUIStore } from '../../store/uiStore';
 import type { Track } from '../../store/playerStore';
+import { useHistoryStore, getFilteredHistory, calculateStats } from '../../store/historyStore';
+import { useNavigate } from 'react-router-dom';
 
 function ScrollableSection({ title, children, onRefresh }: { title: string, children: React.ReactNode, onRefresh?: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -80,6 +82,10 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
   const [loadingStation, setLoadingStation] = useState<string | null>(null);
   const [refreshRecentKey, setRefreshRecentKey] = useState(0);
   const [refreshFrequentKey, setRefreshFrequentKey] = useState(0);
+  
+  const navigate = useNavigate();
+  const history = useHistoryStore(s => s.history);
+  const stats = useMemo(() => calculateStats(getFilteredHistory(history, 7)), [history]); // 7 day preview on home
 
   const finalRecent = useMemo(() => {
     const displayRecent = activeFilter === 'Favorites' 
@@ -185,16 +191,16 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
       <div className="px-4 py-4 flex flex-col gap-8">
         
         {/* Listening History */}
-        <section>
+        <section onClick={() => navigate('/Holad/history')} className="cursor-pointer group">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white tracking-tight">История прослушивания</h2>
-            <ChevronRight size={24} className="text-[#b3b3b3]" />
+            <h2 className="text-2xl font-bold text-white tracking-tight group-hover:text-primary transition-colors">История прослушивания</h2>
+            <ChevronRight size={24} className="text-[#b3b3b3] group-hover:text-white transition-colors" />
           </div>
-          <div className="grid grid-cols-4 gap-2">
-            <StatCard icon={<Music size={20} className="text-primary" />} value="711" label="треки" />
-            <StatCard icon={<Clock size={20} className="text-primary" />} value="1d 7h" label="время" />
-            <StatCard icon={<Users size={20} className="text-primary" />} value="28" label="исполн." />
-            <StatCard icon={<Flame size={20} className="text-primary" />} value="10d" label="Серия" />
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+            <StatCard icon={<Music size={18} className="text-primary" />} value={stats.totalPlays.toString()} label="треки" />
+            <StatCard icon={<Clock size={18} className="text-primary" />} value={Math.floor(stats.totalListeningSeconds / 3600) + 'h'} label="время" />
+            <StatCard icon={<Users size={18} className="text-primary" />} value={stats.uniqueArtists.toString()} label="исполн." />
+            <StatCard icon={<Flame size={18} className="text-primary" />} value={stats.streak + 'd'} label="серия" />
           </div>
         </section>
 
@@ -317,12 +323,12 @@ function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode,
 
 function StatCard({ icon, value, label }: { icon: React.ReactNode, value: string, label: string }) {
   return (
-    <div className="flex flex-col items-center justify-center bg-[#181818] rounded-2xl p-3 gap-2">
-      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-1">
+    <div className="flex flex-col items-center justify-center bg-[#181818] rounded-xl p-2 gap-1.5 overflow-hidden">
+      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-0.5">
         {icon}
       </div>
-      <span className="text-white font-bold text-lg leading-none">{value}</span>
-      <span className="text-[#b3b3b3] text-[11px] font-medium leading-none">{label}</span>
+      <span className="text-white font-bold text-sm leading-none truncate w-full text-center px-0.5">{value}</span>
+      <span className="text-[#b3b3b3] text-[10px] font-medium leading-none truncate w-full text-center">{label}</span>
     </div>
   );
 }

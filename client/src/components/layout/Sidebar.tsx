@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Home, Heart, Disc, Music, Radio, Users, Settings, LogOut, User } from 'lucide-react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Home, Heart, Disc, Music, Radio, Users, Settings, LogOut, User, Clock } from 'lucide-react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 
 export default function Sidebar() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { leftSidebarWidth, setLeftSidebarWidth } = useUIStore();
   const { user, url, setAuthenticated, setCredentials } = useAuthStore();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -125,6 +126,16 @@ export default function Sidebar() {
                 >
                   <Settings size={18} />
                   <span>{t('sidebar.settings')}</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    navigate('/Holad/history');
+                    setIsProfileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
+                >
+                  <Clock size={18} />
+                  <span>История прослушивания</span>
                 </button>
               </div>
 

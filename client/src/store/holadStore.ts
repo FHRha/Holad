@@ -53,6 +53,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
   let unsubscribeStore: (() => void) | null = null;
   let unsubscribeSettings: (() => void) | null = null;
   let isApplyingRemoteState = false;
+  let hasRequestedHistory = false;
 
   const deviceId = generateDeviceId();
   const deviceName = getDeviceName();
@@ -83,6 +84,13 @@ export const useHoladStore = create<HoladState>((set, get) => {
         const wasNotActive = get().activeDeviceId !== deviceId;
         set({ devices: data.devices, activeDeviceId: data.activeDeviceId });
         
+        // Request history if we just joined and there's an active device to ask
+        if (!hasRequestedHistory && data.activeDeviceId && data.activeDeviceId !== deviceId) {
+          hasRequestedHistory = true;
+          console.log('[Holad] Emitting requestHistory because activeDevice is', data.activeDeviceId);
+          socket!.emit('holad_remoteCommand', { type: 'requestHistory' });
+        }
+
         if (data.activeDeviceId === null) {
             usePlayerStore.getState().setIsPlaying(false);
         } else if (data.activeDeviceId === deviceId && wasNotActive) {
@@ -142,6 +150,53 @@ export const useHoladStore = create<HoladState>((set, get) => {
       });
 
       socket.on('holad_remoteCommand', (command: { type: string, payload?: any }) => {
+        
+        if (command.type === 'syncHistory') {
+          import('./historyStore').then(({ useHistoryStore }) => {
+            useHistoryStore.getState().addTrackToHistory(command.payload.track, command.payload.playedAt);
+          });
+          return;
+        }
+        
+        if (command.type === 'requestHistory') {
+          console.log('[Holad] Received requestHistory. Am I active?', get().activeDeviceId === deviceId);
+          if (get().activeDeviceId === deviceId) {
+            import('./historyStore').then(({ useHistoryStore }) => {
+               const history = useHistoryStore.getState().history;
+               console.log('[Holad] Emitting syncFullHistory with tracks:', history.length);
+               if (history.length > 0) {
+                 socket!.emit('holad_remoteCommand', { type: 'syncFullHistory', payload: history });
+               }
+            });
+          }
+          return;
+        }
+        
+        if (command.type === 'syncFullHistory') {
+           console.log('[Holad] Received syncFullHistory with tracks:', command.payload.length);
+           import('./historyStore').then(({ useHistoryStore }) => {
+             const localHistory = useHistoryStore.getState().history;
+             console.log('[Holad] localHistory length is:', localHistory.length);
+             if (localHistory.length === 0 && command.payload.length > 0) {
+               console.log('[Holad] Triggering SyncConflictModal');
+               import('./uiStore').then(({ useUIStore }) => {
+                 useUIStore.getState().setPendingHistorySync(command.payload);
+               });
+             } else {
+               console.log('[Holad] Merging history silently');
+               useHistoryStore.getState().syncHistoryData(command.payload);
+             }
+           });
+           return;
+        }
+
+        if (command.type === 'clearHistory') {
+          import('./historyStore').then(({ useHistoryStore }) => {
+            useHistoryStore.getState().clearHistory();
+          });
+          return;
+        }
+
         const currentActive = get().activeDeviceId;
         if (currentActive === deviceId) {
           const store = usePlayerStore.getState();
