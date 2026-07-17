@@ -47,11 +47,14 @@ export const useLongPress = (
   );
 
   return {
-    onMouseDown: (e: any) => start(e),
     onTouchStart: (e: any) => start(e),
-    onMouseUp: (e: any) => clear(e),
-    onMouseLeave: (e: any) => clear(e, false),
-    onTouchEnd: (e: any) => clear(e)
+    onTouchEnd: (e: any) => clear(e),
+    onTouchCancel: (e: any) => clear(e, false),
+    onClick: onClick,
+    onContextMenu: (e: any) => {
+      e.preventDefault();
+      onLongPress(e);
+    }
   };
 };
 
