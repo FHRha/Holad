@@ -6,6 +6,7 @@ import { useHoladStore } from '../../store/holadStore';
 export default function HoladConnectMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
   const [touchOffsetY, setTouchOffsetY] = useState(0);
 
@@ -16,19 +17,26 @@ export default function HoladConnectMenu() {
   const isConnected = useHoladStore(s => s.roomId !== null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (
+        menuRef.current && !menuRef.current.contains(event.target as Node) &&
+        (!portalRef.current || !portalRef.current.contains(event.target as Node))
+      ) {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside as any);
+      document.addEventListener('touchstart', handleClickOutside as any);
     } else {
       setTouchOffsetY(0);
       setTouchStartY(null);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+       document.removeEventListener('mousedown', handleClickOutside as any);
+       document.removeEventListener('touchstart', handleClickOutside as any);
+    };
   }, [isOpen]);
 
   if (!isConnected) return null;
@@ -74,10 +82,14 @@ export default function HoladConnectMenu() {
           return (
             <button
               key={device.id}
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setActiveDevice(device.id);
                 setIsOpen(false);
               }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors w-full text-left group
                 ${isDeviceActive ? 'bg-primary/20 text-primary' : 'hover:bg-white/5 text-secondary hover:text-foreground'}
               `}
@@ -123,14 +135,17 @@ export default function HoladConnectMenu() {
           </div>
           
           {createPortal(
-            <div className="md:hidden">
-              <div className="fixed inset-0 bg-black/60 z-[9998] animate-in fade-in duration-200" onClick={() => setIsOpen(false)} />
+            <div className="md:hidden" ref={portalRef}>
+              <div className="fixed inset-0 bg-black/60 z-[9998] animate-in fade-in duration-200" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} />
               <div 
                 className="fixed bottom-0 left-0 right-0 w-full bg-[#1c1c1c] border-t border-white/10 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-[9999] overflow-hidden pb-8 animate-in slide-in-from-bottom-full duration-300"
                 style={{ 
                   transform: `translateY(${touchOffsetY}px)`,
                   transition: touchStartY !== null ? 'none' : 'transform 0.3s ease-out'
                 }}
+                onClick={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
               >
                 {content(true)}
               </div>

@@ -92,6 +92,13 @@ export const useHoladStore = create<HoladState>((set, get) => {
         if (state.currentIndex !== undefined) store.setCurrentIndex(state.currentIndex);
         if (state.queue) usePlayerStore.setState({ queue: state.queue });
         
+        if (state.currentTime !== undefined) {
+          const track = store.queue[state.currentIndex !== undefined ? state.currentIndex : store.currentIndex];
+          if (track && track.duration) {
+            useAudioStore.getState().setProgress((state.currentTime / track.duration) * 100);
+          }
+        }
+        
         setTimeout(() => { isApplyingRemoteState = false; }, 50);
       });
 
@@ -131,10 +138,21 @@ export const useHoladStore = create<HoladState>((set, get) => {
         const currentActive = get().activeDeviceId;
         
         if (currentActive === deviceId) {
+          let currentTime = 0;
+          if (useAudioStore.getState().audioElement) {
+             currentTime = useAudioStore.getState().audioElement!.currentTime;
+          } else {
+             const track = state.queue[state.currentIndex];
+             if (track && track.duration) {
+                currentTime = (useAudioStore.getState().progress / 100) * track.duration;
+             }
+          }
+
           const stateToSync = {
             isPlaying: state.isPlaying,
             currentIndex: state.currentIndex,
-            queue: state.queue 
+            queue: state.queue,
+            currentTime: currentTime
           };
           
           if (state.isPlaying !== prevState?.isPlaying || state.currentIndex !== prevState?.currentIndex || state.queue?.length !== prevState?.queue?.length) {
