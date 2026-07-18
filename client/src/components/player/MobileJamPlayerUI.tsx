@@ -105,7 +105,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
     <div className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-300">
       {/* Blurred Background */}
       <div 
-        className="absolute inset-0 z-0 bg-cover bg-center blur-[60px] opacity-60 saturate-150 scale-110"
+        className="absolute inset-0 z-0 bg-cover bg-center blur-[60px] opacity-60 saturate-150 scale-110 transform-gpu will-change-transform"
         style={{ backgroundImage: `url(${coverArtLowRes})` }}
       />
       <div className="absolute inset-0 z-0 bg-black/40" />
@@ -248,7 +248,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
       </div>
 
       {/* Very Bottom: Navigation Tabs */}
-      <div className="relative z-10 w-full h-[72px] flex-shrink-0 bg-black/40 backdrop-blur-xl transform-gpu border-t border-white/5 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
+      <div className="relative z-10 w-full h-[72px] flex-shrink-0 bg-black/40 backdrop-blur-md transform-gpu will-change-transform border-t border-white/5 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
         <button onClick={() => setActiveTab('player')} className={`p-3 rounded-full transition-colors ${activeTab === 'player' ? 'text-primary bg-primary/10' : 'text-white/50 hover:text-white/80'}`}>
           <Music size={24} />
         </button>

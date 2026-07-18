@@ -168,7 +168,7 @@ function MobileBackground() {
     return (
       <div className="md:hidden absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
         <div 
-          className="absolute inset-0 bg-cover bg-center blur-[40px] opacity-60 saturate-150 scale-[1.15] transition-all duration-1000"
+          className="absolute inset-0 bg-cover bg-center blur-[40px] opacity-60 saturate-150 scale-[1.15] transition-all duration-1000 transform-gpu will-change-transform"
           style={{ backgroundImage: `url(${currentTrack.coverArt})` }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black" />
