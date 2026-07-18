@@ -15,8 +15,14 @@ class JamSocketService {
 
   connect() {
     if (this.socket) return;
+    
+    // Use BASE_URL from vite config for socket path to support subfolder deployments
+    const basePath = import.meta.env.BASE_URL.endsWith('/') 
+      ? import.meta.env.BASE_URL.slice(0, -1) 
+      : import.meta.env.BASE_URL;
+      
     this.socket = io(SOCKET_URL, {
-      path: '/socket.io',
+      path: `${basePath}/socket.io`,
       transports: ['websocket', 'polling']
     });
 

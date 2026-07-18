@@ -17,6 +17,7 @@ if (!process.env.NAVIDROME_URL) {
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
+  path: '/Holad/socket.io',
   cors: {
     origin: '*', // For development. In production, restrict this.
     methods: ['GET', 'POST']
@@ -25,6 +26,14 @@ const io = new Server(httpServer, {
 });
 
 app.use(cors());
+
+// Middleware to support relative routing when hosted under /Holad
+app.use((req, res, next) => {
+  if (req.url.startsWith('/Holad/api/')) {
+    req.url = req.url.replace('/Holad/api/', '/api/');
+  }
+  next();
+});
 
 const PORT = process.env.PORT || 4000;
 
