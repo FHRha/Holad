@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Heart, Star, ChevronDown, MoreHorizontal, SkipForward, ListPlus } from 'lucide-react';
-import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating, getDownloadUrl } from '../../api/subsonic';
+import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
+import { handleDownload } from '../../utils/downloadHelper';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
@@ -83,7 +84,7 @@ export default function AlbumCard({ album }: { album: any }) {
 
   useEffect(() => {
     let isMounted = true;
-    getCachedImageUrl(coverUrl).then(url => {
+    getCachedImageUrl(coverUrl).then((url: string) => {
       if (isMounted) setFinalCoverUrl(url);
     }).catch(() => {
       if (isMounted) setFinalCoverUrl(coverUrl);
@@ -179,25 +180,25 @@ export default function AlbumCard({ album }: { album: any }) {
         </div>
 
         {/* Hover Overlay Buttons on Image */}
-        <div className="absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 hidden md:flex [@media(hover:none)]:!hidden flex-col justify-between p-3 bg-black/50">
-          <div className="flex justify-between items-start">
+        <div className="absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 hidden md:flex [@media(hover:none)]:!hidden flex-col justify-center items-center p-3 bg-black/50">
+          <div className="absolute top-3 left-3 flex items-start z-20">
             <Heart 
               size={20} 
               className={`cursor-pointer transition-colors hover:scale-110 ${isLiked ? 'text-primary' : 'text-white hover:text-primary'}`} 
               fill={isLiked ? "currentColor" : "none"}
               onClick={handleLike}
             />
-            <div className="flex text-yellow-400 drop-shadow-md cursor-pointer z-20">
-              {[1, 2, 3, 4, 5].map((starValue) => (
-                <Star 
-                  key={starValue} 
-                  size={14} 
-                  fill={starValue <= rating ? 'currentColor' : 'transparent'} 
-                  className={`hover:scale-125 transition-transform ${starValue > rating ? 'text-white/30' : ''}`} 
-                  onClick={(e) => handleRate(e, starValue)}
-                />
-              ))}
-            </div>
+          </div>
+          <div className="absolute top-3 left-10 flex text-yellow-400 drop-shadow-md cursor-pointer z-20 ml-1">
+            {[1, 2, 3, 4, 5].map((starValue) => (
+              <Star 
+                key={starValue} 
+                size={14} 
+                fill={starValue <= rating ? 'currentColor' : 'transparent'} 
+                className={`hover:scale-125 transition-transform ${starValue > rating ? 'text-white/30' : ''}`} 
+                onClick={(e) => handleRate(e, starValue)}
+              />
+            ))}
           </div>
 
           <div className="flex items-center justify-center gap-2 lg:gap-4">
@@ -223,8 +224,8 @@ export default function AlbumCard({ album }: { album: any }) {
             </button>
           </div>
 
-          <div className="flex justify-between items-end">
-            <ChevronDown size={20} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); window.open(getDownloadUrl(album.id), '_blank'); }} />
+          <div className="absolute top-2 right-2 flex gap-2 z-20">
+            <ChevronDown size={20} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleDownload(album.id, album.title || album.name || 'album'); }} />
             <MoreHorizontal size={20} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>

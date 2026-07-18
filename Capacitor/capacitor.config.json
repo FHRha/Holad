@@ -1,0 +1,5 @@
+{
+  "appId": "com.holad.app",
+  "appName": "Holad",
+  "webDir": "../client/dist"
+}

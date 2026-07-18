@@ -4,6 +4,7 @@ import { usePlayerStore } from './playerStore';
 import { useAudioStore } from './audioStore';
 import { useSettingsStore } from './settingsStore';
 import { useAuthStore } from './authStore';
+import { getSocketUrl } from '../utils/serverConfig';
 
 export interface HoladDevice {
   id: string;
@@ -75,7 +76,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
         ? import.meta.env.BASE_URL.slice(0, -1) 
         : import.meta.env.BASE_URL;
 
-      socket = io(import.meta.env.VITE_SERVER_URL || window.location.origin, {
+      socket = io(getSocketUrl(), {
         path: `${basePath}/socket.io`,
         transports: ['websocket', 'polling']
       });

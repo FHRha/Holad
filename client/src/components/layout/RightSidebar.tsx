@@ -6,7 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useUIStore } from '../../store/uiStore';
-import { getDownloadUrl } from '../../api/subsonic';
+import { getShareUrl } from '../../utils/serverConfig';
+import { handleDownload } from '../../utils/downloadHelper';
 import { formatArtistName } from '../../utils/formatters';
 import TrackImage from '../common/TrackImage';
 import LongPressWrapper from '../common/LongPressWrapper';
@@ -37,8 +38,7 @@ export default function RightSidebar() {
     if (!currentTrack) return;
     const idToDownload = currentTrack.albumId || currentTrack.id;
     if (idToDownload) {
-      const url = getDownloadUrl(idToDownload);
-      window.open(url, '_blank');
+      handleDownload(idToDownload, queue[currentIndex]?.title || 'track');
     }
     setShowShareMenu(false);
   };
@@ -48,7 +48,7 @@ export default function RightSidebar() {
     const currentTrack = queue[currentIndex];
     if (!currentTrack) return;
     
-    const origin = window.location.origin;
+    const origin = getShareUrl();
     const url = `${origin}/jam/?album=${currentTrack.albumId || currentTrack.album}`;
       
     navigator.clipboard.writeText(url);

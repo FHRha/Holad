@@ -30,7 +30,9 @@ import { useDocumentTitle } from './hooks/useDocumentTitle';
 import SettingsModal from './components/modals/SettingsModal';
 import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { isTauri, isCapacitor } from './utils/StorageManager';
+import ServerConnectionView from './components/views/ServerConnectionView';
 
 // Helper to convert hex to rgb string for Tailwind's opacity to work
 function hexToRgb(hex: string) {
@@ -183,7 +185,23 @@ function MobileBackground() {
   );
 }
 
+// Global event listener for Tauri to prevent F5/Ctrl+R reload
+if (isTauri()) {
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'F5' || (e.ctrlKey && e.key.toLowerCase() === 'r')) {
+      e.preventDefault();
+    }
+  });
+}
+
 function App() {
+  const [serverUrlSet, setServerUrlSet] = useState(!!localStorage.getItem('holadServerUrl'));
+  const isNative = isTauri() || isCapacitor();
+  
+  if (isNative && !serverUrlSet) {
+    return <ServerConnectionView onConnected={() => setServerUrlSet(true)} />;
+  }
+
   return (
     <Router>
       <Routes>

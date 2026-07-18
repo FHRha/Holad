@@ -22,4 +22,8 @@ pnpm-debug.log*
 *.sw?
 
 docs/
-RELEASE_NOTES.md
+artifacts/
+rustup-init.exe
+scratch/
+*.py
+*.pyc

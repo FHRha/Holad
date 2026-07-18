@@ -138,6 +138,10 @@ function isValidHttpUrl(string: string) {
   }
 }
 
+app.get('/api/ping', (req, res) => {
+  res.json({ ok: true, server: 'holad' });
+});
+
 app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, res) => {
   const { url, username, token, salt } = req.body;
   if (!url || !username || !token || !salt) return res.status(400).send('Missing fields');

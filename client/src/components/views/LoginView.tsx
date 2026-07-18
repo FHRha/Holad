@@ -5,6 +5,9 @@ import { useAuthStore } from '../../store/authStore';
 import { Server, User, Lock, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import md5 from 'md5';
+import { getHoladServerUrl } from '../../utils/serverConfig';
+import { isTauri, isCapacitor } from '../../utils/StorageManager';
+import LanguageSelector from '../common/LanguageSelector';
 
 export default function LoginView() {
   const { t } = useTranslation();
@@ -32,7 +35,7 @@ export default function LoginView() {
       const salt = Math.random().toString(36).substring(2, 15);
       const token = md5(password + salt);
 
-      const proxyUrl = import.meta.env.VITE_SERVER_URL || import.meta.env.BASE_URL.replace(/\/$/, '');
+      const proxyUrl = getHoladServerUrl();
       const response = await fetch(`${proxyUrl}/api/save-credentials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -59,6 +62,11 @@ export default function LoginView() {
 
   return (
     <div className="h-full w-full bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Language Selector */}
+      <div className="absolute top-4 right-4 z-50">
+        <LanguageSelector />
+      </div>
+
       {/* Abstract Background */}
       <div className="absolute inset-0 pointer-events-none opacity-20">
         <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] bg-primary/30 rounded-full blur-[120px]" />
@@ -140,6 +148,19 @@ export default function LoginView() {
               t('views.login_btn')
             )}
           </button>
+          
+          {(isTauri() || isCapacitor()) && (
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem('holadServerUrl');
+                window.location.reload();
+              }}
+              className="w-full text-secondary hover:text-white text-sm font-medium py-2 transition-colors"
+            >
+              Сменить сервер Holad
+            </button>
+          )}
         </form>
       </div>
     </div>

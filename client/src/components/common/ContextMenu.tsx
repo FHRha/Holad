@@ -4,7 +4,9 @@ import { Play, ListPlus, SkipForward, Trash2, Heart, Star, Download, Share2, Use
 import { useTranslation } from 'react-i18next';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { usePlayerStore } from '../../store/playerStore';
-import { starItem, unstarItem, setItemRating, getDownloadUrl, getAlbum } from '../../api/subsonic';
+import { starItem, unstarItem, setItemRating, getAlbum } from '../../api/subsonic';
+import { getShareUrl } from '../../utils/serverConfig';
+import { handleDownload } from '../../utils/downloadHelper';
 import type { Track } from '../../store/playerStore';
 import { getCoverArtUrl } from '../../api/subsonic';
 
@@ -126,15 +128,15 @@ export default function ContextMenu() {
   };
 
   const onDownload = () => {
-    const url = getDownloadUrl(item.id);
-    window.open(url, '_blank');
+    handleDownload(item.id, item.title || item.name || 'download');
+    closeMenu();
   };
 
   const onShare = () => {
-    const link = isAlbum 
-      ? `${window.location.origin}/jam/?album=${item.id}`
-      : `${window.location.origin}/jam/?track=${item.id}`;
-    navigator.clipboard.writeText(link);
+    const shareUrl = type === 'album' 
+      ? `${getShareUrl()}/jam/?album=${item.id}` 
+      : `${getShareUrl()}/jam/?track=${item.id}`;
+    navigator.clipboard.writeText(shareUrl);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };

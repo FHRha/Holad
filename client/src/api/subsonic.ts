@@ -6,6 +6,7 @@ export * from './subsonic/playlists';
 
 import { buildUrl, getBaseUrl, getAuthParams } from './subsonic-core';
 import { useAuthStore } from '../store/authStore';
+import { getHoladServerUrl } from '../utils/serverConfig';
 
 export const getDownloadUrl = (id: string) => {
   return `${getBaseUrl()}/rest/download?id=${id}&${getAuthParams()}`;
@@ -13,7 +14,7 @@ export const getDownloadUrl = (id: string) => {
 
 export const getStreamUrl = (id: string) => {
   const { isAuthenticated, url } = useAuthStore.getState();
-  const proxyUrl = import.meta.env.VITE_SERVER_URL || import.meta.env.BASE_URL.replace(/\/$/, '');
+  const proxyUrl = getHoladServerUrl();
   if (!isAuthenticated) {
     return `${proxyUrl}/api/stream/${id}`;
   }

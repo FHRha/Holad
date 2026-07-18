@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { jamSocket } from '../../api/socket';
 import { useAuthStore } from '../../store/authStore';
+import { getShareUrl } from '../../utils/serverConfig';
 import { copyToClipboard } from '../../utils/clipboard';
 
 export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean }) {
@@ -32,8 +33,7 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
 
   const handleCopyLink = async () => {
     if (roomId) {
-      const origin = window.location.origin;
-      const url = new URL(`${origin}/jam/`);
+      const url = new URL(`${getShareUrl()}/jam/`);
       url.searchParams.set('room', roomId);
       await copyToClipboard(url.toString());
       setCopied(true);
