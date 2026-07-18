@@ -23,6 +23,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
 
       - name: Setup Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -58,6 +59,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
 
       - name: Setup Rust Cache
         uses: Swatinem/rust-cache@v2
