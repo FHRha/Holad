@@ -19,8 +19,7 @@ export default function ContextMenu() {
   const [rating, setRating] = useState(0);
   const [isCopied, setIsCopied] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [touchStartY, setTouchStartY] = useState<number | null>(null);
-  const [touchOffsetY, setTouchOffsetY] = useState(0);
+  const touchStartY = useRef<number | null>(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -175,25 +174,36 @@ export default function ContextMenu() {
           className="fixed z-[9999] bottom-0 left-0 right-0 bg-[#1c1c1c] border-t border-white/10 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] overflow-hidden pb-8 animate-in slide-in-from-bottom-full duration-300"
           style={{ 
             maxHeight: '85vh',
-            transform: `translateY(${touchOffsetY}px)`,
-            transition: touchStartY !== null ? 'none' : 'transform 0.3s ease-out'
+            transition: 'transform 0.3s ease-out'
           }}
           onContextMenu={(e) => e.preventDefault()}
         >
           {/* Header with Drag Handle */}
           <div 
-            className="px-4 pt-2 pb-4 border-b border-white/10"
-            onTouchStart={(e) => setTouchStartY(e.touches[0].clientY)}
+            className="px-4 pt-2 pb-4 border-b border-white/10 touch-none"
+            onTouchStart={(e) => {
+              touchStartY.current = e.touches[0].clientY;
+              if (menuRef.current) menuRef.current.style.transition = 'none';
+            }}
             onTouchMove={(e) => {
-              if (touchStartY !== null) {
-                const delta = e.touches[0].clientY - touchStartY;
-                if (delta > 0) setTouchOffsetY(delta);
+              if (touchStartY.current !== null && menuRef.current) {
+                const delta = e.touches[0].clientY - touchStartY.current;
+                if (delta > 0) {
+                  menuRef.current.style.transform = `translateY(${delta}px)`;
+                }
               }
             }}
-            onTouchEnd={() => {
-              if (touchOffsetY > 80) closeMenu();
-              setTouchStartY(null);
-              setTouchOffsetY(0);
+            onTouchEnd={(e) => {
+              if (touchStartY.current !== null && menuRef.current) {
+                const delta = e.changedTouches[0].clientY - touchStartY.current;
+                menuRef.current.style.transition = 'transform 0.3s ease-out';
+                if (delta > 80) {
+                  closeMenu();
+                } else {
+                  menuRef.current.style.transform = 'translateY(0px)';
+                }
+                touchStartY.current = null;
+              }
             }}
           >
             <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-4" />
@@ -258,7 +268,7 @@ export default function ContextMenu() {
   return (
     <div 
       ref={menuRef}
-      className="fixed z-[9999] bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl overflow-y-auto hide-scrollbar py-1 min-w-[220px] backdrop-blur-xl"
+      className="fixed z-[9999] bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl overflow-y-auto hide-scrollbar py-1 min-w-[220px] backdrop-blur-xl transform-gpu"
       style={{ 
         top: Math.min(y, window.innerHeight - 50), 
         left: Math.min(x, window.innerWidth - 230),

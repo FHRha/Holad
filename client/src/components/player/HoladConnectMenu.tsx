@@ -9,8 +9,8 @@ export default function HoladConnectMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const portalRef = useRef<HTMLDivElement>(null);
-  const [touchStartY, setTouchStartY] = useState<number | null>(null);
-  const [touchOffsetY, setTouchOffsetY] = useState(0);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef<number | null>(null);
 
   const devices = useHoladStore(s => s.devices);
   const activeDeviceId = useHoladStore(s => s.activeDeviceId);
@@ -32,8 +32,7 @@ export default function HoladConnectMenu() {
       document.addEventListener('mousedown', handleClickOutside as any);
       document.addEventListener('touchstart', handleClickOutside as any);
     } else {
-      setTouchOffsetY(0);
-      setTouchStartY(null);
+      touchStartY.current = null;
     }
     return () => {
        document.removeEventListener('mousedown', handleClickOutside as any);
@@ -56,20 +55,30 @@ export default function HoladConnectMenu() {
     <>
       <div 
         className={isMobileView 
-          ? "px-3 pt-2 pb-3 border-b border-white/10 mb-2 pt-4 pb-4" 
+          ? "px-3 pt-2 pb-3 border-b border-white/10 mb-2 pt-4 pb-4 touch-none" 
           : "px-3 py-2 border-b border-white/10 mb-2"
         }
-        onTouchStart={isMobileView ? (e) => setTouchStartY(e.touches[0].clientY) : undefined}
+        onTouchStart={isMobileView ? (e) => {
+          touchStartY.current = e.touches[0].clientY;
+          if (mobileMenuRef.current) mobileMenuRef.current.style.transition = 'none';
+        } : undefined}
         onTouchMove={isMobileView ? (e) => {
-          if (touchStartY !== null) {
-            const delta = e.touches[0].clientY - touchStartY;
-            if (delta > 0) setTouchOffsetY(delta);
+          if (touchStartY.current !== null && mobileMenuRef.current) {
+            const delta = e.touches[0].clientY - touchStartY.current;
+            if (delta > 0) mobileMenuRef.current.style.transform = `translateY(${delta}px)`;
           }
         } : undefined}
-        onTouchEnd={isMobileView ? () => {
-          if (touchOffsetY > 80) setIsOpen(false);
-          setTouchStartY(null);
-          setTouchOffsetY(0);
+        onTouchEnd={isMobileView ? (e) => {
+          if (touchStartY.current !== null && mobileMenuRef.current) {
+            const delta = e.changedTouches[0].clientY - touchStartY.current;
+            mobileMenuRef.current.style.transition = 'transform 0.3s ease-out';
+            if (delta > 80) {
+              setIsOpen(false);
+            } else {
+              mobileMenuRef.current.style.transform = 'translateY(0px)';
+            }
+            touchStartY.current = null;
+          }
         } : undefined}
       >
         {isMobileView && <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-4" />}
@@ -132,7 +141,7 @@ export default function HoladConnectMenu() {
 
       {isOpen && (
         <>
-          <div className="hidden md:block absolute bottom-full right-[-60px] mb-4 w-64 bg-card/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+          <div className="hidden md:block absolute bottom-full right-[-60px] mb-4 w-64 bg-card/95 backdrop-blur-xl transform-gpu border border-white/10 rounded-xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
             {content(false)}
           </div>
           
@@ -140,10 +149,10 @@ export default function HoladConnectMenu() {
             <div className="md:hidden" ref={portalRef}>
               <div className="fixed inset-0 bg-black/60 z-[9998] animate-in fade-in duration-200" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} />
               <div 
+                ref={mobileMenuRef}
                 className="fixed bottom-0 left-0 right-0 w-full bg-[#1c1c1c] border-t border-white/10 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-[9999] overflow-hidden pb-8 animate-in slide-in-from-bottom-full duration-300"
                 style={{ 
-                  transform: `translateY(${touchOffsetY}px)`,
-                  transition: touchStartY !== null ? 'none' : 'transform 0.3s ease-out'
+                  transition: 'transform 0.3s ease-out'
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}

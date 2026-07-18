@@ -248,7 +248,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
       </div>
 
       {/* Very Bottom: Navigation Tabs */}
-      <div className="relative z-10 w-full h-[72px] flex-shrink-0 bg-black/40 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
+      <div className="relative z-10 w-full h-[72px] flex-shrink-0 bg-black/40 backdrop-blur-xl transform-gpu border-t border-white/5 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
         <button onClick={() => setActiveTab('player')} className={`p-3 rounded-full transition-colors ${activeTab === 'player' ? 'text-primary bg-primary/10' : 'text-white/50 hover:text-white/80'}`}>
           <Music size={24} />
         </button>
@@ -269,7 +269,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
       {showSleepTimerMenu && (
         <div className="absolute inset-0 z-[200] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div 
-            className="w-full sm:w-[400px] bg-background/90 backdrop-blur-xl border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 flex flex-col gap-2 animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95"
+            className="w-full sm:w-[400px] bg-background/90 backdrop-blur-xl transform-gpu border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 flex flex-col gap-2 animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -311,7 +311,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
       {showSessionMenu && (
         <div className="absolute inset-0 z-[200] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div 
-            className="w-full sm:w-[400px] bg-background/90 backdrop-blur-xl border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 flex flex-col gap-4 animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95"
+            className="w-full sm:w-[400px] bg-background/90 backdrop-blur-xl transform-gpu border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 flex flex-col gap-4 animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-2">

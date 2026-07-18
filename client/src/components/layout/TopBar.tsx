@@ -50,7 +50,7 @@ export default function TopBar() {
   };
 
   return (
-    <div className="sticky top-0 z-50 h-16 bg-background/95 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-4 w-full">
+    <div className="sticky top-0 z-50 h-16 bg-background/95 backdrop-blur-md transform-gpu border-b border-white/5 flex items-center justify-between px-4 w-full">
       <div className="w-10 flex justify-center items-center">
         <button 
           onClick={toggleLeftSidebar} 
@@ -85,7 +85,7 @@ export default function TopBar() {
 
         {/* Dropdown Results */}
         {isSearchOpen && (query.trim().length >= 2 || loading) && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-card/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl max-h-[70vh] overflow-y-auto hide-scrollbar p-4 animate-in fade-in slide-in-from-top-2 duration-200 z-[60]">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-card/95 backdrop-blur-xl transform-gpu border border-white/10 rounded-xl shadow-2xl max-h-[70vh] overflow-y-auto hide-scrollbar p-4 animate-in fade-in slide-in-from-top-2 duration-200 z-[60]">
             
             {loading && (
               <div className="flex justify-center items-center py-8">
@@ -198,7 +198,7 @@ export default function TopBar() {
           </button>
           
           {showSession && (
-            <div className="absolute top-full right-0 mt-2 p-4 bg-card/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl w-80 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute top-full right-0 mt-2 p-4 bg-card/95 backdrop-blur-xl transform-gpu border border-white/10 rounded-xl shadow-2xl w-80 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
               <h3 className="font-bold text-center mb-1">{t('common.jam_session_title')}</h3>
               <p className="text-xs text-secondary text-center mb-2">{t('common.jam_session_desc')}</p>
               <JamSessionControl />
