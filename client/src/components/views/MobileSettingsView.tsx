@@ -127,7 +127,7 @@ export default function MobileSettingsView() {
     setAuthenticated(false);
     setCredentials('', '', '', '');
     clearAppCache();
-    window.location.href = '/';
+    window.location.href = import.meta.env.BASE_URL;
   };
 
   const sections = [

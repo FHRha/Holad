@@ -100,7 +100,7 @@ function AppContent() {
 
   return (
     <GlobalDndProvider>
-      <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans relative">
+      <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden font-sans relative">
         <MobileBackground />
         <div className="flex flex-1 overflow-hidden relative z-10">
           <Routes>

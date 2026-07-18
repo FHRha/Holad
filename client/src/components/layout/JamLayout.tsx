@@ -101,7 +101,7 @@ export default function JamLayout() {
 
   if (jamError) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-screen bg-background text-center p-6">
+      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6">
         <div className="w-24 h-24 mb-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 border border-red-500/30">
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
         </div>
@@ -130,7 +130,7 @@ export default function JamLayout() {
 
   if (!roomToJoin && !isValidStandaloneTrack && !isValidStandaloneAlbum) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-screen bg-background">
+      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background">
         <h2 className="text-2xl font-bold mb-4">{t('jam.invalid_link')}</h2>
         <p className="text-secondary">{t('jam.invalid_link_desc')}</p>
       </div>
@@ -144,7 +144,7 @@ export default function JamLayout() {
       // We already checked roomToJoin, so this might be unnecessary
     } else {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center h-screen bg-background">
+        <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background">
           <h2 className="text-2xl font-bold mb-4">{t('jam.temp_link')}</h2>
           <p className="text-secondary">{t('jam.loading_track')}</p>
         </div>
@@ -167,7 +167,7 @@ export default function JamLayout() {
 
   if (!hasJoined.current && !userName && !jamError && (usePlayerStore.getState().role !== 'host')) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-screen bg-background text-center p-6">
+      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6">
         <h2 className="text-3xl font-bold mb-8">{t('jam.join_jam')}</h2>
         <p className="text-secondary mb-8">{t('jam.join_jam_desc')}</p>
         
@@ -207,7 +207,7 @@ export default function JamLayout() {
   
   if (hasJoined.current && !currentRoomId && usePlayerStore.getState().role !== 'host') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-screen bg-background text-center p-6">
+      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6">
         <div className="w-24 h-24 mb-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 border border-red-500/30">
           <LogOut size={48} />
         </div>
@@ -310,7 +310,7 @@ export default function JamLayout() {
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center h-screen bg-background">
+    <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background">
       <h2 className="text-2xl font-bold mb-4">{t('jam.login_progress')}</h2>
       <p className="text-secondary">{t('jam.connecting_jam')}</p>
     </div>

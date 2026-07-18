@@ -76,7 +76,7 @@ export default function Sidebar() {
     setAuthenticated(false);
     setCredentials('', '', '', '');
     clearAppCache();
-    window.location.href = '/';
+    window.location.href = import.meta.env.BASE_URL;
   };
 
   if (leftSidebarWidth === 0) return null;
