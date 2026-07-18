@@ -11,7 +11,17 @@ export const getHoladServerUrl = (): string => {
       return cleanUrl;
     }
   }
-  return import.meta.env.VITE_SERVER_URL || import.meta.env.BASE_URL.replace(/\/$/, '');
+  
+  if (import.meta.env.VITE_SERVER_URL) {
+    return import.meta.env.VITE_SERVER_URL;
+  }
+  
+  const path = window.location.pathname;
+  if (path.toLowerCase().includes('/holad')) {
+      return path.substring(0, path.toLowerCase().indexOf('/holad') + 6);
+  }
+  
+  return import.meta.env.BASE_URL.replace(/\/$/, '') || '.';
 };
 
 export const getSocketUrl = (): string => {

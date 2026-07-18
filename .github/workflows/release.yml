@@ -13,15 +13,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
           version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: Tauri/src-tauri
 
       - name: Make script executable
         run: chmod +x build_release.sh
@@ -42,15 +48,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
           version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: Tauri/src-tauri
+
+      - name: Setup Gradle Cache
+        uses: gradle/gradle-build-action@v3
+        with:
+          cache-read-only: false
 
       - name: Run Windows build
         run: .\build_release.bat
@@ -61,6 +78,18 @@ jobs:
           name: holad-windows-release
           path: artifacts\holad-windows-release.tar.gz
 
+      - name: Upload Portable Exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: holad-portable-windows
+          path: artifacts\Holad-Portable.exe
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: holad-android-apk
+          path: artifacts\Holad-Android-Debug.apk
+          
   create-release:
     name: Create GitHub Release
     needs: [build-linux, build-windows]
