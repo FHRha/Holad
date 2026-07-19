@@ -2,10 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// Usage: node build_all.js [--no-archive]
+// Usage: node build_all.js [--no-archive] [--skip-client] [--skip-server] [--skip-tauri] [--skip-android]
 
 const args = process.argv.slice(2);
 const createArchive = !args.includes('--no-archive');
+const skipClient = args.includes('--skip-client');
+const skipServer = args.includes('--skip-server');
+const skipTauri = args.includes('--skip-tauri');
+const skipAndroid = args.includes('--skip-android');
 
 const ROOT_DIR = __dirname;
 const ARTIFACTS_DIR = path.join(ROOT_DIR, 'artifacts');
@@ -94,33 +98,42 @@ fs.mkdirSync(path.join(RELEASE_DIR, 'client'), { recursive: true });
 fs.mkdirSync(path.join(RELEASE_DIR, 'server'), { recursive: true });
 
 // 1. Build Client
-console.log("\n--- Building Client ---");
-runCommand('npx pnpm install', path.join(ROOT_DIR, 'client'));
-runCommand('npx pnpm run build', path.join(ROOT_DIR, 'client'));
+if (!skipClient) {
+  console.log("\n--- Building Client ---");
+  runCommand('npx pnpm install', path.join(ROOT_DIR, 'client'));
+  runCommand('npx pnpm run build', path.join(ROOT_DIR, 'client'));
+}
 
 // 2. Build Server
-console.log("\n--- Building Server ---");
-runCommand('npx pnpm install', path.join(ROOT_DIR, 'server'));
-runCommand('npx pnpm run build', path.join(ROOT_DIR, 'server'));
+if (!skipServer) {
+  console.log("\n--- Building Server ---");
+  runCommand('npx pnpm install', path.join(ROOT_DIR, 'server'));
+  runCommand('npx pnpm run build', path.join(ROOT_DIR, 'server'));
+}
 
 // Copy to release folder (Server + Web Client bundle)
-console.log("\n--- Preparing Web Release Bundle ---");
-copyRecursiveSync(path.join(ROOT_DIR, 'client', 'dist'), path.join(RELEASE_DIR, 'client', 'dist'));
-copyRecursiveSync(path.join(ROOT_DIR, 'server', 'dist'), path.join(RELEASE_DIR, 'server', 'dist'));
-fs.copyFileSync(path.join(ROOT_DIR, 'server', 'package.json'), path.join(RELEASE_DIR, 'server', 'package.json'));
+if (!skipClient || !skipServer) {
+  console.log("\n--- Preparing Web Release Bundle ---");
+  if (fs.existsSync(path.join(ROOT_DIR, 'client', 'dist'))) {
+    copyRecursiveSync(path.join(ROOT_DIR, 'client', 'dist'), path.join(RELEASE_DIR, 'client', 'dist'));
+  }
+  if (fs.existsSync(path.join(ROOT_DIR, 'server', 'dist'))) {
+    copyRecursiveSync(path.join(ROOT_DIR, 'server', 'dist'), path.join(RELEASE_DIR, 'server', 'dist'));
+    fs.copyFileSync(path.join(ROOT_DIR, 'server', 'package.json'), path.join(RELEASE_DIR, 'server', 'package.json'));
+  }
 
-// Create .env.example
-fs.writeFileSync(path.join(RELEASE_DIR, 'server', '.env.example'), `PORT=4000
+  // Create .env.example
+  fs.writeFileSync(path.join(RELEASE_DIR, 'server', '.env.example'), `PORT=4000
 # If you want to manually bind the server, uncomment and edit the line below:
 # NAVIDROME_ACCOUNTS='[{"url":"https://your-navidrome.com","user":"admin","token":"...","salt":"..."}]'
 `);
 
-if (fs.existsSync(path.join(ROOT_DIR, 'holad_cli.sh'))) {
-  fs.copyFileSync(path.join(ROOT_DIR, 'holad_cli.sh'), path.join(RELEASE_DIR, 'holad_cli.sh'));
-}
+  if (fs.existsSync(path.join(ROOT_DIR, 'holad_cli.sh'))) {
+    fs.copyFileSync(path.join(ROOT_DIR, 'holad_cli.sh'), path.join(RELEASE_DIR, 'holad_cli.sh'));
+  }
 
-// Startup scripts
-fs.writeFileSync(path.join(RELEASE_DIR, 'start.bat'), `@echo off
+  // Startup scripts
+  fs.writeFileSync(path.join(RELEASE_DIR, 'start.bat'), `@echo off
 cd server
 if not exist "node_modules" (
     echo Installing production dependencies...
@@ -130,7 +143,7 @@ node dist\\index.js
 pause
 `);
 
-fs.writeFileSync(path.join(RELEASE_DIR, 'start.sh'), `#!/bin/bash
+  fs.writeFileSync(path.join(RELEASE_DIR, 'start.sh'), `#!/bin/bash
 cd server
 if [ ! -d "node_modules" ]; then
     echo "Installing production dependencies..."
@@ -138,21 +151,23 @@ if [ ! -d "node_modules" ]; then
 fi
 node dist/index.js
 `);
-try {
-  fs.chmodSync(path.join(RELEASE_DIR, 'start.sh'), 0o755);
-} catch (e) {}
+  try {
+    fs.chmodSync(path.join(RELEASE_DIR, 'start.sh'), 0o755);
+  } catch (e) {}
 
-// Archive the Web Server Release
-if (createArchive) {
-  console.log("\n--- Creating Archive ---");
-  const platformName = process.platform === 'win32' ? 'windows' : 'linux';
-  const archiveName = `holad-${platformName}-release.tar.gz`;
-  runCommand(`tar -czf ${archiveName} holad-release`, ARTIFACTS_DIR);
-  console.log(`Web server release archive is at artifacts/${archiveName}`);
+  // Archive the Web Server Release
+  if (createArchive) {
+    console.log("\n--- Creating Archive ---");
+    const platformName = process.platform === 'win32' ? 'windows' : 'linux';
+    const archiveName = `holad-${platformName}-release.tar.gz`;
+    runCommand(`tar -czf ${archiveName} holad-release`, ARTIFACTS_DIR);
+    console.log(`Web server release archive is at artifacts/${archiveName}`);
+  }
 }
 
 // 3. Build Tauri Desktop Apps (if running on Windows or if rust is installed)
-try {
+if (!skipTauri) {
+  try {
   // Check if cargo is installed
   const env = { ...process.env };
   const cargoPath = path.join(process.env.USERPROFILE || '', '.cargo', 'bin');
@@ -203,9 +218,11 @@ try {
 } catch (err) {
   console.log("\n[SKIP] Skipping Tauri build (Rust/Cargo is not available or build failed)");
 }
+}
 
 // 4. Build Capacitor Android App
-try {
+if (!skipAndroid) {
+  try {
   if (fs.existsSync(path.join(ROOT_DIR, 'Capacitor', 'android'))) {
     console.log("\n--- Building Capacitor (Android App) ---");
     // Install dependencies first
@@ -224,9 +241,10 @@ try {
       console.log(`Copying Android APK to artifacts...`);
       fs.copyFileSync(apkFile, path.join(ARTIFACTS_DIR, 'Holad-Android-Debug.apk'));
     }
+    }
+  } catch (err) {
+    console.log("\n[SKIP] Skipping Capacitor Android build (Failed or not configured)");
   }
-} catch (err) {
-  console.log("\n[SKIP] Skipping Capacitor Android build (Failed or not configured)");
 }
 
 console.log("\n--- Build Complete! ---");

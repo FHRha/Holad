@@ -42,7 +42,7 @@ jobs:
         run: chmod +x build_release.sh
 
       - name: Run Linux build
-        run: ./build_release.sh
+        run: ./build_release.sh --skip-android
         
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
@@ -79,13 +79,8 @@ jobs:
         with:
           workspaces: Tauri/src-tauri
 
-      - name: Setup Gradle Cache
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: false
-
       - name: Run Windows build
-        run: .\build_release.bat
+        run: .\build_release.bat --skip-android
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
@@ -99,15 +94,48 @@ jobs:
           name: holad-portable-windows
           path: artifacts\Holad-Portable.exe
 
+  build-android:
+    name: Build for Android
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Ensure pnpm store exists
+        run: |
+          mkdir -p $(pnpm store path)
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
+
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Make script executable
+        run: chmod +x build_release.sh
+
+      - name: Run Android build
+        run: ./build_release.sh --skip-tauri
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: holad-android-apk
-          path: artifacts\Holad-Android-Debug.apk
-          
+          path: artifacts/Holad-Android-Debug.apk
   create-release:
     name: Create GitHub Release
-    needs: [build-linux, build-windows]
+    needs: [build-linux, build-windows, build-android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
