@@ -246,7 +246,9 @@ if (!skipAndroid) {
     }
     }
   } catch (err) {
-    console.log("\n[SKIP] Skipping Capacitor Android build (Failed or not configured)");
+    console.error("\n[ERROR] Capacitor Android build failed!");
+    console.error(err.message || err);
+    process.exit(1);
   }
 }
 
