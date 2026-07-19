@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Heart, Star, ChevronDown, MoreHorizontal, SkipForward, ListPlus } from 'lucide-react';
+import { Play, Heart, Star, ChevronDown, MoreHorizontal, SkipForward, ListPlus, Download } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
 import { handleDownload } from '../../utils/downloadHelper';
 import { getCachedImageUrl } from '../../utils/imageCache';
@@ -10,6 +10,7 @@ import type { Track } from '../../store/playerStore';
 import { extractDominantColor } from '../../utils/colorExtractor';
 import ArtistLinks from './ArtistLinks';
 import { useLongPress } from '../../hooks/useLongPress';
+import { useDownloadStore } from '../../store/downloadStore';
 
 const isLightColor = (color: string | null): boolean => {
   if (!color) return false;
@@ -59,6 +60,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
   const toggleAlbumLike = usePlayerStore(state => state.toggleAlbumLike);
   const { openMenu } = useContextMenuStore();
   const setIsProcessing = usePlayerStore(state => state.setIsProcessing);
+  const isDownloaded = useDownloadStore(state => !!state.downloads[album.id] && state.downloads[album.id].status === 'completed');
   
   const [dominantColor, setDominantColor] = useState<string | null>(null);
 
@@ -206,6 +208,12 @@ export default function HeroAlbumCard({ album }: { album: any }) {
           </div>
         )}
 
+        {isDownloaded && (
+          <div className="absolute top-2 left-2 z-10 w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg">
+            <Download size={16} className="text-black" />
+          </div>
+        )}
+
         {/* Hover Overlay Buttons on Image */}
         <div className="absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 hidden md:flex [@media(hover:none)]:!hidden flex-col justify-between p-3 bg-black/50">
           <div className="flex justify-between items-start">
@@ -252,7 +260,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
           </div>
 
           <div className="flex justify-between items-end">
-            <ChevronDown size={24} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleDownload(album.id, album.title || album.name || 'album'); }} />
+            <ChevronDown size={24} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleDownload(album.id, album.title || album.name || 'album', 'album'); }} />
             <MoreHorizontal size={24} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>

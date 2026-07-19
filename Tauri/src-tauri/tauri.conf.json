@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "holad",
+  "productName": "Holad",
   "version": "0.1.0",
   "identifier": "com.holad.app",
   "build": {

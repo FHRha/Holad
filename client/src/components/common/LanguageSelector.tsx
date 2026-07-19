@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useSettingsStore } from '../../store/settingsStore';
 
 export default function LanguageSelector({ align = 'right' }: { align?: 'left' | 'right' } = {}) {
   const { t, i18n } = useTranslation();
@@ -24,7 +25,7 @@ export default function LanguageSelector({ align = 'right' }: { align?: 'left' |
   }, []);
 
   const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
+    useSettingsStore.getState().setLanguage(lng);
     setIsOpen(false);
   };
 

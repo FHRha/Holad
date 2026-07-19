@@ -10,6 +10,7 @@ import type { Track } from '../../store/playerStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useUIStore } from '../../store/uiStore';
 import { List } from 'lucide-react';
+import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 
 function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
   return (
@@ -34,6 +35,7 @@ export default function FavoritesView() {
   const { setQueueAndPlay, likedTrackIds, toggleTrackLike } = usePlayerStore();
   const [mobileTab, setMobileTab] = useState<'tracks' | 'albums' | 'artists'>('tracks');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const downloads = useDownloadStore(state => state.downloads);
 
   useEffect(() => {
     loadStarred();
@@ -137,12 +139,13 @@ export default function FavoritesView() {
                     </div>
                     
                     <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-white/10 relative shadow-sm">
-                      {track.coverArt && <TrackImage src={getCoverArtUrl(track.coverArt, 100)} className="w-full h-full object-cover" alt="" />}
+                      {track.coverArt && <TrackImage src={getCoverArtUrl(track.coverArt, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate group-hover:text-primary transition-colors">
-                        {track.title}
+                      <p className="flex items-center gap-2 text-sm font-medium text-white truncate group-hover:text-primary transition-colors">
+                        <span className="truncate">{track.title}</span>
+                        {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0 group-hover:text-primary" />}
                       </p>
                       <p className="text-xs text-secondary truncate">
                         {formatArtistName(track.artist)}{track.album ? ` • ${track.album}` : ''}
@@ -235,12 +238,13 @@ export default function FavoritesView() {
                       onClick={() => handlePlayTrack(index, searchedTracks)}
                     >
                       <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-white/10 relative shadow-sm">
-                        {track.coverArt && <TrackImage src={getCoverArtUrl(track.coverArt, 100)} className="w-full h-full object-cover" alt="" />}
+                        {track.coverArt && <TrackImage src={getCoverArtUrl(track.coverArt, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />}
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <p className="text-[15px] font-bold text-white truncate">
-                          {track.title}
+                        <p className="flex items-center gap-2 text-[15px] font-bold text-white truncate">
+                          <span className="truncate">{track.title}</span>
+                          {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
                         </p>
                         <p className="text-[13px] text-[#b3b3b3] truncate">
                           {formatArtistName(track.artist)}{track.album ? ` • ${track.album}` : ''}

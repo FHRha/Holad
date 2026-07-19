@@ -102,11 +102,7 @@ jobs:
           name: holad-windows-release
           path: artifacts\holad-windows-release.tar.gz
 
-      - name: Upload Portable Exe
-        uses: actions/upload-artifact@v4
-        with:
-          name: holad-portable-windows
-          path: artifacts\Holad-Portable.exe
+
 
       - name: Upload Windows Setup
         uses: actions/upload-artifact@v4
@@ -198,10 +194,7 @@ jobs:
         with:
           name: holad-windows-release
 
-      - name: Download Portable Windows Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: holad-portable-windows
+
 
       - name: Download Windows Setup
         uses: actions/download-artifact@v4
@@ -228,7 +221,6 @@ jobs:
           files: |
             holad-linux-release.tar.gz
             holad-windows-release.tar.gz
-            Holad-Portable.exe
             Holad-Android-Debug.apk
             *.exe
             *.msi

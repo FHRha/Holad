@@ -19,6 +19,7 @@ import RadioView from './components/views/RadioView';
 import MobileSettingsView from './components/views/MobileSettingsView';
 import SyncConflictModal from './components/common/SyncConflictModal';
 import HistoryView from './components/views/HistoryView';
+import DownloadsView from './components/views/DownloadsView';
 import TopBar from './components/layout/TopBar';
 import NowPlayingModal from './components/common/NowPlayingModal';
 import MobileSearchOverlay from './components/modals/MobileSearchOverlay';
@@ -129,6 +130,7 @@ function AppContent() {
                         <Route path="/album/:id" element={<AlbumView />} />
                         <Route path="/favorites" element={<FavoritesView />} />
                         <Route path="/history" element={<HistoryView />} />
+                        <Route path="/downloads" element={<DownloadsView />} />
                         <Route path="/radio" element={<RadioView />} />
                         <Route path="/settings" element={<MobileSettingsView />} />
                         <Route path="*" element={<MainContent />} />

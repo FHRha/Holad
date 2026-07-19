@@ -2,18 +2,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ArtistAvatar from '../common/ArtistAvatar';
 import AlbumCard from '../common/AlbumCard';
 import TrackImage from '../common/TrackImage';
-import { Play, Shuffle, ArrowLeft } from 'lucide-react';
+import { Play, Shuffle, ArrowLeft, Download } from 'lucide-react';
 import { formatTime } from '../../utils/timeFormat';
 import { useTranslation } from 'react-i18next';
 import { useArtistData } from '../../hooks/useArtistData';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
+import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 
 export default function ArtistView() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { openMenu } = useContextMenuStore();
+  const downloads = useDownloadStore(state => state.downloads);
   
   const {
     artist,
@@ -125,8 +127,9 @@ export default function ArtistView() {
                     </div>
                   </div>
                   
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
                     <p className="font-medium text-sm sm:text-base text-foreground truncate">{track.title}</p>
+                    {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
                   </div>
                   
                   <div className="text-xs sm:text-sm text-secondary/70 font-medium">

@@ -8,6 +8,7 @@ import Slider from '../common/Slider';
 import LiquidSeekBar from '../common/LiquidSeekBar';
 import ArtistLinks from '../common/ArtistLinks';
 import TrackImage from '../common/TrackImage';
+import { getCoverArtUrl } from '../../api/subsonic';
 import MobilePlayerUI from './MobilePlayerUI';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useAutoDj } from '../../hooks/useAutoDj';
@@ -36,6 +37,7 @@ export default function BottomPlayer() {
   const {
     progress,
     setProgress,
+    duration,
     setIsSeeking,
     handleTimeUpdate,
     handleEnded,
@@ -105,7 +107,7 @@ export default function BottomPlayer() {
       <div className="flex items-center gap-4 flex-1 min-w-0 max-w-[30%] md:min-w-[180px] lg:min-w-[250px]">
         <div className="w-[92px] h-[92px] rounded-md overflow-hidden relative group shadow-sm flex-shrink-0">
           <TrackImage 
-            src={currentTrack.coverArt} 
+            src={currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 100)} 
             alt="Cover" 
             className="w-full h-full object-cover" 
           />
@@ -169,7 +171,7 @@ export default function BottomPlayer() {
         </div>
 
         <div className="w-full flex items-center gap-3 text-[11px] text-secondary font-medium px-4">
-          <span className="min-w-[35px] text-right">{formatTime((progress / 100) * (currentTrack?.duration || 0))}</span>
+          <span className="min-w-[35px] text-right">{formatTime((progress / 100) * (duration || 0))}</span>
           <LiquidSeekBar 
             value={progress / 100} 
             onChange={handleSeekChange} 
@@ -177,7 +179,7 @@ export default function BottomPlayer() {
             className={`flex-1 ${role === 'listener' ? 'pointer-events-none' : ''}`}
             isAnimated={isPlaying}
           />
-          <span className="min-w-[35px] text-left">{formatTime(currentTrack.duration)}</span>
+          <span className="min-w-[35px] text-left">{formatTime(duration)}</span>
         </div>
       </div>
 
@@ -299,11 +301,11 @@ export default function BottomPlayer() {
           />
         </div>
       
-      <TrackImage 
-        src={currentTrack.coverArt} 
-        className="w-9 h-9 rounded shadow flex-shrink-0 object-cover" 
-        alt="" 
-      />
+        <TrackImage 
+          src={currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 100)} 
+          className="w-9 h-9 rounded shadow flex-shrink-0 object-cover" 
+          alt="" 
+        />
       
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         <p className="text-sm font-bold text-foreground truncate">{currentTrack.title}</p>
@@ -347,7 +349,7 @@ export default function BottomPlayer() {
           
           if (initialPosition > 0) {
             target.currentTime = initialPosition / 1000;
-            setProgress((initialPosition / 1000 / currentTrack.duration) * 100);
+            setProgress((initialPosition / 1000 / (duration || 1)) * 100);
             setInitialPosition(0);
           }
         }}
@@ -355,7 +357,7 @@ export default function BottomPlayer() {
         onSeeked={() => {
           setIsSeeking(false);
           if (audioRef.current && currentTrack) {
-            setProgress((audioRef.current.currentTime / currentTrack.duration) * 100);
+            setProgress((audioRef.current.currentTime / (duration || 1)) * 100);
           }
         }}
         loop={repeatMode === 'one'}

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Home, Heart, Disc, Music, Radio, Users, Settings, LogOut, User, Clock } from 'lucide-react';
+import { Home, Heart, Disc, Music, Radio, Users, Settings, LogOut, User, Clock, Download, Loader2 } from 'lucide-react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { clearAppCache } from '../../utils/storage';
+import { useDownloadStore } from '../../store/downloadStore';
+import { isTauri } from '../../utils/StorageManager';
 
 
 export default function Sidebar() {
@@ -12,6 +14,9 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { leftSidebarWidth, setLeftSidebarWidth } = useUIStore();
   const { user, url, setAuthenticated, setCredentials } = useAuthStore();
+  const downloads = useDownloadStore(state => state.downloads);
+  const isDownloading = Object.values(downloads).some(d => d.status === 'downloading');
+  const isNative = isTauri();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -76,7 +81,7 @@ export default function Sidebar() {
     setAuthenticated(false);
     setCredentials('', '', '', '');
     clearAppCache();
-    window.location.href = import.meta.env.BASE_URL;
+    window.location.reload();
   };
 
   if (leftSidebarWidth === 0) return null;
@@ -160,6 +165,14 @@ export default function Sidebar() {
           <SidebarItem to="/Holad/tracks" icon={<Music size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.tracks')} isWide={isWide} />
           <SidebarItem to="/Holad/artists" icon={<Users size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.artists')} isWide={isWide} />
           <SidebarItem to="/Holad/radio" icon={<Radio size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.radio')} isWide={isWide} />
+          {isNative && (
+            <SidebarItem 
+              to="/Holad/downloads" 
+              icon={isDownloading ? <Loader2 size={isWide ? 20 : 22} className="flex-shrink-0 animate-spin text-primary" /> : <Download size={isWide ? 20 : 22} className="flex-shrink-0" />} 
+              label={t('sidebar.downloads', { defaultValue: 'Загрузки' })} 
+              isWide={isWide} 
+            />
+          )}
         </div>
       </div>
       

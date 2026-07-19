@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
-import { Play, ChevronDown } from 'lucide-react';
+import { Play, ChevronDown, Download } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
 import { formatArtistName } from '../../utils/formatters';
 import { formatTime } from '../../utils/timeFormat';
@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import LanguageSelector from './LanguageSelector';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from './dnd/SortableItem';
+import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 
 export default function FullScreenPlayerUI({ 
   onClose,
@@ -25,6 +26,7 @@ export default function FullScreenPlayerUI({
   const { queue, currentIndex, setQueueAndPlay, role } = usePlayerStore();
   const currentTrack = queue[currentIndex];
   const { audioElement } = useAudioStore();
+  const downloads = useDownloadStore(state => state.downloads);
   const [activeTab, setActiveTab] = useState<'queue' | 'similar' | 'lyrics' | 'visualizer'>('lyrics');
   
   const isJamRoute = window.location.pathname.startsWith('/jam');
@@ -306,7 +308,10 @@ export default function FullScreenPlayerUI({
                               <TrackImage src={getCoverArtUrl(track.id, 100)} className="w-full h-full object-cover" alt="" />
                             </div>
                             <div className="flex-1 min-w-0 flex flex-col justify-center select-none pointer-events-none">
-                              <p className={`truncate text-base font-semibold ${isPlayingQueue ? 'text-primary drop-shadow-md' : 'text-white/90'}`}>{track.title}</p>
+                              <p className={`flex items-center gap-2 truncate text-base font-semibold ${isPlayingQueue ? 'text-primary drop-shadow-md' : 'text-white/90'}`}>
+                                <span className="truncate">{track.title}</span>
+                                {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                              </p>
                               <p className="truncate text-sm text-white/60">{formatArtistName(track.artist)}</p>
                             </div>
                             <div className="w-16 text-sm text-white/50 flex justify-end font-medium select-none pointer-events-none">
@@ -333,7 +338,10 @@ export default function FullScreenPlayerUI({
                       <TrackImage src={track.coverArt} className="w-full h-full object-cover" alt="" />
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
-                      <p className="truncate text-base font-semibold text-white/90">{track.title}</p>
+                      <p className="flex items-center gap-2 truncate text-base font-semibold text-white/90">
+                        <span className="truncate">{track.title}</span>
+                        {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                      </p>
                       <p className="truncate text-sm text-white/60">{formatArtistName(track.artist)}</p>
                     </div>
                     <div className="w-16 text-sm text-white/50 flex justify-end font-medium">

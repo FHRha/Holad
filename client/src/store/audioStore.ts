@@ -8,6 +8,8 @@ interface AudioStore {
   setAudioElement: (el: HTMLAudioElement | null) => void;
   progress: number;
   setProgress: (val: number) => void;
+  duration: number;
+  setDuration: (val: number) => void;
   isSeeking: boolean;
   setIsSeeking: (val: boolean) => void;
   handleSeekChange: (val: number) => void;
@@ -19,6 +21,8 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
   setAudioElement: (el) => set({ audioElement: el }),
   progress: 0,
   setProgress: (progress) => set({ progress }),
+  duration: 0,
+  setDuration: (duration) => set({ duration }),
   isSeeking: false,
   setIsSeeking: (isSeeking) => set({ isSeeking }),
   handleSeekChange: (val) => {

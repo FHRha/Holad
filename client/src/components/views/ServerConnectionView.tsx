@@ -9,7 +9,7 @@ interface Props {
 
 export default function ServerConnectionView({ onConnected }: Props) {
   const { t } = useTranslation();
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState('https://');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 

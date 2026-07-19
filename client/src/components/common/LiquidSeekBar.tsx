@@ -21,6 +21,7 @@ export default function LiquidSeekBar({ value, onChange, onDrag, onDragEnd, clas
   const timeRef = useRef(0);
   const animationRef = useRef<number | undefined>(undefined);
   const amplitudeMultiplierRef = useRef(isAnimated ? 1 : 0);
+  const prevValueRef = useRef(value);
 
   useEffect(() => {
     if (!isDragging) {
@@ -30,10 +31,25 @@ export default function LiquidSeekBar({ value, onChange, onDrag, onDragEnd, clas
 
   const updateThumbAndClip = (val: number) => {
     const percent = Math.max(0, Math.min(val * 100, 100));
-    if (thumbRef.current) thumbRef.current.style.left = `${percent}%`;
+    
+    // Smooth transition only for small natural playback increments, not for seeks or drags
+    const isSmallIncrement = !isDragging && Math.abs(val - prevValueRef.current) < 0.02;
+    const transitionDuration = isSmallIncrement ? '250ms' : '0ms';
+    
+    if (thumbRef.current) {
+      thumbRef.current.style.transitionProperty = 'left';
+      thumbRef.current.style.transitionDuration = transitionDuration;
+      thumbRef.current.style.transitionTimingFunction = 'linear';
+      thumbRef.current.style.left = `${percent}%`;
+    }
     if (canvasContainerRef.current) {
+      canvasContainerRef.current.style.transitionProperty = 'clip-path';
+      canvasContainerRef.current.style.transitionDuration = transitionDuration;
+      canvasContainerRef.current.style.transitionTimingFunction = 'linear';
       canvasContainerRef.current.style.clipPath = `polygon(0 0, ${percent}% 0, ${percent}% 100%, 0 100%)`;
     }
+    
+    prevValueRef.current = val;
   };
 
   const updateValue = (clientX: number, isEnd = false) => {
@@ -226,7 +242,7 @@ export default function LiquidSeekBar({ value, onChange, onDrag, onDragEnd, clas
       {/* Canvas container with clip-path */}
       <div 
         ref={canvasContainerRef}
-        className="absolute left-0 top-0 bottom-0 pointer-events-none transition-[clip-path] duration-0"
+        className="absolute left-0 top-0 bottom-0 pointer-events-none"
         style={{ 
           width: '100%',
           clipPath: 'polygon(0 0, 0% 0, 0% 100%, 0 100%)' 

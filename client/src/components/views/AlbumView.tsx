@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Play, Pause, Heart, Star, MoreHorizontal, Clock, Radio, Music, ListPlus, ArrowLeft } from 'lucide-react';
+import { Play, Pause, Heart, Star, MoreHorizontal, Clock, Radio, Music, ListPlus, ArrowLeft, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
@@ -8,6 +8,7 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useAlbumData } from '../../hooks/useAlbumData';
 import ArtistLinks from '../common/ArtistLinks';
 import LongPressWrapper from '../common/LongPressWrapper';
+import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 
 export default function AlbumView() {
   const { t } = useTranslation();
@@ -17,6 +18,7 @@ export default function AlbumView() {
   
   const { queue, currentIndex, likedTrackIds, toggleTrackLike, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
+  const downloads = useDownloadStore(state => state.downloads);
 
   const {
     album,
@@ -155,6 +157,7 @@ export default function AlbumView() {
             {album.song?.slice(0, visibleCount).map((track: any, index: number) => {
               const currentPlaying = queue[currentIndex]?.id === track.id;
               const isTrackLiked = likedTrackIds.includes(track.id);
+              const isTrackDownloaded = isItemDownloaded(downloads, track.id, track.albumId || album.id);
               
               return (
                 <LongPressWrapper 
@@ -179,7 +182,10 @@ export default function AlbumView() {
                     )}
                   </div>
                   <div className="flex-1 flex flex-col min-w-0 pr-2 sm:pr-4">
-                    <span className={`text-sm sm:text-base font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-white'}`}>{track.title}</span>
+                    <span className={`flex items-center gap-2 text-sm sm:text-base font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-white'}`}>
+                      <span className="truncate">{track.title}</span>
+                      {isTrackDownloaded && <Download size={14} className="text-primary shrink-0" />}
+                    </span>
                     <ArtistLinks artistString={track.artist || album.artist} artistId={track.artistId || album.artistId} className="text-xs text-secondary truncate" />
                   </div>
                   <div className="hidden md:flex w-16 justify-center">

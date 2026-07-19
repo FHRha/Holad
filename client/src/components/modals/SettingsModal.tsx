@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Palette, Settings2, MonitorPlay, Pencil, Check } from 'lucide-react';
+import { X, Palette, Settings2, MonitorPlay, Pencil, Check, HardDrive, FolderSearch, Trash2 } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { AppTheme, AccentColor, StartPage } from '../../store/settingsStore';
 import { usePlayerStore } from '../../store/playerStore';
+import { useDownloadStore } from '../../store/downloadStore';
+import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
+import { clearAppCache } from '../../utils/storage';
 import Slider from '../common/Slider';
 import Dropdown from '../common/Dropdown';
+import DeleteDownloadsModal from './DeleteDownloadsModal';
 
 // Helper for HSL -> HEX conversion
 function hslToHex(h: number, s: number, l: number) {
@@ -59,7 +63,7 @@ export default function SettingsModal() {
   const setVolume = usePlayerStore(state => state.setVolume);
   const toggleAutoDj = usePlayerStore(state => state.toggleAutoDj);
   
-  const [activeTab, setActiveTab] = useState<'general' | 'appearance' | 'player'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'appearance' | 'player' | 'storage'>('general');
   const [resetState, setResetState] = useState<'idle' | 'confirm' | 'done'>('idle');
   const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null);
   const [customHexInput, setCustomHexInput] = useState('');
@@ -115,7 +119,7 @@ export default function SettingsModal() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-card w-full max-w-3xl rounded-xl shadow-2xl border border-white/10 flex h-[500px]">
+      <div className="bg-card w-full max-w-3xl rounded-xl shadow-2xl border border-white/10 flex h-[85vh] md:h-[500px]">
         
         {/* Sidebar */}
         <div className="w-64 bg-background/50 border-r border-white/5 flex flex-col p-4">
@@ -145,6 +149,16 @@ export default function SettingsModal() {
               <MonitorPlay size={20} className={activeTab === 'player' ? 'animate-pulse-slow' : ''} />
               <span>{t('settings.player')}</span>
             </button>
+
+            {isTauri() && (
+              <button 
+                onClick={() => { setActiveTab('storage'); setEditingColorIndex(null); }}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'storage' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+              >
+                <HardDrive size={20} className={activeTab === 'storage' ? 'animate-pulse-slow' : ''} />
+                <span>{t('settings.storage', { defaultValue: 'Хранилище' })}</span>
+              </button>
+            )}
           </div>
           
           <div className="mt-auto pt-4">
@@ -182,6 +196,7 @@ export default function SettingsModal() {
               {activeTab === 'general' && (t('settings.general') || 'Общие')}
               {activeTab === 'appearance' && (t('settings.appearance') || 'Внешний вид')}
               {activeTab === 'player' && (t('settings.player') || 'Плеер')}
+              {activeTab === 'storage' && (t('settings.storage', { defaultValue: 'Хранилище' }))}
             </h3>
 
             {activeTab === 'general' && (
@@ -429,6 +444,12 @@ export default function SettingsModal() {
                 </SettingSection>
               </div>
             )}
+
+            {activeTab === 'storage' && (
+              <div className="space-y-8">
+                <StorageSettingsTab t={t} />
+              </div>
+            )}
             
           </div>
         </div>
@@ -466,5 +487,108 @@ function ColorOption({ color, hex, current, onSelect }: { color: AccentColor, he
       className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${current === color ? 'ring-2 ring-offset-2 ring-offset-card ring-primary scale-110' : 'hover:scale-110'}`}
       style={{ backgroundColor: hex }}
     />
+  );
+}
+
+function StorageSettingsTab({ t }: { t: any }) {
+  const { downloadDirectory, setDownloadDirectory } = useDownloadStore();
+  const [actualDir, setActualDir] = useState<string>('Загрузка...');
+  const [isMoving, setIsMoving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  React.useEffect(() => {
+    if (downloadDirectory) {
+      setActualDir(downloadDirectory);
+    } else {
+      StorageManager.getDefaultDownloadDir().then(setActualDir).catch(() => setActualDir('Ошибка получения пути'));
+    }
+  }, [downloadDirectory]);
+
+  const handleSelectDirectory = async () => {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selectedPath = await open({
+        directory: true,
+        multiple: false,
+        title: t('settings.select_download_folder', { defaultValue: 'Выберите папку для загрузок' })
+      });
+      if (selectedPath && typeof selectedPath === 'string') {
+        const currentDir = downloadDirectory || await StorageManager.getDefaultDownloadDir();
+        if (currentDir !== selectedPath) {
+          setIsMoving(true);
+          try {
+             await StorageManager.moveDirectory(currentDir, selectedPath);
+          } catch (err) {
+             console.error("Failed to move directory:", err);
+          }
+          setDownloadDirectory(selectedPath);
+          setIsMoving(false);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setIsMoving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-8">
+      <SettingSection title={t('settings.download_location', { defaultValue: 'Папка для загрузок' })}>
+        <div className="flex flex-col gap-4">
+          <div className="bg-black/30 p-3 rounded-lg border border-white/5 truncate max-w-full text-sm font-mono text-secondary" title={actualDir}>
+            {actualDir}
+          </div>
+          <button 
+            onClick={handleSelectDirectory}
+            disabled={isMoving}
+            className="flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary py-2.5 rounded-xl font-medium transition-colors"
+          >
+            {isMoving ? <span className="animate-pulse">{t('settings.moving_files', { defaultValue: 'Перемещение файлов...' })}</span> : (
+              <>
+                <FolderSearch size={18} />
+                <span>{t('settings.change_folder', { defaultValue: 'Изменить папку' })}</span>
+              </>
+            )}
+          </button>
+        </div>
+      </SettingSection>
+
+      <SettingSection title={t('settings.app_cache', { defaultValue: 'Кэш приложения' })}>
+        <div className="flex flex-col gap-4">
+          <div>
+            <p className="text-xs text-secondary mb-2">
+              {t('settings.clear_cache_desc', { defaultValue: 'Очистка локального кэша без удаления скачанных треков или альбомов.' })}
+            </p>
+            <button 
+              onClick={() => {
+                clearAppCache();
+                window.location.reload();
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-xl font-medium transition-colors"
+            >
+              <Trash2 size={18} />
+              <span>{isTauri() || isCapacitor() ? t('settings.clear_client_cache', { defaultValue: 'Очистить кэш клиента' }) : t('settings.clear_web_cache', { defaultValue: 'Очистить кэш веб-браузера' })}</span>
+            </button>
+          </div>
+
+          <div className="pt-2 border-t border-white/5">
+            <p className="text-xs text-secondary mb-2">
+              {t('settings.delete_downloads_desc', { defaultValue: 'Удаление скачанных треков или альбомов с устройства.' })}
+            </p>
+            <button 
+              onClick={() => setShowDeleteModal(true)}
+              className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 py-2.5 rounded-xl font-medium transition-colors"
+            >
+              <Trash2 size={18} />
+              <span>{t('settings.delete_downloads_btn', { defaultValue: 'Удалить загрузки' })}</span>
+            </button>
+          </div>
+        </div>
+      </SettingSection>
+
+      {showDeleteModal && (
+        <DeleteDownloadsModal onClose={() => setShowDeleteModal(false)} />
+      )}
+    </div>
   );
 }

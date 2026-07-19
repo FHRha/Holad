@@ -10,7 +10,9 @@ import { getShareUrl } from '../../utils/serverConfig';
 import { handleDownload } from '../../utils/downloadHelper';
 import { formatArtistName } from '../../utils/formatters';
 import TrackImage from '../common/TrackImage';
+import { getCoverArtUrl } from '../../api/subsonic';
 import LongPressWrapper from '../common/LongPressWrapper';
+import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 
 export default function RightSidebar() {
   const { t } = useTranslation();
@@ -21,6 +23,7 @@ export default function RightSidebar() {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const shareRef = useRef<HTMLDivElement>(null);
+  const downloads = useDownloadStore(state => state.downloads);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -36,9 +39,9 @@ export default function RightSidebar() {
     if (queue.length === 0 || currentIndex === -1) return;
     const currentTrack = queue[currentIndex];
     if (!currentTrack) return;
-    const idToDownload = currentTrack.albumId || currentTrack.id;
-    if (idToDownload) {
-      handleDownload(idToDownload, queue[currentIndex]?.title || 'track');
+    const albumIdToDownload = currentTrack.albumId;
+    if (albumIdToDownload) {
+      handleDownload(albumIdToDownload, queue[currentIndex]?.album || 'album', 'album');
     }
     setShowShareMenu(false);
   };
@@ -205,7 +208,7 @@ export default function RightSidebar() {
                       </div>
                     )}
                     <div className={`relative group rounded overflow-hidden shadow-sm flex-shrink-0 ${isSmall ? 'w-14 h-14' : 'w-10 h-10 mx-2'}`}>
-                      <TrackImage src={track.coverArt} className="w-full h-full rounded object-cover pointer-events-none" alt="" />
+                      <TrackImage src={track.coverArt || getCoverArtUrl(track.id, 100)} className="w-full h-full rounded object-cover pointer-events-none" alt="" trackId={track.id} />
                       {isSmall && (
                         <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} pointer-events-none`}>
                           <Play size={16} className={isPlaying ? "text-primary" : "text-white"} fill="currentColor" />
@@ -215,7 +218,10 @@ export default function RightSidebar() {
                     {!isSmall && (
                       <>
                         <div className="flex-1 min-w-0 flex flex-col justify-center select-none pointer-events-none">
-                          <p className={`truncate text-sm font-medium ${isPlaying ? 'text-primary' : 'text-foreground'}`}>{track.title}</p>
+                          <p className={`flex items-center gap-2 truncate text-sm font-medium ${isPlaying ? 'text-primary' : 'text-foreground'}`}>
+                            <span className="truncate">{track.title}</span>
+                            {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                          </p>
                           <p className="truncate text-xs text-secondary">{formatArtistName(track.artist)}</p>
                         </div>
                         <div className="w-10 text-right text-xs text-secondary select-none pointer-events-none">

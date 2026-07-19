@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil } from 'lucide-react';
+import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil, Trash2 } from 'lucide-react';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { AppTheme, AccentColor } from '../../store/settingsStore';
 import { usePlayerStore } from '../../store/playerStore';
@@ -9,6 +9,8 @@ import { clearAppCache } from '../../utils/storage';
 import Slider from '../common/Slider';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../common/LanguageSelector';
+import DeleteDownloadsModal from '../modals/DeleteDownloadsModal';
+import { isTauri, isCapacitor } from '../../utils/StorageManager';
 
 function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
   return (
@@ -95,6 +97,7 @@ export default function MobileSettingsView() {
   const toggleAutoDj = usePlayerStore(state => state.toggleAutoDj);
   
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   
   const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null);
   const [hue, setHue] = useState(0);
@@ -127,7 +130,7 @@ export default function MobileSettingsView() {
     setAuthenticated(false);
     setCredentials('', '', '', '');
     clearAppCache();
-    window.location.href = import.meta.env.BASE_URL;
+    window.location.reload();
   };
 
   const sections = [
@@ -302,7 +305,36 @@ export default function MobileSettingsView() {
       subtitle: t('views.settings_storage_desc', { defaultValue: 'Управление кешами, загрузки, лимиты хранения' }),
       icon: <HardDrive className="text-primary" size={24} />,
       content: (
-        <div className="text-[#b3b3b3] text-sm mt-4 italic">{t('views.settings_wip', { defaultValue: 'В разработке...' })}</div>
+        <div className="flex flex-col gap-6 mt-4">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-[#b3b3b3]">
+              {t('settings.clear_cache_desc', { defaultValue: 'Очистка локального кэша без удаления скачанных треков или альбомов.' })}
+            </p>
+            <button 
+              onClick={() => {
+                clearAppCache();
+                window.location.reload();
+              }}
+              className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold transition-colors w-full"
+            >
+              <Trash2 size={18} />
+              <span>{isTauri() || isCapacitor() ? t('settings.clear_client_cache', { defaultValue: 'Очистить кэш клиента' }) : t('settings.clear_web_cache', { defaultValue: 'Очистить кэш веб-браузера' })}</span>
+            </button>
+          </div>
+
+          <div className="pt-2 border-t border-white/5 flex flex-col gap-2">
+            <p className="text-xs text-[#b3b3b3]">
+              {t('settings.delete_downloads_desc', { defaultValue: 'Удаление скачанных треков или альбомов с устройства.' })}
+            </p>
+            <button 
+              onClick={() => setShowDeleteModal(true)}
+              className="flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 py-3 rounded-xl font-bold transition-colors w-full"
+            >
+              <Trash2 size={18} />
+              <span>{t('settings.delete_downloads_btn', { defaultValue: 'Удалить загрузки' })}</span>
+            </button>
+          </div>
+        </div>
       )
     }
   ];
@@ -367,6 +399,10 @@ export default function MobileSettingsView() {
           );
         })}
       </div>
+      
+      {showDeleteModal && (
+        <DeleteDownloadsModal onClose={() => setShowDeleteModal(false)} />
+      )}
     </div>
   );
 }

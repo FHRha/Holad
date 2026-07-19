@@ -8,10 +8,13 @@ import { Play } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from '../common/dnd/SortableItem';
+import { Download } from 'lucide-react';
+import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 
 export default function MobileQueueTab() {
   const { t } = useTranslation();
   const { queue, currentIndex, playTrack, role } = usePlayerStore();
+  const downloads = useDownloadStore(state => state.downloads);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,8 +71,9 @@ export default function MobileQueueTab() {
                   </div>
                   
                   <div className="flex-1 min-w-0 flex flex-col justify-center pointer-events-none select-none">
-                    <p className={`truncate text-base font-medium ${isPlaying ? 'text-primary' : 'text-white'}`}>
-                      {track.title}
+                    <p className={`flex items-center gap-2 truncate text-base font-medium ${isPlaying ? 'text-primary' : 'text-white'}`}>
+                      <span className="truncate">{track.title}</span>
+                      {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
                     </p>
                     <p className="truncate text-sm text-white/60">
                       {formatArtistName(track.artist)}

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useHistoryStore, getFilteredHistory, calculateStats } from '../../store/historyStore';
-import { Clock, Play, Music, Users, Star, Flame, Calendar, Trophy, ChevronLeft, Disc } from 'lucide-react';
+import { Clock, Play, Music, Users, Star, Flame, Calendar, Trophy, ChevronLeft, Disc, Download } from 'lucide-react';
 import TrackImage from '../common/TrackImage';
 import ArtistLinks from '../common/ArtistLinks';
 import ArtistAvatar from '../common/ArtistAvatar';
@@ -9,6 +9,7 @@ import { getCoverArtUrl } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 
 function formatDuration(seconds: number, t: any) {
   if (!seconds) return '0' + t('views.mins_abbr', { defaultValue: 'м' });
@@ -38,6 +39,7 @@ export default function HistoryView() {
   const history = useHistoryStore(s => s.history);
   const setQueueAndPlay = usePlayerStore(s => s.setQueueAndPlay);
   const navigate = useNavigate();
+  const downloads = useDownloadStore(state => state.downloads);
 
   const [period, setPeriod] = useState<number | null>(7); // null = all time
   const [topLimit, setTopLimit] = useState<number>(5);
@@ -136,9 +138,12 @@ export default function HistoryView() {
                     if (t) setQueueAndPlay([t], 0);
                   }}>
                     <span className="text-xl font-black text-white/20 w-6 text-center mr-2">{i + 1}</span>
-                    <TrackImage src={getImageUrl(coverArt, 100)} className="w-10 h-10 rounded-md mr-3 object-cover shadow-sm" alt={title} />
+                    <TrackImage src={getImageUrl(coverArt, 100)} className="w-10 h-10 rounded-md mr-3 object-cover shadow-sm" alt={title} trackId={id} />
                     <div className="flex flex-col min-w-0 flex-1">
-                      <span className="font-bold text-[15px] truncate">{title}</span>
+                      <span className="flex items-center gap-2 font-bold text-[15px] truncate">
+                        <span className="truncate">{title}</span>
+                        {isItemDownloaded(downloads, id, undefined) && <Download size={14} className="text-primary shrink-0" />}
+                      </span>
                       <ArtistLinks artistString={artist} className="text-xs text-secondary truncate" />
                     </div>
                     <span className="text-sm font-bold text-secondary bg-white/5 px-2.5 py-1 rounded-md">{track.count} {t('views.times', { defaultValue: 'раз' })}</span>
@@ -160,7 +165,7 @@ export default function HistoryView() {
                 return (
                   <div key={id} className="flex items-center p-2 rounded-xl hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => navigate(`/Holad/album/${id}`)}>
                     <span className="text-xl font-black text-white/20 w-6 text-center mr-2">{i + 1}</span>
-                    <TrackImage src={getImageUrl(coverArt || id, 100)} className="w-10 h-10 rounded-md mr-3 object-cover shadow-sm" alt={title} />
+                    <TrackImage src={getImageUrl(coverArt || id, 100)} className="w-10 h-10 rounded-md mr-3 object-cover shadow-sm" alt={title} trackId={id} />
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="font-bold text-[15px] truncate">{title}</span>
                       <ArtistLinks artistString={artist} className="text-xs text-secondary truncate" />
@@ -190,13 +195,16 @@ export default function HistoryView() {
                   onClick={() => setQueueAndPlay([entry], 0)}
                 >
                   <div className="relative w-12 h-12 mr-3 flex-shrink-0">
-                    <TrackImage src={getImageUrl(entry.coverArt || entry.id, 100)} className="w-full h-full rounded-md object-cover" alt={entry.title} />
+                    <TrackImage src={getImageUrl(entry.coverArt || entry.id, 100)} className="w-full h-full rounded-md object-cover" alt={entry.title} trackId={entry.id} />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-md transition-opacity">
                       <Play fill="currentColor" size={20} className="text-white" />
                     </div>
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className="font-bold text-[14px] truncate">{entry.title}</span>
+                    <span className="flex items-center gap-2 font-bold text-[14px] truncate">
+                      <span className="truncate">{entry.title}</span>
+                      {isItemDownloaded(downloads, entry.id, entry.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                    </span>
                     <ArtistLinks artistString={entry.artist} className="text-[12px] text-secondary truncate" />
                   </div>
                   <span className="text-[11px] font-medium text-secondary/60 whitespace-nowrap ml-2">

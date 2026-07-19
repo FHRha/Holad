@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatArtistName } from '../../utils/formatters';
-import { Play, Pause, Heart, Clock, Search, FilterX } from 'lucide-react';
+import { Play, Pause, Heart, Clock, Search, FilterX, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { searchTracks, getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
@@ -13,6 +13,7 @@ import { useTrackFilters } from '../../hooks/useTrackFilters';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useUIStore } from '../../store/uiStore';
 import LongPressWrapper from '../common/LongPressWrapper';
+import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 
 export default function TracksView() {
   const { t } = useTranslation();
@@ -26,6 +27,7 @@ export default function TracksView() {
 
   const { setQueueAndPlay, queue, currentIndex, likedTrackIds, toggleTrackLike, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
+  const downloads = useDownloadStore(state => state.downloads);
 
   const {
     filterLiked,
@@ -266,9 +268,12 @@ export default function TracksView() {
                       </div>
                       
                       <div className="flex-1 min-w-0 md:min-w-[200px] flex items-center gap-3 pr-2 md:pr-4">
-                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId, 300)} alt="" className="w-12 h-12 md:w-10 md:h-10 rounded-md md:rounded object-cover shadow-sm flex-shrink-0" />
+                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId, 300)} alt="" className="w-12 h-12 md:w-10 md:h-10 rounded-md md:rounded object-cover shadow-sm flex-shrink-0" trackId={track.id} />
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className={`text-[15px] md:text-sm font-bold md:font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-white'}`}>{track.title}</span>
+                          <span className={`flex items-center gap-2 text-[15px] md:text-sm font-bold md:font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-white'}`}>
+                            <span className="truncate">{track.title}</span>
+                            {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                          </span>
                           <span className="text-[13px] md:text-xs text-[#b3b3b3] md:text-secondary truncate">{formatArtistName(track.artist)}{track.album ? ` • ${track.album}` : ''}</span>
                         </div>
                       </div>

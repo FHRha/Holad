@@ -8,6 +8,7 @@ import type { Track } from '../../store/playerStore';
 import { useHistoryStore, getFilteredHistory, calculateStats } from '../../store/historyStore';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 
 function ScrollableSection({ title, children, onRefresh }: { title: string, children: React.ReactNode, onRefresh?: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -83,6 +84,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
   const [loadingStation, setLoadingStation] = useState<string | null>(null);
   const [refreshRecentKey, setRefreshRecentKey] = useState(0);
   const [refreshFrequentKey, setRefreshFrequentKey] = useState(0);
+  const downloads = useDownloadStore(state => state.downloads);
   
   const navigate = useNavigate();
   const history = useHistoryStore(s => s.history);
@@ -253,7 +255,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                 onClick={() => playRecentTrack(track)}
               >
                 <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828]">
-                  <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 300)} className="w-full h-full object-cover" alt={track.title} />
+                  <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 300)} className="w-full h-full object-cover" alt={track.title} trackId={track.id} />
                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                     <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center pl-1 text-black">
                       <Play fill="currentColor" size={20} />
@@ -267,7 +269,10 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                   )}
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[15px] font-bold text-white truncate">{track.title}</span>
+                  <span className="flex items-center gap-1.5 text-[15px] font-bold text-white truncate">
+                    <span className="truncate">{track.title}</span>
+                    {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                  </span>
                   <span className="text-[13px] text-[#b3b3b3] truncate">{track.artist}</span>
                 </div>
               </div>
@@ -301,7 +306,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                 }}
               >
                 <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828]">
-                  <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full object-cover" alt={album.name || album.title} />
+                  <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full object-cover" alt={album.name || album.title} trackId={album.id} />
                   {(album.userRating > 0) && (
                     <div className="absolute bottom-2 left-2 flex items-center gap-1 text-primary text-xs font-bold bg-black/40 px-1.5 py-0.5 rounded-full">
                       <Star size={10} fill="currentColor" />

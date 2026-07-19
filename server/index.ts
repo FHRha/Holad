@@ -329,7 +329,7 @@ app.get('/api/subsonic/:endpoint', async (req, res) => {
   await executeWithFailover(req, res, 
     (account) => {
       const authParams = getSubsonicAuthParams(account);
-      return `${account.url}/rest/${endpoint}?${query}&${authParams}`;
+      return `${account.url.replace(/\/$/, '')}/rest/${endpoint}?${query}&${authParams}`;
     },
     async (response) => {
       if (!response.ok) {
@@ -366,7 +366,7 @@ app.get('/api/stream/:id', async (req, res) => {
       if (serverUrl) {
         const decodedUrl = decodeURIComponent(serverUrl as string);
         if (isValidHttpUrl(decodedUrl) && !decodedUrl.includes('#') && !decodedUrl.includes('?')) {
-          if (navidromeAccounts.some(a => a.url === decodedUrl)) {
+          if (navidromeAccounts.some(a => a.url.replace(/\/$/, '') === decodedUrl.replace(/\/$/, ''))) {
             targetServer = decodedUrl;
           } else {
             return res.status(403).send('Target server is not in the allowed proxy pool.');
@@ -415,7 +415,7 @@ app.get('/api/stream/:id', async (req, res) => {
   await executeWithFailover(req, res,
     (account) => {
       const authParams = getSubsonicAuthParams(account);
-      return `${account.url}/rest/stream?id=${id}&${authParams}`;
+      return `${account.url.replace(/\/$/, '')}/rest/stream?id=${id}&${authParams}`;
     },
     async (response) => {
       if (!response.ok && response.status !== 206) {

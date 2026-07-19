@@ -27,7 +27,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     repeatMode, cycleRepeatMode, playbackRate, cyclePlaybackRate, 
     sleepTimer, setSleepTimer
   } = usePlayerStore();
-  const { audioElement, progress, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
+  const { audioElement, progress, duration, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
   const { openMenu } = useContextMenuStore();
   
   const isConnected = useHoladStore(s => s.roomId !== null);
@@ -120,8 +120,8 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   };
 
 
-  const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 1000) : '', [currentTrack?.id]);
-  const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 300) : '', [currentTrack?.id]);
+  const coverArtHighRes = useMemo(() => currentTrack ? (currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 1000)) : '', [currentTrack?.id, currentTrack?.coverArt]);
+  const coverArtLowRes = useMemo(() => currentTrack ? (currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 300)) : '', [currentTrack?.id, currentTrack?.coverArt]);
 
   const handleLike = () => {
     if (!currentTrack) return;
@@ -147,7 +147,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   if (!currentTrack) return null;
 
   const isLiked = likedTrackIds.includes(currentTrack.id);
-  const currentTime = (progress / 100) * currentTrack.duration;
+  const currentTime = (progress / 100) * (duration || 0);
 
   return (
     <div className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-300">
@@ -230,7 +230,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             />
             <div className="flex justify-between text-xs font-medium text-white/50">
               <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(currentTrack.duration)}</span>
+              <span>{formatTime(duration)}</span>
             </div>
           </div>
 

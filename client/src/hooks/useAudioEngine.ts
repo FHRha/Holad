@@ -7,7 +7,7 @@ import { useHistoryStore } from '../store/historyStore';
 
 export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null>) {
   const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, volume, role, playbackRate, sleepTimer, setSleepTimer } = usePlayerStore();
-  const { setAudioElement, progress, setProgress, isSeeking, setIsSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
+  const { setAudioElement, progress, setProgress, duration, setDuration, isSeeking, setIsSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
 
   const holadDeviceId = useHoladStore(s => s.deviceId);
   const holadActiveDeviceId = useHoladStore(s => s.activeDeviceId);
@@ -160,7 +160,10 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
         }
         lastTimeRef.current = audioRef.current.currentTime;
 
-        const pct = (audioRef.current.currentTime / currentTrack.duration) * 100;
+        const actualDuration = audioRef.current.duration && !isNaN(audioRef.current.duration) ? audioRef.current.duration : (currentTrack.duration || 1);
+        if (duration !== actualDuration) setDuration(actualDuration);
+
+        const pct = (audioRef.current.currentTime / actualDuration) * 100;
         setProgress(pct);
         localStorage.setItem('streamnavi_time', audioRef.current.currentTime.toString());
         localStorage.setItem('streamnavi_track', currentTrack.id);
@@ -250,6 +253,8 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
   return {
     progress,
     setProgress,
+    duration,
+    setDuration,
     isSeeking,
     setIsSeeking,
     handleTimeUpdate,

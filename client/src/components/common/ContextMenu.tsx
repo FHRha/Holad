@@ -128,7 +128,7 @@ export default function ContextMenu() {
   };
 
   const onDownload = () => {
-    handleDownload(item.id, item.title || item.name || 'download');
+    handleDownload(item.id, item.title || item.name || 'download', type === 'album' ? 'album' : 'track');
     closeMenu();
   };
 

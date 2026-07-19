@@ -194,8 +194,7 @@ if (!skipTauri) {
   // 1. Windows Executables
   const exeFile = path.join(tauriReleaseDir, 'app.exe');
   if (fs.existsSync(exeFile)) {
-    console.log(`Copying Windows portable exe to artifacts...`);
-    fs.copyFileSync(exeFile, path.join(ARTIFACTS_DIR, 'Holad-Portable.exe'));
+    console.log(`Windows exe generated at ${exeFile}`);
   }
   
   // 2. Linux/Mac Executables

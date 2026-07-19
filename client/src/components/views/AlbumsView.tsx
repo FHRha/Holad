@@ -74,7 +74,7 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
                 onClick={() => navigate(`/Holad/album/${album.id}`)}
               >
                 <div className="relative w-16 h-16 flex-shrink-0">
-                  <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full rounded-md object-cover" />
+                  <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full rounded-md object-cover" trackId={album.id} />
                 </div>
                 <div className="flex flex-col flex-1 overflow-hidden">
                   <span className="text-[15px] text-white font-bold truncate">{album.name || album.title}</span>
