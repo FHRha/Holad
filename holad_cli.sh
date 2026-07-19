@@ -90,7 +90,14 @@ while true; do
             
             # Download new release
             echo "Downloading latest release..."
-            curl -# -L https://github.com/FHRha/Holad/releases/latest/download/holad-linux-release.tar.gz -o /tmp/holad-update.tar.gz
+            DOWNLOAD_BASE="https://github.com/FHRha/Holad/releases/latest/download"
+            if curl -sSLf "$DOWNLOAD_BASE/holad-web-release.tar.gz" -o /tmp/holad-update.tar.gz; then
+                echo "Downloaded holad-web-release.tar.gz"
+            elif curl -sSLf "$DOWNLOAD_BASE/holad-linux-release.tar.gz" -o /tmp/holad-update.tar.gz; then
+                echo "Downloaded holad-linux-release.tar.gz (legacy fallback)"
+            else
+                echo "Error: Failed to download release bundle."
+            fi
             
             if [ -f "/tmp/holad-update.tar.gz" ]; then
                 echo "Extracting release..."

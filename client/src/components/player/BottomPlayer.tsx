@@ -356,6 +356,7 @@ export default function BottomPlayer() {
         crossOrigin="anonymous"
         ref={audioRef}
         src={audioSrc}
+        autoPlay={isPlaying && isActiveDevice}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         onLoadedMetadata={(e) => {
