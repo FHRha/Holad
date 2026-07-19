@@ -789,7 +789,20 @@ io.on('connection', (socket) => {
 });
 
 // Serve frontend for production (when Nginx is not used)
-const clientPath = path.resolve(process.cwd(), '../client/dist');
+const possibleClientPaths = [
+  path.resolve(process.cwd(), '../client/dist'), // If run from server folder
+  path.resolve(process.cwd(), 'client/dist'),    // If run from root folder
+  path.resolve(process.cwd(), '../../client/dist') // If run from server/dist folder
+];
+
+let clientPath = possibleClientPaths[0]; // Default fallback
+for (const p of possibleClientPaths) {
+  if (fs.existsSync(p)) {
+    clientPath = p;
+    break;
+  }
+}
+
 if (fs.existsSync(clientPath)) {
   app.use(express.static(clientPath));
   app.use('/Holad', express.static(clientPath));
