@@ -35,11 +35,11 @@ if (rawVersion && rawVersion.startsWith('v')) {
   });
 }
 
-function runCommand(command, cwd) {
+function runCommand(command, cwd, envOverrides = {}) {
   console.log(`\n> Running: ${command} in ${cwd}`);
   
   // Inject environment variables to avoid needing to pass them manually via batch script
-  const env = { ...process.env };
+  const env = { ...process.env, ...envOverrides };
   
   // Ensure cargo is in PATH for Tauri build
   const cargoPath = path.join(process.env.USERPROFILE || '', '.cargo', 'bin');
@@ -99,9 +99,9 @@ fs.mkdirSync(path.join(RELEASE_DIR, 'server'), { recursive: true });
 
 // 1. Build Client
 if (!skipClient) {
-  console.log("\n--- Building Client ---");
+  console.log("\n--- Building Web Client (Base: /Holad/) ---");
   runCommand('npx pnpm install', path.join(ROOT_DIR, 'client'));
-  runCommand('npx pnpm run build', path.join(ROOT_DIR, 'client'));
+  runCommand('npx pnpm run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: '/Holad/' });
 }
 
 // 2. Build Server
@@ -163,6 +163,11 @@ node dist/index.js
     runCommand(`tar -czf ${archiveName} holad-release`, ARTIFACTS_DIR);
     console.log(`Web server release archive is at artifacts/${archiveName}`);
   }
+}
+
+if (!skipTauri || !skipAndroid) {
+  console.log("\n--- Rebuilding Client for Native Apps (Base: ./) ---");
+  runCommand('npx pnpm run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: './' });
 }
 
 // 3. Build Tauri Desktop Apps (if running on Windows or if rust is installed)
