@@ -150,11 +150,23 @@ jobs:
         with:
           name: holad-windows-release
 
+      - name: Download Portable Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: holad-portable-windows
+
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: holad-android-apk
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             holad-linux-release.tar.gz
             holad-windows-release.tar.gz
+            Holad-Portable.exe
+            Holad-Android-Debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -233,6 +233,9 @@ if (!skipAndroid) {
     
     // Build APK
     const gradlew = process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew';
+    if (process.platform !== 'win32') {
+      try { fs.chmodSync(path.join(ROOT_DIR, 'Capacitor', 'android', 'gradlew'), 0o755); } catch(e) {}
+    }
     runCommand(`${gradlew} assembleDebug --no-daemon`, path.join(ROOT_DIR, 'Capacitor', 'android'));
     
     // Copy APK
