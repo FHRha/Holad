@@ -166,6 +166,10 @@ node dist/index.js
 
 if (!skipTauri || !skipAndroid) {
   console.log("\n--- Rebuilding Client for Native Apps (Base: ./) ---");
+  if (!fs.existsSync(path.join(ROOT_DIR, 'client', 'node_modules'))) {
+    console.log("node_modules missing, installing dependencies...");
+    runCommand('npx pnpm install', path.join(ROOT_DIR, 'client'));
+  }
   runCommand('npx pnpm run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: './' });
 }
 
