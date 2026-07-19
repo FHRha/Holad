@@ -795,9 +795,9 @@ const possibleClientPaths = [
   path.resolve(process.cwd(), '../../client/dist') // If run from server/dist folder
 ];
 
-let clientPath = possibleClientPaths[0]; // Default fallback
+let clientPath: string = possibleClientPaths[0] || path.resolve(process.cwd(), '../client/dist'); // Default fallback
 for (const p of possibleClientPaths) {
-  if (fs.existsSync(p)) {
+  if (p && fs.existsSync(p)) {
     clientPath = p;
     break;
   }
