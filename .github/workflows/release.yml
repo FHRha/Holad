@@ -155,14 +155,32 @@ jobs:
       - name: Make script executable
         run: chmod +x build_release.sh
 
-      - name: Run Android build
-        run: ./build_release.sh --skip-tauri
+      - name: Decode Keystore
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > Capacitor/android/app/release-key.keystore
 
-      - name: Upload APK
+      - name: Run Android build
+        env:
+          ANDROID_KEYSTORE_FILE: "release-key.keystore"
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+             export ANDROID_KEYSTORE_FILE="release-key.keystore"
+          else
+             unset ANDROID_KEYSTORE_FILE
+          fi
+          ./build_release.sh --skip-tauri
+
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: holad-android-apk
-          path: artifacts/Holad-Android-Debug.apk
+          path: artifacts/*.apk
   create-release:
     name: Create GitHub Release
     needs: [build-linux, build-windows, build-android]

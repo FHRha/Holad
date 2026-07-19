@@ -240,13 +240,18 @@ if (!skipAndroid) {
     if (process.platform !== 'win32') {
       try { fs.chmodSync(path.join(ROOT_DIR, 'Capacitor', 'android', 'gradlew'), 0o755); } catch(e) {}
     }
-    runCommand(`${gradlew} assembleDebug --no-daemon`, path.join(ROOT_DIR, 'Capacitor', 'android'));
+    const buildType = process.env.ANDROID_KEYSTORE_FILE ? 'assembleRelease' : 'assembleDebug';
+    runCommand(`${gradlew} ${buildType} --no-daemon`, path.join(ROOT_DIR, 'Capacitor', 'android'));
     
     // Copy APK
-    const apkFile = path.join(ROOT_DIR, 'Capacitor', 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
+    const debugApk = path.join(ROOT_DIR, 'Capacitor', 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
+    const releaseApk = path.join(ROOT_DIR, 'Capacitor', 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
+    const apkFile = process.env.ANDROID_KEYSTORE_FILE && fs.existsSync(releaseApk) ? releaseApk : debugApk;
+
     if (fs.existsSync(apkFile)) {
       console.log(`Copying Android APK to artifacts...`);
-      fs.copyFileSync(apkFile, path.join(ARTIFACTS_DIR, 'Holad-Android-Debug.apk'));
+      const artifactName = buildType === 'assembleRelease' ? 'Holad-Android-Release.apk' : 'Holad-Android-Debug.apk';
+      fs.copyFileSync(apkFile, path.join(ARTIFACTS_DIR, artifactName));
     }
     }
   } catch (err) {
