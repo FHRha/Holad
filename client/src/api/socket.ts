@@ -2,9 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { usePlayerStore } from '../store/playerStore';
 import i18n from '../i18n';
 
-// Assuming Vite proxy handles /socket.io
-// In production, this would be the actual server URL if different
-const SOCKET_URL = '/'; 
+import { getSocketUrl } from '../utils/serverConfig';
 
 class JamSocketService {
   private socket: Socket | null = null;
@@ -16,13 +14,8 @@ class JamSocketService {
   connect() {
     if (this.socket) return;
     
-    // Use BASE_URL from vite config for socket path to support subfolder deployments
-    const basePath = import.meta.env.BASE_URL.endsWith('/') 
-      ? import.meta.env.BASE_URL.slice(0, -1) 
-      : import.meta.env.BASE_URL;
-      
-    this.socket = io(SOCKET_URL, {
-      path: `${basePath}/socket.io`,
+    this.socket = io(getSocketUrl(), {
+      path: '/Holad/socket.io',
       transports: ['websocket', 'polling']
     });
 

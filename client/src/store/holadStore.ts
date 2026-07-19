@@ -71,13 +71,8 @@ export const useHoladStore = create<HoladState>((set, get) => {
     connect: (roomId: string) => {
       if (socket) return;
 
-      // Use BASE_URL from vite config for socket path to support subfolder deployments
-      const basePath = import.meta.env.BASE_URL.endsWith('/') 
-        ? import.meta.env.BASE_URL.slice(0, -1) 
-        : import.meta.env.BASE_URL;
-
       socket = io(getSocketUrl(), {
-        path: `${basePath}/socket.io`,
+        path: '/Holad/socket.io',
         transports: ['websocket', 'polling']
       });
 
