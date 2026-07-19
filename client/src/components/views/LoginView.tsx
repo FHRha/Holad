@@ -43,7 +43,12 @@ export default function LoginView() {
       });
       
       if (!response.ok) {
-        throw new Error('Invalid credentials');
+        let errorMsg = 'Invalid credentials';
+        try {
+          const errData = await response.json();
+          if (errData.error) errorMsg = errData.error;
+        } catch(e) {}
+        throw new Error(errorMsg);
       }
 
       // If valid, save locally to Zustand store
@@ -53,7 +58,7 @@ export default function LoginView() {
       navigate('/Holad', { replace: true });
     } catch (err: any) {
       console.error(err);
-      setError(t('views.connection_failed'));
+      setError(err.message || t('views.connection_failed'));
       setAuthenticated(false);
     } finally {
       setLoading(false);

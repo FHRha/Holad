@@ -158,9 +158,23 @@ app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, re
   try {
     const pingUrl = `${url}/rest/ping.view?${authParams}`;
     const response = await fetch(pingUrl);
+    
+    if (!response.ok) {
+       console.error(`[AUTH] Navidrome returned HTTP ${response.status} for ${pingUrl.replace(/&t=[^&]+&s=[^&]+/, '&t=***&s=***')}`);
+       return res.status(response.status).json({ error: `Navidrome server returned HTTP ${response.status}. Please check your Navidrome URL.` });
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+       console.error(`[AUTH] Navidrome returned non-JSON content-type: ${contentType}`);
+       const text = await response.text();
+       return res.status(500).json({ error: `Navidrome returned an invalid (non-JSON) response. Are you sure this is a Navidrome server? Response snippet: ${text.substring(0, 100)}` });
+    }
+    
     const data = await response.json();
     if (data['subsonic-response']?.status !== 'ok') {
-       return res.status(401).send('Invalid credentials');
+       console.error('[AUTH] Navidrome rejected the login:', data);
+       return res.status(401).json({ error: 'Invalid username or password. Navidrome rejected the credentials.' });
     }
     
     const existing = navidromeAccounts.find(a => a.user === username && a.url === url);
@@ -171,9 +185,10 @@ app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, re
       }
       saveAccountsToEnv();
     }
-    res.send({ status: 'ok' });
-  } catch (error) {
-    res.status(500).send('Error verifying credentials');
+    res.json({ status: 'ok' });
+  } catch (error: any) {
+    console.error('[AUTH] Failed to connect to Navidrome:', error);
+    res.status(500).json({ error: `Error verifying credentials (Network/Fetch Error): ${error.message || error}` });
   }
 });
 

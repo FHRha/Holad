@@ -50,6 +50,20 @@ jobs:
           name: holad-linux-release
           path: artifacts/holad-linux-release.tar.gz
 
+      - name: Upload Linux AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: holad-linux-appimage
+          path: artifacts/*.AppImage
+          if-no-files-found: ignore
+
+      - name: Upload Linux Deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: holad-linux-deb
+          path: artifacts/*.deb
+          if-no-files-found: ignore
+
   build-windows:
     name: Build for Windows
     runs-on: windows-latest
@@ -93,6 +107,20 @@ jobs:
         with:
           name: holad-portable-windows
           path: artifacts\Holad-Portable.exe
+
+      - name: Upload Windows Setup
+        uses: actions/upload-artifact@v4
+        with:
+          name: holad-windows-setup
+          path: artifacts\*setup.exe
+          if-no-files-found: ignore
+
+      - name: Upload Windows MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: holad-windows-msi
+          path: artifacts\*.msi
+          if-no-files-found: ignore
 
   build-android:
     name: Build for Android
@@ -151,6 +179,20 @@ jobs:
         with:
           name: holad-linux-release
 
+      - name: Download Linux AppImage
+        uses: actions/download-artifact@v4
+        with:
+          pattern: holad-linux-appimage
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Download Linux Deb
+        uses: actions/download-artifact@v4
+        with:
+          pattern: holad-linux-deb
+          merge-multiple: true
+        continue-on-error: true
+
       - name: Download Windows Artifact
         uses: actions/download-artifact@v4
         with:
@@ -160,6 +202,20 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: holad-portable-windows
+
+      - name: Download Windows Setup
+        uses: actions/download-artifact@v4
+        with:
+          pattern: holad-windows-setup
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Download Windows MSI
+        uses: actions/download-artifact@v4
+        with:
+          pattern: holad-windows-msi
+          merge-multiple: true
+        continue-on-error: true
 
       - name: Download Android Artifact
         uses: actions/download-artifact@v4
@@ -174,5 +230,9 @@ jobs:
             holad-windows-release.tar.gz
             Holad-Portable.exe
             Holad-Android-Debug.apk
+            *.exe
+            *.msi
+            *.AppImage
+            *.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
