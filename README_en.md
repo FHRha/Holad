@@ -33,7 +33,7 @@
   </a>
 
   <br />
-  <p><i>* P.S. The codebase and build scripts for Apple devices (macOS and iOS) are fully ready, but since the author is a poor student without any Apple products, there's currently no way to compile and publish them 😅🍏</i></p>
+  <p><i>* P.S. The codebase and build scripts for Apple devices (macOS and iOS) are fully ready, but since the author is a poor student without any Apple products, there's currently no way to compile and publish them </i></p>
 </div>
 
 ---
