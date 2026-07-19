@@ -156,7 +156,10 @@ app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, re
   const authParams = `u=${encodeURIComponent(username)}&t=${token}&s=${salt}&v=1.16.1&c=StreamNavi&f=json`;
   
   try {
-    const pingUrl = `${url}/rest/ping.view?${authParams}`;
+    // Force IPv4 for localhost since Node 18+ resolves localhost to IPv6 (::1) by default
+    // which fails to connect to Docker containers binding to 0.0.0.0.
+    const resolvedUrl = url.replace('localhost', '127.0.0.1');
+    const pingUrl = `${resolvedUrl}/rest/ping.view?${authParams}`;
     const response = await fetch(pingUrl);
     
     if (!response.ok) {
@@ -796,6 +799,10 @@ if (fs.existsSync(clientPath)) {
     if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
       return next();
     }
+    // Prevent caching of index.html so users don't get white screens after deployments
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.join(clientPath, 'index.html'));
   });
 }
