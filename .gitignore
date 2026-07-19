@@ -27,3 +27,4 @@ rustup-init.exe
 scratch/
 *.py
 *.pyc
+RELEASE_NOTES.md
