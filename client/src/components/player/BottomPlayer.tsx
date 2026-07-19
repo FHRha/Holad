@@ -59,6 +59,20 @@ export default function BottomPlayer() {
     }
   }, [initialPosition, currentTrack]);
 
+  // Bug Fix: Explicitly call play when the resolved audioSrc changes.
+  // The play effect in useAudioEngine triggers when currentTrack changes,
+  // but useTrackSource is async, so src is usually empty at that moment.
+  useEffect(() => {
+    if (audioSrc && isPlaying && isActiveDevice && audioRef.current) {
+      audioRef.current.play().then(() => {
+        const audioEl = audioRef.current as any;
+        if (audioEl && audioEl._audioCtx && audioEl._audioCtx.state === 'suspended') {
+          audioEl._audioCtx.resume();
+        }
+      }).catch(e => console.error("Playback error after src resolved:", e));
+    }
+  }, [audioSrc, isPlaying, isActiveDevice]);
+
   useAutoDj();
 
   const handleVolumeDrag = (newVolume: number) => {

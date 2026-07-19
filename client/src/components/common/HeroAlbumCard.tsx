@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Heart, Star, ChevronDown, MoreHorizontal, SkipForward, ListPlus, Download } from 'lucide-react';
+import { Play, Heart, Star, MoreHorizontal, SkipForward, ListPlus, Download } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
 import { handleDownload } from '../../utils/downloadHelper';
 import { getCachedImageUrl } from '../../utils/imageCache';
@@ -260,7 +260,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
           </div>
 
           <div className="flex justify-between items-end">
-            <ChevronDown size={24} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleDownload(album.id, album.title || album.name || 'album', 'album'); }} />
+
             <MoreHorizontal size={24} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>
