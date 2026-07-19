@@ -14,6 +14,26 @@
 
   [![GitHub release (latest by date)](https://img.shields.io/github/v/release/FHRha/Holad)](https://github.com/FHRha/Holad/releases)
   [![License: Non-Commercial](https://img.shields.io/badge/License-Non_Commercial-red.svg)](LICENSE)
+
+  <br />
+  
+  <h3>📥 Скачать Holad</h3>
+
+  <a href="https://github.com/FHRha/Holad/releases/latest">
+    <img src="https://img.shields.io/badge/Windows-Setup_.exe_%2F_.msi-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Download" />
+  </a>
+  <a href="https://github.com/FHRha/Holad/releases/latest">
+    <img src="https://img.shields.io/badge/Linux-AppImage_%2F_DEB-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux Download" />
+  </a>
+  <a href="https://github.com/FHRha/Holad/releases/latest">
+    <img src="https://img.shields.io/badge/Android-APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android Download" />
+  </a>
+  <a href="https://github.com/FHRha/Holad/releases/latest">
+    <img src="https://img.shields.io/badge/Web_Server-Self--Hosted_.tar.gz-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Web Server Download" />
+  </a>
+
+  <br />
+  <p><i>* P.S. Код и заготовки для продукции Apple (macOS и iOS) уже есть, но так как автор бедный студент без продукции Apple, возможности скомпилировать и выложить их пока нет 😅🍏</i></p>
 </div>
 
 ---
