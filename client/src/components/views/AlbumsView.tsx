@@ -5,6 +5,7 @@ import AlbumCard from '../common/AlbumCard';
 import TrackImage from '../common/TrackImage';
 import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
+import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 
 export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 'list' }) {
   const { t } = useTranslation();
@@ -31,7 +32,8 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
     if (activeFilter === 'Favorites') {
       result = albums.filter(a => a.userRating && a.userRating >= 4);
     } else if (activeFilter === 'Downloaded' || activeFilter === 'Offline') {
-      result = [];
+      const { downloads } = useDownloadStore.getState();
+      result = albums.filter(a => isItemDownloaded(downloads, a.id, a.id));
     }
     return result;
   })();

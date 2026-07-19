@@ -112,3 +112,47 @@ export const isItemDownloaded = (downloads: Record<string, DownloadItem>, trackI
   if (albumId && downloads[albumId] && downloads[albumId].status === 'completed') return true;
   return false;
 };
+
+export const getOfflineTracks = (): any[] => {
+  const downloads = useDownloadStore.getState().downloads;
+  // Get history store tracks to reconstruct metadata
+  // We can't easily import useHistoryStore directly here without circular dependency risks or store initialization issues, 
+  // so we'll just read from local storage directly or try to import it inside the function.
+  let historyTracks: any[] = [];
+  try {
+    const raw = localStorage.getItem('streamnavi-history');
+    if (raw) {
+      historyTracks = JSON.parse(raw).state?.history || [];
+    }
+  } catch (e) {
+    console.warn('Failed to parse history for offline tracks', e);
+  }
+
+  const offlineTracks: any[] = [];
+  const addedIds = new Set<string>();
+
+  historyTracks.forEach(t => {
+    if (!addedIds.has(t.id) && isItemDownloaded(downloads, t.id, t.albumId)) {
+      offlineTracks.push(t);
+      addedIds.add(t.id);
+    }
+  });
+
+  Object.values(downloads).forEach(d => {
+    if (d.type === 'track' && d.status === 'completed' && !addedIds.has(d.id)) {
+      offlineTracks.push({
+        id: d.id,
+        title: d.name,
+        artist: 'Unknown Artist',
+        album: 'Unknown Album',
+        albumId: '',
+        artistId: '',
+        coverArt: d.coverArt || '',
+        duration: 0
+      });
+      addedIds.add(d.id);
+    }
+  });
+
+  return offlineTracks.sort(() => Math.random() - 0.5);
+};

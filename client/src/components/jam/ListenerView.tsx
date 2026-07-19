@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import { Play, Pause } from 'lucide-react';
-import { getSong, getCoverArtUrl, getStreamUrl } from '../../api/subsonic';
+import { getSong, getCoverArtUrl } from '../../api/subsonic';
 import { formatArtistName } from '../../utils/formatters';
 import { useTranslation } from 'react-i18next';
+import { useTrackSource } from '../../hooks/useTrackSource';
 import LanguageSelector from '../common/LanguageSelector';
 
 export default function ListenerView({ trackId }: { trackId?: string }) {
@@ -11,6 +12,7 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
   const { queue, currentIndex, setQueueAndPlay, isPlaying, setIsPlaying } = usePlayerStore();
   const audioRef = useRef<HTMLAudioElement>(null);
   const currentTrack = queue[currentIndex];
+  const { src: audioSrc } = useTrackSource(currentTrack);
 
   useEffect(() => {
     if (trackId) {
@@ -57,7 +59,7 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
       {/* Hidden Audio Player for standalone mode */}
       <audio 
         ref={audioRef} 
-        src={currentTrack ? getStreamUrl(currentTrack.id) : undefined} 
+        src={audioSrc} 
         onEnded={() => {/* next track logic if needed */}}
         autoPlay
       />

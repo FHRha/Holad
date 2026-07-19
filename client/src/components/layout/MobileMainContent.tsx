@@ -8,7 +8,7 @@ import type { Track } from '../../store/playerStore';
 import { useHistoryStore, getFilteredHistory, calculateStats } from '../../store/historyStore';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../store/downloadStore';
 
 function ScrollableSection({ title, children, onRefresh }: { title: string, children: React.ReactNode, onRefresh?: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -148,7 +148,12 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
   const startRandomRadio = async () => {
     setLoadingStation('random');
     try {
-      const tracks = await fetchRandomTracks(50);
+      let tracks: any[] = [];
+      if (activeFilter === 'Offline' || activeFilter === 'Downloaded' || isOfflineApp) {
+        tracks = getOfflineTracks().slice(0, 50);
+      } else {
+        tracks = await fetchRandomTracks(50);
+      }
       if (tracks && tracks.length > 0) setQueueAndPlay(mapTracks(tracks), 0);
     } finally {
       setLoadingStation(null);

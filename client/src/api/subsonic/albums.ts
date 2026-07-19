@@ -36,5 +36,8 @@ export const getAlbumFull = async (id: string) => {
 };
 
 export const getCoverArtUrl = (id: string, size: number = 300) => {
+  if (id.startsWith('http') || id.startsWith('data:') || id.startsWith('blob:') || id.startsWith('asset://') || id.startsWith('https://')) {
+    return id;
+  }
   return buildUrl('getCoverArt', { id, size: size.toString() });
 };

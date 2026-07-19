@@ -3,6 +3,7 @@ import { Play, Shuffle, Heart, Disc, Music, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { fetchRandomTracks, getStarred, getGenres, getSongsByGenre, getCoverArtUrl } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
+import { getOfflineTracks } from '../../store/downloadStore';
 import type { Track } from '../../store/playerStore';
 
 export default function RadioView() {
@@ -43,10 +44,16 @@ export default function RadioView() {
     }));
   };
 
-  const startStation = async (id: string, fetchFn: () => Promise<any[]>) => {
-    setLoadingStation(id);
+  const startStation = async (stationName: string, fetcher: () => Promise<any[]>) => {
+    setLoadingStation(stationName);
     try {
-      const tracks = await fetchFn();
+      const isOffline = !navigator.onLine;
+      let tracks: any[] = [];
+      if (isOffline && stationName === 'random') {
+        tracks = getOfflineTracks().slice(0, 50);
+      } else {
+        tracks = await fetcher();
+      }
       if (tracks && tracks.length > 0) {
         setQueueAndPlay(mapTracks(tracks), 0);
       } else {

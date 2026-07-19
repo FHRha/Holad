@@ -5,15 +5,15 @@ import { useTranslation } from 'react-i18next';
 import { searchTracks, getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
+import { useUIStore } from '../../store/uiStore';
+import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from '../common/TrackImage';
 import ArtistAvatar from '../common/ArtistAvatar';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useTrackFilters } from '../../hooks/useTrackFilters';
 import { useSettingsStore } from '../../store/settingsStore';
-import { useUIStore } from '../../store/uiStore';
 import LongPressWrapper from '../common/LongPressWrapper';
-import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 
 export default function TracksView() {
   const { t } = useTranslation();
@@ -73,7 +73,8 @@ export default function TracksView() {
     if (activeFilter === 'Favorites') {
       result = filteredTracks.filter(t => t.userRating && t.userRating >= 4);
     } else if (activeFilter === 'Downloaded' || activeFilter === 'Offline') {
-      result = [];
+      const { downloads } = useDownloadStore.getState();
+      result = filteredTracks.filter(t => isItemDownloaded(downloads, t.id, t.albumId));
     }
     return result;
   })();

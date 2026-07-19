@@ -1,5 +1,6 @@
 import { writeFile, mkdir, exists, remove, copyFile, readDir } from '@tauri-apps/plugin-fs';
 import { executableDir, join } from '@tauri-apps/api/path';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 // Check if we are running inside Tauri
 export const isTauri = () => {
@@ -65,20 +66,32 @@ export class StorageManager {
           reader.readAsDataURL(blob);
         });
 
+        const targetPath = subDir ? `Holad/${subDir}/${fileName}` : `Holad/${fileName}`;
+        const dirPath = subDir ? `Holad/${subDir}` : 'Holad';
+
         // Ensure directory exists
         try {
-          await Filesystem.stat({ path: 'Holad', directory: Directory.Data });
+          await Filesystem.stat({ path: dirPath, directory: Directory.Data });
         } catch (e) {
-          await Filesystem.mkdir({ path: 'Holad', directory: Directory.Data });
+          const parts = dirPath.split('/');
+          let curr = '';
+          for (const part of parts) {
+            curr = curr ? `${curr}/${part}` : part;
+            try {
+              await Filesystem.stat({ path: curr, directory: Directory.Data });
+            } catch {
+              await Filesystem.mkdir({ path: curr, directory: Directory.Data });
+            }
+          }
         }
 
         await Filesystem.writeFile({
-          path: `Holad/${fileName}`,
+          path: targetPath,
           data: base64Data,
           directory: Directory.Data
         });
-        console.log(`Track ${fileName} saved successfully via Capacitor fs`);
-        return `Holad/${fileName}`;
+        console.log(`Track ${fileName} saved successfully via Capacitor fs at ${targetPath}`);
+        return targetPath;
       } catch (err) {
         console.error('Error saving track via Capacitor:', err);
         throw err;
@@ -184,6 +197,74 @@ export class StorageManager {
       // Browser
       return null;
     }
+  }
+
+  static async getLocalTrackUri(trackId: string, trackTitle: string, albumId?: string): Promise<string | null> {
+    // Resolve dynamic import for store to avoid circular dependency
+    const { useDownloadStore } = await import('../store/downloadStore');
+    const { downloads } = useDownloadStore.getState();
+
+    // 1. Check if track was downloaded directly
+    const trackDownload = downloads[trackId];
+    if (trackDownload && trackDownload.status === 'completed' && trackDownload.path) {
+      if (isTauri()) {
+        try {
+          if (await exists(trackDownload.path)) {
+            return convertFileSrc(trackDownload.path);
+          }
+        } catch (e) {
+          console.error('Error resolving local track uri:', e);
+        }
+      } else if (isCapacitor()) {
+        try {
+          const { Capacitor } = await import('@capacitor/core');
+          const { Filesystem, Directory } = await import('@capacitor/filesystem');
+          const stat = await Filesystem.stat({ path: trackDownload.path, directory: Directory.Data });
+          if (stat) {
+             const uri = await Filesystem.getUri({ path: trackDownload.path, directory: Directory.Data });
+             return Capacitor.convertFileSrc(uri.uri);
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 2. Check if it's inside a downloaded album
+    if (albumId) {
+      const albumDownload = downloads[albumId];
+      if (albumDownload && albumDownload.status === 'completed' && albumDownload.path) {
+        const safeTitle = trackTitle.replace(/[/\\?%*:|"<>]/g, '-');
+        
+        if (isTauri()) {
+          try {
+            if (await exists(albumDownload.path)) {
+              const entries = await readDir(albumDownload.path);
+              // Find a file that starts with the safe title (because of extension)
+              const matchedEntry = entries.find(e => e.isFile && e.name.startsWith(safeTitle));
+              if (matchedEntry) {
+                const fullPath = await join(albumDownload.path, matchedEntry.name);
+                return convertFileSrc(fullPath);
+              }
+            }
+          } catch (e) {
+            console.error('Error resolving album local track uri:', e);
+          }
+        } else if (isCapacitor()) {
+          try {
+             const { Capacitor } = await import('@capacitor/core');
+             const { Filesystem, Directory } = await import('@capacitor/filesystem');
+             const res = await Filesystem.readdir({ path: albumDownload.path, directory: Directory.Data });
+             const matchedFile = res.files.find(f => f.name.startsWith(safeTitle));
+             if (matchedFile) {
+                const fullPath = `${albumDownload.path}/${matchedFile.name}`;
+                const uri = await Filesystem.getUri({ path: fullPath, directory: Directory.Data });
+                return Capacitor.convertFileSrc(uri.uri);
+             }
+          } catch (e) {}
+        }
+      }
+    }
+
+    return null;
   }
 }
 

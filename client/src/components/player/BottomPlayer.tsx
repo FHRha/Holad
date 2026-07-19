@@ -3,7 +3,7 @@ import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, 
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
-import { getStreamUrl, starItem, unstarItem } from '../../api/subsonic';
+import { starItem, unstarItem } from '../../api/subsonic';
 import Slider from '../common/Slider';
 import LiquidSeekBar from '../common/LiquidSeekBar';
 import ArtistLinks from '../common/ArtistLinks';
@@ -13,6 +13,7 @@ import MobilePlayerUI from './MobilePlayerUI';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useAutoDj } from '../../hooks/useAutoDj';
 import { useNavigate } from 'react-router-dom';
+import { useTrackSource } from '../../hooks/useTrackSource';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import HoladConnectMenu from './HoladConnectMenu';
 import { useHoladStore } from '../../store/holadStore';
@@ -46,6 +47,7 @@ export default function BottomPlayer() {
   } = useAudioEngine(audioRef);
 
   const currentTrack = queue[currentIndex];
+  const { src: audioSrc } = useTrackSource(currentTrack);
 
   useEffect(() => {
     if (initialPosition > 0 && audioRef.current && currentTrack) {
@@ -339,7 +341,7 @@ export default function BottomPlayer() {
         id="main-audio-player"
         crossOrigin="anonymous"
         ref={audioRef}
-        src={currentTrack ? getStreamUrl(currentTrack.id) : ''}
+        src={audioSrc}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         onLoadedMetadata={(e) => {
