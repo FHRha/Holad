@@ -209,7 +209,7 @@ try {
   if (fs.existsSync(path.join(ROOT_DIR, 'Capacitor', 'android'))) {
     console.log("\n--- Building Capacitor (Android App) ---");
     // Install dependencies first
-    runCommand('npm install', path.join(ROOT_DIR, 'Capacitor'));
+    runCommand('npx pnpm install', path.join(ROOT_DIR, 'Capacitor'));
     
     // Sync
     runCommand('npx @capacitor/cli sync', path.join(ROOT_DIR, 'Capacitor'));

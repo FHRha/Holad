@@ -22,6 +22,10 @@ jobs:
         with:
           version: 9
 
+      - name: Ensure pnpm store exists
+        run: |
+          mkdir -p $(pnpm store path)
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -58,6 +62,11 @@ jobs:
         with:
           version: 9
 
+      - name: Ensure pnpm store exists
+        run: |
+          $store = pnpm store path
+          New-Item -ItemType Directory -Force -Path $store
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -71,7 +80,7 @@ jobs:
           workspaces: Tauri/src-tauri
 
       - name: Setup Gradle Cache
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false
 
