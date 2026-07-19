@@ -7,6 +7,16 @@ echo "==================================="
 
 
 
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -p|--port) HOLAD_PORT="$2"; shift ;;
+        --no-systemd) ENABLE_SYSTEMD="n" ;;
+        -v|--version) TARGET_VERSION="$2"; shift ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
 # 1. Ask for configuration
 if [ -z "$HOLAD_PORT" ]; then
     if [ -c /dev/tty ]; then
@@ -32,8 +42,22 @@ INSTALL_DIR="/opt/holad"
 
 echo "Installing to $INSTALL_DIR..."
 sudo mkdir -p $INSTALL_DIR
-echo "Downloading latest release..."
-curl -sSL https://github.com/FHRha/Holad/releases/latest/download/holad-linux-release.tar.gz -o /tmp/holad.tar.gz
+
+if [ -z "$TARGET_VERSION" ]; then
+    DOWNLOAD_BASE="https://github.com/FHRha/Holad/releases/latest/download"
+else
+    DOWNLOAD_BASE="https://github.com/FHRha/Holad/releases/download/$TARGET_VERSION"
+fi
+
+echo "Downloading release from $DOWNLOAD_BASE..."
+if curl -sSLf "$DOWNLOAD_BASE/holad-web-release.tar.gz" -o /tmp/holad.tar.gz; then
+    echo "Downloaded holad-web-release.tar.gz"
+elif curl -sSLf "$DOWNLOAD_BASE/holad-linux-release.tar.gz" -o /tmp/holad.tar.gz; then
+    echo "Downloaded holad-linux-release.tar.gz (legacy fallback)"
+else
+    echo "Error: Failed to download release bundle."
+    exit 1
+fi
 
 echo "Extracting release..."
 sudo tar -xzf /tmp/holad.tar.gz -C /tmp/

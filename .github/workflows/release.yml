@@ -10,6 +10,41 @@ env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
 jobs:
+  build-web:
+    name: Build Web Server and Client
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Ensure pnpm store exists
+        run: |
+          mkdir -p $(pnpm store path)
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
+
+      - name: Make script executable
+        run: chmod +x build_release.sh
+
+      - name: Run Web build
+        run: ./build_release.sh --skip-tauri --skip-android
+        
+      - name: Upload Web Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: holad-web-release
+          path: artifacts/holad-web-release.tar.gz
+
   build-linux:
     name: Build for Linux
     runs-on: ubuntu-latest
@@ -42,13 +77,7 @@ jobs:
         run: chmod +x build_release.sh
 
       - name: Run Linux build
-        run: ./build_release.sh --skip-android
-        
-      - name: Upload Linux Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: holad-linux-release
-          path: artifacts/holad-linux-release.tar.gz
+        run: ./build_release.sh --skip-android --skip-client --skip-server --skip-archive
 
       - name: Upload Linux AppImage
         uses: actions/upload-artifact@v4
@@ -94,13 +123,7 @@ jobs:
           workspaces: Tauri/src-tauri
 
       - name: Run Windows build
-        run: .\build_release.bat --skip-android
-
-      - name: Upload Windows Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: holad-windows-release
-          path: artifacts\holad-windows-release.tar.gz
+        run: .\build_release.bat --skip-android --skip-client --skip-server --skip-archive
 
 
 
@@ -174,7 +197,7 @@ jobs:
           else
              unset ANDROID_KEYSTORE_FILE
           fi
-          ./build_release.sh --skip-tauri
+          ./build_release.sh --skip-tauri --skip-client --skip-server --skip-archive
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
@@ -183,15 +206,15 @@ jobs:
           path: artifacts/*.apk
   create-release:
     name: Create GitHub Release
-    needs: [build-linux, build-windows, build-android]
+    needs: [build-web, build-linux, build-windows, build-android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download Linux Artifact
+      - name: Download Web Artifact
         uses: actions/download-artifact@v4
         with:
-          name: holad-linux-release
+          name: holad-web-release
 
       - name: Download Linux AppImage
         uses: actions/download-artifact@v4
@@ -206,13 +229,6 @@ jobs:
           pattern: holad-linux-deb
           merge-multiple: true
         continue-on-error: true
-
-      - name: Download Windows Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: holad-windows-release
-
-
 
       - name: Download Windows Setup
         uses: actions/download-artifact@v4
@@ -237,8 +253,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            holad-linux-release.tar.gz
-            holad-windows-release.tar.gz
+            holad-web-release.tar.gz
             *.apk
             *.exe
             *.msi

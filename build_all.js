@@ -158,8 +158,7 @@ node dist/index.js
   // Archive the Web Server Release
   if (createArchive) {
     console.log("\n--- Creating Archive ---");
-    const platformName = process.platform === 'win32' ? 'windows' : 'linux';
-    const archiveName = `holad-${platformName}-release.tar.gz`;
+    const archiveName = `holad-web-release.tar.gz`;
     runCommand(`tar -czf ${archiveName} holad-release`, ARTIFACTS_DIR);
     console.log(`Web server release archive is at artifacts/${archiveName}`);
   }
