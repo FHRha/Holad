@@ -19,7 +19,9 @@ export default function AlbumCard({ album }: { album: any }) {
   const toggleAlbumLike = usePlayerStore(state => state.toggleAlbumLike);
   const setIsProcessing = usePlayerStore(state => state.setIsProcessing);
   const { openMenu } = useContextMenuStore();
-  const isDownloaded = useDownloadStore(state => !!state.downloads[album.id] && state.downloads[album.id].status === 'completed');
+  const downloadItem = useDownloadStore(state => state.downloads[album.id]);
+  const isDownloaded = downloadItem?.status === 'completed';
+  const isDownloading = downloadItem?.status === 'downloading';
 
   const isLiked = likedAlbumIds.includes(album.id);
   const [rating, setRatingState] = useState(album.userRating || 0);
@@ -170,6 +172,15 @@ export default function AlbumCard({ album }: { album: any }) {
             <Download size={12} className="text-black" />
           </div>
         )}
+        
+        {isDownloading && (
+          <div className="absolute top-2 left-2 z-10 w-6 h-6 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md [@media(hover:hover)]:group-hover:opacity-0 transition-opacity duration-300">
+            <svg className="animate-spin h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+        )}
 
         {/* Mobile Info Overlay (Stars and Heart) */}
         <div className="md:hidden absolute bottom-2 left-2 right-2 flex justify-between items-center z-10 pointer-events-none">
@@ -187,28 +198,28 @@ export default function AlbumCard({ album }: { album: any }) {
         </div>
 
         {/* Hover Overlay Buttons on Image */}
-        <div className="absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 hidden md:flex [@media(hover:none)]:!hidden flex-col justify-center items-center p-3 bg-black/50">
-          <div className="absolute top-3 left-3 flex items-start z-20">
+        <div className="absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 hidden md:flex [@media(hover:none)]:!hidden flex-col justify-between p-3 bg-black/50">
+          <div className="flex justify-between items-start z-20">
             <Heart 
               size={20} 
               className={`cursor-pointer transition-colors hover:scale-110 ${isLiked ? 'text-primary' : 'text-white hover:text-primary'}`} 
               fill={isLiked ? "currentColor" : "none"}
               onClick={handleLike}
             />
-          </div>
-          <div className="absolute top-3 left-10 flex text-yellow-400 drop-shadow-md cursor-pointer z-20 ml-1">
-            {[1, 2, 3, 4, 5].map((starValue) => (
-              <Star 
-                key={starValue} 
-                size={14} 
-                fill={starValue <= rating ? 'currentColor' : 'transparent'} 
-                className={`hover:scale-125 transition-transform ${starValue > rating ? 'text-white/30' : ''}`} 
-                onClick={(e) => handleRate(e, starValue)}
-              />
-            ))}
+            <div className="flex text-yellow-400 drop-shadow-md cursor-pointer z-20">
+              {[1, 2, 3, 4, 5].map((starValue) => (
+                <Star 
+                  key={starValue} 
+                  size={14} 
+                  fill={starValue <= rating ? 'currentColor' : 'transparent'} 
+                  className={`hover:scale-125 transition-transform ${starValue > rating ? 'text-white/30' : ''}`} 
+                  onClick={(e) => handleRate(e, starValue)}
+                />
+              ))}
+            </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2 lg:gap-4">
+          <div className="flex items-center justify-center gap-2 lg:gap-4 mt-2">
             <button 
               onClick={handlePlayNext}
               className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
@@ -231,8 +242,7 @@ export default function AlbumCard({ album }: { album: any }) {
             </button>
           </div>
 
-          <div className="absolute top-2 right-2 flex gap-2 z-20">
-
+          <div className="flex justify-end items-end z-20">
             <MoreHorizontal size={20} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>

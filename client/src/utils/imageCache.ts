@@ -1,3 +1,5 @@
+import { fetchWithRetry } from '../api/subsonic-core';
+
 const imageCache = new Map<string, string>();
 const fetchingCache = new Map<string, Promise<string>>();
 
@@ -18,7 +20,7 @@ export async function getCachedImageUrl(originalUrl: string): Promise<string> {
 
   const fetchPromise = (async () => {
     try {
-      const response = await fetch(originalUrl);
+      const response = await fetchWithRetry(originalUrl);
       if (!response.ok) throw new Error('Network response was not ok');
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);

@@ -18,7 +18,8 @@
         "resizable": true,
         "fullscreen": false,
         "maximized": true,
-        "theme": "Dark"
+        "theme": "Dark",
+        "userAgent": "Holad-Desktop"
       }
     ],
     "security": {

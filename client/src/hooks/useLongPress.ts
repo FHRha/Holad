@@ -13,9 +13,11 @@ export const useLongPress = (
   const [longPressTriggered, setLongPressTriggered] = useState(false);
   const timeout = useRef<any>(null);
   const target = useRef<any>(null);
+  const isMoved = useRef(false);
 
   const start = useCallback(
     (event: any) => {
+      isMoved.current = false;
       if (shouldPreventDefault && event.target) {
         event.target.addEventListener('touchend', preventDefault, {
           passive: false
@@ -35,7 +37,7 @@ export const useLongPress = (
       if (timeout.current) {
         clearTimeout(timeout.current);
       }
-      if (shouldTriggerClick && !longPressTriggered) {
+      if (shouldTriggerClick && !longPressTriggered && !isMoved.current) {
         onClick(event);
       }
       setLongPressTriggered(false);
@@ -48,9 +50,17 @@ export const useLongPress = (
 
   return {
     onTouchStart: (e: any) => start(e),
+    onTouchMove: () => {
+      isMoved.current = true;
+      if (timeout.current) clearTimeout(timeout.current);
+    },
     onTouchEnd: (e: any) => clear(e),
     onTouchCancel: (e: any) => clear(e, false),
-    onClick: onClick,
+    onClick: (e: any) => {
+      if (!isMoved.current && !longPressTriggered) {
+        onClick(e);
+      }
+    },
     onContextMenu: (e: any) => {
       e.preventDefault();
       onLongPress(e);

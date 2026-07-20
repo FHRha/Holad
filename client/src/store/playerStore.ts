@@ -37,6 +37,8 @@ export const usePlayerStore = create<PlayerState>()(
           return {
             localPlaylists: state.localPlaylists,
             volume: state.volume,
+            mobileVolume: state.mobileVolume,
+            volumeMultiplier: state.volumeMultiplier,
             userName: state.userName,
           };
         }
@@ -44,6 +46,8 @@ export const usePlayerStore = create<PlayerState>()(
         return {
           localPlaylists: state.localPlaylists,
           volume: state.volume,
+          mobileVolume: state.mobileVolume,
+          volumeMultiplier: state.volumeMultiplier,
           queue: state.queue,
           currentIndex: state.currentIndex,
           isShuffle: state.isShuffle,

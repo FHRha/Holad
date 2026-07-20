@@ -203,9 +203,9 @@ function SidebarItem({ to, icon, label, end, isWide }: { to: string, icon: React
         {icon}
       </div>
       {isWide ? (
-        <span className="text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>
+        <span className="text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis pb-0.5">{label}</span>
       ) : (
-        <span className="text-[10px] font-bold leading-none mt-1 px-1 text-center truncate w-full">{label}</span>
+        <span className="text-[10px] font-bold leading-normal mt-1 px-1 text-center truncate w-full pb-0.5">{label}</span>
       )}
     </NavLink>
   );

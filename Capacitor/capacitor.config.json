@@ -1,5 +1,6 @@
 {
   "appId": "com.holad.app",
   "appName": "Holad",
-  "webDir": "../client/dist"
+  "webDir": "../client/dist",
+  "appendUserAgent": "Holad-Mobile"
 }

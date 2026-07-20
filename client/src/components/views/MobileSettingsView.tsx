@@ -91,10 +91,12 @@ export default function MobileSettingsView() {
   const { setAuthenticated, setCredentials } = useAuthStore();
   const { setSearchOpen } = useUIStore();
   const settings = useSettingsStore();
-  const volume = usePlayerStore(state => state.volume);
+  const volume = usePlayerStore(state => state.mobileVolume || 1.0);
   const isAutoDjEnabled = usePlayerStore(state => state.isAutoDjEnabled);
-  const setVolume = usePlayerStore(state => state.setVolume);
+  const setVolume = usePlayerStore(state => state.setMobileVolume);
   const toggleAutoDj = usePlayerStore(state => state.toggleAutoDj);
+  const volumeMultiplier = usePlayerStore(state => state.volumeMultiplier || 1.0);
+  const setVolumeMultiplier = usePlayerStore(state => state.setVolumeMultiplier);
   
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -269,9 +271,34 @@ export default function MobileSettingsView() {
           </div>
           
           <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_default_volume', { defaultValue: 'Громкость по умолчанию' })}</span>
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_default_volume', { defaultValue: 'Громкость на устройстве' })}</span>
             <div className="bg-black/20 p-4 rounded-xl">
               <Slider value={volume} onChange={setVolume} thickness="thick" />
+              <div className="flex justify-between text-xs text-secondary mt-3">
+                <span>0%</span>
+                <span>{Math.round(volume * 100)}%</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-3">
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('settings.volume_multiplier', { defaultValue: 'Усилитель громкости (до 300%)' })}</span>
+            <div className="bg-black/20 p-4 rounded-xl flex items-center justify-between">
+              <span className="text-[15px] font-medium text-white">{t('views.multiplier_value', { defaultValue: 'Процент усиления' })}</span>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="number"
+                  min="1"
+                  max="300"
+                  value={Math.round(volumeMultiplier * 100)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (!isNaN(val)) setVolumeMultiplier(Math.min(Math.max(val, 1), 300) / 100);
+                  }}
+                  className="bg-white/10 border border-white/20 rounded-lg py-1 px-2 w-16 text-center outline-none focus:border-primary transition-colors text-white font-mono"
+                />
+                <span className="text-sm text-[#b3b3b3]">%</span>
+              </div>
             </div>
           </div>
           

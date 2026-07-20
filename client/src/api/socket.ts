@@ -1,5 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { usePlayerStore } from '../store/playerStore';
+import { useHoladStore } from '../store/holadStore';
+import { useAudioStore } from '../store/audioStore';
 import i18n from '../i18n';
 
 import { getSocketUrl } from '../utils/serverConfig';
@@ -156,18 +158,31 @@ class JamSocketService {
     this.syncInterval = setInterval(() => {
       const state = usePlayerStore.getState();
       if (state.roomId && state.queue.length > 0 && state.currentIndex >= 0 && state.currentIndex < state.queue.length && (state.role === 'host' || state.role === 'cohost')) {
-        const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
-        if (audioEl) {
-          this.socket?.emit('syncState', {
-            roomId: state.roomId,
-            trackId: state.queue[state.currentIndex].id,
-            currentTime: audioEl.currentTime,
-            isPlaying: state.isPlaying,
-            currentIndex: state.currentIndex,
-            isAutoDjEnabled: state.isAutoDjEnabled,
-            version: this.latestStateVersion
-          });
+        const currentTrack = state.queue[state.currentIndex];
+        
+        let currentTime = 0;
+        
+        const holadState = useHoladStore.getState();
+        const isDeviceActive = holadState.roomId === null || holadState.activeDeviceId === holadState.deviceId || holadState.activeDeviceId === null;
+        
+        if (isDeviceActive) {
+          const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
+          if (audioEl) {
+            currentTime = audioEl.currentTime;
+          }
+        } else {
+          currentTime = (useAudioStore.getState().progress / 100) * (currentTrack.duration || 0);
         }
+
+        this.socket?.emit('syncState', {
+          roomId: state.roomId,
+          trackId: currentTrack.id,
+          currentTime,
+          isPlaying: state.isPlaying,
+          currentIndex: state.currentIndex,
+          isAutoDjEnabled: state.isAutoDjEnabled,
+          version: this.latestStateVersion
+        });
       }
     }, 2000); // Send sync ping every 2 seconds
 
@@ -182,16 +197,30 @@ class JamSocketService {
           this.socket?.emit('syncQueue', { roomId: newState.roomId, queue: newState.queue, currentIndex: newState.currentIndex });
         }
         if (newState.isPlaying !== prevState.isPlaying || queueChanged || indexChanged) {
-          const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
-          if (audioEl) {
-            const currentTrackId = newState.queue[newState.currentIndex]?.id;
+          const currentTrack = newState.queue[newState.currentIndex];
+          if (currentTrack) {
             const prevTrackId = prevState.queue[prevState.currentIndex]?.id;
-            const trackChanged = currentTrackId !== prevTrackId;
+            const trackChanged = currentTrack.id !== prevTrackId;
+            
+            let currentTime = 0;
+            const holadState = useHoladStore.getState();
+            const isDeviceActive = holadState.roomId === null || holadState.activeDeviceId === holadState.deviceId || holadState.activeDeviceId === null;
+
+            if (trackChanged) {
+              currentTime = 0;
+            } else if (isDeviceActive) {
+              const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
+              if (audioEl) {
+                currentTime = audioEl.currentTime;
+              }
+            } else {
+              currentTime = (useAudioStore.getState().progress / 100) * (currentTrack.duration || 0);
+            }
             
             this.socket?.emit('syncState', {
               roomId: newState.roomId,
-              trackId: currentTrackId,
-              currentTime: trackChanged ? 0 : audioEl.currentTime,
+              trackId: currentTrack.id,
+              currentTime,
               isPlaying: newState.isPlaying,
               currentIndex: newState.currentIndex,
               isAutoDjEnabled: newState.isAutoDjEnabled,

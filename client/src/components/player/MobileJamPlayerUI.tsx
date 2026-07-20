@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   ChevronDown, Shuffle, SkipBack, 
   Play, Pause, SkipForward, Repeat, Repeat1, Moon, 
@@ -25,13 +25,11 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
     repeatMode, cycleRepeatMode, playbackRate, cyclePlaybackRate, 
     sleepTimer, setSleepTimer, roomId
   } = usePlayerStore();
-  const { audioElement } = useAudioStore();
+  const { audioElement, progress, duration, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
   
   const currentTrack = queue[currentIndex];
   
   const [activeTab, setActiveTab] = useState<'player' | 'queue' | 'lyrics'>('player');
-  const [progress, setProgress] = useState(0);
-  const [isSeeking, setIsSeeking] = useState(false);
   const [showSleepTimerMenu, setShowSleepTimerMenu] = useState(false);
   const [showSessionMenu, setShowSessionMenu] = useState(false);
 
@@ -60,34 +58,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
   const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 1000) : '', [currentTrack?.id]);
   const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 300) : '', [currentTrack?.id]);
 
-  useEffect(() => {
-    if (!audioElement || isSeeking) return;
 
-    if (currentTrack?.duration) {
-      setProgress((audioElement.currentTime / currentTrack.duration) * 100);
-    }
-
-    const updateProgress = () => {
-      if (currentTrack?.duration) {
-        setProgress((audioElement.currentTime / currentTrack.duration) * 100);
-      }
-    };
-
-    audioElement.addEventListener('timeupdate', updateProgress);
-    return () => audioElement.removeEventListener('timeupdate', updateProgress);
-  }, [audioElement, currentTrack, isSeeking]);
-
-  const handleSeekChange = (val: number) => {
-    setIsSeeking(true);
-    setProgress(val * 100);
-  };
-
-  const handleSeekEnd = (val: number) => {
-    if (audioElement && currentTrack) {
-      audioElement.currentTime = val * currentTrack.duration;
-    }
-    setIsSeeking(false);
-  };
 
   const handlePlayPause = () => {
     if (role === 'listener') return; 
@@ -96,8 +67,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
 
   if (!currentTrack) return null;
 
-  const currentTime = (progress / 100) * currentTrack.duration;
-  
+
   const showMinimizeButton = role !== 'listener' && !isStandalone;
   const showSessionButton = !isStandalone;
 
@@ -168,18 +138,16 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
           </div>
 
           {/* Progress Bar */}
-          <div className="w-full flex flex-col gap-2">
+          <div className="w-full flex items-center gap-3 text-xs font-medium text-white/50">
+            <span className="min-w-[40px] text-right font-medium">{formatTime((progress / 100) * (duration || 0))}</span>
             <LiquidSeekBar 
               value={progress / 100} 
               onChange={handleSeekChange} 
               onDragEnd={handleSeekEnd} 
-              className={`w-full ${role === 'listener' ? 'pointer-events-none' : ''}`}
+              className={`flex-1 ${role === 'listener' ? 'pointer-events-none' : ''}`}
               isAnimated={isPlaying && !isSeeking}
             />
-            <div className="flex justify-between text-xs font-medium text-white/50">
-              <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(currentTrack.duration)}</span>
-            </div>
+            <span className="min-w-[40px] text-left font-medium text-white/50">{formatTime(duration || 0)}</span>
           </div>
 
           {/* Main Playback Controls */}

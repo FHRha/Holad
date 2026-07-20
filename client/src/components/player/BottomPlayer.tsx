@@ -77,8 +77,8 @@ export default function BottomPlayer() {
 
   const handleVolumeDrag = (newVolume: number) => {
     if (audioRef.current) {
-      const scaledVolume = newVolume * 0.3;
-      audioRef.current.volume = scaledVolume * scaledVolume;
+      const scaledVolume = newVolume * 0.3 * (usePlayerStore.getState().volumeMultiplier || 1.0);
+      audioRef.current.volume = Math.min(1, Math.max(0, scaledVolume * scaledVolume));
     }
   };
 
@@ -138,7 +138,7 @@ export default function BottomPlayer() {
             <span onClick={() => navigate(`/Holad/album/${currentTrack.albumId}`)} className="text-sm text-secondary/70 truncate hover:underline cursor-pointer">{currentTrack.album}</span>
           )}
           {!isActiveDevice && activeDeviceObj && (
-            <div className="relative shrink-0 mt-1 max-w-full">
+            <div className="relative shrink-0 mt-1 max-w-full w-fit">
               <div className={`absolute -inset-0.5 bg-gradient-to-r from-primary/70 to-primary/20 rounded-full blur-[6px] opacity-60 transition duration-1000 ${isPlaying ? 'animate-pulse' : 'opacity-20'}`}></div>
               <div className="text-[11px] font-medium text-white/90 bg-[#121212]/60 backdrop-blur-[20px] backdrop-saturate-[150%] px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/10 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.3)] w-fit max-w-full cursor-default overflow-hidden relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
@@ -360,10 +360,9 @@ export default function BottomPlayer() {
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         onLoadedMetadata={(e) => {
-          const scaledVolume = volume * 0.3;
           const target = e.target as HTMLAudioElement;
-          target.volume = scaledVolume * scaledVolume;
           
+
           if (initialPosition > 0) {
             target.currentTime = initialPosition / 1000;
             setProgress((initialPosition / 1000 / (duration || 1)) * 100);

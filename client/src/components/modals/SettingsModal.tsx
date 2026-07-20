@@ -62,6 +62,8 @@ export default function SettingsModal() {
   const isAutoDjEnabled = usePlayerStore(state => state.isAutoDjEnabled);
   const setVolume = usePlayerStore(state => state.setVolume);
   const toggleAutoDj = usePlayerStore(state => state.toggleAutoDj);
+  const volumeMultiplier = usePlayerStore(state => state.volumeMultiplier || 1.0);
+  const setVolumeMultiplier = usePlayerStore(state => state.setVolumeMultiplier);
   
   const [activeTab, setActiveTab] = useState<'general' | 'appearance' | 'player' | 'storage'>('general');
   const [resetState, setResetState] = useState<'idle' | 'confirm' | 'done'>('idle');
@@ -183,15 +185,15 @@ export default function SettingsModal() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex flex-col relative">
+        <div className="flex-1 flex flex-col relative overflow-hidden">
           <button 
             onClick={() => setSettingsOpen(false)}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors z-10"
+            className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors z-20 bg-background/50 backdrop-blur-md"
           >
             <X size={20} />
           </button>
           
-          <div className="flex-1 p-6">
+          <div className="flex-1 p-6 overflow-y-auto">
             <h3 className="text-xl font-bold mb-6">
               {activeTab === 'general' && (t('settings.general') || 'Общие')}
               {activeTab === 'appearance' && (t('settings.appearance') || 'Внешний вид')}
@@ -442,6 +444,23 @@ export default function SettingsModal() {
                     <span>{Math.round(volume * 100)}%</span>
                   </div>
                 </SettingSection>
+
+                <SettingSection title={t('settings.volume_multiplier', { defaultValue: 'Усилитель громкости (до 300%)' })}>
+                  <div className="flex items-center gap-3 pt-2 pb-1">
+                    <input 
+                      type="number"
+                      min="1"
+                      max="300"
+                      value={Math.round(volumeMultiplier * 100)}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val)) setVolumeMultiplier(Math.min(Math.max(val, 1), 300) / 100);
+                      }}
+                      className="bg-black/20 border border-white/10 rounded-lg py-2 px-3 w-24 text-center outline-none focus:border-primary transition-colors text-foreground font-mono"
+                    />
+                    <span className="text-sm text-secondary font-medium">%</span>
+                  </div>
+                </SettingSection>
               </div>
             )}
 
@@ -564,10 +583,10 @@ function StorageSettingsTab({ t }: { t: any }) {
                 clearAppCache();
                 window.location.reload();
               }}
-              className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-xl font-medium transition-colors"
+              className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white py-2.5 px-3 rounded-xl font-medium transition-colors h-auto min-h-[44px] flex-wrap"
             >
-              <Trash2 size={18} />
-              <span>{isTauri() || isCapacitor() ? t('settings.clear_client_cache', { defaultValue: 'Очистить кэш клиента' }) : t('settings.clear_web_cache', { defaultValue: 'Очистить кэш веб-браузера' })}</span>
+              <Trash2 size={18} className="flex-shrink-0" />
+              <span className="text-center text-sm">{isTauri() || isCapacitor() ? t('settings.clear_client_cache', { defaultValue: 'Очистить кэш клиента' }) : t('settings.clear_web_cache', { defaultValue: 'Очистить кэш веб-браузера' })}</span>
             </button>
           </div>
 
@@ -577,10 +596,10 @@ function StorageSettingsTab({ t }: { t: any }) {
             </p>
             <button 
               onClick={() => setShowDeleteModal(true)}
-              className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 py-2.5 rounded-xl font-medium transition-colors"
+              className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 py-2.5 px-3 rounded-xl font-medium transition-colors h-auto min-h-[44px] flex-wrap"
             >
-              <Trash2 size={18} />
-              <span>{t('settings.delete_downloads_btn', { defaultValue: 'Удалить загрузки' })}</span>
+              <Trash2 size={18} className="flex-shrink-0" />
+              <span className="text-center text-sm">{t('settings.delete_downloads_btn', { defaultValue: 'Удалить загрузки' })}</span>
             </button>
           </div>
         </div>

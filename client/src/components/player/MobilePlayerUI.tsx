@@ -144,10 +144,29 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     setIsPlaying(!isPlaying);
   };
 
+  const [localTime, setLocalTime] = useState((progress / 100) * (duration || 0));
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setLocalTime((progress / 100) * (duration || 0));
+      return;
+    }
+    let animationFrameId: number;
+    const updateTime = () => {
+      if (audioElement && !isNaN(audioElement.duration) && audioElement.duration > 0) {
+        setLocalTime(audioElement.currentTime);
+      } else {
+        setLocalTime((progress / 100) * (duration || 0));
+      }
+      animationFrameId = requestAnimationFrame(updateTime);
+    };
+    updateTime();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isPlaying, audioElement, progress, duration]);
+
   if (!currentTrack) return null;
 
   const isLiked = likedTrackIds.includes(currentTrack.id);
-  const currentTime = (progress / 100) * (duration || 0);
 
   return (
     <div className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-300">
@@ -228,8 +247,8 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               className={`w-full ${role === 'listener' ? 'pointer-events-none' : ''}`}
               isAnimated={isPlaying && !isSeeking}
             />
-            <div className="flex justify-between text-xs font-medium text-white/50">
-              <span>{formatTime(currentTime)}</span>
+            <div className="flex justify-between text-xs font-medium text-white/50 px-1">
+              <span>{formatTime(isSeeking ? (progress / 100) * (duration || 0) : localTime)}</span>
               <span>{formatTime(duration)}</span>
             </div>
           </div>
@@ -239,16 +258,16 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             <button 
               onClick={toggleShuffle} 
               disabled={role === 'listener'}
-              className={`transition-colors active:scale-95 disabled:opacity-50 ${isShuffle ? 'text-primary' : 'text-white/70'}`}
+              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${isShuffle ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-white/70 hover:bg-white/10'}`}
             >
-              <Shuffle size={24} />
+              <Shuffle size={20} />
             </button>
             <button 
               onClick={prevTrack} 
               disabled={role === 'listener'} 
-              className="text-white hover:text-white/80 active:scale-95 transition-colors disabled:opacity-50"
+              className="text-white hover:text-white/80 active:scale-95 transition-colors disabled:opacity-50 p-2"
             >
-              <SkipBack size={36} fill="currentColor" />
+              <SkipBack size={32} fill="currentColor" />
             </button>
             <button 
               onClick={handlePlayPause} 
@@ -264,16 +283,16 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             <button 
               onClick={nextTrack} 
               disabled={role === 'listener'} 
-              className="text-white hover:text-white/80 active:scale-95 transition-colors disabled:opacity-50"
+              className="text-white hover:text-white/80 active:scale-95 transition-colors disabled:opacity-50 p-2"
             >
-              <SkipForward size={36} fill="currentColor" />
+              <SkipForward size={32} fill="currentColor" />
             </button>
             <button 
               onClick={cycleRepeatMode} 
               disabled={role === 'listener'}
-              className={`transition-colors active:scale-95 disabled:opacity-50 ${repeatMode !== 'none' ? 'text-primary' : 'text-white/70'}`}
+              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${repeatMode !== 'none' ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-white/70 hover:bg-white/10'}`}
             >
-              {repeatMode === 'one' ? <Repeat1 size={24} /> : <Repeat size={24} />}
+              {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
             </button>
           </div>
 

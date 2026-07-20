@@ -46,7 +46,11 @@ export default function DeleteDownloadsModal({ onClose }: Props) {
       if (item) {
         if (item.path) {
           try {
-            await StorageManager.removeTrack(item.path);
+            if (item.type === 'album') {
+              await StorageManager.removeDirectory(item.path);
+            } else {
+              await StorageManager.removeTrack(item.path);
+            }
           } catch (e) {
             console.error(`Failed to delete file ${item.path}:`, e);
           }

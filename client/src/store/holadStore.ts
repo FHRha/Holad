@@ -37,15 +37,27 @@ function generateDeviceId() {
 }
 
 function getDeviceName() {
-  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-  const browser = /Chrome/.test(navigator.userAgent) ? 'Chrome' : 
-                  /Safari/.test(navigator.userAgent) ? 'Safari' : 
-                  /Firefox/.test(navigator.userAgent) ? 'Firefox' : 'Browser';
-  const os = /Windows/.test(navigator.userAgent) ? 'Windows' : 
-             /Mac/.test(navigator.userAgent) ? 'Mac' : 
-             /Linux/.test(navigator.userAgent) ? 'Linux' : 
-             /Android/.test(navigator.userAgent) ? 'Android' : 
-             /iOS|iPhone|iPad/.test(navigator.userAgent) ? 'iOS' : 'OS';
+  const ua = navigator.userAgent;
+  
+  if (ua.includes('Holad-Mobile')) {
+    const os = /Android/.test(ua) ? 'Android' : /iOS|iPhone|iPad/.test(ua) ? 'iOS' : 'OS';
+    return `Holad App on ${os}`;
+  }
+  
+  if (ua.includes('Holad-Desktop')) {
+    const os = /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'OS';
+    return `Holad Desktop on ${os}`;
+  }
+
+  const isMobile = /Mobi|Android/i.test(ua);
+  const browser = /Chrome/.test(ua) ? 'Chrome' : 
+                  /Safari/.test(ua) ? 'Safari' : 
+                  /Firefox/.test(ua) ? 'Firefox' : 'Browser';
+  const os = /Windows/.test(ua) ? 'Windows' : 
+             /Mac/.test(ua) ? 'Mac' : 
+             /Linux/.test(ua) ? 'Linux' : 
+             /Android/.test(ua) ? 'Android' : 
+             /iOS|iPhone|iPad/.test(ua) ? 'iOS' : 'OS';
   
   return `${isMobile ? 'Mobile' : 'Desktop'} ${browser} on ${os}`;
 }
@@ -143,7 +155,8 @@ export const useHoladStore = create<HoladState>((set, get) => {
         if (state.queue) usePlayerStore.setState({ queue: state.queue });
         
         if (state.currentTime !== undefined) {
-          const track = store.queue[state.currentIndex !== undefined ? state.currentIndex : store.currentIndex];
+          const updatedStore = usePlayerStore.getState();
+          const track = updatedStore.queue[state.currentIndex !== undefined ? state.currentIndex : updatedStore.currentIndex];
           if (track && track.duration) {
             useAudioStore.getState().setProgress((state.currentTime / track.duration) * 100);
           }

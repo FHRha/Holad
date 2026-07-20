@@ -7,6 +7,8 @@ import { usePlayerStore } from '../../store/playerStore';
 import { starItem, unstarItem, setItemRating, getAlbum } from '../../api/subsonic';
 import { getShareUrl } from '../../utils/serverConfig';
 import { handleDownload } from '../../utils/downloadHelper';
+import { useDownloadStore } from '../../store/downloadStore';
+import { StorageManager } from '../../utils/StorageManager';
 import type { Track } from '../../store/playerStore';
 import { getCoverArtUrl } from '../../api/subsonic';
 
@@ -22,6 +24,8 @@ export default function ContextMenu() {
   const [isCopied, setIsCopied] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const touchStartY = useRef<number | null>(null);
+  
+  const { downloads, removeDownload } = useDownloadStore();
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -60,6 +64,7 @@ export default function ContextMenu() {
   const isAlbum = type === 'album';
   const isLiked = isAlbum ? (likedAlbumIds || []).includes(item?.id) : (likedTrackIds || []).includes(item?.id);
   const isInQueue = !isAlbum && (queue || []).some((t: Track) => t?.id === item?.id);
+  const isDownloaded = !!downloads[item?.id] && downloads[item?.id].status === 'completed';
 
   const handleAction = async (action: () => void | Promise<void>, shouldClose = true) => {
     try {
@@ -129,6 +134,25 @@ export default function ContextMenu() {
 
   const onDownload = () => {
     handleDownload(item.id, item.title || item.name || 'download', type === 'album' ? 'album' : 'track');
+    closeMenu();
+  };
+
+  const onRemoveDownload = async () => {
+    let downloadId = item.id;
+    let dlItem = downloads[downloadId];
+    
+    if (dlItem && dlItem.path) {
+      try {
+        if (dlItem.type === 'album') {
+          await StorageManager.removeDirectory(dlItem.path);
+        } else {
+          await StorageManager.removeTrack(dlItem.path);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      removeDownload(downloadId);
+    }
     closeMenu();
   };
 
@@ -230,7 +254,11 @@ export default function ContextMenu() {
               <MobileIconBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
               {!isInQueue && <MobileIconBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
               {!isGuest && <MobileIconBtn icon={Heart} label={t('common.favorite')} onClick={() => handleAction(onLike)} activeColor={isLiked ? "text-primary" : "text-white"} />}
-              {!isGuest && <MobileIconBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />}
+              {!isGuest && (isDownloaded ? (
+                <MobileIconBtn icon={Trash2} color="text-primary" label={t('common.remove_download', { defaultValue: 'Удалить скачанное' })} onClick={() => handleAction(onRemoveDownload)} />
+              ) : (
+                <MobileIconBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />
+              ))}
               {!isGuest && <MobileIconBtn icon={Share2} label={t('common.share')} onClick={() => handleAction(onShare, false)} activeColor={isCopied ? "text-primary" : "text-white"} />}
               {!isGuest && item.artistId && <MobileIconBtn icon={User} label={t('common.go_to_artist')} onClick={() => handleAction(() => navigate(`/Holad/artist/${item.artistId}`))} />}
               {!isGuest && (isAlbum || item.albumId) && <MobileIconBtn icon={Disc} label={t('common.go_to_album')} onClick={() => handleAction(() => {
@@ -335,7 +363,11 @@ export default function ContextMenu() {
           </div>
 
           <div className="py-1 border-t border-white/10">
-            <ItemBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />
+            {isDownloaded ? (
+              <ItemBtn icon={Trash2} color="text-primary font-bold" label={t('common.remove_download', { defaultValue: 'Удалить скачанное' })} onClick={() => handleAction(onRemoveDownload)} />
+            ) : (
+              <ItemBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />
+            )}
             <ItemBtn 
               icon={Share2} 
               label={isCopied ? t('common.copied') : t('common.share')} 

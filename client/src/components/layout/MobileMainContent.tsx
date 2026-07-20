@@ -237,18 +237,23 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
               {t('common.shuffle', { defaultValue: 'Перемешать' })}
               <div className="w-0 h-0 border-t-4 border-t-transparent border-l-6 border-l-primary border-b-4 border-b-transparent ml-2"></div>
             </button>
-            {genres.map((g, idx) => (
-              <button 
-                key={idx} 
-                onClick={() => startGenreRadio(g.value)}
-                disabled={loadingStation === g.value}
-                className="flex-shrink-0 flex items-center bg-[#282828] text-white rounded-full pl-4 pr-3 py-2 font-bold text-[15px] transition-colors hover:bg-[#383838] disabled:opacity-50"
-              >
-                {loadingStation === g.value && <Loader2 size={14} className="animate-spin text-[#8b5cf6] mr-2" />}
-                {g.value}
-                <div className="w-0 h-0 border-t-4 border-t-transparent border-l-6 border-l-[#8b5cf6] border-b-4 border-b-transparent ml-2"></div>
-              </button>
-            ))}
+            {genres.map((g, idx) => {
+              const colors = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
+              const color = colors[idx % colors.length];
+              return (
+                <button 
+                  key={idx} 
+                  onClick={() => startGenreRadio(g.value)}
+                  disabled={loadingStation === g.value}
+                  className="flex-shrink-0 flex items-center border rounded-full pl-4 pr-3 py-2 font-bold text-[15px] transition-colors disabled:opacity-50"
+                  style={{ backgroundColor: `${color}1a`, color: color, borderColor: `${color}33` }}
+                >
+                  {loadingStation === g.value && <Loader2 size={14} className="animate-spin mr-2" />}
+                  {g.value}
+                  <div className="w-0 h-0 border-t-4 border-t-transparent border-l-6 border-b-4 border-b-transparent ml-2" style={{ borderLeftColor: color }}></div>
+                </button>
+              );
+            })}
         </ScrollableSection>
 
         {/* Recently Played */}

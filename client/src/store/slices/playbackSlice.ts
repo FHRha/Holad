@@ -4,12 +4,16 @@ import type { PlayerState } from '../playerStore';
 export interface PlaybackSlice {
   isPlaying: boolean;
   volume: number;
+  mobileVolume: number;
+  volumeMultiplier: number;
   initialPosition: number;
   repeatMode: 'none' | 'all' | 'one';
   playbackRate: number;
   sleepTimer: { type: 'time' | 'track_end' | null, endTime: number | null };
   setIsPlaying: (isPlaying: boolean) => void;
   setVolume: (volume: number) => void;
+  setMobileVolume: (mobileVolume: number) => void;
+  setVolumeMultiplier: (volumeMultiplier: number) => void;
   setInitialPosition: (position: number) => void;
   setRepeatMode: (mode: 'none' | 'all' | 'one') => void;
   cycleRepeatMode: () => void;
@@ -25,12 +29,16 @@ export const createPlaybackSlice: StateCreator<
 > = (set) => ({
   isPlaying: false,
   volume: 0.5,
+  mobileVolume: 1.0,
+  volumeMultiplier: 1.0,
   initialPosition: 0,
   repeatMode: 'none',
   playbackRate: 1,
   sleepTimer: { type: null, endTime: null },
   setIsPlaying: (isPlaying) => set({ isPlaying }),
   setVolume: (volume) => set({ volume }),
+  setMobileVolume: (mobileVolume) => set({ mobileVolume }),
+  setVolumeMultiplier: (volumeMultiplier) => set({ volumeMultiplier }),
   setInitialPosition: (initialPosition) => set({ initialPosition }),
   setRepeatMode: (repeatMode) => set({ repeatMode }),
   cycleRepeatMode: () => set((state) => {

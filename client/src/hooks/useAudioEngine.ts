@@ -1,12 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { savePlayQueue } from '../api/subsonic';
 import { useAudioStore } from '../store/audioStore';
 import { useHoladStore } from '../store/holadStore';
 import { useHistoryStore } from '../store/historyStore';
+import { isCapacitor } from '../utils/StorageManager';
 
 export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null>) {
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, volume, role, playbackRate, sleepTimer, setSleepTimer } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, volume, mobileVolume, volumeMultiplier, role, playbackRate, sleepTimer, setSleepTimer } = usePlayerStore();
   const { setAudioElement, progress, setProgress, duration, setDuration, isSeeking, setIsSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
 
   const holadDeviceId = useHoladStore(s => s.deviceId);
@@ -15,14 +16,28 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
   const isActiveDevice = !isHoladConnected || holadActiveDeviceId === holadDeviceId || holadActiveDeviceId === null;
 
   const currentTrack = queue[currentIndex];
+  
+  const [isAudioReady, setIsAudioReady] = useState(false);
+  useEffect(() => {
+    if (audioRef.current && !isAudioReady) {
+      setIsAudioReady(true);
+    }
+  });
 
   useEffect(() => {
     if (audioRef.current) {
       if (volume !== undefined && !isNaN(volume)) {
-        // Scale volume so that 100% on the UI equals 30% actual volume
-        // and use exponential curve (x^2) for natural hearing response
-        const scaledVolume = volume * 0.3;
-        audioRef.current.volume = scaledVolume * scaledVolume;
+        // Detect mobile browser (PWA or Chrome/Safari on mobile) or Capacitor
+        const isMobile = isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+          audioRef.current.volume = Math.min(1, Math.max(0, mobileVolume * (volumeMultiplier || 1.0)));
+        } else {
+          // Scale volume so that 100% on the UI equals 30% actual volume
+          // and use exponential curve (x^2) for natural hearing response
+          const scaledVolume = volume * 0.3 * (volumeMultiplier || 1.0);
+          audioRef.current.volume = Math.min(1, Math.max(0, scaledVolume * scaledVolume));
+        }
       }
       setAudioElement(audioRef.current);
       
@@ -50,7 +65,7 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
       }
     }
     return () => setAudioElement(null);
-  }, [volume, setAudioElement, audioRef.current]);
+  }, [volume, mobileVolume, volumeMultiplier, setAudioElement, isAudioReady]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -215,6 +230,10 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
     }
     
     const tick = () => {
+       if (currentTrack && currentTrack.duration && duration !== currentTrack.duration) {
+           setDuration(currentTrack.duration);
+       }
+       
        if (usePlayerStore.getState().isPlaying && currentTrack && currentTrack.duration) {
            const now = performance.now();
            const delta = (now - lastTime) / 1000;
@@ -235,7 +254,7 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
        cancelAnimationFrame(animationFrame);
        if (socket) socket.off('holad_syncTime', onSyncTime);
     };
-  }, [isActiveDevice, currentTrack, isHoladConnected]);
+  }, [isActiveDevice, currentTrack, isHoladConnected, duration, setDuration]);
 
   const handleEnded = () => {
     if (role === 'listener') return;

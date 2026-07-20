@@ -240,7 +240,7 @@ export default function JamLayout() {
                 <div className="relative flex justify-center w-full">
                   <Disc size={22} />
                 </div>
-                <span className="text-[10px] font-bold leading-none mt-1 px-1 text-center">{t('sidebar.albums')}</span>
+                <span className="text-[10px] font-bold leading-normal mt-1 px-1 text-center pb-0.5">{t('sidebar.albums')}</span>
               </Link>
               {(role === 'cohost' || role === 'host') && (
                 <>
@@ -248,13 +248,13 @@ export default function JamLayout() {
                     <div className="relative flex justify-center w-full">
                       <Music size={22} />
                     </div>
-                    <span className="text-[10px] font-bold leading-none mt-1 px-1 text-center">{t('sidebar.tracks')}</span>
+                    <span className="text-[10px] font-bold leading-normal mt-1 px-1 text-center pb-0.5">{t('sidebar.tracks')}</span>
                   </Link>
                   <Link to={`/jam/artists?room=${roomToJoin}`} className="w-full flex flex-col items-center gap-1 transition-colors group text-secondary hover:text-foreground">
                     <div className="relative flex justify-center w-full">
                       <Users size={22} />
                     </div>
-                    <span className="text-[10px] font-bold leading-none mt-1 px-1 text-center">{t('sidebar.artists')}</span>
+                    <span className="text-[10px] font-bold leading-normal mt-1 px-1 text-center pb-0.5">{t('sidebar.artists')}</span>
                   </Link>
                 </>
               )}

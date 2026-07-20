@@ -4,7 +4,7 @@ export * from './subsonic/albums';
 export * from './subsonic/social';
 export * from './subsonic/playlists';
 
-import { buildUrl, getBaseUrl, getAuthParams } from './subsonic-core';
+import { buildUrl, getBaseUrl, getAuthParams, fetchWithRetry } from './subsonic-core';
 import { useAuthStore } from '../store/authStore';
 import { getHoladServerUrl } from '../utils/serverConfig';
 
@@ -27,7 +27,7 @@ export const getStreamUrl = (id: string) => {
 
 export const getPlayQueue = async () => {
   const url = buildUrl('getPlayQueue');
-  const res = await fetch(url);
+  const res = await fetchWithRetry(url);
   const data = await res.json();
   return data['subsonic-response']?.playQueue;
 };
@@ -39,12 +39,12 @@ export const savePlayQueue = async (trackIds: string[], currentId: string, posit
   // append ids
   const idParams = trackIds.map(id => `id=${id}`).join('&');
   url += `&${idParams}`;
-  await fetch(url);
+  await fetchWithRetry(url);
 };
 
 export const pingServer = async () => {
   const url = buildUrl('ping');
-  const res = await fetch(url);
+  const res = await fetchWithRetry(url);
   const data = await res.json();
   if (data['subsonic-response']?.status !== 'ok') {
     throw new Error('Ping failed');
@@ -55,7 +55,7 @@ export const pingServer = async () => {
 export const getArtists = async () => {
   // getIndexes returns ALL artists (including track-only artists) instead of just album artists
   const url = buildUrl('getIndexes');
-  const res = await fetch(url);
+  const res = await fetchWithRetry(url);
   const data = await res.json();
   const index = data['subsonic-response']?.indexes?.index || [];
   const artists: any[] = [];
@@ -69,7 +69,7 @@ export const getArtists = async () => {
 
 export const getArtist = async (id: string) => {
   const url = buildUrl('getArtist', { id });
-  const res = await fetch(url);
+  const res = await fetchWithRetry(url);
   const data = await res.json();
   return data['subsonic-response']?.artist;
 };
@@ -77,7 +77,7 @@ export const getArtist = async (id: string) => {
 export const getTopSongs = async (artist: string, count: number = 1000): Promise<any[]> => {
   const url = buildUrl('getTopSongs', { artist, count: count.toString() });
   try {
-    const response = await fetch(url);
+    const response = await fetchWithRetry(url);
     const data = await response.json();
     return data['subsonic-response']?.topSongs?.song || [];
   } catch (error) {
@@ -89,7 +89,7 @@ export const getTopSongs = async (artist: string, count: number = 1000): Promise
 export const getSimilarSongs = async (id: string, count: number = 50): Promise<any[]> => {
   const url = buildUrl('getSimilarSongs2', { id, count: count.toString() });
   try {
-    const response = await fetch(url);
+    const response = await fetchWithRetry(url);
     const data = await response.json();
     return data['subsonic-response']?.similarSongs2?.song || [];
   } catch (error) {
@@ -101,7 +101,7 @@ export const getSimilarSongs = async (id: string, count: number = 50): Promise<a
 export const getLyrics = async (artist: string, title: string): Promise<string | null> => {
   const url = buildUrl('getLyrics', { artist, title });
   try {
-    const response = await fetch(url);
+    const response = await fetchWithRetry(url);
     const data = await response.json();
     return data['subsonic-response']?.lyrics?.value || null;
   } catch (error) {
@@ -113,7 +113,7 @@ export const getLyrics = async (artist: string, title: string): Promise<string |
 export const getLyricsBySongId = async (id: string): Promise<any> => {
   const url = buildUrl('getLyricsBySongId', { id });
   try {
-    const response = await fetch(url);
+    const response = await fetchWithRetry(url);
     const data = await response.json();
     return data['subsonic-response']?.lyricsList?.structuredLyrics?.[0]?.line || null;
   } catch (error) {
@@ -124,7 +124,7 @@ export const getLyricsBySongId = async (id: string): Promise<any> => {
 
 export const getArtistInfo = async (id: string) => {
   const url = buildUrl('getArtistInfo2', { id });
-  const res = await fetch(url);
+  const res = await fetchWithRetry(url);
   const data = await res.json();
   return data['subsonic-response']?.artistInfo2;
 };

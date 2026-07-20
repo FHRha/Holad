@@ -1,5 +1,6 @@
 import { useAuthStore } from '../store/authStore';
 import { getHoladServerUrl } from '../utils/serverConfig';
+import { isTauri, isCapacitor } from '../utils/StorageManager';
 
 export const getBaseUrl = () => {
   const { isAuthenticated, url } = useAuthStore.getState();
@@ -24,7 +25,11 @@ export const getAuthParams = () => {
   
   cachedAuthUser = user;
   cachedAuthToken = token;
-  cachedAuthStr = `u=${encodeURIComponent(user)}&t=${token}&s=${salt}&v=1.16.1&c=StreamNavi&f=json`;
+  let clientName = 'Holad-Web';
+  if (isTauri()) clientName = 'Holad-Desktop';
+  else if (isCapacitor()) clientName = 'Holad-Mobile';
+  
+  cachedAuthStr = `u=${encodeURIComponent(user)}&t=${token}&s=${salt}&v=1.16.1&c=${clientName}&f=json`;
   return cachedAuthStr;
 };
 
@@ -41,15 +46,16 @@ export const buildUrl = (endpoint: string, params: Record<string, string> = {}) 
   return `${baseUrl}/rest/${endpoint}?${queryString}`;
 };
 
-export const fetchWithRetry = async (url: string, options?: RequestInit, retries = 3, delay = 1000): Promise<Response> => {
-  for (let i = 0; i < retries; i++) {
+export const fetchWithRetry = async (url: string, options?: RequestInit): Promise<Response> => {
+  const delays = [1000, 1000, 1000, 5000];
+  for (let i = 0; i <= delays.length; i++) {
     try {
       const res = await fetch(url, options);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res;
     } catch (e) {
-      if (i === retries - 1) throw e;
-      await new Promise(r => setTimeout(r, delay));
+      if (i === delays.length) throw e;
+      await new Promise(r => setTimeout(r, delays[i]));
     }
   }
   throw new Error("Fetch failed");
