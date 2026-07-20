@@ -1,10 +1,10 @@
 <div align="right">
-  <a href="README.md"><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/ru.svg" alt="Русский" width="30"/></a>
-  <a href="README_en.md"><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/gb.svg" alt="English" width="30"/></a>
+  <a href="README.md"><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/ru.svg" alt="Русский" width="30" style="border-radius: 4px;" /></a>
+  <a href="README_en.md"><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/gb.svg" alt="English" width="30" style="border-radius: 4px;" /></a>
 </div>
 
 <div align="center">
-  <img src="client/public/icons/favicon_tab.png" alt="Holad Logo" width="150" height="150">
+  <img src="client/public/icons/favicon_tab.png" alt="Holad Logo" width="150" height="150" style="border-radius: 30px;">
   
   # Holad
   
@@ -20,16 +20,16 @@
   <h3>📥 Скачать Holad</h3>
 
   <a href="https://github.com/FHRha/Holad/releases/latest">
-    <img src="https://img.shields.io/badge/Windows-Setup_.exe_%2F_.msi-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Download" />
+    <img src="https://img.shields.io/badge/Windows-Setup_.exe_%2F_.msi-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Download" style="border-radius: 8px;" />
   </a>
   <a href="https://github.com/FHRha/Holad/releases/latest">
-    <img src="https://img.shields.io/badge/Linux-AppImage_%2F_DEB-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux Download" />
+    <img src="https://img.shields.io/badge/Linux-AppImage_%2F_DEB-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux Download" style="border-radius: 8px;" />
   </a>
   <a href="https://github.com/FHRha/Holad/releases/latest">
-    <img src="https://img.shields.io/badge/Android-APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android Download" />
+    <img src="https://img.shields.io/badge/Android-APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android Download" style="border-radius: 8px;" />
   </a>
   <a href="https://github.com/FHRha/Holad/releases/latest">
-    <img src="https://img.shields.io/badge/Web_Server-Self--Hosted_.tar.gz-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Web Server Download" />
+    <img src="https://img.shields.io/badge/Web_Server-Self--Hosted_.tar.gz-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Web Server Download" style="border-radius: 8px;" />
   </a>
 
   <br />
@@ -50,10 +50,10 @@
 ## Скриншоты
 
 ### Главный экран
-![Главный экран](.github/assets/ru-main.png)
+<img src=".github/assets/ru-main.png" alt="Главный экран" style="border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;" />
 
 ### Плеер и визуализация
-![Плеер](.github/assets/ru-visual.png)
+<img src=".github/assets/ru-visual.png" alt="Плеер" style="border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;" />
 
 ## Быстрый старт (Linux)
 
