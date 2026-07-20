@@ -77,7 +77,12 @@ export default function BottomPlayer() {
 
   const handleVolumeDrag = (newVolume: number) => {
     if (audioRef.current) {
-      const scaledVolume = newVolume * 0.3 * (usePlayerStore.getState().volumeMultiplier || 1.0);
+      const isMobile = typeof window !== 'undefined' && 
+                       !(window as any).__TAURI_INTERNALS__ && 
+                       ((window as any).Capacitor !== undefined || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+      
+      const activeVolume = isMobile ? usePlayerStore.getState().mobileVolume : newVolume;
+      const scaledVolume = activeVolume * 0.3 * (usePlayerStore.getState().volumeMultiplier || 1.0);
       audioRef.current.volume = Math.min(1, Math.max(0, scaledVolume * scaledVolume));
     }
   };

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchStarred, getCoverArtUrl } from '../../api/subsonic';
+import { fetchStarred, getCoverArtUrl, unstarItem, starItem, getAlbum } from '../../api/subsonic';
 import { Play, Heart, Search, CloudOff, Download, LayoutGrid } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatArtistName } from '../../utils/formatters';
@@ -46,9 +46,9 @@ export default function FavoritesView() {
     const isLiked = likedTrackIds.includes(trackId);
     toggleTrackLike(trackId);
     if (isLiked) {
-      import('../../api/subsonic').then(m => m.unstarItem(trackId));
+      unstarItem(trackId);
     } else {
-      import('../../api/subsonic').then(m => m.starItem(trackId));
+      starItem(trackId);
     }
   };
 
@@ -281,24 +281,20 @@ export default function FavoritesView() {
                       className="flex items-center gap-4 cursor-pointer"
                       onClick={() => {
                         if (window.innerWidth < 768) {
-                          import('../../store/playerStore').then(m => {
-                            m.usePlayerStore.getState().setIsProcessing(true);
-                            import('../../api/subsonic').then(api => {
-                               api.getAlbum(album.id).then(tracks => {
-                                 const mappedTracks = tracks.map((t: any) => ({
-                                   id: t.id,
-                                   title: t.title,
-                                   artist: t.artist,
-                                   album: album.title || album.name,
-                                   albumId: album.id,
-                                   artistId: t.artistId || album.artistId,
-                                   coverArt: getCoverArtUrl(album.coverArt || album.id, 300),
-                                   duration: t.duration
-                                 }));
-                                 m.usePlayerStore.getState().setQueueAndPlay(mappedTracks, 0);
-                                 m.usePlayerStore.getState().setIsProcessing(false);
-                               });
-                            });
+                          usePlayerStore.getState().setIsProcessing(true);
+                          getAlbum(album.id).then(tracks => {
+                            const mappedTracks = tracks.map((t: any) => ({
+                              id: t.id,
+                              title: t.title,
+                              artist: t.artist,
+                              album: album.title || album.name,
+                              albumId: album.id,
+                              artistId: t.artistId || album.artistId,
+                              coverArt: getCoverArtUrl(album.coverArt || album.id, 300),
+                              duration: t.duration
+                            }));
+                            usePlayerStore.getState().setQueueAndPlay(mappedTracks, 0);
+                            usePlayerStore.getState().setIsProcessing(false);
                           });
                         }
                       }}

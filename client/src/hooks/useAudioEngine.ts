@@ -4,7 +4,7 @@ import { savePlayQueue } from '../api/subsonic';
 import { useAudioStore } from '../store/audioStore';
 import { useHoladStore } from '../store/holadStore';
 import { useHistoryStore } from '../store/historyStore';
-import { isCapacitor } from '../utils/StorageManager';
+import { isTauri, isCapacitor } from '../utils/StorageManager';
 
 export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null>) {
   const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, volume, mobileVolume, volumeMultiplier, role, playbackRate, sleepTimer, setSleepTimer } = usePlayerStore();
@@ -28,16 +28,13 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
     if (audioRef.current) {
       if (volume !== undefined && !isNaN(volume)) {
         // Detect mobile browser (PWA or Chrome/Safari on mobile) or Capacitor
-        const isMobile = isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isMobile = !isTauri() && (isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
         
-        if (isMobile) {
-          audioRef.current.volume = Math.min(1, Math.max(0, mobileVolume * (volumeMultiplier || 1.0)));
-        } else {
-          // Scale volume so that 100% on the UI equals 30% actual volume
-          // and use exponential curve (x^2) for natural hearing response
-          const scaledVolume = volume * 0.3 * (volumeMultiplier || 1.0);
-          audioRef.current.volume = Math.min(1, Math.max(0, scaledVolume * scaledVolume));
-        }
+        const activeVolume = isMobile ? mobileVolume : volume;
+        // Scale volume so that 100% on the UI equals 30% actual volume
+        // and use exponential curve (x^2) for natural hearing response
+        const scaledVolume = activeVolume * 0.3 * (volumeMultiplier || 1.0);
+        audioRef.current.volume = Math.min(1, Math.max(0, scaledVolume * scaledVolume));
       }
       setAudioElement(audioRef.current);
       

@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { PlayerState } from '../playerStore';
+import { setItemRating } from '../../api/subsonic';
 import type { Track } from '../../types';
 
 export interface SocialSlice {
@@ -46,12 +47,7 @@ export const createSocialSlice: StateCreator<
     const updateQueue = (q: Track[]) => q.map(t => t.id === id ? { ...t, userRating: rating } : t);
     
     // Call the API lazily
-    import('../../api/subsonic').then(api => {
-      // API module will be refactored later
-      if (api && typeof api.setItemRating === 'function') {
-        api.setItemRating(id, rating).catch((err: any) => console.error('Failed to set rating:', err));
-      }
-    });
+    setItemRating(id, rating).catch((err: any) => console.error('Failed to set rating:', err));
 
     return {
       queue: updateQueue(state.queue),

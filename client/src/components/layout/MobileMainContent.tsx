@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, CloudOff, Download, Heart, Music, Clock, Users, Flame, Shuffle, RefreshCw, ChevronRight, ChevronLeft, Star, Loader2, Play } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
+import * as subsonicApi from '../../api/subsonic';
 import TrackImage from '../common/TrackImage';
 import { getCoverArtUrl, fetchRandomTracks, getSongsByGenre } from '../../api/subsonic';
 import { useUIStore } from '../../store/uiStore';
@@ -297,8 +298,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                 className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start"
                 onClick={() => {
                   usePlayerStore.getState().setIsProcessing(true);
-                  import('../../api/subsonic').then(api => {
-                      api.getAlbum(album.id).then(tracks => {
+                  subsonicApi.getAlbum(album.id).then(tracks => {
                         const mappedTracks = tracks.map((t: any) => ({
                           id: t.id,
                           title: t.title,
@@ -312,7 +312,6 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                         usePlayerStore.getState().setQueueAndPlay(mappedTracks, 0);
                         usePlayerStore.getState().setIsProcessing(false);
                       });
-                  });
                 }}
               >
                 <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828]">

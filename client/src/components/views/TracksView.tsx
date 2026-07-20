@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { formatArtistName } from '../../utils/formatters';
 import { Play, Pause, Heart, Clock, Search, FilterX, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { searchTracks, getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
+import { searchTracks, getCoverArtUrl, getArtists, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
@@ -54,7 +54,7 @@ export default function TracksView() {
       try {
         const [tracksData, artistsData] = await Promise.all([
           searchTracks('', 3000),
-          import('../../api/subsonic').then(m => m.getArtists())
+          getArtists()
         ]);
         const sorted = tracksData.sort((a: any, b: any) => a.title.localeCompare(b.title));
         setTracks(sorted);

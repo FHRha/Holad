@@ -1,6 +1,7 @@
 import { writeFile, mkdir, exists, remove, copyFile, readDir } from '@tauri-apps/plugin-fs';
 import { executableDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { useDownloadStore } from '../store/downloadStore';
 
 // Check if we are running inside Tauri
 export const isTauri = () => {
@@ -201,7 +202,7 @@ export class StorageManager {
 
   static async getLocalTrackUri(trackId: string, trackTitle: string, albumId?: string): Promise<string | null> {
     // Resolve dynamic import for store to avoid circular dependency
-    const { useDownloadStore } = await import('../store/downloadStore');
+    // Changed to static import as it was causing warnings
     const { downloads } = useDownloadStore.getState();
 
     // 1. Check if track was downloaded directly

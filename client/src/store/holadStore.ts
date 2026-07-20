@@ -3,6 +3,8 @@ import { io, Socket } from 'socket.io-client';
 import { usePlayerStore } from './playerStore';
 import { useAudioStore } from './audioStore';
 import { useSettingsStore } from './settingsStore';
+import { useHistoryStore } from './historyStore';
+import { useUIStore } from './uiStore';
 import { useAuthStore } from './authStore';
 import { getSocketUrl } from '../utils/serverConfig';
 
@@ -194,33 +196,29 @@ export const useHoladStore = create<HoladState>((set, get) => {
       socket.on('holad_remoteCommand', (command: { type: string, payload?: any }) => {
         
         if (command.type === 'syncHistory') {
-          import('./historyStore').then(({ useHistoryStore }) => {
-            useHistoryStore.getState().addTrackToHistory(command.payload.track, command.payload.playedAt);
-          });
+          useHistoryStore.getState().addTrackToHistory(command.payload.track, command.payload.playedAt);
           return;
         }
         
         if (command.type === 'requestHistory') {
           console.log('[Holad] Received requestHistory. Am I active?', get().activeDeviceId === deviceId);
           if (get().activeDeviceId === deviceId) {
-            import('./historyStore').then(({ useHistoryStore }) => {
-               const history = useHistoryStore.getState().history;
-               console.log('[Holad] Emitting history via REST API with tracks:', history.length);
-               if (history.length > 0) {
-                 const { user, token, salt, url } = useAuthStore.getState();
-                 fetch(`${import.meta.env.BASE_URL}api/holad/history/${get().roomId}`, {
-                   method: 'POST',
-                   headers: {
-                     'Content-Type': 'application/json',
-                     'x-user': user,
-                     'x-token': token,
-                     'x-salt': salt,
-                     'x-url': url
-                   },
-                   body: JSON.stringify(history)
-                 }).catch(err => console.error('[Holad] Failed to upload history:', err));
-               }
-            });
+             const history = useHistoryStore.getState().history;
+             console.log('[Holad] Emitting history via REST API with tracks:', history.length);
+             if (history.length > 0) {
+               const { user, token, salt, url } = useAuthStore.getState();
+               fetch(`${import.meta.env.BASE_URL}api/holad/history/${get().roomId}`, {
+                 method: 'POST',
+                 headers: {
+                   'Content-Type': 'application/json',
+                   'x-user': user,
+                   'x-token': token,
+                   'x-salt': salt,
+                   'x-url': url
+                 },
+                 body: JSON.stringify(history)
+               }).catch(err => console.error('[Holad] Failed to upload history:', err));
+             }
           }
           return;
         }
@@ -239,28 +237,22 @@ export const useHoladStore = create<HoladState>((set, get) => {
              .then(res => res.json())
              .then(historyData => {
                console.log('[Holad] Downloaded history with tracks:', historyData.length);
-               import('./historyStore').then(({ useHistoryStore }) => {
-                 const localHistory = useHistoryStore.getState().history;
-                 console.log('[Holad] localHistory length is:', localHistory.length);
-                 if (localHistory.length === 0 && historyData.length > 0) {
-                   console.log('[Holad] Triggering SyncConflictModal');
-                   import('./uiStore').then(({ useUIStore }) => {
-                     useUIStore.getState().setPendingHistorySync(historyData);
-                   });
-                 } else {
-                   console.log('[Holad] Merging history silently');
-                   useHistoryStore.getState().syncHistoryData(historyData);
-                 }
-               });
+               const localHistory = useHistoryStore.getState().history;
+               console.log('[Holad] localHistory length is:', localHistory.length);
+               if (localHistory.length === 0 && historyData.length > 0) {
+                 console.log('[Holad] Triggering SyncConflictModal');
+                 useUIStore.getState().setPendingHistorySync(historyData);
+               } else {
+                 console.log('[Holad] Merging history silently');
+                 useHistoryStore.getState().syncHistoryData(historyData);
+               }
              })
              .catch(err => console.error('[Holad] Failed to fetch history:', err));
            return;
         }
 
         if (command.type === 'clearHistory') {
-          import('./historyStore').then(({ useHistoryStore }) => {
-            useHistoryStore.getState().clearHistory();
-          });
+          useHistoryStore.getState().clearHistory();
           return;
         }
 
