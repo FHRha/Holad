@@ -28,6 +28,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useDocumentTitle } from './hooks/useDocumentTitle';
+import { useTaskbarControls } from './hooks/useTaskbarControls';
 import SettingsModal from './components/modals/SettingsModal';
 import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
@@ -49,6 +50,8 @@ function AppContent() {
   const roomId = usePlayerStore(state => state.roomId);
   const { theme, accentColor, startPage } = useSettingsStore();
   const isSettingsOpen = useUIStore(state => state.isSettingsOpen);
+  
+  useTaskbarControls();
   
   useEffect(() => {
     const root = document.documentElement;

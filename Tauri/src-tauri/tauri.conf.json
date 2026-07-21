@@ -45,7 +45,9 @@
     "android": {
       "debugApplicationIdSuffix": ".debug"
     },
-    "resources": []
+    "resources": [
+      "icons/taskbar/*"
+    ]
   },
   "plugins": {}
 }
