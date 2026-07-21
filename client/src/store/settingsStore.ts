@@ -16,6 +16,9 @@ export interface SettingsState {
   startPage: StartPage;
   isCrossfadeEnabled: boolean;
   crossfadeDuration: number;
+  runOnStartup: boolean;
+  startMinimized: boolean;
+  closeToTray: boolean;
   
   setTheme: (theme: AppTheme) => void;
   setAccentColor: (color: AccentColor) => void;
@@ -25,6 +28,9 @@ export interface SettingsState {
   setStartPage: (page: StartPage) => void;
   setIsCrossfadeEnabled: (enabled: boolean) => void;
   setCrossfadeDuration: (duration: number) => void;
+  setRunOnStartup: (enabled: boolean) => void;
+  setStartMinimized: (enabled: boolean) => void;
+  setCloseToTray: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -38,6 +44,9 @@ export const useSettingsStore = create<SettingsState>()(
       startPage: '/Holad',
       isCrossfadeEnabled: true,
       crossfadeDuration: 3,
+      runOnStartup: true,
+      startMinimized: true,
+      closeToTray: true,
 
       setTheme: (theme) => set({ theme }),
       setAccentColor: (accentColor) => set({ accentColor }),
@@ -54,6 +63,9 @@ export const useSettingsStore = create<SettingsState>()(
       setStartPage: (startPage) => set({ startPage }),
       setIsCrossfadeEnabled: (isCrossfadeEnabled) => set({ isCrossfadeEnabled }),
       setCrossfadeDuration: (crossfadeDuration) => set({ crossfadeDuration }),
+      setRunOnStartup: (runOnStartup) => set({ runOnStartup }),
+      setStartMinimized: (startMinimized) => set({ startMinimized }),
+      setCloseToTray: (closeToTray) => set({ closeToTray }),
     }),
     {
       name: 'streamnavi-settings',

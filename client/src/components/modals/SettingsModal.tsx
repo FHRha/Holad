@@ -226,6 +226,69 @@ export default function SettingsModal() {
                     ]}
                   />
                 </SettingSection>
+
+                {/* Tauri-only Settings */}
+                {('__TAURI_INTERNALS__' in window) && (
+                  <SettingSection title={t('settings.desktop', { defaultValue: 'Десктоп' })}>
+                    <div className="flex flex-col gap-4">
+                      <label className="flex items-center gap-3 cursor-pointer group">
+                        <input 
+                          type="checkbox" 
+                          checked={settings.runOnStartup} 
+                          onChange={async (e) => {
+                            const checked = e.target.checked;
+                            settings.setRunOnStartup(checked);
+                            try {
+                              const { enable, disable } = await import('@tauri-apps/plugin-autostart');
+                              if (checked) await enable();
+                              else await disable();
+                            } catch (err) {
+                              console.error('Failed to toggle autostart', err);
+                            }
+                          }}
+                          className="accent-primary w-4 h-4 rounded cursor-pointer"
+                        />
+                        <span className="group-hover:text-primary transition-colors text-sm">
+                          {t('settings.run_on_startup', { defaultValue: 'Автозапуск при старте системы' })}
+                        </span>
+                      </label>
+                      
+                      <label className={`flex items-center gap-3 cursor-pointer group pl-6 ${!settings.runOnStartup ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <input 
+                          type="checkbox" 
+                          checked={settings.startMinimized} 
+                          onChange={(e) => settings.setStartMinimized(e.target.checked)}
+                          disabled={!settings.runOnStartup}
+                          className="accent-primary w-4 h-4 rounded cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <span className="group-hover:text-primary transition-colors text-sm">
+                          {t('settings.start_minimized', { defaultValue: 'Запускать свернутым в трей' })}
+                        </span>
+                      </label>
+
+                      <label className="flex items-center gap-3 cursor-pointer group mt-2">
+                        <input 
+                          type="checkbox" 
+                          checked={settings.closeToTray} 
+                          onChange={async (e) => {
+                            const checked = e.target.checked;
+                            settings.setCloseToTray(checked);
+                            try {
+                              const { invoke } = await import('@tauri-apps/api/core');
+                              await invoke('set_close_to_tray', { enabled: checked });
+                            } catch (err) {
+                              console.error('Failed to update close_to_tray state', err);
+                            }
+                          }}
+                          className="accent-primary w-4 h-4 rounded cursor-pointer"
+                        />
+                        <span className="group-hover:text-primary transition-colors text-sm">
+                          {t('settings.close_to_tray', { defaultValue: 'Сворачивать в трей при закрытии (крестик)' })}
+                        </span>
+                      </label>
+                    </div>
+                  </SettingSection>
+                )}
               </div>
             )}
 

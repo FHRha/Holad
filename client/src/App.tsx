@@ -29,7 +29,9 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useDocumentTitle } from './hooks/useDocumentTitle';
 import { useTaskbarControls } from './hooks/useTaskbarControls';
+import { useTrayIntegration } from './hooks/useTrayIntegration';
 import SettingsModal from './components/modals/SettingsModal';
+import TrayMenu from './components/player/TrayMenu';
 import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
 import { useEffect, useState } from 'react';
@@ -45,6 +47,12 @@ function hexToRgb(hex: string) {
 }
 
 function AppContent() {
+  const isTrayMenu = window.location.hash === '#tray';
+
+  if (isTrayMenu) {
+    return <TrayMenu />;
+  }
+
   const location = useLocation();
   const { isAuthenticated, isJamRoute } = useAppInitialization();
   const roomId = usePlayerStore(state => state.roomId);
@@ -52,7 +60,35 @@ function AppContent() {
   const isSettingsOpen = useUIStore(state => state.isSettingsOpen);
   
   useTaskbarControls();
+  useTrayIntegration();
   
+  useEffect(() => {
+    if ('__TAURI_INTERNALS__' in window) {
+      const initTauri = async () => {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          
+          const settings = useSettingsStore.getState();
+          
+          // Apply closeToTray setting
+          await invoke('set_close_to_tray', { enabled: settings.closeToTray ?? true });
+          
+          // Handle visibility on autostart
+          const isAutostart = await invoke<boolean>('is_autostart_launch');
+          if (isAutostart && settings.startMinimized === false) {
+            const win = getCurrentWindow();
+            await win.show();
+            await win.setFocus();
+          }
+        } catch (err) {
+          console.error("Tauri initialization error:", err);
+        }
+      };
+      initTauri();
+    }
+  }, []);
+
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
