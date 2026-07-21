@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@capgo/capacitor-media-session':
+    hash: 2cc63938a78d6b9e8ff3f6ed8bde6fe31e7b1c33bd2af21e0ef0bfc2b8be4305
+    path: patches/@capgo__capacitor-media-session.patch
+
 importers:
 
   .:
@@ -14,6 +19,9 @@ importers:
       '@capacitor/filesystem':
         specifier: ^8.1.2
         version: 8.1.2(@capacitor/core@8.4.2)
+      '@capgo/capacitor-media-session':
+        specifier: ^8.0.29
+        version: 8.0.29(patch_hash=2cc63938a78d6b9e8ff3f6ed8bde6fe31e7b1c33bd2af21e0ef0bfc2b8be4305)(@capacitor/core@8.4.2)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -126,6 +134,11 @@ packages:
 
   '@capacitor/synapse@1.0.4':
     resolution: {integrity: sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw==}
+
+  '@capgo/capacitor-media-session@8.0.29':
+    resolution: {integrity: sha512-6oOarjYS79iBdpPqa/48h77y8PfGXJJMyGC+898FUKW2l5wQoO0LPz0ZaC5FWDqDl7IbZSYF1uH6Z4aNQV7qKw==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   '@dnd-kit/accessibility@3.1.1':
     resolution: {integrity: sha512-2P+YgaXF+gRsIihwwY1gCsQSYnu9Zyj2py8kY5fFvUM1qm2WA2u639R6YNVfU4GWr+ZM5mqEsfHZZLoRONbemw==}
@@ -1117,6 +1130,10 @@ snapshots:
       '@capacitor/synapse': 1.0.4
 
   '@capacitor/synapse@1.0.4': {}
+
+  '@capgo/capacitor-media-session@8.0.29(patch_hash=2cc63938a78d6b9e8ff3f6ed8bde6fe31e7b1c33bd2af21e0ef0bfc2b8be4305)(@capacitor/core@8.4.2)':
+    dependencies:
+      '@capacitor/core': 8.4.2
 
   '@dnd-kit/accessibility@3.1.1(react@19.2.7)':
     dependencies:

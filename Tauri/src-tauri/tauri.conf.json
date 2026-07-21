@@ -20,7 +20,12 @@
         "maximized": true,
         "theme": "Dark",
         "userAgent": "Holad-Desktop",
-        "backgroundColor": [18, 18, 18, 255]
+        "backgroundColor": [
+          18,
+          18,
+          18,
+          255
+        ]
       }
     ],
     "security": {
@@ -39,6 +44,8 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
-    }
-  }
+    },
+    "resources": []
+  },
+  "plugins": {}
 }

@@ -13,10 +13,16 @@
   "dependencies": {
     "@capacitor/android": "^8.4.2",
     "@capacitor/core": "^8.4.2",
-    "@capacitor/filesystem": "^8.1.2"
+    "@capacitor/filesystem": "^8.1.2",
+    "@capgo/capacitor-media-session": "^8.0.29"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.4.2"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "@capgo/capacitor-media-session@8.0.29": "patches/@capgo__capacitor-media-session.patch"
+    }
   }
 }

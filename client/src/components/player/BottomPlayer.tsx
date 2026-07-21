@@ -12,6 +12,7 @@ import { getCoverArtUrl } from '../../api/subsonic';
 import MobilePlayerUI from './MobilePlayerUI';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useAutoDj } from '../../hooks/useAutoDj';
+import { useMediaSession } from '../../hooks/useMediaSession';
 import { useNavigate } from 'react-router-dom';
 
 import { useContextMenuStore } from '../../store/contextMenuStore';
@@ -33,6 +34,8 @@ export default function BottomPlayer() {
     handleSeekChange,
     handleSeekEnd
   } = useAudioEngine([audioRef0, audioRef1], queue[currentIndex]);
+
+  useMediaSession();
 
   const currentTrack = queue[currentIndex];
 

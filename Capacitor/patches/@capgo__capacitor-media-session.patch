@@ -1,0 +1,69 @@
+diff --git a/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java b/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java
+index ce25ddf64034a84490a33070dd7e578562b13057..e79702da7b83b311be18e968bc06fd38a50cac8e 100644
+--- a/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java
++++ b/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java
+@@ -259,8 +259,7 @@ public class MediaSessionPlugin extends Plugin {
+     }
+ 
+     public boolean hasActionHandler(String action) {
+-        PluginCall handler = actionHandlers.get(action);
+-        return handler != null && !PluginCall.CALLBACK_ID_DANGLING.equals(handler.getCallbackId());
++        return true;
+     }
+ 
+     public void actionCallback(String action) {
+@@ -268,9 +267,11 @@ public class MediaSessionPlugin extends Plugin {
+     }
+ 
+     public void actionCallback(String action, JSObject data) {
++        data.put("action", action);
++        notifyListeners(action, data);
++        
+         PluginCall handler = actionHandlers.get(action);
+         if (handler != null && !PluginCall.CALLBACK_ID_DANGLING.equals(handler.getCallbackId())) {
+-            data.put("action", action);
+             handler.resolve(data);
+         } else {
+             Log.d(TAG, "No handler for action " + action);
+diff --git a/android/src/main/java/com/capgo/mediasession/MediaSessionService.java b/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
+index e2c1f052c568618637015c022b305cbb71325133..64ffec96d25d917bb35a24154cbd3ce73c21b663 100644
+--- a/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
++++ b/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
+@@ -115,10 +115,18 @@ public class MediaSessionService extends Service {
+             notificationManager.createNotificationChannel(channel);
+         }
+ 
++        int smallIconId = getResources().getIdentifier("ic_stat_name", "drawable", getPackageName());
++        if (smallIconId == 0) {
++            smallIconId = getResources().getIdentifier("ic_launcher_foreground", "drawable", getPackageName());
++        }
++        if (smallIconId == 0) {
++            smallIconId = getApplicationInfo().icon;
++        }
++
+         notificationStyle = new MediaStyle().setMediaSession(mediaSession.getSessionToken());
+         notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
+             .setStyle(notificationStyle)
+-            .setSmallIcon(R.drawable.ic_baseline_volume_up_24)
++            .setSmallIcon(smallIconId)
+             .setContentIntent(
+                 PendingIntent.getActivity(
+                     getApplicationContext(),
+@@ -142,7 +150,7 @@ public class MediaSessionService extends Service {
+                 "Play",
+                 MediaButtonReceiver.buildMediaButtonPendingIntent(
+                     this,
+-                    PlaybackStateCompat.ACTION_PLAY_PAUSE | PlaybackStateCompat.ACTION_PLAY
++                    PlaybackStateCompat.ACTION_PLAY
+                 )
+             )
+         );
+@@ -153,7 +161,7 @@ public class MediaSessionService extends Service {
+                 "Pause",
+                 MediaButtonReceiver.buildMediaButtonPendingIntent(
+                     this,
+-                    PlaybackStateCompat.ACTION_PLAY_PAUSE | PlaybackStateCompat.ACTION_PAUSE
++                    PlaybackStateCompat.ACTION_PAUSE
+                 )
+             )
+         );
