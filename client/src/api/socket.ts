@@ -23,6 +23,11 @@ class JamSocketService {
 
     this.socket.on('connect', () => {
       console.log('Connected to Jam Server');
+      const { roomId, userName } = usePlayerStore.getState();
+      if (roomId) {
+        // Automatically rejoin the room if we get disconnected (e.g. app went to background)
+        this.joinRoom(roomId, userName);
+      }
     });
 
     this.socket.on('disconnect', () => {

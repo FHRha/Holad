@@ -10,6 +10,7 @@ import { useHistoryStore, getFilteredHistory, calculateStats } from '../../store
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../store/downloadStore';
+import MobileJamModal from '../modals/MobileJamModal';
 
 function ScrollableSection({ title, children, onRefresh }: { title: string, children: React.ReactNode, onRefresh?: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -86,6 +87,8 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
   const [refreshRecentKey, setRefreshRecentKey] = useState(0);
   const [refreshFrequentKey, setRefreshFrequentKey] = useState(0);
   const downloads = useDownloadStore(state => state.downloads);
+  const roomId = usePlayerStore(state => state.roomId);
+  const [isJamModalOpen, setIsJamModalOpen] = useState(false);
   
   const navigate = useNavigate();
   const history = useHistoryStore(s => s.history);
@@ -180,14 +183,22 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
     <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32">
       {/* Search & Filter Chips */}
       <div className="px-4 pt-4 pb-2 sticky top-0 bg-black/40 backdrop-blur-xl z-10">
-        <div 
-          className="flex items-center bg-[#282828] rounded-xl px-3 py-2.5 mb-4 border border-white/5 cursor-text"
-          onClick={() => setSearchOpen(true)}
-        >
-          <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
-          <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
-            {t('views.search_tracks', { defaultValue: 'Поиск...' })}
+        <div className="flex items-center gap-3 mb-4">
+          <div 
+            className="flex-1 flex items-center bg-[#282828] rounded-xl px-3 py-2.5 border border-white/5 cursor-text"
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
+            <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
+              {t('views.search_tracks', { defaultValue: 'Поиск...' })}
+            </div>
           </div>
+          <button 
+            onClick={() => setIsJamModalOpen(true)}
+            className={`h-[44px] w-[44px] flex-shrink-0 flex items-center justify-center rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform ${roomId ? 'bg-primary text-background' : 'bg-[#282828] border border-white/5 text-[#b3b3b3]'}`}
+          >
+            <Users size={20} />
+          </button>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-2">
           <FilterChip 
@@ -332,6 +343,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
         </ScrollableSection>
 
       </div>
+      <MobileJamModal isOpen={isJamModalOpen} onClose={() => setIsJamModalOpen(false)} />
     </div>
   );
 }

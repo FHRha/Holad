@@ -19,7 +19,8 @@
         "fullscreen": false,
         "maximized": true,
         "theme": "Dark",
-        "userAgent": "Holad-Desktop"
+        "userAgent": "Holad-Desktop",
+        "backgroundColor": [18, 18, 18, 255]
       }
     ],
     "security": {
