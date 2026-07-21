@@ -93,6 +93,23 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
         if (audioEl._audioCtx && audioEl._audioCtx.state === 'suspended') {
           audioEl._audioCtx.resume();
         }
+        
+        // Global unlock hack for mobile auto-play policies
+        if (!audioEl.dataset.unlocked) {
+           if (!audioEl.src || audioEl.src === window.location.href) {
+             audioEl.load(); // Safe to load if empty
+           } else if (audioEl.paused) {
+             const p = audioEl.play();
+             if (p !== undefined) p.catch(() => {});
+             if (!usePlayerStore.getState().isPlaying) {
+                 audioEl.pause();
+             }
+           }
+           audioEl.dataset.unlocked = "true";
+           document.removeEventListener('click', handleInteraction);
+           document.removeEventListener('touchstart', handleInteraction);
+        }
+
         // If it should be playing but browser blocked it, start it now
         const store = useHoladStore.getState();
         const isDeviceActive = store.roomId === null || store.activeDeviceId === store.deviceId || store.activeDeviceId === null;
@@ -103,7 +120,11 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
     };
     // Listen to every click so users can always "fix" blocked audio by clicking anywhere
     document.addEventListener('click', handleInteraction);
-    return () => document.removeEventListener('click', handleInteraction);
+    document.addEventListener('touchstart', handleInteraction, { passive: true });
+    return () => {
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('touchstart', handleInteraction);
+    };
   }, [audioRef]);
 
   useEffect(() => {
@@ -140,10 +161,8 @@ export function useAudioEngine(audioRef: React.RefObject<HTMLAudioElement | null
           }
         }).catch(e => {
           console.error("Playback error:", e);
-          const isListener = usePlayerStore.getState().role === 'listener';
-          if (e.name === 'NotAllowedError' && !isListener) {
-            setIsPlaying(false);
-          }
+          // Removed forced setIsPlaying(false) on NotAllowedError so that the user interaction
+          // handler can still catch it and start playing when they interact with the page.
         });
       } else {
         audioRef.current.pause();

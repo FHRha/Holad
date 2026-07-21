@@ -359,6 +359,7 @@ export default function BottomPlayer() {
       <audio
         id="main-audio-player"
         crossOrigin="anonymous"
+        playsInline
         ref={audioRef}
         src={audioSrc}
         autoPlay={isPlaying && isActiveDevice}

@@ -8,7 +8,13 @@ const triggerPlay = () => {
   const store = useHoladStore.getState();
   const isDeviceActive = store.roomId === null || store.activeDeviceId === store.deviceId || store.activeDeviceId === null;
   if (isDeviceActive) {
-    useAudioStore.getState().audioElement?.play().catch(() => {});
+    // Also use DOM to ensure we definitely catch the element even if store is lagging
+    const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
+    const storeAudioEl = useAudioStore.getState().audioElement;
+    const target = audioEl || storeAudioEl;
+    if (target) {
+      target.play().catch(() => {});
+    }
   }
 };
 
@@ -55,6 +61,7 @@ export const createQueueSlice: StateCreator<
     set({ queue: tracks, originalQueue: tracks, currentIndex: startIndex, isPlaying: true, isShuffle: false });
   },
   playNext: (tracks) => set((state) => {
+    triggerPlay();
     let newQueue = [...state.queue];
     let newCurrentIndex = state.currentIndex === -1 ? 0 : state.currentIndex;
     
