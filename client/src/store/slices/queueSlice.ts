@@ -8,12 +8,13 @@ const triggerPlay = () => {
   const store = useHoladStore.getState();
   const isDeviceActive = store.roomId === null || store.activeDeviceId === store.deviceId || store.activeDeviceId === null;
   if (isDeviceActive) {
-    // Also use DOM to ensure we definitely catch the element even if store is lagging
-    const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
-    const storeAudioEl = useAudioStore.getState().audioElement;
-    const target = audioEl || storeAudioEl;
-    if (target) {
-      target.play().catch(() => {});
+    // Use DOM to ensure we definitely catch the element even if store is lagging
+    const players = document.querySelectorAll('.main-audio-player');
+    if (players.length > 0) {
+      players.forEach(p => (p as HTMLAudioElement).play().catch(() => {}));
+    } else {
+      const storeAudioEl = useAudioStore.getState().audioElement;
+      if (storeAudioEl) storeAudioEl.play().catch(() => {});
     }
   }
 };

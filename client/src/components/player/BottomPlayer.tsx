@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Star, Maximize2, Monitor, Smartphone, Tv2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
@@ -13,7 +13,7 @@ import MobilePlayerUI from './MobilePlayerUI';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useAutoDj } from '../../hooks/useAutoDj';
 import { useNavigate } from 'react-router-dom';
-import { useTrackSource } from '../../hooks/useTrackSource';
+
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import HoladConnectMenu from './HoladConnectMenu';
 import { useHoladStore } from '../../store/holadStore';
@@ -22,9 +22,20 @@ export default function BottomPlayer() {
   const navigate = useNavigate();
   const { openMenu } = useContextMenuStore();
   const { t } = useTranslation();
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized, initialPosition, setInitialPosition } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized } = usePlayerStore();
   const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef0 = useRef<HTMLAudioElement>(null);
+  const audioRef1 = useRef<HTMLAudioElement>(null);
+
+  const {
+    progress,
+    duration,
+    handleSeekChange,
+    handleSeekEnd
+  } = useAudioEngine([audioRef0, audioRef1], queue[currentIndex]);
+
+  const currentTrack = queue[currentIndex];
+
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const [dragVolume, setDragVolume] = useState<number | null>(null);
 
@@ -35,56 +46,11 @@ export default function BottomPlayer() {
   const isActiveDevice = !isConnected || activeDeviceId === localDeviceId || activeDeviceId === null;
   const activeDeviceObj = devices.find(d => d.id === activeDeviceId);
 
-  const {
-    progress,
-    setProgress,
-    duration,
-    setIsSeeking,
-    handleTimeUpdate,
-    handleEnded,
-    handleSeekChange,
-    handleSeekEnd
-  } = useAudioEngine(audioRef);
-
-  const currentTrack = queue[currentIndex];
-  const { src: audioSrc } = useTrackSource(currentTrack);
-
-  useEffect(() => {
-    if (initialPosition > 0 && audioRef.current && currentTrack) {
-      if (audioRef.current.readyState >= 1) {
-        audioRef.current.currentTime = initialPosition / 1000;
-        setProgress((initialPosition / 1000 / currentTrack.duration) * 100);
-        setInitialPosition(0);
-      }
-    }
-  }, [initialPosition, currentTrack]);
-
-  // Bug Fix: Explicitly call play when the resolved audioSrc changes.
-  // The play effect in useAudioEngine triggers when currentTrack changes,
-  // but useTrackSource is async, so src is usually empty at that moment.
-  useEffect(() => {
-    if (audioSrc && isPlaying && isActiveDevice && audioRef.current) {
-      audioRef.current.play().then(() => {
-        const audioEl = audioRef.current as any;
-        if (audioEl && audioEl._audioCtx && audioEl._audioCtx.state === 'suspended') {
-          audioEl._audioCtx.resume();
-        }
-      }).catch(e => console.error("Playback error after src resolved:", e));
-    }
-  }, [audioSrc, isPlaying, isActiveDevice]);
-
   useAutoDj();
 
   const handleVolumeDrag = (newVolume: number) => {
-    if (audioRef.current) {
-      const isMobile = typeof window !== 'undefined' && 
-                       !(window as any).__TAURI_INTERNALS__ && 
-                       ((window as any).Capacitor !== undefined || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
-      
-      const activeVolume = isMobile ? usePlayerStore.getState().mobileVolume : newVolume;
-      const scaledVolume = activeVolume * 0.3 * (usePlayerStore.getState().volumeMultiplier || 1.0);
-      audioRef.current.volume = Math.min(1, Math.max(0, scaledVolume * scaledVolume));
-    }
+    // Volume logic is now handled in useAudioEngine, we just update the store
+    setVolume(newVolume);
   };
 
   const handleLike = () => {
@@ -100,10 +66,6 @@ export default function BottomPlayer() {
 
   const handlePlayPause = () => {
     if (role === 'listener') return; 
-    
-    if (!isPlaying && audioRef.current && isActiveDevice) {
-       audioRef.current.play().catch(() => {});
-    }
     
     setIsPlaying(!isPlaying);
   };
@@ -357,32 +319,18 @@ export default function BottomPlayer() {
   return (
     <>
       <audio
-        id="main-audio-player"
+        id="main-audio-player-0"
+        className="main-audio-player"
         crossOrigin="anonymous"
         playsInline
-        ref={audioRef}
-        src={audioSrc}
-        autoPlay={isPlaying && isActiveDevice}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleEnded}
-        onLoadedMetadata={(e) => {
-          const target = e.target as HTMLAudioElement;
-          
-
-          if (initialPosition > 0) {
-            target.currentTime = initialPosition / 1000;
-            setProgress((initialPosition / 1000 / (duration || 1)) * 100);
-            setInitialPosition(0);
-          }
-        }}
-        onSeeking={() => setIsSeeking(true)}
-        onSeeked={() => {
-          setIsSeeking(false);
-          if (audioRef.current && currentTrack) {
-            setProgress((audioRef.current.currentTime / (duration || 1)) * 100);
-          }
-        }}
-        loop={repeatMode === 'one'}
+        ref={audioRef0}
+      />
+      <audio
+        id="main-audio-player-1"
+        className="main-audio-player"
+        crossOrigin="anonymous"
+        playsInline
+        ref={audioRef1}
       />
       {DesktopPlayer}
       {!isMobileExpanded && MobileMiniPlayer}

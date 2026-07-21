@@ -4,6 +4,7 @@ import { getStreamUrl } from '../api/subsonic';
 
 export function useTrackSource(track: any) {
   const [src, setSrc] = useState<string>('');
+  const [trackId, setTrackId] = useState<string>('');
   const [isLocal, setIsLocal] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -12,6 +13,7 @@ export function useTrackSource(track: any) {
 
     if (!track) {
       setSrc('');
+      setTrackId('');
       setIsLocal(false);
       setIsLoading(false);
       return;
@@ -26,9 +28,11 @@ export function useTrackSource(track: any) {
 
         if (localUri) {
           setSrc(localUri);
+          setTrackId(track.id);
           setIsLocal(true);
         } else {
           setSrc(getStreamUrl(track.id));
+          setTrackId(track.id);
           setIsLocal(false);
         }
       } catch (err) {
@@ -36,6 +40,7 @@ export function useTrackSource(track: any) {
         if (isMounted) {
           // Fallback to stream url on error
           setSrc(getStreamUrl(track.id));
+          setTrackId(track.id);
           setIsLocal(false);
         }
       } finally {
@@ -52,5 +57,5 @@ export function useTrackSource(track: any) {
     };
   }, [track?.id, track?.title, track?.albumId]);
 
-  return { src, isLocal, isLoading };
+  return { src, trackId, isLocal, isLoading };
 }

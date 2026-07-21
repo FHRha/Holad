@@ -314,6 +314,41 @@ export default function MobileSettingsView() {
               className="accent-primary w-6 h-6 rounded"
             />
           </label>
+
+          <div className="bg-black/20 p-4 rounded-xl flex flex-col gap-4">
+            <label className="flex items-center justify-between">
+              <div className="flex flex-col pr-4">
+                <span className="text-[15px] font-medium text-white">{t('settings.crossfade', { defaultValue: 'Плавный переход (Crossfade)' })}</span>
+                <span className="text-[13px] text-[#b3b3b3]">{t('settings.crossfade_desc', { defaultValue: 'Плавный переход между треками' })}</span>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={settings.isCrossfadeEnabled} 
+                onChange={(e) => settings.setIsCrossfadeEnabled(e.target.checked)}
+                className="accent-primary w-6 h-6 rounded flex-shrink-0"
+              />
+            </label>
+            {settings.isCrossfadeEnabled && (
+              <div className="pt-2 pb-1 opacity-100 transition-opacity border-t border-white/5">
+                <div className="flex justify-between text-xs text-[#b3b3b3] mb-2 mt-2">
+                  <span>{t('settings.crossfade_duration', { defaultValue: 'Длительность перехода' })}</span>
+                  <span>{settings.crossfadeDuration} сек</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="12" 
+                  value={settings.crossfadeDuration} 
+                  onChange={(e) => settings.setCrossfadeDuration(parseInt(e.target.value))}
+                  className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+                <div className="flex justify-between text-xs text-[#b3b3b3] mt-2">
+                  <span>1s</span>
+                  <span>12s</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )
     },

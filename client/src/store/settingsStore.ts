@@ -14,6 +14,8 @@ export interface SettingsState {
   language: string;
   clickAction: ClickAction;
   startPage: StartPage;
+  isCrossfadeEnabled: boolean;
+  crossfadeDuration: number;
   
   setTheme: (theme: AppTheme) => void;
   setAccentColor: (color: AccentColor) => void;
@@ -21,6 +23,8 @@ export interface SettingsState {
   setLanguage: (lang: string) => void;
   setClickAction: (action: ClickAction) => void;
   setStartPage: (page: StartPage) => void;
+  setIsCrossfadeEnabled: (enabled: boolean) => void;
+  setCrossfadeDuration: (duration: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -32,6 +36,8 @@ export const useSettingsStore = create<SettingsState>()(
       language: i18n.language || 'ru',
       clickAction: 'play_now',
       startPage: '/Holad',
+      isCrossfadeEnabled: true,
+      crossfadeDuration: 3,
 
       setTheme: (theme) => set({ theme }),
       setAccentColor: (accentColor) => set({ accentColor }),
@@ -46,6 +52,8 @@ export const useSettingsStore = create<SettingsState>()(
       },
       setClickAction: (clickAction) => set({ clickAction }),
       setStartPage: (startPage) => set({ startPage }),
+      setIsCrossfadeEnabled: (isCrossfadeEnabled) => set({ isCrossfadeEnabled }),
+      setCrossfadeDuration: (crossfadeDuration) => set({ crossfadeDuration }),
     }),
     {
       name: 'streamnavi-settings',

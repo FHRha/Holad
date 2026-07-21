@@ -431,6 +431,42 @@ export default function SettingsModal() {
                   </label>
                 </SettingSection>
 
+                <SettingSection title={t('settings.crossfade', { defaultValue: 'Плавный переход (Crossfade)' })}>
+                  <div className="flex flex-col gap-4">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.isCrossfadeEnabled} 
+                        onChange={(e) => settings.setIsCrossfadeEnabled(e.target.checked)}
+                        className="accent-primary w-4 h-4 rounded cursor-pointer"
+                      />
+                      <span className="group-hover:text-primary transition-colors text-sm">
+                        {t('settings.crossfade_desc', { defaultValue: 'Плавный переход между треками' })}
+                      </span>
+                    </label>
+                    {settings.isCrossfadeEnabled && (
+                      <div className="pt-2 pb-1 opacity-100 transition-opacity">
+                        <div className="flex justify-between text-xs text-secondary mb-2">
+                          <span>{t('settings.crossfade_duration', { defaultValue: 'Длительность перехода' })}</span>
+                          <span>{settings.crossfadeDuration} сек</span>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="1" 
+                          max="12" 
+                          value={settings.crossfadeDuration} 
+                          onChange={(e) => settings.setCrossfadeDuration(parseInt(e.target.value))}
+                          className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                        <div className="flex justify-between text-xs text-secondary mt-2">
+                          <span>1s</span>
+                          <span>12s</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </SettingSection>
+
                 <SettingSection title={t('settings.defaultVolume') || 'Громкость'}>
                   <div className="pt-2 pb-1">
                     <Slider 
