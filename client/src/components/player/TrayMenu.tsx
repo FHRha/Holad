@@ -156,7 +156,7 @@ export default function TrayMenu() {
             <Music className="text-primary w-4 h-4" />
           </div>
           <div className="font-bold tracking-wider text-sm">
-            HOLAD <span className="text-primary">MUSIC</span>
+            HOLAD <span className="text-primary">{t('common.music', { defaultValue: 'MUSIC' })}</span>
           </div>
         </div>
 

@@ -10,7 +10,8 @@
     "local_server": "Local server",
     "settings": "Settings",
     "downloads": "Downloads",
-    "logout": "Log out"
+    "logout": "Log out",
+    "playlists": "Playlists"
   },
   "settings": {
     "general": "General",
@@ -70,7 +71,26 @@
     "delete_selected": "Delete selected",
     "cancel": "Cancel",
     "track": "Track",
-    "album": "Album"
+    "album": "Album",
+    "desktop": "Desktop",
+    "run_on_startup": "Run on system startup",
+    "start_minimized": "Start minimized to tray",
+    "close_to_tray": "Minimize to tray on close",
+    "gapless": "Gapless playback",
+    "gapless_desc": "Instant track switching without pauses or clicks",
+    "normalization": "Volume normalization",
+    "normalization_desc": "Volume level equalization across tracks (compressor)",
+    "crossfade": "Crossfade",
+    "crossfade_desc": "Smooth transition between tracks",
+    "crossfade_duration": "Transition duration",
+    "crossfade_curve": "Crossfade curve",
+    "curve_equal_power": "Equal-Power (Constant power)",
+    "curve_linear": "Linear",
+    "prebuffering": "Pre-buffering",
+    "preload_desc": "Preload next track 15 seconds before current ends",
+    "volume_multiplier": "Volume multiplier (up to 300%)",
+    "select_download_folder": "Select download folder",
+    "error_get_path": "Failed to get path"
   },
   "topbar": {
     "search": "Search...",
@@ -122,7 +142,14 @@
       "year": "Year",
       "format": "Format",
       "bitrate": "Bitrate"
-    }
+    },
+    "pause": "Pause",
+    "play": "Play",
+    "next": "Next track",
+    "previous": "Previous track",
+    "title": "Title",
+    "time": "Time",
+    "provided_by_server": "Provided by My Server"
   },
   "views": {
     "loading_albums": "Loading albums...",
@@ -294,7 +321,14 @@
     "playlists": "Playlists",
     "search_albums": "Search album...",
     "year": "Year",
-    "radio_no_tracks": "Could not find tracks for radio"
+    "radio_no_tracks": "Could not find tracks for radio",
+    "artists_not_found": "No artists found",
+    "no_track_data": "No track data",
+    "no_albums": "No albums",
+    "multiplier_value": "Gain percentage",
+    "track": "Track",
+    "download_error": "Download error",
+    "change_server_btn": "Change Holad server"
   },
   "common": {
     "toggle_menu": "Toggle menu",
@@ -338,7 +372,18 @@
     "menu": "Menu",
     "offline": "Offline",
     "downloaded": "Downloaded",
-    "favorites": "Favorites"
+    "favorites": "Favorites",
+    "seconds_short": "s",
+    "no_track": "No active track",
+    "in_favorites": "In favorites",
+    "add_favorite": "Add to favorites",
+    "show_app": "Show Holad",
+    "quit": "Quit",
+    "remove_download": "Remove download",
+    "error_boundary_title": "Something went wrong",
+    "error_boundary_desc": "The application encountered an unexpected error.",
+    "error_boundary_reload": "Reload application",
+    "music": "MUSIC"
   },
   "jam": {
     "jam_error": "Session error",

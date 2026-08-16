@@ -97,7 +97,7 @@ export const createQueueSlice: StateCreator<
     queue: [...state.queue, ...tracks],
     originalQueue: [...(state.originalQueue.length > 0 ? state.originalQueue : state.queue), ...tracks],
     currentIndex: state.currentIndex === -1 ? 0 : state.currentIndex,
-    isPlaying: state.currentIndex === -1 ? true : state.isPlaying
+    isPlaying: state.isPlaying
   })),
   clearQueue: () => set({ queue: [], originalQueue: [], currentIndex: -1, isPlaying: false, isShuffle: false }),
   removeFromQueue: (index) => set((state) => {

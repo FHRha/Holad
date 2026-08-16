@@ -4,6 +4,7 @@ import { useAudioStore } from '../../store/audioStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
 import { useTranslation } from 'react-i18next';
+import { getAudioEngine } from '../../audio/AudioEngine';
 
 export default function AudioVisualizer() {
   const { t } = useTranslation();
@@ -25,43 +26,11 @@ export default function AudioVisualizer() {
   useEffect(() => {
     if (!audioElement) return;
 
-    // We must ensure AudioContext is only created once per audio element, 
-    // or we use a global audio context for the element if it was already created.
-    // Actually, createMediaElementSource can only be called once per HTMLMediaElement.
-    // We attach it to the audio element as a property to reuse it!
-    const audioEl = audioElement as any;
-
-
-
-    let ctx = audioEl._audioCtx as AudioContext;
-    let analyser = audioEl._analyser as AnalyserNode;
-
-    if (!ctx) {
-      try {
-        ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        audioEl._audioCtx = ctx;
-        analyser = ctx.createAnalyser();
-        analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.8;
-        audioEl._analyser = analyser;
-        
-        const source = ctx.createMediaElementSource(audioEl);
-        source.connect(analyser);
-        analyser.connect(ctx.destination);
-        audioEl._source = source;
-      } catch (e) {
-        console.error("Visualizer audio context error:", e);
-        return;
-      }
-    }
-
-    if (!ctx || !analyser) return;
-
-    // Resume context if suspended
-    if (ctx.state === 'suspended') {
-      ctx.resume();
-    }
-
+    // Use the global analyser from AudioEngine rather than duplicating contexts
+    const engine = getAudioEngine();
+    const analyser = engine.getAnalyserNode();
+    
+    if (!analyser) return;
     analyserRef.current = analyser;
 
     const canvas = canvasRef.current;

@@ -108,8 +108,8 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
 
           <div className="flex px-6 py-3 text-[10px] font-semibold tracking-wider text-secondary border-b border-white/5 uppercase mt-2">
             <div className="w-8">#</div>
-            <div className="flex-1">Title</div>
-            <div className="w-20">Time</div>
+            <div className="flex-1">{t('player.title', { defaultValue: 'Title' })}</div>
+            <div className="w-20">{t('player.time', { defaultValue: 'Time' })}</div>
           </div>
 
           <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1 hide-scrollbar">

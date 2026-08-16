@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import HoladConnectMenu from './HoladConnectMenu';
 import { useHoladStore } from '../../store/holadStore';
+import { useAudioStore } from '../../store/audioStore';
 
 export default function BottomPlayer() {
   const navigate = useNavigate();
@@ -38,6 +39,8 @@ export default function BottomPlayer() {
   useMediaSession();
 
   const currentTrack = queue[currentIndex];
+
+  const buffered = useAudioStore(s => s.buffered);
 
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const [dragVolume, setDragVolume] = useState<number | null>(null);
@@ -160,6 +163,7 @@ export default function BottomPlayer() {
           <span className="min-w-[35px] text-right">{formatTime((progress / 100) * (duration || 0))}</span>
           <LiquidSeekBar 
             value={progress / 100} 
+            buffered={buffered / 100}
             onChange={handleSeekChange} 
             onDragEnd={handleSeekEnd} 
             className={`flex-1 ${role === 'listener' ? 'pointer-events-none' : ''}`}
@@ -249,9 +253,10 @@ export default function BottomPlayer() {
               <button onClick={() => setVolume(volume === 0 ? 1 : 0)} className="hover:text-foreground transition-colors flex-shrink-0">
                 {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
               </button>
-              <div className="hidden lg:block flex-1 min-w-[60px] max-w-[100px]">
+              <div className="hidden md:block flex-1 min-w-[60px] max-w-[100px]">
                 <Slider 
                   value={volume} 
+                  onChange={setVolume}
                   onDrag={(newVolume) => {
                     setDragVolume(newVolume);
                     handleVolumeDrag(newVolume);
@@ -263,7 +268,7 @@ export default function BottomPlayer() {
                   thickness="thick" 
                 />
               </div>
-              <span className="hidden lg:block text-xs font-bold w-9 text-right flex-shrink-0">{Math.round((dragVolume !== null ? dragVolume : volume) * 100)}%</span>
+              <span className="hidden md:block text-xs font-bold w-9 text-right flex-shrink-0">{Math.round((dragVolume !== null ? dragVolume : volume) * 100)}%</span>
             </div>
           </div>
         </div>
@@ -281,6 +286,12 @@ export default function BottomPlayer() {
         }}
       >
         <div className="absolute bottom-0 left-4 right-4 h-[2px] overflow-hidden rounded-t-full">
+          {buffered > 0 && (
+            <div 
+              className="absolute bottom-0 left-0 h-full bg-white/40 z-0 transition-all duration-300 pointer-events-none" 
+              style={{ width: `${buffered}%` }} 
+            />
+          )}
           <div 
             className="absolute bottom-0 left-0 h-full bg-primary z-10 transition-all opacity-80" 
             style={{ width: `${progress}%` }} 

@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
+import i18n from '../../i18n';
 
 interface Props {
   children: ReactNode;
@@ -28,13 +29,13 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return this.props.fallback || (
         <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-          <h2 className="text-xl font-bold text-red-500 mb-2">Something went wrong</h2>
-          <p className="text-secondary text-sm">{this.state.error?.message}</p>
+          <h2 className="text-xl font-bold text-red-500 mb-2">{i18n.t('common.error_boundary_title', { defaultValue: 'Something went wrong' })}</h2>
+          <p className="text-secondary text-sm">{this.state.error?.message || i18n.t('common.error_boundary_desc', { defaultValue: 'The application encountered an unexpected error.' })}</p>
           <button 
             className="mt-4 px-4 py-2 bg-primary/20 text-primary rounded-full hover:bg-primary/30 transition-colors"
             onClick={() => this.setState({ hasError: false, error: undefined })}
           >
-            Try again
+            {i18n.t('common.error_boundary_reload', { defaultValue: 'Try again' })}
           </button>
         </div>
       );

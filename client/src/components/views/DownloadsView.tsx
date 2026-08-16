@@ -95,7 +95,7 @@ export default function DownloadsView() {
                         ? t('views.album_downloaded', { defaultValue: 'Альбом загружен' }) 
                         : item.path === 'album_empty'
                           ? t('views.album_empty', { defaultValue: 'Пустой альбом' })
-                          : (item.path || (item.type === 'album' ? 'Альбом' : 'Трек'))}
+                          : (item.path || (item.type === 'album' ? t('views.album', { defaultValue: 'Альбом' }) : t('views.track', { defaultValue: 'Трек' })))}
                     </p>
                   )}
                   
@@ -110,7 +110,7 @@ export default function DownloadsView() {
                   {item.status === 'error' && (
                     <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
                       <AlertTriangle size={12} />
-                      {item.error || 'Ошибка скачивания'}
+                      {item.error || t('views.download_error', { defaultValue: 'Ошибка скачивания' })}
                     </p>
                   )}
                 </div>

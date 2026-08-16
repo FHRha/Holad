@@ -27,7 +27,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     repeatMode, cycleRepeatMode, playbackRate, cyclePlaybackRate, 
     sleepTimer, setSleepTimer
   } = usePlayerStore();
-  const { audioElement, progress, duration, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
+  const { audioElement, progress, buffered, duration, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
   const { openMenu } = useContextMenuStore();
   
   const isConnected = useHoladStore(s => s.roomId !== null);
@@ -242,6 +242,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
           <div className="w-full flex flex-col gap-2">
             <LiquidSeekBar 
               value={progress / 100} 
+              buffered={buffered / 100}
               onChange={handleSeekChange} 
               onDragEnd={handleSeekEnd} 
               className={`w-full ${role === 'listener' ? 'pointer-events-none' : ''}`}

@@ -167,7 +167,7 @@ export default function RightSidebar() {
 
           <div className="flex pl-4 pr-8 py-2 text-xs font-semibold tracking-wider text-secondary border-b border-white/5 uppercase">
             <div className="w-8">#</div>
-            <div className="flex-1">Title</div>
+            <div className="flex-1">{t('player.title', { defaultValue: 'Title' })}</div>
             <div className="w-10 text-right"><Clock size={14} className="inline-block" /></div>
           </div>
         </>
@@ -236,7 +236,7 @@ export default function RightSidebar() {
           })}
         </SortableContext>
         {queue.length === 0 && !isSmall && (
-          <div className="text-center mt-10 text-secondary text-sm">Queue is empty</div>
+          <div className="text-center mt-10 text-secondary text-sm">{t('player.queue_is_empty', { defaultValue: 'Queue is empty' })}</div>
         )}
       </div>
     </div>

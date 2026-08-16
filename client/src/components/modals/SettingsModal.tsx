@@ -508,26 +508,90 @@ export default function SettingsModal() {
                       </span>
                     </label>
                     {settings.isCrossfadeEnabled && (
-                      <div className="pt-2 pb-1 opacity-100 transition-opacity">
-                        <div className="flex justify-between text-xs text-secondary mb-2">
-                          <span>{t('settings.crossfade_duration', { defaultValue: 'Длительность перехода' })}</span>
-                          <span>{settings.crossfadeDuration} сек</span>
+                      <div className="pt-2 pb-1 space-y-4 opacity-100 transition-opacity">
+                        <div>
+                          <div className="flex justify-between text-xs text-secondary mb-2">
+                            <span>{t('settings.crossfade_duration', { defaultValue: 'Длительность перехода' })}</span>
+                            <span>{settings.crossfadeDuration} сек</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="1" 
+                            max="12" 
+                            value={settings.crossfadeDuration} 
+                            onChange={(e) => settings.setCrossfadeDuration(parseInt(e.target.value))}
+                            className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                          <div className="flex justify-between text-xs text-secondary mt-2">
+                            <span>1s</span>
+                            <span>12s</span>
+                          </div>
                         </div>
-                        <input 
-                          type="range" 
-                          min="1" 
-                          max="12" 
-                          value={settings.crossfadeDuration} 
-                          onChange={(e) => settings.setCrossfadeDuration(parseInt(e.target.value))}
-                          className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
-                        />
-                        <div className="flex justify-between text-xs text-secondary mt-2">
-                          <span>1s</span>
-                          <span>12s</span>
+
+                        <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
+                          <span className="text-xs text-secondary font-medium">{t('settings.crossfade_curve', { defaultValue: 'Кривая кроссфейда' })}</span>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => settings.setCrossfadeCurve('equalPower')}
+                              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${settings.crossfadeCurve === 'equalPower' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-secondary hover:border-white/20'}`}
+                            >
+                              {t('settings.curve_equal_power', { defaultValue: 'Equal-Power (Равномерная мощность)' })}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => settings.setCrossfadeCurve('linear')}
+                              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${settings.crossfadeCurve === 'linear' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-secondary hover:border-white/20'}`}
+                            >
+                              {t('settings.curve_linear', { defaultValue: 'Linear (Линейная)' })}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
                   </div>
+                </SettingSection>
+
+                <SettingSection title={t('settings.gapless', { defaultValue: 'Бесшовное воспроизведение (Gapless)' })}>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      checked={settings.isGaplessEnabled} 
+                      onChange={(e) => settings.setIsGaplessEnabled(e.target.checked)}
+                      className="accent-primary w-4 h-4 rounded cursor-pointer"
+                    />
+                    <span className="group-hover:text-primary transition-colors text-sm">
+                      {t('settings.gapless_desc', { defaultValue: 'Мгновенное переключение треков без пауз и щелчков' })}
+                    </span>
+                  </label>
+                </SettingSection>
+
+                <SettingSection title={t('settings.normalization', { defaultValue: 'Нормализация громкости' })}>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      checked={settings.isLoudnessNormalizationEnabled} 
+                      onChange={(e) => settings.setIsLoudnessNormalizationEnabled(e.target.checked)}
+                      className="accent-primary w-4 h-4 rounded cursor-pointer"
+                    />
+                    <span className="group-hover:text-primary transition-colors text-sm">
+                      {t('settings.normalization_desc', { defaultValue: 'Выравнивание уровня громкости для всех треков (компрессор)' })}
+                    </span>
+                  </label>
+                </SettingSection>
+
+                <SettingSection title={t('settings.prebuffering', { defaultValue: 'Предварительная буферизация' })}>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      checked={settings.preloadNextTrack} 
+                      onChange={(e) => settings.setPreloadNextTrack(e.target.checked)}
+                      className="accent-primary w-4 h-4 rounded cursor-pointer"
+                    />
+                    <span className="group-hover:text-primary transition-colors text-sm">
+                      {t('settings.preload_desc', { defaultValue: 'Предзагрузка следующего трека за 15 секунд до окончания текущего' })}
+                    </span>
+                  </label>
                 </SettingSection>
 
                 <SettingSection title={t('settings.defaultVolume') || 'Громкость'}>

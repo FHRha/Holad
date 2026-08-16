@@ -25,7 +25,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
     repeatMode, cycleRepeatMode, playbackRate, cyclePlaybackRate, 
     sleepTimer, setSleepTimer, roomId
   } = usePlayerStore();
-  const { audioElement, progress, duration, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
+  const { audioElement, progress, buffered, duration, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
   
   const currentTrack = queue[currentIndex];
   
@@ -142,6 +142,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             <span className="min-w-[40px] text-right font-medium">{formatTime((progress / 100) * (duration || 0))}</span>
             <LiquidSeekBar 
               value={progress / 100} 
+              buffered={buffered / 100}
               onChange={handleSeekChange} 
               onDragEnd={handleSeekEnd} 
               className={`flex-1 ${role === 'listener' ? 'pointer-events-none' : ''}`}

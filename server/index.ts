@@ -386,7 +386,8 @@ app.get('/api/stream/:id', async (req, res) => {
       
       res.status(response.status);
       res.set('Content-Type', response.headers.get('content-type') || 'audio/mpeg');
-      res.set('Content-Length', response.headers.get('content-length') || '');
+      const contentLength1 = response.headers.get('content-length');
+      if (contentLength1) res.set('Content-Length', contentLength1);
       if (response.headers.get('accept-ranges')) res.set('Accept-Ranges', response.headers.get('accept-ranges') || '');
       if (response.headers.get('content-range')) res.set('Content-Range', response.headers.get('content-range') || '');
       
@@ -423,7 +424,8 @@ app.get('/api/stream/:id', async (req, res) => {
       }
       res.status(response.status);
       res.set('Content-Type', response.headers.get('content-type') || 'audio/mpeg');
-      res.set('Content-Length', response.headers.get('content-length') || '');
+      const contentLength2 = response.headers.get('content-length');
+      if (contentLength2) res.set('Content-Length', contentLength2);
       if (response.headers.get('accept-ranges')) res.set('Accept-Ranges', response.headers.get('accept-ranges') || '');
       if (response.headers.get('content-range')) res.set('Content-Range', response.headers.get('content-range') || '');
       

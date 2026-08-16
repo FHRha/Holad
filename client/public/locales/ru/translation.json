@@ -10,7 +10,8 @@
     "local_server": "Локальный сервер",
     "settings": "Настройки",
     "downloads": "Загрузки",
-    "logout": "Выйти"
+    "logout": "Выйти",
+    "playlists": "Плейлисты"
   },
   "settings": {
     "general": "Общие",
@@ -70,7 +71,26 @@
     "delete_selected": "Удалить выбранные",
     "cancel": "Отмена",
     "track": "Трек",
-    "album": "Альбом"
+    "album": "Альбом",
+    "desktop": "Десктоп",
+    "run_on_startup": "Автозапуск при старте системы",
+    "start_minimized": "Запускать свернутым в трей",
+    "close_to_tray": "Сворачивать в трей при закрытии (крестик)",
+    "gapless": "Бесшовное воспроизведение (Gapless)",
+    "gapless_desc": "Мгновенное переключение треков без пауз и щелчков",
+    "normalization": "Нормализация громкости",
+    "normalization_desc": "Выравнивание уровня громкости для всех треков (компрессор)",
+    "crossfade": "Плавный переход (Crossfade)",
+    "crossfade_desc": "Плавный переход между треками",
+    "crossfade_duration": "Длительность перехода",
+    "crossfade_curve": "Кривая кроссфейда",
+    "curve_equal_power": "Equal-Power (Равномерная мощность)",
+    "curve_linear": "Linear (Линейная)",
+    "prebuffering": "Предварительная буферизация",
+    "preload_desc": "Предзагрузка следующего трека за 15 секунд до окончания текущего",
+    "volume_multiplier": "Усилитель громкости (до 300%)",
+    "select_download_folder": "Выберите папку для загрузок",
+    "error_get_path": "Ошибка получения пути"
   },
   "topbar": {
     "search": "Поиск...",
@@ -122,7 +142,14 @@
       "year": "Год",
       "format": "Формат",
       "bitrate": "Битрейт"
-    }
+    },
+    "pause": "Пауза",
+    "play": "Воспроизвести",
+    "next": "Следующий трек",
+    "previous": "Предыдущий трек",
+    "title": "Название",
+    "time": "Время",
+    "provided_by_server": "Предоставлено сервером"
   },
   "views": {
     "loading_albums": "Загрузка альбомов...",
@@ -294,7 +321,14 @@
     "playlists": "Плейлисты",
     "search_albums": "Поиск альбома...",
     "year": "Год",
-    "radio_no_tracks": "Не удалось найти треки для радио"
+    "radio_no_tracks": "Не удалось найти треки для радио",
+    "artists_not_found": "Исполнители не найдены",
+    "no_track_data": "Нет данных о треках",
+    "no_albums": "Нет альбомов",
+    "multiplier_value": "Процент усиления",
+    "track": "Трек",
+    "download_error": "Ошибка скачивания",
+    "change_server_btn": "Сменить сервер Holad"
   },
   "common": {
     "toggle_menu": "Переключить меню",
@@ -338,7 +372,18 @@
     "menu": "Меню",
     "offline": "Офлайн",
     "downloaded": "Загружено",
-    "favorites": "Избранное"
+    "favorites": "Избранное",
+    "seconds_short": "сек",
+    "no_track": "Нет активного трека",
+    "in_favorites": "В избранном",
+    "add_favorite": "Добавить в избранное",
+    "show_app": "Показать Holad",
+    "quit": "Выйти",
+    "remove_download": "Удалить скачанное",
+    "error_boundary_title": "Что-то пошло не так",
+    "error_boundary_desc": "Приложение столкнулось с неожиданной ошибкой.",
+    "error_boundary_reload": "Перезагрузить приложение",
+    "music": "МУЗЫКА"
   },
   "jam": {
     "jam_error": "Ошибка сессии",

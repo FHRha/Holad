@@ -1,5 +1,11 @@
 import type { StateCreator } from 'zustand';
 import type { PlayerState } from '../playerStore';
+import { isTauri, isCapacitor } from '../../utils/StorageManager';
+
+const isMobileClient = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return !isTauri() && (isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+};
 
 export interface PlaybackSlice {
   isPlaying: boolean;
@@ -30,14 +36,14 @@ export const createPlaybackSlice: StateCreator<
   isPlaying: false,
   volume: 0.5,
   mobileVolume: 1.0,
-  volumeMultiplier: 1.0,
+  volumeMultiplier: isMobileClient() ? 1.0 : 0.5,
   initialPosition: 0,
   repeatMode: 'none',
   playbackRate: 1,
   sleepTimer: { type: null, endTime: null },
   setIsPlaying: (isPlaying) => set({ isPlaying }),
-  setVolume: (volume) => set({ volume }),
-  setMobileVolume: (mobileVolume) => set({ mobileVolume }),
+  setVolume: (volume) => set({ volume, mobileVolume: volume }),
+  setMobileVolume: (mobileVolume) => set({ mobileVolume, volume: mobileVolume }),
   setVolumeMultiplier: (volumeMultiplier) => set({ volumeMultiplier }),
   setInitialPosition: (initialPosition) => set({ initialPosition }),
   setRepeatMode: (repeatMode) => set({ repeatMode }),

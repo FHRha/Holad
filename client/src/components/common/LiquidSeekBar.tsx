@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 
 interface LiquidSeekBarProps {
   value: number; // 0 to 1
+  buffered?: number; // 0 to 1 or 0 to 100
   onChange?: (value: number) => void;
   onDrag?: (value: number) => void;
   onDragEnd?: (value: number) => void;
@@ -9,13 +10,15 @@ interface LiquidSeekBarProps {
   isAnimated?: boolean;
 }
 
-export default function LiquidSeekBar({ value, onChange, onDrag, onDragEnd, className = '', isAnimated = false }: LiquidSeekBarProps) {
+export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, onDragEnd, className = '', isAnimated = false }: LiquidSeekBarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const lastUpdate = useRef(0);
+
+  const normalizedBuffered = buffered > 1 ? Math.min(1, buffered / 100) : Math.max(0, buffered);
 
   // Animation Refs
   const timeRef = useRef(0);
@@ -238,6 +241,14 @@ export default function LiquidSeekBar({ value, onChange, onDrag, onDragEnd, clas
     >
       {/* Background track (thin line) */}
       <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-white/20 rounded-full" />
+      
+      {/* Buffered track (gray bar representing loaded audio) */}
+      {normalizedBuffered > 0 && (
+        <div 
+          className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-white/40 rounded-full pointer-events-none transition-all duration-300"
+          style={{ width: `${normalizedBuffered * 100}%` }}
+        />
+      )}
       
       {/* Canvas container with clip-path */}
       <div 

@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 
 interface SliderProps {
   value: number; // 0 to 1
+  buffered?: number; // 0 to 1 or 0 to 100
   onChange?: (value: number) => void; // Optional for state updates
   onDrag?: (value: number) => void; // Fired on every pixel move without React state lag
   onDragEnd?: (value: number) => void;
@@ -10,11 +11,13 @@ interface SliderProps {
   thickness?: 'normal' | 'thick';
 }
 
-export default function Slider({ value, onChange, onDrag, onDragEnd, className = '', isAnimated = false, thickness = 'normal' }: SliderProps) {
+export default function Slider({ value, buffered = 0, onChange, onDrag, onDragEnd, className = '', isAnimated = false, thickness = 'normal' }: SliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const fillRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  
+  const normalizedBuffered = buffered > 1 ? Math.min(1, buffered / 100) : Math.max(0, buffered);
   
   // Throttle onChange to avoid React state clogging the main thread
   const lastUpdate = useRef(0);
@@ -78,6 +81,12 @@ export default function Slider({ value, onChange, onDrag, onDragEnd, className =
       ref={trackRef}
     >
       <div className={`relative w-full rounded-full overflow-hidden bg-white/20 transition-all ${thickness === 'thick' ? 'h-2 group-hover:h-2.5' : 'h-1 group-hover:h-1.5'}`}>
+        {normalizedBuffered > 0 && (
+          <div 
+            className="absolute left-0 top-0 bottom-0 bg-white/40 rounded-full transition-all duration-300 pointer-events-none"
+            style={{ width: `${normalizedBuffered * 100}%` }}
+          />
+        )}
         <div 
           ref={fillRef}
           className={`absolute left-0 top-0 bottom-0 ${
@@ -85,14 +94,14 @@ export default function Slider({ value, onChange, onDrag, onDragEnd, className =
               ? 'bg-gradient-to-r from-primary via-[#6ee7b7] to-primary animate-volumetric' 
               : 'bg-foreground group-hover:bg-primary transition-colors duration-200'
           }`}
-          style={{ width: '0%' }}
+          style={{ width: `${value * 100}%` }}
         />
       </div>
 
       <div 
         ref={thumbRef}
         className="absolute top-1/2 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.5)] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-        style={{ left: '0%', transform: 'translate(-50%, -50%)' }}
+        style={{ left: `${value * 100}%`, transform: 'translate(-50%, -50%)' }}
       />
     </div>
   );

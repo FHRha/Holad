@@ -91,11 +91,11 @@ export default function MobileSettingsView() {
   const { setAuthenticated, setCredentials } = useAuthStore();
   const { setSearchOpen } = useUIStore();
   const settings = useSettingsStore();
-  const volume = usePlayerStore(state => state.mobileVolume || 1.0);
+  const volume = usePlayerStore(state => typeof state.mobileVolume === 'number' ? state.mobileVolume : 1.0);
   const isAutoDjEnabled = usePlayerStore(state => state.isAutoDjEnabled);
   const setVolume = usePlayerStore(state => state.setMobileVolume);
   const toggleAutoDj = usePlayerStore(state => state.toggleAutoDj);
-  const volumeMultiplier = usePlayerStore(state => state.volumeMultiplier || 1.0);
+  const volumeMultiplier = usePlayerStore(state => typeof state.volumeMultiplier === 'number' ? state.volumeMultiplier : 1.0);
   const setVolumeMultiplier = usePlayerStore(state => state.setVolumeMultiplier);
   
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -301,19 +301,6 @@ export default function MobileSettingsView() {
               </div>
             </div>
           </div>
-          
-          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
-            <div className="flex flex-col">
-              <span className="text-[15px] font-medium text-white">{t('views.settings_autodj', { defaultValue: 'Авто DJ' })}</span>
-              <span className="text-[13px] text-[#b3b3b3]">{t('views.settings_autodj_desc', { defaultValue: 'Добавлять похожие треки' })}</span>
-            </div>
-            <input 
-              type="checkbox" 
-              checked={isAutoDjEnabled} 
-              onChange={() => toggleAutoDj()}
-              className="accent-primary w-6 h-6 rounded"
-            />
-          </label>
 
           <div className="bg-black/20 p-4 rounded-xl flex flex-col gap-4">
             <label className="flex items-center justify-between">
@@ -329,26 +316,100 @@ export default function MobileSettingsView() {
               />
             </label>
             {settings.isCrossfadeEnabled && (
-              <div className="pt-2 pb-1 opacity-100 transition-opacity border-t border-white/5">
-                <div className="flex justify-between text-xs text-[#b3b3b3] mb-2 mt-2">
-                  <span>{t('settings.crossfade_duration', { defaultValue: 'Длительность перехода' })}</span>
-                  <span>{settings.crossfadeDuration} сек</span>
+              <div className="pt-2 pb-1 opacity-100 transition-opacity border-t border-white/5 space-y-4">
+                <div>
+                  <div className="flex justify-between text-xs text-[#b3b3b3] mb-2 mt-2">
+                    <span>{t('settings.crossfade_duration', { defaultValue: 'Длительность перехода' })}</span>
+                    <span>{settings.crossfadeDuration} сек</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="12" 
+                    value={settings.crossfadeDuration} 
+                    onChange={(e) => settings.setCrossfadeDuration(parseInt(e.target.value))}
+                    className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                  <div className="flex justify-between text-xs text-[#b3b3b3] mt-2">
+                    <span>1s</span>
+                    <span>12s</span>
+                  </div>
                 </div>
-                <input 
-                  type="range" 
-                  min="1" 
-                  max="12" 
-                  value={settings.crossfadeDuration} 
-                  onChange={(e) => settings.setCrossfadeDuration(parseInt(e.target.value))}
-                  className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
-                />
-                <div className="flex justify-between text-xs text-[#b3b3b3] mt-2">
-                  <span>1s</span>
-                  <span>12s</span>
+
+                <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
+                  <span className="text-xs text-[#b3b3b3] font-medium">{t('settings.crossfade_curve', { defaultValue: 'Кривая кроссфейда' })}</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => settings.setCrossfadeCurve('equalPower')}
+                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${settings.crossfadeCurve === 'equalPower' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-[#b3b3b3]'}`}
+                    >
+                      Equal-Power
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => settings.setCrossfadeCurve('linear')}
+                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${settings.crossfadeCurve === 'linear' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-[#b3b3b3]'}`}
+                    >
+                      Linear
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
           </div>
+
+          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
+            <div className="flex flex-col pr-4">
+              <span className="text-[15px] font-medium text-white">{t('settings.gapless', { defaultValue: 'Бесшовное воспроизведение (Gapless)' })}</span>
+              <span className="text-[13px] text-[#b3b3b3]">{t('settings.gapless_desc', { defaultValue: 'Мгновенный переход между треками без пауз' })}</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={settings.isGaplessEnabled} 
+              onChange={(e) => settings.setIsGaplessEnabled(e.target.checked)}
+              className="accent-primary w-6 h-6 rounded flex-shrink-0"
+            />
+          </label>
+
+          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
+            <div className="flex flex-col pr-4">
+              <span className="text-[15px] font-medium text-white">{t('settings.normalization', { defaultValue: 'Нормализация громкости' })}</span>
+              <span className="text-[13px] text-[#b3b3b3]">{t('settings.normalization_desc', { defaultValue: 'Автовыравнивание громкости' })}</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={settings.isLoudnessNormalizationEnabled} 
+              onChange={(e) => settings.setIsLoudnessNormalizationEnabled(e.target.checked)}
+              className="accent-primary w-6 h-6 rounded flex-shrink-0"
+            />
+          </label>
+          
+          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
+            <div className="flex flex-col">
+              <span className="text-[15px] font-medium text-white">{t('views.settings_autodj', { defaultValue: 'Авто DJ' })}</span>
+              <span className="text-[13px] text-[#b3b3b3]">{t('views.settings_autodj_desc', { defaultValue: 'Добавлять похожие треки' })}</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={isAutoDjEnabled} 
+              onChange={() => toggleAutoDj()}
+              className="accent-primary w-6 h-6 rounded"
+            />
+          </label>
+
+          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
+            <div className="flex flex-col pr-4">
+              <span className="text-[15px] font-medium text-white">{t('settings.prebuffering', { defaultValue: 'Предзагрузка треков' })}</span>
+              <span className="text-[13px] text-[#b3b3b3]">{t('settings.preload_desc', { defaultValue: 'Предварительная буферизация следующего трека' })}</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={settings.preloadNextTrack} 
+              onChange={(e) => settings.setPreloadNextTrack(e.target.checked)}
+              className="accent-primary w-6 h-6 rounded flex-shrink-0"
+            />
+          </label>
         </div>
       )
     },

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import i18n from 'i18next';
+import type { CrossfadeCurve } from '../audio/types';
 
 export type AppTheme = 'dark' | 'light' | 'system';
 export type AccentColor = string;
@@ -16,6 +17,10 @@ export interface SettingsState {
   startPage: StartPage;
   isCrossfadeEnabled: boolean;
   crossfadeDuration: number;
+  crossfadeCurve: CrossfadeCurve;
+  isGaplessEnabled: boolean;
+  isLoudnessNormalizationEnabled: boolean;
+  preloadNextTrack: boolean;
   runOnStartup: boolean;
   startMinimized: boolean;
   closeToTray: boolean;
@@ -28,6 +33,10 @@ export interface SettingsState {
   setStartPage: (page: StartPage) => void;
   setIsCrossfadeEnabled: (enabled: boolean) => void;
   setCrossfadeDuration: (duration: number) => void;
+  setCrossfadeCurve: (curve: CrossfadeCurve) => void;
+  setIsGaplessEnabled: (enabled: boolean) => void;
+  setIsLoudnessNormalizationEnabled: (enabled: boolean) => void;
+  setPreloadNextTrack: (enabled: boolean) => void;
   setRunOnStartup: (enabled: boolean) => void;
   setStartMinimized: (enabled: boolean) => void;
   setCloseToTray: (enabled: boolean) => void;
@@ -44,6 +53,10 @@ export const useSettingsStore = create<SettingsState>()(
       startPage: '/Holad',
       isCrossfadeEnabled: true,
       crossfadeDuration: 3,
+      crossfadeCurve: 'equalPower',
+      isGaplessEnabled: false,
+      isLoudnessNormalizationEnabled: true,
+      preloadNextTrack: true,
       runOnStartup: true,
       startMinimized: true,
       closeToTray: true,
@@ -61,8 +74,18 @@ export const useSettingsStore = create<SettingsState>()(
       },
       setClickAction: (clickAction) => set({ clickAction }),
       setStartPage: (startPage) => set({ startPage }),
-      setIsCrossfadeEnabled: (isCrossfadeEnabled) => set({ isCrossfadeEnabled }),
-      setCrossfadeDuration: (crossfadeDuration) => set({ crossfadeDuration }),
+      setIsCrossfadeEnabled: (isCrossfadeEnabled) => set((state) => ({
+        isCrossfadeEnabled,
+        isGaplessEnabled: isCrossfadeEnabled ? false : state.isGaplessEnabled,
+      })),
+      setCrossfadeDuration: (crossfadeDuration) => set({ crossfadeDuration: Math.max(1, Math.min(12, crossfadeDuration)) }),
+      setCrossfadeCurve: (crossfadeCurve) => set({ crossfadeCurve }),
+      setIsGaplessEnabled: (isGaplessEnabled) => set((state) => ({
+        isGaplessEnabled,
+        isCrossfadeEnabled: isGaplessEnabled ? false : state.isCrossfadeEnabled,
+      })),
+      setIsLoudnessNormalizationEnabled: (isLoudnessNormalizationEnabled) => set({ isLoudnessNormalizationEnabled }),
+      setPreloadNextTrack: (preloadNextTrack) => set({ preloadNextTrack }),
       setRunOnStartup: (runOnStartup) => set({ runOnStartup }),
       setStartMinimized: (startMinimized) => set({ startMinimized }),
       setCloseToTray: (closeToTray) => set({ closeToTray }),
