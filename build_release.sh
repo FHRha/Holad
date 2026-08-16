@@ -11,4 +11,4 @@ then
 fi
 
 # Run the universal build script
-node build_all.js "$@"
+node "$(dirname "$0")/build_all.js" "$@"

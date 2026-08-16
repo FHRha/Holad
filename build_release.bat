@@ -9,4 +9,7 @@ if %errorlevel% neq 0 (
 )
 
 :: Run the universal build script
-node build_all.js %*
+node "%~dp0build_all.js" %*
+if %errorlevel% neq 0 (
+    exit /b %errorlevel%
+)

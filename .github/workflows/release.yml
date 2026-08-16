@@ -131,14 +131,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: holad-windows-setup
-          path: artifacts\*setup.exe
+          path: artifacts/*setup.exe
           if-no-files-found: ignore
 
       - name: Upload Windows MSI
         uses: actions/upload-artifact@v4
         with:
           name: holad-windows-msi
-          path: artifacts\*.msi
+          path: artifacts/*.msi
           if-no-files-found: ignore
 
   build-android:
@@ -214,7 +214,9 @@ jobs:
       - name: Download Web Artifact
         uses: actions/download-artifact@v4
         with:
-          name: holad-web-release
+          pattern: holad-web-release
+          merge-multiple: true
+        continue-on-error: true
 
       - name: Download Linux AppImage
         uses: actions/download-artifact@v4
@@ -247,7 +249,9 @@ jobs:
       - name: Download Android Artifact
         uses: actions/download-artifact@v4
         with:
-          name: holad-android-apk
+          pattern: holad-android-apk
+          merge-multiple: true
+        continue-on-error: true
 
       - name: Release
         uses: softprops/action-gh-release@v2

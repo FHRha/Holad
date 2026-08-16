@@ -28,3 +28,4 @@ scratch/
 *.py
 *.pyc
 RELEASE_NOTES.md
+.agents/
