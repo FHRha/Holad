@@ -14,10 +14,17 @@ export const useLongPress = (
   const timeout = useRef<any>(null);
   const target = useRef<any>(null);
   const isMoved = useRef(false);
+  const touchCoords = useRef<{ clientX: number; clientY: number }>({ clientX: 0, clientY: 0 });
 
   const start = useCallback(
     (event: any) => {
       isMoved.current = false;
+      const touch = event.touches && event.touches.length > 0 ? event.touches[0] : event;
+      touchCoords.current = {
+        clientX: touch?.clientX ?? event.clientX ?? (typeof window !== 'undefined' ? window.innerWidth / 2 : 0),
+        clientY: touch?.clientY ?? event.clientY ?? (typeof window !== 'undefined' ? window.innerHeight / 2 : 0)
+      };
+
       if (shouldPreventDefault && event.target) {
         event.target.addEventListener('touchend', preventDefault, {
           passive: false
@@ -25,7 +32,16 @@ export const useLongPress = (
         target.current = event.target;
       }
       timeout.current = setTimeout(() => {
-        onLongPress(event);
+        onLongPress({
+          ...event,
+          clientX: touchCoords.current.clientX,
+          clientY: touchCoords.current.clientY,
+          touches: event.touches,
+          target: event.target,
+          currentTarget: event.currentTarget,
+          preventDefault: () => event.preventDefault?.(),
+          stopPropagation: () => event.stopPropagation?.()
+        });
         setLongPressTriggered(true);
       }, delay);
     },

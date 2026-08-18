@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil, Trash2 } from 'lucide-react';
+import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil } from 'lucide-react';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { AppTheme, AccentColor } from '../../store/settingsStore';
 import { usePlayerStore } from '../../store/playerStore';
@@ -10,7 +10,11 @@ import Slider from '../common/Slider';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../common/LanguageSelector';
 import DeleteDownloadsModal from '../modals/DeleteDownloadsModal';
-import { isTauri, isCapacitor } from '../../utils/StorageManager';
+import StorageStatsBar from '../settings/StorageStatsBar';
+import StorageLimitControl from '../settings/StorageLimitControl';
+import ImageMemoryLimitControl from '../settings/ImageMemoryLimitControl';
+import StorageDangerZone from '../settings/StorageDangerZone';
+import DownloadedMusicGrid from '../settings/DownloadedMusicGrid';
 
 function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
   return (
@@ -100,6 +104,9 @@ export default function MobileSettingsView() {
   
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [statsKey, setStatsKey] = useState(0);
+
+  const refreshStats = () => setStatsKey((prev) => prev + 1);
   
   const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null);
   const [hue, setHue] = useState(0);
@@ -429,41 +436,51 @@ export default function MobileSettingsView() {
       icon: <HardDrive className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-6 mt-4">
+          {/* 1. Storage Stats Bar (Mobile Optimized) */}
           <div className="flex flex-col gap-2">
-            <p className="text-xs text-[#b3b3b3]">
-              {t('settings.clear_cache_desc', { defaultValue: 'Очистка локального кэша без удаления скачанных треков или альбомов.' })}
-            </p>
-            <button 
-              onClick={() => {
-                clearAppCache();
-                window.location.reload();
-              }}
-              className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-bold transition-colors w-full"
-            >
-              <Trash2 size={18} />
-              <span>{isTauri() || isCapacitor() ? t('settings.clear_client_cache', { defaultValue: 'Очистить кэш клиента' }) : t('settings.clear_web_cache', { defaultValue: 'Очистить кэш веб-браузера' })}</span>
-            </button>
+            <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
+              {t('settings.storage_usage', { defaultValue: 'Использование хранилища' })}
+            </span>
+            <StorageStatsBar isMobile={true} key={statsKey} onRefreshRequested={refreshStats} />
           </div>
 
-          <div className="pt-2 border-t border-white/5 flex flex-col gap-2">
-            <p className="text-xs text-[#b3b3b3]">
-              {t('settings.delete_downloads_desc', { defaultValue: 'Удаление скачанных треков или альбомов с устройства.' })}
-            </p>
-            <button 
-              onClick={() => setShowDeleteModal(true)}
-              className="flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 py-3 rounded-xl font-bold transition-colors w-full"
-            >
-              <Trash2 size={18} />
-              <span>{t('settings.delete_downloads_btn', { defaultValue: 'Удалить загрузки' })}</span>
-            </button>
+          {/* 2. Storage Limit Control */}
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
+              {t('settings.storage_limit_title', { defaultValue: 'Лимит хранилища' })}
+            </span>
+            <StorageLimitControl isMobile={true} />
           </div>
+
+          {/* 3. Image Memory Limit Control */}
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
+              {t('settings.memory_limit', { defaultValue: 'Лимит памяти для картинок' })}
+            </span>
+            <ImageMemoryLimitControl isMobile={true} />
+          </div>
+
+          {/* 3. Downloaded Music Library Grid */}
+          <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
+            <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
+              {t('settings.downloaded_music', { defaultValue: 'Скачанная музыка' })}
+            </span>
+            <DownloadedMusicGrid 
+              isMobile={true} 
+              onRefreshRequested={refreshStats} 
+              onManageClick={() => setShowDeleteModal(true)} 
+            />
+          </div>
+
+          {/* 4. Danger Zone Block */}
+          <StorageDangerZone isMobile={true} onActionComplete={refreshStats} />
         </div>
       )
     }
   ];
 
   return (
-    <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32 w-full">
+    <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto overflow-x-hidden flex-col pb-32 w-full">
       <div className="px-4 pt-4 pb-2 sticky top-0 bg-black/40 backdrop-blur-xl z-[60] w-full">
         <div className="flex items-center gap-3 mb-4 w-full relative z-[70]">
           <div 
@@ -524,7 +541,7 @@ export default function MobileSettingsView() {
       </div>
       
       {showDeleteModal && (
-        <DeleteDownloadsModal onClose={() => setShowDeleteModal(false)} />
+        <DeleteDownloadsModal onClose={() => { setShowDeleteModal(false); refreshStats(); }} />
       )}
     </div>
   );

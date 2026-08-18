@@ -24,6 +24,8 @@ interface UIState {
   setNowPlayingOpen: (open: boolean) => void;
   isSettingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
+  isOfflineModalOpen: boolean;
+  setOfflineModalOpen: (open: boolean) => void;
   
   leftSidebarWidth: number;
   setLeftSidebarWidth: (width: number) => void;
@@ -56,6 +58,8 @@ export const useUIStore = create<UIState>()(
       setNowPlayingOpen: (open) => set({ isNowPlayingOpen: open }),
       isSettingsOpen: false,
       setSettingsOpen: (open) => set({ isSettingsOpen: open }),
+      isOfflineModalOpen: false,
+      setOfflineModalOpen: (open) => set({ isOfflineModalOpen: open }),
       
       leftSidebarWidth: LEFT_SIDEBAR_DEFAULT_WIDTH,
       setLeftSidebarWidth: (width) => set({ leftSidebarWidth: width }),

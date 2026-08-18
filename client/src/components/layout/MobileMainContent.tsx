@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Search, CloudOff, Download, Heart, Music, Clock, Users, Flame, Shuffle, RefreshCw, ChevronRight, ChevronLeft, Star, Loader2, Play } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import * as subsonicApi from '../../api/subsonic';
@@ -10,7 +10,13 @@ import { useHistoryStore, getFilteredHistory, calculateStats } from '../../store
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../store/downloadStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { toggleOfflineMode } from '../../utils/networkStatus';
 import MobileJamModal from '../modals/MobileJamModal';
+import OfflineModeModal from '../modals/OfflineModeModal';
+import { useContextMenuStore } from '../../store/contextMenuStore';
+import LongPressWrapper from '../common/LongPressWrapper';
 
 function ScrollableSection({ title, children, onRefresh }: { title: string, children: React.ReactNode, onRefresh?: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -81,7 +87,9 @@ interface MobileMainContentProps {
 
 export default function MobileMainContent({ albums, recentTracks, frequentAlbums, genres }: MobileMainContentProps) {
   const { t } = useTranslation();
-  const { setSearchOpen, activeFilter, setActiveFilter } = useUIStore();
+  const { setSearchOpen, activeFilter, setActiveFilter, isOfflineModalOpen, setOfflineModalOpen } = useUIStore();
+  const { hideOfflineExplanationModal } = useSettingsStore();
+  const { isOffline } = useNetworkStatus();
   const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
   const [loadingStation, setLoadingStation] = useState<string | null>(null);
   const [refreshRecentKey, setRefreshRecentKey] = useState(0);
@@ -89,6 +97,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
   const downloads = useDownloadStore(state => state.downloads);
   const roomId = usePlayerStore(state => state.roomId);
   const [isJamModalOpen, setIsJamModalOpen] = useState(false);
+  const { openMenu } = useContextMenuStore();
   
   const navigate = useNavigate();
   const history = useHistoryStore(s => s.history);
@@ -108,19 +117,6 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
     return activeFilter === 'Offline' || activeFilter === 'Downloaded' ? [] : displayFrequent;
   }, [activeFilter, frequentAlbums]);
 
-  const [isOfflineApp, setIsOfflineApp] = useState(!navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOfflineApp(false);
-    const handleOffline = () => setIsOfflineApp(true);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
   const actualRecent = useMemo(() => {
     if (activeFilter) return finalRecent;
     return finalRecent.length > 0 ? finalRecent : [...recentTracks].sort(() => Math.random() - 0.5).slice(0, 10);
@@ -133,6 +129,20 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
 
   const toggleFilter = (filter: string) => {
     setActiveFilter(activeFilter === filter ? null : filter);
+  };
+
+  const handleOfflineFilterClick = () => {
+    if (activeFilter === 'Offline' || isOffline) {
+      if (!hideOfflineExplanationModal) {
+        setOfflineModalOpen(true);
+      } else {
+        toggleOfflineMode();
+        setActiveFilter(activeFilter === 'Offline' ? null : 'Offline');
+      }
+    } else {
+      toggleOfflineMode();
+      setActiveFilter('Offline');
+    }
   };
 
   const mapTracks = (tracks: any[]): Track[] => {
@@ -153,7 +163,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
     setLoadingStation('random');
     try {
       let tracks: any[] = [];
-      if (activeFilter === 'Offline' || activeFilter === 'Downloaded' || isOfflineApp) {
+      if (activeFilter === 'Offline' || activeFilter === 'Downloaded' || isOffline) {
         tracks = getOfflineTracks().slice(0, 50);
       } else {
         tracks = await fetchRandomTracks(50);
@@ -204,14 +214,16 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
           <FilterChip 
             icon={<CloudOff size={16} />} 
             label={t('common.offline', { defaultValue: 'Офлайн' })} 
-            isActive={activeFilter === 'Offline' || isOfflineApp} 
-            onClick={() => toggleFilter('Offline')} 
+            isActive={activeFilter === 'Offline' || isOffline} 
+            onClick={handleOfflineFilterClick} 
+            testId="mobile-offline-chip"
           />
           <FilterChip 
             icon={<Download size={16} />} 
             label={t('common.downloaded', { defaultValue: 'Загружено' })} 
             isActive={activeFilter === 'Downloaded'} 
             onClick={() => toggleFilter('Downloaded')} 
+            testId="mobile-downloaded-chip"
           />
           <FilterChip 
             icon={<Heart size={16} />} 
@@ -271,10 +283,14 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
         {/* Recently Played */}
         <ScrollableSection title={t('views.recently_played', { defaultValue: 'Недавно играло' })} onRefresh={() => setRefreshRecentKey(k => k + 1)}>
             {actualRecent.map(track => (
-              <div 
+              <LongPressWrapper 
                 key={track.id} 
                 className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start"
                 onClick={() => playRecentTrack(track)}
+                onLongPress={(e: any) => {
+                  e.preventDefault?.();
+                  openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
+                }}
               >
                 <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828]">
                   <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 300)} className="w-full h-full object-cover" alt={track.title} trackId={track.id} />
@@ -297,14 +313,14 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                   </span>
                   <span className="text-[13px] text-[#b3b3b3] truncate">{track.artist}</span>
                 </div>
-              </div>
+              </LongPressWrapper>
             ))}
         </ScrollableSection>
 
         {/* Frequently Listened */}
         <ScrollableSection title={t('views.frequently_played', { defaultValue: 'Часто слушаете' })} onRefresh={() => setRefreshFrequentKey(k => k + 1)}>
             {actualFrequent.map(album => (
-              <div 
+              <LongPressWrapper 
                 key={album.id} 
                 className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start"
                 onClick={() => {
@@ -324,6 +340,10 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                         usePlayerStore.getState().setIsProcessing(false);
                       });
                 }}
+                onLongPress={(e: any) => {
+                  e.preventDefault?.();
+                  openMenu(e.clientX, e.clientY, album, 'album');
+                }}
               >
                 <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828]">
                   <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full object-cover" alt={album.name || album.title} trackId={album.id} />
@@ -338,22 +358,29 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                   <span className="text-[15px] font-bold text-white truncate">{album.name || album.title}</span>
                   <span className="text-[13px] text-[#b3b3b3] truncate">{album.artist}</span>
                 </div>
-              </div>
+              </LongPressWrapper>
             ))}
         </ScrollableSection>
 
       </div>
       <MobileJamModal isOpen={isJamModalOpen} onClose={() => setIsJamModalOpen(false)} />
+      {isOfflineModalOpen && (
+        <OfflineModeModal 
+          isOpen={isOfflineModalOpen} 
+          onClose={() => setOfflineModalOpen(false)} 
+        />
+      )}
     </div>
   );
 }
 
-function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
+function FilterChip({ icon, label, isActive, onClick, testId }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void, testId?: string }) {
   return (
     <button 
       onClick={onClick}
+      data-testid={testId}
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-colors ${
-        isActive ? 'bg-primary text-primary-foreground' : 'bg-[#282828] text-[#b3b3b3] hover:text-white'
+        isActive ? 'bg-primary text-black border border-primary' : 'bg-[#282828] text-[#b3b3b3] hover:text-white border border-transparent'
       }`}
     >
       {icon}

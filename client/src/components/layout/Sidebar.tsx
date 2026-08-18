@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Home, Heart, Disc, Music, Radio, Users, Settings, LogOut, User, Clock, Download, Loader2 } from 'lucide-react';
+import { Home, Heart, Disc, Music, Radio, Users, Settings, LogOut, User, Clock, Download } from 'lucide-react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { clearAppCache } from '../../utils/storage';
 import { useDownloadStore } from '../../store/downloadStore';
-import { isTauri } from '../../utils/StorageManager';
+import { isTauri, isCapacitor } from '../../utils/StorageManager';
 
 
 export default function Sidebar() {
@@ -14,9 +14,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { leftSidebarWidth, setLeftSidebarWidth } = useUIStore();
   const { user, url, setAuthenticated, setCredentials } = useAuthStore();
-  const downloads = useDownloadStore(state => state.downloads);
-  const isDownloading = Object.values(downloads).some(d => d.status === 'downloading');
-  const isNative = isTauri();
+  const isNative = isTauri() || isCapacitor();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -116,7 +114,14 @@ export default function Sidebar() {
                 <div className="flex flex-col overflow-hidden">
                   <span className="font-bold text-sm truncate">{user || t('sidebar.user')}</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <img src="https://github.com/navidrome/navidrome/raw/master/resources/logo-192x192.png" alt="Navidrome" className="w-3.5 h-3.5 object-contain opacity-70" />
+                    <img 
+                      src={`${import.meta.env.BASE_URL}icons/navidrome.png`} 
+                      alt="Navidrome" 
+                      className="w-3.5 h-3.5 object-contain opacity-80 shrink-0" 
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = `${import.meta.env.BASE_URL}icons/favicon_tab.png`;
+                      }}
+                    />
                     <span className="text-xs text-secondary truncate">{url ? new URL(url).hostname : t('sidebar.local_server')}</span>
                   </div>
                 </div>
@@ -166,12 +171,7 @@ export default function Sidebar() {
           <SidebarItem to="/Holad/artists" icon={<Users size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.artists')} isWide={isWide} />
           <SidebarItem to="/Holad/radio" icon={<Radio size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.radio')} isWide={isWide} />
           {isNative && (
-            <SidebarItem 
-              to="/Holad/downloads" 
-              icon={isDownloading ? <Loader2 size={isWide ? 20 : 22} className="flex-shrink-0 animate-spin text-primary" /> : <Download size={isWide ? 20 : 22} className="flex-shrink-0" />} 
-              label={t('sidebar.downloads', { defaultValue: 'Загрузки' })} 
-              isWide={isWide} 
-            />
+            <SidebarDownloadsItem isWide={isWide} />
           )}
         </div>
       </div>
@@ -182,6 +182,142 @@ export default function Sidebar() {
         onMouseDown={handleMouseDown}
       />
     </div>
+  );
+}
+
+function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
+  const { t } = useTranslation();
+  const location = useLocation();
+  const downloads = useDownloadStore(state => state.downloads);
+  
+  const items = Object.values(downloads || {});
+  const activeDownloads = items.filter(d => d.status === 'downloading');
+  const queuedDownloads = items.filter(d => d.status === 'queued');
+  const isDownloading = activeDownloads.length > 0;
+  const totalActive = activeDownloads.length + queuedDownloads.length;
+  
+  const totalProgress = activeDownloads.reduce((acc, d) => acc + (d.progress || 0), 0);
+  const avgProgress = isDownloading ? Math.round(totalProgress / activeDownloads.length) : 0;
+
+  const to = '/Holad/downloads';
+  const isActive = location.pathname.startsWith(to);
+
+  // SVG Circular Ring geometry: r = 12, C = 2 * PI * 12 ~= 75.398
+  const radius = 12;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (avgProgress / 100) * circumference;
+
+  let tooltip = t('sidebar.downloads', { defaultValue: 'Загрузки' });
+  if (isDownloading) {
+    tooltip = `${tooltip}: ${avgProgress}% (${activeDownloads.length}/${totalActive})`;
+  } else if (totalActive > 0) {
+    tooltip = `${tooltip}: ${totalActive} ${t('views.queued', { defaultValue: 'в очереди' })}`;
+  }
+
+  return (
+    <NavLink
+      to={to}
+      className={`w-full flex ${
+        isWide ? 'flex-row items-center px-3 py-2.5 gap-3 rounded-lg' : 'flex-col items-center gap-1'
+      } transition-colors group ${
+        isActive ? (isWide ? 'bg-white/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-white/5'
+      }`}
+      title={tooltip}
+    >
+      {/* Icon Container */}
+      <div className={`relative flex items-center justify-center ${!isWide ? 'w-full' : 'flex-shrink-0'}`}>
+        {!isWide && isActive && (
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-md" />
+        )}
+
+        {isDownloading ? (
+          <div className="relative w-7 h-7 flex items-center justify-center">
+            {/* Circular Progress Ring */}
+            <svg className="w-7 h-7 -rotate-90" viewBox="0 0 32 32">
+              {/* Background Track */}
+              <circle
+                cx="16"
+                cy="16"
+                r={radius}
+                className="stroke-white/15"
+                strokeWidth="2.5"
+                fill="none"
+              />
+              {/* Animated Progress Ring */}
+              <circle
+                cx="16"
+                cy="16"
+                r={radius}
+                className="stroke-primary transition-all duration-300 ease-out"
+                strokeWidth="2.5"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                fill="none"
+              />
+            </svg>
+            <Download size={13} className="absolute text-primary animate-pulse flex-shrink-0" />
+          </div>
+        ) : (
+          <Download size={isWide ? 20 : 22} className="flex-shrink-0" />
+        )}
+
+        {/* Compact Mode Badge (Top-Right of icon) */}
+        {!isWide && totalActive > 0 && (
+          <span className="absolute -top-1.5 right-1 min-w-[16px] h-4 px-1 flex items-center justify-center text-[9px] font-bold bg-primary text-black rounded-full shadow-md animate-in zoom-in-50 duration-200">
+            {totalActive > 99 ? '99+' : totalActive}
+          </span>
+        )}
+      </div>
+
+      {/* Expanded / Wide Mode Info */}
+      {isWide ? (
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis pb-0.5">
+              {t('sidebar.downloads', { defaultValue: 'Загрузки' })}
+            </span>
+            {isDownloading ? (
+              <span className="text-xs font-bold text-primary shrink-0 tabular-nums">
+                {avgProgress}%
+              </span>
+            ) : totalActive > 0 ? (
+              <span className="px-1.5 py-0.2 text-[10px] font-bold bg-primary/20 text-primary border border-primary/30 rounded-full shrink-0">
+                {totalActive}
+              </span>
+            ) : null}
+          </div>
+
+          {/* Dynamic Status Text & Mini Progress Bar */}
+          {isDownloading && (
+            <div className="w-full mt-1 flex flex-col gap-1">
+              <div className="flex items-center justify-between text-[10px] text-secondary">
+                <span className="truncate">
+                  {totalActive > 1
+                    ? t('sidebar.downloading_of', {
+                        defaultValue: `${activeDownloads.length} из ${totalActive}`,
+                        current: activeDownloads.length,
+                        total: totalActive,
+                      })
+                    : t('sidebar.downloading', { defaultValue: 'Загрузка...' })}
+                </span>
+              </div>
+              <div className="w-full bg-white/10 rounded-full h-1 overflow-hidden">
+                <div
+                  className="bg-primary h-full rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${avgProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Compact Mode Label */
+        <span className="text-[10px] font-bold leading-normal mt-1 px-1 text-center truncate w-full pb-0.5">
+          {isDownloading ? `${avgProgress}%` : t('sidebar.downloads', { defaultValue: 'Загрузки' })}
+        </span>
+      )}
+    </NavLink>
   );
 }
 

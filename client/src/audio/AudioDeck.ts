@@ -1,5 +1,18 @@
 import type { AudioState, BufferedRange, IAudioDeck } from './types';
 
+export const isLocalMediaUrl = (url: string): boolean => {
+    if (!url) return false;
+    return (
+        url.startsWith('http://asset.localhost') ||
+        url.startsWith('asset://') ||
+        url.startsWith('_capacitor_file_') ||
+        url.startsWith('capacitor://') ||
+        url.startsWith('file://') ||
+        url.startsWith('blob:') ||
+        url.startsWith('data:')
+    );
+};
+
 export class AudioDeck implements IAudioDeck {
     public readonly id: string;
     public readonly element: HTMLAudioElement;
@@ -115,6 +128,14 @@ export class AudioDeck implements IAudioDeck {
 
     public async load(src: string, position: number = 0): Promise<void> {
         try {
+            this.setState('loading');
+            if (isLocalMediaUrl(src)) {
+                this.element.removeAttribute('crossorigin');
+                this.element.crossOrigin = null;
+            } else {
+                this.element.crossOrigin = 'anonymous';
+            }
+
             if (this.element.src !== src) {
                 this.element.src = src;
                 this.element.load();

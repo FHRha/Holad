@@ -14,6 +14,7 @@ import LanguageSelector from './LanguageSelector';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from './dnd/SortableItem';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import { useContextMenuStore } from '../../store/contextMenuStore';
 
 export default function FullScreenPlayerUI({ 
   onClose,
@@ -27,6 +28,7 @@ export default function FullScreenPlayerUI({
   const currentTrack = queue[currentIndex];
   const { audioElement } = useAudioStore();
   const downloads = useDownloadStore(state => state.downloads);
+  const { openMenu } = useContextMenuStore();
   const [activeTab, setActiveTab] = useState<'queue' | 'similar' | 'lyrics' | 'visualizer'>('lyrics');
   
   const isJamRoute = window.location.pathname.startsWith('/jam');
@@ -300,12 +302,16 @@ export default function FullScreenPlayerUI({
                               // Only handle play if it wasn't a drag
                               if (!readOnlyControls && !isDragging) setQueueAndPlay(queue, idx);
                             }}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              openMenu(e.clientX, e.clientY, { ...track, queueIndex: idx, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
+                            }}
                           >
                             <div className="w-8 flex justify-center text-white/50 text-sm font-medium select-none pointer-events-none">
                               {isPlayingQueue ? <Play size={14} className="text-primary" fill="currentColor" /> : idx + 1}
                             </div>
                             <div className="w-12 h-12 flex-shrink-0 mx-4 rounded-lg overflow-hidden shadow-md select-none pointer-events-none">
-                              <TrackImage src={getCoverArtUrl(track.id, 100)} className="w-full h-full object-cover" alt="" />
+                              <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />
                             </div>
                             <div className="flex-1 min-w-0 flex flex-col justify-center select-none pointer-events-none">
                               <p className={`flex items-center gap-2 truncate text-base font-semibold ${isPlayingQueue ? 'text-primary drop-shadow-md' : 'text-white/90'}`}>
@@ -333,6 +339,10 @@ export default function FullScreenPlayerUI({
                     key={idx} 
                     className="flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-white/10 cursor-pointer"
                     onClick={() => !readOnlyControls && setQueueAndPlay(similarTracks, idx)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      openMenu(e.clientX, e.clientY, { ...track, coverArt: track.coverArt || getCoverArtUrl(track.id, 300) }, 'track');
+                    }}
                   >
                     <div className="w-12 h-12 flex-shrink-0 mr-4 rounded-lg overflow-hidden shadow-md">
                       <TrackImage src={track.coverArt} className="w-full h-full object-cover" alt="" />

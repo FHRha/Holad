@@ -8,10 +8,13 @@ import { useUIStore } from '../../store/uiStore';
 import { useTranslation } from 'react-i18next';
 import TrackImage from '../common/TrackImage';
 import ArtistLinks from '../common/ArtistLinks';
+import { useContextMenuStore } from '../../store/contextMenuStore';
+import LongPressWrapper from '../common/LongPressWrapper';
 
 export default function MobileSearchOverlay() {
   const { t } = useTranslation();
   const { isSearchOpen, setSearchOpen } = useUIStore();
+  const { openMenu } = useContextMenuStore();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<HTMLDivElement>(null);
@@ -105,16 +108,20 @@ export default function MobileSearchOverlay() {
                 </h3>
                 <div className="flex flex-col gap-2">
                   {results.song.slice(0, 5).map(track => (
-                    <div 
+                    <LongPressWrapper 
                       key={track.id}
                       className="group flex items-center gap-3 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors active:scale-[0.98]"
                       onClick={() => {
                         handlePlaySong(track);
                         setSearchOpen(false);
                       }}
+                      onLongPress={(e: any) => {
+                        e.preventDefault?.();
+                        openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId, 300) }, 'track');
+                      }}
                     >
                       <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId, 100)} className="w-full h-full object-cover" alt="" />
+                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0">
                           <Play size={16} fill="currentColor" />
                         </div>
@@ -134,7 +141,7 @@ export default function MobileSearchOverlay() {
                       <div className="text-[13px] text-secondary font-medium">
                         {formatTime(track.duration)}
                       </div>
-                    </div>
+                    </LongPressWrapper>
                   ))}
                 </div>
               </section>
@@ -148,22 +155,26 @@ export default function MobileSearchOverlay() {
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   {results.album.slice(0, 4).map(album => (
-                    <div 
+                    <LongPressWrapper 
                       key={album.id}
                       className="group relative rounded-xl overflow-hidden active:scale-[0.98] transition-transform"
                       onClick={() => {
                         navigateToAlbum(album.id);
                         setSearchOpen(false);
                       }}
+                      onLongPress={(e: any) => {
+                        e.preventDefault?.();
+                        openMenu(e.clientX, e.clientY, album, 'album');
+                      }}
                     >
                       <div className="aspect-square bg-[#282828]">
-                        <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full object-cover" alt="" />
+                        <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full object-cover" alt="" trackId={album.id} />
                       </div>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-3">
                         <p className="font-bold text-sm text-white truncate drop-shadow-md">{album.name}</p>
                         <p className="text-xs text-white/80 truncate drop-shadow-md">{formatArtistName(album.artist)}</p>
                       </div>
-                    </div>
+                    </LongPressWrapper>
                   ))}
                 </div>
               </section>

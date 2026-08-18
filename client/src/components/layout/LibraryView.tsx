@@ -7,14 +7,34 @@ import { useTranslation } from 'react-i18next';
 import { Search, CloudOff, Download, Heart, LayoutGrid, List } from 'lucide-react';
 import { useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { toggleOfflineMode } from '../../utils/networkStatus';
+import OfflineModeModal from '../modals/OfflineModeModal';
 
 export default function LibraryView() {
   const { t } = useTranslation();
-  const { setSearchOpen, activeFilter, setActiveFilter } = useUIStore();
+  const { setSearchOpen, activeFilter, setActiveFilter, isOfflineModalOpen, setOfflineModalOpen } = useUIStore();
+  const { hideOfflineExplanationModal } = useSettingsStore();
+  const { isOffline } = useNetworkStatus();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const toggleFilter = (filter: string) => {
     setActiveFilter(activeFilter === filter ? null : filter);
+  };
+
+  const handleOfflineFilterClick = () => {
+    if (activeFilter === 'Offline' || isOffline) {
+      if (!hideOfflineExplanationModal) {
+        setOfflineModalOpen(true);
+      } else {
+        toggleOfflineMode();
+        setActiveFilter(activeFilter === 'Offline' ? null : 'Offline');
+      }
+    } else {
+      toggleOfflineMode();
+      setActiveFilter('Offline');
+    }
   };
 
   return (
@@ -40,9 +60,26 @@ export default function LibraryView() {
         </div>
         <div className="flex items-center justify-between mb-4 relative">
           <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar flex-1 pr-14" style={{ maskImage: 'linear-gradient(to right, black 85%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)' }}>
-            <FilterChip icon={<CloudOff size={16} />} label={t('common.offline', { defaultValue: 'Офлайн' })} isActive={activeFilter === 'Offline'} onClick={() => toggleFilter('Offline')} />
-            <FilterChip icon={<Download size={16} />} label={t('common.downloaded', { defaultValue: 'Загружено' })} isActive={activeFilter === 'Downloaded'} onClick={() => toggleFilter('Downloaded')} />
-            <FilterChip icon={<Heart size={16} />} label={t('sidebar.favorites', { defaultValue: 'Избранное' })} isActive={activeFilter === 'Favorites'} onClick={() => toggleFilter('Favorites')} />
+            <FilterChip 
+              icon={<CloudOff size={16} />} 
+              label={t('common.offline', { defaultValue: 'Офлайн' })} 
+              isActive={activeFilter === 'Offline' || isOffline} 
+              onClick={handleOfflineFilterClick}
+              testId="library-mobile-offline-chip"
+            />
+            <FilterChip 
+              icon={<Download size={16} />} 
+              label={t('common.downloaded', { defaultValue: 'Загружено' })} 
+              isActive={activeFilter === 'Downloaded'} 
+              onClick={() => toggleFilter('Downloaded')} 
+              testId="library-mobile-downloaded-chip"
+            />
+            <FilterChip 
+              icon={<Heart size={16} />} 
+              label={t('sidebar.favorites', { defaultValue: 'Избранное' })} 
+              isActive={activeFilter === 'Favorites'} 
+              onClick={() => toggleFilter('Favorites')} 
+            />
           </div>
 
           <button 
@@ -73,6 +110,13 @@ export default function LibraryView() {
           <Route path="*" element={<div className="p-8 text-center text-secondary">{t('common.in_development')}</div>} />
         </Routes>
       </div>
+
+      {isOfflineModalOpen && (
+        <OfflineModeModal 
+          isOpen={isOfflineModalOpen} 
+          onClose={() => setOfflineModalOpen(false)} 
+        />
+      )}
     </div>
   );
 }
@@ -99,12 +143,13 @@ function MobileNavTab({ to, label }: { to: string, label: string }) {
   );
 }
 
-function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
+function FilterChip({ icon, label, isActive, onClick, testId }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void, testId?: string }) {
   return (
     <button 
       onClick={onClick}
+      data-testid={testId}
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-colors ${
-        isActive ? 'bg-primary text-primary-foreground' : 'bg-[#282828] text-[#b3b3b3] hover:text-white'
+        isActive ? 'bg-primary text-black border border-primary' : 'bg-[#282828] text-[#b3b3b3] hover:text-white border border-transparent'
       }`}
     >
       {icon}

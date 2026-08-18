@@ -3,6 +3,7 @@ import { getAlbumFull, getCoverArtUrl, starItem, unstarItem, setItemRating, getS
 import { usePlayerStore } from '../store/playerStore';
 import { extractDominantColor } from '../utils/colorExtractor';
 import { useSettingsStore } from '../store/settingsStore';
+import { useDownloadStore } from '../store/downloadStore';
 import i18n from '../i18n';
 
 export function useAlbumData(id: string | undefined, observerTarget: React.RefObject<HTMLDivElement | null>) {
@@ -16,13 +17,43 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
 
   useEffect(() => {
     if (!id) return;
-    getAlbumFull(id).then(data => {
-      setAlbum(data);
-      if (data) {
-        const coverUrl = getCoverArtUrl(data.coverArt || data.id, 600);
-        extractDominantColor(coverUrl).then(setDominantColor);
-      }
-    });
+    getAlbumFull(id)
+      .then(data => {
+        setAlbum(data);
+        if (data) {
+          const coverUrl = getCoverArtUrl(data.coverArt || data.id, 600);
+          extractDominantColor(coverUrl).then(setDominantColor);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch full album online, falling back to download store:', err);
+        const { downloads } = useDownloadStore.getState();
+        const downloadedAlbum = downloads[id];
+        if (downloadedAlbum) {
+          const childTracks = Object.values(downloads).filter(
+            d => d.type === 'track' && (d.albumId === id || d.album === downloadedAlbum.name)
+          );
+          const fallbackAlbum = {
+            id: downloadedAlbum.id,
+            name: downloadedAlbum.name,
+            title: downloadedAlbum.name,
+            artist: downloadedAlbum.artist || 'Unknown Artist',
+            coverArt: downloadedAlbum.localCoverArtUri || downloadedAlbum.coverArt,
+            songCount: childTracks.length,
+            duration: childTracks.reduce((acc, t) => acc + (t.duration || 0), 0),
+            song: childTracks.map(t => ({
+              id: t.id,
+              title: t.name,
+              artist: t.artist || downloadedAlbum.artist,
+              album: downloadedAlbum.name,
+              albumId: id,
+              coverArt: t.localCoverArtUri || downloadedAlbum.localCoverArtUri || t.coverArt,
+              duration: t.duration || 0
+            }))
+          };
+          setAlbum(fallbackAlbum);
+        }
+      });
   }, [id]);
 
   useEffect(() => {

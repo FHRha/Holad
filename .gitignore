@@ -29,3 +29,6 @@ scratch/
 *.pyc
 RELEASE_NOTES.md
 .agents/
+TEST_INFRA.md
+PROJECT.md
+ORIGINAL_REQUEST.md

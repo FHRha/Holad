@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Music, Download } from 'lucide-react';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { useDownloadStore } from '../../store/downloadStore';
+import { StorageManager } from '../../utils/StorageManager';
 
 interface TrackImageProps {
   src?: string;
@@ -14,35 +15,77 @@ export default function TrackImage({ src, className, alt = '', trackId }: TrackI
   const [error, setError] = useState(false);
   const [retries, setRetries] = useState(0);
   const [finalSrc, setFinalSrc] = useState<string | undefined>(undefined);
-  const isDownloaded = useDownloadStore(state => trackId ? !!state.downloads[trackId] && state.downloads[trackId].status === 'completed' : false);
+  
+  const downloadItem = useDownloadStore(state => trackId ? state.downloads[trackId] : undefined);
+  const isDownloaded = downloadItem?.status === 'completed';
 
   useEffect(() => {
-    if (!src) {
+    let isMounted = true;
+
+    // Check local cover art URI from download store first
+    if (downloadItem?.localCoverArtUri) {
+      setFinalSrc(downloadItem.localCoverArtUri);
+      return;
+    }
+
+    if (!src && !trackId) {
       setFinalSrc(undefined);
       return;
     }
-    
-    // If we're retrying, append a timestamp to the original URL before caching
-    const urlToFetch = retries > 0 
-      ? `${src}${src.includes('?') ? '&' : '?'}retry=${retries}`
-      : src;
-      
-    let isMounted = true;
-    
-    getCachedImageUrl(urlToFetch).then(cachedUrl => {
-      if (isMounted) {
-        setFinalSrc(cachedUrl);
+
+    const checkLocalAndFetch = async () => {
+      // If src is already a local asset or file URI, use directly
+      if (src && (
+        src.startsWith('http://asset.localhost') ||
+        src.startsWith('asset://') ||
+        src.startsWith('_capacitor_file_') ||
+        src.startsWith('capacitor://') ||
+        src.startsWith('file://') ||
+        src.startsWith('blob:') ||
+        src.startsWith('data:')
+      )) {
+        if (isMounted) setFinalSrc(src);
+        return;
       }
-    }).catch(() => {
-      if (isMounted) {
-        setFinalSrc(urlToFetch);
+
+      if (trackId) {
+        try {
+          const localCover = await StorageManager.getLocalCoverUri(trackId);
+          if (localCover && isMounted) {
+            setFinalSrc(localCover);
+            return;
+          }
+        } catch {}
       }
-    });
+
+      if (!src) {
+        if (isMounted) setFinalSrc(undefined);
+        return;
+      }
+
+      // If we're retrying, append a timestamp to the original URL before caching
+      const urlToFetch = retries > 0 
+        ? `${src}${src.includes('?') ? '&' : '?'}retry=${retries}`
+        : src;
+        
+      try {
+        const cachedUrl = await getCachedImageUrl(urlToFetch);
+        if (isMounted) {
+          setFinalSrc(cachedUrl);
+        }
+      } catch {
+        if (isMounted) {
+          setFinalSrc(urlToFetch);
+        }
+      }
+    };
+
+    checkLocalAndFetch();
     
     return () => {
       isMounted = false;
     };
-  }, [src, retries]);
+  }, [src, trackId, retries, downloadItem?.localCoverArtUri]);
 
   const handleError = () => {
     if (retries < 3) {

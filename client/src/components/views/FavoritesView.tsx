@@ -10,7 +10,9 @@ import type { Track } from '../../store/playerStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useUIStore } from '../../store/uiStore';
 import { List } from 'lucide-react';
-import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import { useDownloadStore, isItemDownloaded, getOfflineTracks, getDownloadedAlbums } from '../../store/downloadStore';
+import { useContextMenuStore } from '../../store/contextMenuStore';
+import LongPressWrapper from '../common/LongPressWrapper';
 
 function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
   return (
@@ -36,6 +38,7 @@ export default function FavoritesView() {
   const [mobileTab, setMobileTab] = useState<'tracks' | 'albums' | 'artists'>('tracks');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const downloads = useDownloadStore(state => state.downloads);
+  const { openMenu } = useContextMenuStore();
 
   useEffect(() => {
     loadStarred();
@@ -58,7 +61,12 @@ export default function FavoritesView() {
       setAlbums(data.album || []);
       setTracks(data.song || []);
     } catch (error) {
-      console.error('Failed to load favorites', error);
+      console.error('Failed to load favorites from server, checking local offline items:', error);
+      const offlineTracks = getOfflineTracks();
+      const offlineAlbums = getDownloadedAlbums();
+      const likedOfflineTracks = offlineTracks.filter(t => likedTrackIds.includes(t.id));
+      setTracks(likedOfflineTracks.length > 0 ? likedOfflineTracks : offlineTracks);
+      setAlbums(offlineAlbums);
     } finally {
       setLoading(false);
     }
@@ -127,6 +135,10 @@ export default function FavoritesView() {
                     key={track.id} 
                     className="flex items-center gap-4 p-2 rounded-md hover:bg-white/5 group transition-colors cursor-pointer"
                     onDoubleClick={() => handlePlayTrack(index, tracks)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
+                    }}
                   >
                     <div className="w-8 flex justify-center text-secondary relative">
                       <span className="group-hover:hidden">{index + 1}</span>
@@ -232,10 +244,14 @@ export default function FavoritesView() {
                 {searchedTracks.map((track, index) => {
                   const isLiked = likedTrackIds.includes(track.id);
                   return (
-                    <div 
+                    <LongPressWrapper 
                       key={track.id} 
                       className="flex items-center gap-3 p-2 rounded-md hover:bg-white/5 transition-colors cursor-pointer"
                       onClick={() => handlePlayTrack(index, searchedTracks)}
+                      onLongPress={(e: any) => {
+                        e.preventDefault?.();
+                        openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
+                      }}
                     >
                       <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-white/10 relative shadow-sm">
                         {track.coverArt && <TrackImage src={getCoverArtUrl(track.coverArt, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />}
@@ -256,7 +272,7 @@ export default function FavoritesView() {
                       >
                         <Heart size={18} fill={isLiked ? "currentColor" : "none"} className={isLiked ? "text-primary" : "text-[#b3b3b3] hover:text-white"} />
                       </button>
-                    </div>
+                    </LongPressWrapper>
                   );
                 })}
               </div>
@@ -276,7 +292,7 @@ export default function FavoritesView() {
               <div className={viewMode === 'grid' ? "grid grid-cols-2 gap-4 py-4" : "flex flex-col gap-4 py-4"}>
                 {searchedAlbums.map((album) => (
                   viewMode === 'list' ? (
-                    <div 
+                    <LongPressWrapper 
                       key={album.id} 
                       className="flex items-center gap-4 cursor-pointer"
                       onClick={() => {
@@ -298,6 +314,10 @@ export default function FavoritesView() {
                           });
                         }
                       }}
+                      onLongPress={(e: any) => {
+                        e.preventDefault?.();
+                        openMenu(e.clientX, e.clientY, album, 'album');
+                      }}
                     >
                       <div className="relative w-16 h-16 flex-shrink-0">
                         <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full rounded-md object-cover" alt={album.name} />
@@ -306,7 +326,7 @@ export default function FavoritesView() {
                         <span className="text-[15px] text-white font-bold truncate">{album.name || album.title}</span>
                         <span className="text-[#b3b3b3] text-[13px] truncate">{album.artist}</span>
                       </div>
-                    </div>
+                    </LongPressWrapper>
                   ) : (
                     <AlbumCard key={album.id} album={album} />
                   )

@@ -16,7 +16,7 @@ export const fetchStarred = async () => {
   const url = buildUrl('getStarred2');
   const res = await fetchWithRetry(url);
   const data = await res.json();
-  return data['subsonic-response']?.starred2 || { song: [], album: [] };
+  return data['subsonic-response']?.starred2 || data['subsonic-response']?.starred || { song: [], album: [] };
 };
 
 export const setItemRating = async (id: string, rating: number) => {

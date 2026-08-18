@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Play, ListPlus, SkipForward, Trash2, Heart, Star, Download, Share2, User, Disc } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -141,15 +142,29 @@ export default function ContextMenu() {
     let downloadId = item.id;
     let dlItem = downloads[downloadId];
     
-    if (dlItem && dlItem.path) {
-      try {
-        if (dlItem.type === 'album') {
-          await StorageManager.removeDirectory(dlItem.path);
-        } else {
-          await StorageManager.removeTrack(dlItem.path);
+    if (dlItem) {
+      if (dlItem.type === 'album') {
+        if (dlItem.path) {
+          try {
+            await StorageManager.removeDirectory(dlItem.path);
+          } catch (e) {
+            console.error('Failed to remove directory on disk:', e);
+          }
         }
-      } catch (e) {
-        console.error(e);
+        const curDownloads = useDownloadStore.getState().downloads;
+        for (const childId in curDownloads) {
+          if (curDownloads[childId]?.albumId === downloadId) {
+            removeDownload(childId);
+          }
+        }
+      } else {
+        if (dlItem.path) {
+          try {
+            await StorageManager.removeTrack(dlItem.path);
+          } catch (e) {
+            console.error('Failed to remove track on disk:', e);
+          }
+        }
       }
       removeDownload(downloadId);
     }
@@ -167,7 +182,12 @@ export default function ContextMenu() {
 
   const ItemBtn = ({ icon: Icon, label, onClick, color = 'text-white' }: any) => (
     <button 
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onMouseDown={(e) => { 
+        if (e.button !== 0) return; // only left click
+        e.preventDefault(); 
+        e.stopPropagation(); 
+        onClick(); 
+      }}
       className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-white/10 transition-colors text-sm font-semibold ${color}`}
     >
       <Icon size={16} />
@@ -187,8 +207,10 @@ export default function ContextMenu() {
 
 
 
+  if (typeof document === 'undefined') return null;
+
   if (isMobile) {
-    return (
+    return createPortal(
       <>
         {/* Backdrop */}
         <div 
@@ -291,18 +313,27 @@ export default function ContextMenu() {
 
           </div>
         </div>
-      </>
+      </>,
+      document.body
     );
   }
 
-  return (
+  const winWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+  const winHeight = typeof window !== 'undefined' ? window.innerHeight : 768;
+  const safeX = typeof x === 'number' && !isNaN(x) ? x : winWidth / 2;
+  const safeY = typeof y === 'number' && !isNaN(y) ? y : winHeight / 2;
+  const left = Math.max(8, Math.min(safeX, winWidth - 230));
+  const top = Math.max(8, Math.min(safeY, winHeight - 50));
+  const transform = safeY > winHeight / 2 ? 'translateY(-100%)' : 'none';
+
+  return createPortal(
     <div 
       ref={menuRef}
       className="fixed z-[9999] bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl overflow-y-auto hide-scrollbar py-1 min-w-[220px] backdrop-blur-xl transform-gpu"
       style={{ 
-        top: Math.min(y, window.innerHeight - 50), 
-        left: Math.min(x, window.innerWidth - 230),
-        transform: y > window.innerHeight / 2 ? 'translateY(-100%)' : 'none',
+        top, 
+        left,
+        transform,
         maxHeight: '85vh'
       }}
       onContextMenu={(e) => e.preventDefault()} // prevent native menu on the custom menu
@@ -389,6 +420,7 @@ export default function ContextMenu() {
           </div>
         </>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

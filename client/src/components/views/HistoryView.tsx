@@ -10,6 +10,8 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import { useContextMenuStore } from '../../store/contextMenuStore';
+import LongPressWrapper from '../common/LongPressWrapper';
 
 function formatDuration(seconds: number, t: any) {
   if (!seconds) return '0' + t('views.mins_abbr', { defaultValue: 'м' });
@@ -40,6 +42,7 @@ export default function HistoryView() {
   const setQueueAndPlay = usePlayerStore(s => s.setQueueAndPlay);
   const navigate = useNavigate();
   const downloads = useDownloadStore(state => state.downloads);
+  const { openMenu } = useContextMenuStore();
 
   const [period, setPeriod] = useState<number | null>(7); // null = all time
   const [topLimit, setTopLimit] = useState<number>(5);
@@ -133,10 +136,19 @@ export default function HistoryView() {
               {stats.topTracks.slice(0, topLimit).map((track, i) => {
                 const [id, title, artist, coverArt] = track.key.split('|||');
                 return (
-                  <div key={id} className="flex items-center p-2 rounded-xl hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => {
-                    const t = filteredHistory.find(h => h.id === id);
-                    if (t) setQueueAndPlay([t], 0);
-                  }}>
+                  <LongPressWrapper 
+                    key={id} 
+                    className="flex items-center p-2 rounded-xl hover:bg-white/5 transition-colors group cursor-pointer" 
+                    onClick={() => {
+                      const t = filteredHistory.find(h => h.id === id);
+                      if (t) setQueueAndPlay([t], 0);
+                    }}
+                    onLongPress={(e: any) => {
+                      e.preventDefault?.();
+                      const t = filteredHistory.find(h => h.id === id);
+                      openMenu(e.clientX, e.clientY, t || { id, title, artist, coverArt: getImageUrl(coverArt, 300) }, 'track');
+                    }}
+                  >
                     <span className="text-xl font-black text-white/20 w-6 text-center mr-2">{i + 1}</span>
                     <TrackImage src={getImageUrl(coverArt, 100)} className="w-10 h-10 rounded-md mr-3 object-cover shadow-sm" alt={title} trackId={id} />
                     <div className="flex flex-col min-w-0 flex-1">
@@ -147,7 +159,7 @@ export default function HistoryView() {
                       <ArtistLinks artistString={artist} className="text-xs text-secondary truncate" />
                     </div>
                     <span className="text-sm font-bold text-secondary bg-white/5 px-2.5 py-1 rounded-md">{track.count} {t('views.times', { defaultValue: 'раз' })}</span>
-                  </div>
+                  </LongPressWrapper>
                 );
               })}
               {stats.topTracks.length === 0 && <span className="text-secondary text-sm">{t('views.no_data', { defaultValue: 'Нет данных за этот период' })}</span>}
@@ -163,7 +175,15 @@ export default function HistoryView() {
               {stats.topAlbums.slice(0, topLimit).map((album, i) => {
                 const [id, title, artist, coverArt] = album.key.split('|||');
                 return (
-                  <div key={id} className="flex items-center p-2 rounded-xl hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => navigate(`/Holad/album/${id}`)}>
+                  <LongPressWrapper 
+                    key={id} 
+                    className="flex items-center p-2 rounded-xl hover:bg-white/5 transition-colors group cursor-pointer" 
+                    onClick={() => navigate(`/Holad/album/${id}`)}
+                    onLongPress={(e: any) => {
+                      e.preventDefault?.();
+                      openMenu(e.clientX, e.clientY, { id, name: title, title, artist, coverArt: getImageUrl(coverArt || id, 300) }, 'album');
+                    }}
+                  >
                     <span className="text-xl font-black text-white/20 w-6 text-center mr-2">{i + 1}</span>
                     <TrackImage src={getImageUrl(coverArt || id, 100)} className="w-10 h-10 rounded-md mr-3 object-cover shadow-sm" alt={title} trackId={id} />
                     <div className="flex flex-col min-w-0 flex-1">
@@ -171,7 +191,7 @@ export default function HistoryView() {
                       <ArtistLinks artistString={artist} className="text-xs text-secondary truncate" />
                     </div>
                     <span className="text-sm font-bold text-secondary bg-white/5 px-2.5 py-1 rounded-md">{album.count} {t('views.times', { defaultValue: 'раз' })}</span>
-                  </div>
+                  </LongPressWrapper>
                 );
               })}
               {stats.topAlbums.length === 0 && <span className="text-secondary text-sm">{t('views.no_data', { defaultValue: 'Нет данных за этот период' })}</span>}
@@ -189,10 +209,14 @@ export default function HistoryView() {
             
             <div className="flex flex-col overflow-y-auto hide-scrollbar gap-1 pr-2">
               {filteredHistory.slice(0, 100).map((entry, idx) => (
-                <div 
+                <LongPressWrapper 
                   key={entry.playedAt.toString() + idx} 
                   className="flex items-center p-2 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group"
                   onClick={() => setQueueAndPlay([entry], 0)}
+                  onLongPress={(e: any) => {
+                    e.preventDefault?.();
+                    openMenu(e.clientX, e.clientY, { ...entry, coverArt: getImageUrl(entry.coverArt || entry.id, 300) }, 'track');
+                  }}
                 >
                   <div className="relative w-12 h-12 mr-3 flex-shrink-0">
                     <TrackImage src={getImageUrl(entry.coverArt || entry.id, 100)} className="w-full h-full rounded-md object-cover" alt={entry.title} trackId={entry.id} />
@@ -210,7 +234,7 @@ export default function HistoryView() {
                   <span className="text-[11px] font-medium text-secondary/60 whitespace-nowrap ml-2">
                     {timeAgo(entry.playedAt, t)}
                   </span>
-                </div>
+                </LongPressWrapper>
               ))}
               {filteredHistory.length === 0 && (
                 <div className="flex flex-col items-center justify-center flex-1 text-secondary opacity-50 py-20">

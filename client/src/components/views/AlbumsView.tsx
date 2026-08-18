@@ -5,20 +5,35 @@ import AlbumCard from '../common/AlbumCard';
 import TrackImage from '../common/TrackImage';
 import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
-import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import { useDownloadStore, isItemDownloaded, getDownloadedAlbums } from '../../store/downloadStore';
+import { useContextMenuStore } from '../../store/contextMenuStore';
+import LongPressWrapper from '../common/LongPressWrapper';
 
 export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 'list' }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const activeFilter = useUIStore(s => s.activeFilter);
+  const { openMenu } = useContextMenuStore();
   const [albums, setAlbums] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchAlbums().then(data => {
       // Sort alphabetically by default for library
-      const sorted = [...data].sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
+      const sorted = [...(data || [])].sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
       setAlbums(sorted);
+      setLoading(false);
+    }).catch(err => {
+      console.error('Failed to fetch albums, falling back to downloaded albums:', err);
+      const downloaded = getDownloadedAlbums().map(d => ({
+        id: d.id,
+        name: d.name,
+        title: d.name,
+        artist: d.artist || 'Unknown Artist',
+        coverArt: d.localCoverArtUri || d.coverArt || d.id,
+        songCount: d.totalTrackCount || d.completedTrackCount || 0
+      }));
+      setAlbums(downloaded);
       setLoading(false);
     });
   }, []);
@@ -69,11 +84,15 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
 
           if (viewMode === 'list') {
             return (
-              <div 
+              <LongPressWrapper 
                 key={album.id} 
                 id={isFirstOfLetter ? `letter-${letter}` : undefined} 
                 className="flex items-center gap-4 cursor-pointer scroll-mt-24"
                 onClick={() => navigate(`/Holad/album/${album.id}`)}
+                onLongPress={(e: any) => {
+                  e.preventDefault?.();
+                  openMenu(e.clientX, e.clientY, album, 'album');
+                }}
               >
                 <div className="relative w-16 h-16 flex-shrink-0">
                   <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full rounded-md object-cover" trackId={album.id} />
@@ -82,7 +101,7 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
                   <span className="text-[15px] text-white font-bold truncate">{album.name || album.title}</span>
                   <span className="text-[#b3b3b3] text-[13px] truncate">{album.artist}</span>
                 </div>
-              </div>
+              </LongPressWrapper>
             );
           }
 

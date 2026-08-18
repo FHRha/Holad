@@ -1,20 +1,29 @@
 import { useRef } from 'react';
-import { Search, X, Play, Music, Disc, Users } from 'lucide-react';
+import { Search, X, Play, Music, Disc, Users, CloudOff } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
 import { formatTime } from '../../utils/timeFormat';
 import { formatArtistName } from '../../utils/formatters';
 import JamSessionControl from '../jam/JamSessionControl';
 import { useGlobalSearch } from '../../hooks/useGlobalSearch';
 import { useUIStore, LEFT_SIDEBAR_DEFAULT_WIDTH, RIGHT_SIDEBAR_DEFAULT_WIDTH } from '../../store/uiStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { toggleOfflineMode } from '../../utils/networkStatus';
+import OfflineModeModal from '../modals/OfflineModeModal';
 import { PanelLeft, PanelRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../common/LanguageSelector';
+import { useContextMenuStore } from '../../store/contextMenuStore';
 
 export default function TopBar() {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<HTMLDivElement>(null);
+
+  const { isOffline } = useNetworkStatus();
+  const { hideOfflineExplanationModal } = useSettingsStore();
+  const { openMenu } = useContextMenuStore();
 
   const {
     query,
@@ -31,7 +40,22 @@ export default function TopBar() {
     navigateToArtist
   } = useGlobalSearch(inputRef, containerRef, sessionRef);
 
-  const { leftSidebarWidth, setLeftSidebarWidth, rightSidebarWidth, setRightSidebarWidth } = useUIStore();
+  const { 
+    leftSidebarWidth, 
+    setLeftSidebarWidth, 
+    rightSidebarWidth, 
+    setRightSidebarWidth,
+    isOfflineModalOpen,
+    setOfflineModalOpen
+  } = useUIStore();
+
+  const handleOfflineChipClick = () => {
+    if (!hideOfflineExplanationModal) {
+      setOfflineModalOpen(true);
+    } else {
+      toggleOfflineMode();
+    }
+  };
 
   const toggleLeftSidebar = () => {
     if (leftSidebarWidth < 80) {
@@ -61,6 +85,17 @@ export default function TopBar() {
         </button>
       </div>
       <div className="flex items-center gap-2 w-full max-w-xl">
+        {isOffline && (
+          <button
+            onClick={handleOfflineChipClick}
+            data-testid="desktop-offline-chip"
+            className="bg-primary/10 text-primary border border-primary/30 rounded-full px-3 py-1 text-xs font-semibold flex items-center gap-1.5 hover:bg-primary/20 transition-all shrink-0 cursor-pointer"
+            title={t('common.offline', { defaultValue: 'Офлайн' })}
+          >
+            <CloudOff size={14} className="shrink-0" />
+            <span>{t('common.offline', { defaultValue: 'Офлайн' })}</span>
+          </button>
+        )}
         <div className="relative w-full" ref={containerRef}>
           <div className="relative flex items-center w-full bg-white/10 rounded-full hover:bg-white/15 transition-colors focus-within:bg-white/15 focus-within:ring-2 focus-within:ring-primary/50">
           <Search size={20} className="text-secondary ml-4" />
@@ -113,6 +148,10 @@ export default function TopBar() {
                           key={track.id}
                           className="group flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
                           onClick={() => handlePlaySong(track)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId, 300) }, 'track');
+                          }}
                         >
                           <div className="relative w-10 h-10 rounded overflow-hidden flex-shrink-0">
                             <img src={getCoverArtUrl(track.coverArt || track.albumId, 100)} className="w-full h-full object-cover" alt="" />
@@ -145,6 +184,10 @@ export default function TopBar() {
                           key={album.id}
                           className="group relative rounded-lg overflow-hidden cursor-pointer"
                           onClick={() => navigateToAlbum(album.id)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            openMenu(e.clientX, e.clientY, album, 'album');
+                          }}
                         >
                           <div className="aspect-square bg-white/5">
                             <img src={getCoverArtUrl(album.coverArt || album.id, 300)} loading="lazy" className="w-full h-full object-cover" alt="" />
@@ -214,6 +257,13 @@ export default function TopBar() {
           <PanelRight size={18} />
         </button>
       </div>
+
+      {isOfflineModalOpen && (
+        <OfflineModeModal 
+          isOpen={isOfflineModalOpen} 
+          onClose={() => setOfflineModalOpen(false)} 
+        />
+      )}
     </div>
   );
 }

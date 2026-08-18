@@ -1,4 +1,5 @@
 import type { AudioState, IAudioCore } from './types';
+import { isLocalMediaUrl } from './AudioDeck';
 
 export class MobileAudioCore implements IAudioCore {
     private audioElement: HTMLAudioElement;
@@ -34,6 +35,13 @@ export class MobileAudioCore implements IAudioCore {
             this.audioElement.volume = 1.0;
             this.secondaryElement.pause();
         
+            if (isLocalMediaUrl(url)) {
+                this.audioElement.removeAttribute('crossorigin');
+                this.audioElement.crossOrigin = null;
+            } else {
+                this.audioElement.crossOrigin = 'anonymous';
+            }
+
             if (this.audioElement.src !== url && url) {
                 this.audioElement.src = url;
                 this.audioElement.load();
@@ -77,6 +85,13 @@ export class MobileAudioCore implements IAudioCore {
         this.audioElement = this.secondaryElement;
         this.secondaryElement = oldAudio;
         
+        if (isLocalMediaUrl(url)) {
+            this.audioElement.removeAttribute('crossorigin');
+            this.audioElement.crossOrigin = null;
+        } else {
+            this.audioElement.crossOrigin = 'anonymous';
+        }
+
         if (this.audioElement.src !== url && url) {
             this.audioElement.src = url;
             this.audioElement.load();

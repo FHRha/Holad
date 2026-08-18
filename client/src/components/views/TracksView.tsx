@@ -6,7 +6,7 @@ import { searchTracks, getCoverArtUrl, getArtists, starItem, unstarItem } from '
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
-import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../store/downloadStore';
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from '../common/TrackImage';
 import ArtistAvatar from '../common/ArtistAvatar';
@@ -60,7 +60,11 @@ export default function TracksView() {
         setTracks(sorted);
         setGlobalArtists(artistsData);
       } catch (e) {
-        console.error(e);
+        console.error('Failed to load tracks from server, falling back to offline tracks:', e);
+        const offlineList = getOfflineTracks();
+        if (offlineList.length > 0) {
+          setTracks(offlineList);
+        }
       } finally {
         setLoading(false);
       }

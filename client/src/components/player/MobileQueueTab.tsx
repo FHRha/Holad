@@ -4,16 +4,18 @@ import { usePlayerStore } from '../../store/playerStore';
 import { formatArtistName } from '../../utils/formatters';
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from '../common/TrackImage';
-import { Play } from 'lucide-react';
+import { Play, Download, MoreHorizontal } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from '../common/dnd/SortableItem';
-import { Download } from 'lucide-react';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import { useContextMenuStore } from '../../store/contextMenuStore';
+import LongPressWrapper from '../common/LongPressWrapper';
 
 export default function MobileQueueTab() {
   const { t } = useTranslation();
   const { queue, currentIndex, playTrack, role } = usePlayerStore();
+  const { openMenu } = useContextMenuStore();
   const downloads = useDownloadStore(state => state.downloads);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -46,7 +48,7 @@ export default function MobileQueueTab() {
           return (
             <SortableItem key={sortableId} id={sortableId}>
               {({ setNodeRef, attributes, listeners, style, isDragging }) => (
-                <div 
+                <LongPressWrapper 
                   ref={setNodeRef}
                   style={style}
                   id={`mobile-queue-item-${idx}`}
@@ -55,6 +57,10 @@ export default function MobileQueueTab() {
                   onClick={() => {
                     if (!readOnly && !isDragging) playTrack(idx);
                   }}
+                  onLongPress={(e: any) => {
+                    e.preventDefault?.();
+                    openMenu(e.clientX, e.clientY, { ...track, queueIndex: idx, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
+                  }}
                   className={`flex items-center w-full px-6 py-3 transition-colors ${
                     isPlaying ? 'bg-white/10' : ''
                   } ${!readOnly ? 'cursor-grab active:cursor-grabbing active:bg-white/20' : ''} ${
@@ -62,7 +68,7 @@ export default function MobileQueueTab() {
                   }`}
                 >
                   <div className="relative w-12 h-12 flex-shrink-0 mr-4 rounded-md overflow-hidden shadow-sm bg-black/20 pointer-events-none select-none">
-                    <TrackImage src={getCoverArtUrl(track.id, 100)} className="w-full h-full object-cover" alt="" />
+                    <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />
                     {isPlaying && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                         <Play size={20} className="text-primary" fill="currentColor" />
@@ -80,10 +86,25 @@ export default function MobileQueueTab() {
                     </p>
                   </div>
                   
-                  <div className="w-12 flex justify-end text-xs font-medium text-white/40 pointer-events-none select-none">
-                    {formatTime(track.duration)}
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 text-right text-xs font-medium text-white/40 pointer-events-none select-none">
+                      {formatTime(track.duration)}
+                    </div>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          openMenu(rect.left, rect.bottom, { ...track, queueIndex: idx, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
+                        }}
+                        className="p-1 text-white/40 hover:text-white transition-colors"
+                      >
+                        <MoreHorizontal size={18} />
+                      </button>
+                    )}
                   </div>
-                </div>
+                </LongPressWrapper>
               )}
             </SortableItem>
           );

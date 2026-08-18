@@ -31,11 +31,12 @@ import { useDocumentTitle } from './hooks/useDocumentTitle';
 import { useTaskbarControls } from './hooks/useTaskbarControls';
 import { useTrayIntegration } from './hooks/useTrayIntegration';
 import SettingsModal from './components/modals/SettingsModal';
+import OfflineModeModal from './components/modals/OfflineModeModal';
 import TrayMenu from './components/player/TrayMenu';
 import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
 import { useEffect, useState } from 'react';
-import { isTauri, isCapacitor } from './utils/StorageManager';
+import { isTauri } from './utils/StorageManager';
 import ServerConnectionView from './components/views/ServerConnectionView';
 
 // Helper to convert hex to rgb string for Tailwind's opacity to work
@@ -57,7 +58,7 @@ function AppContent() {
   const { isAuthenticated, isJamRoute } = useAppInitialization();
   const roomId = usePlayerStore(state => state.roomId);
   const { theme, accentColor, startPage } = useSettingsStore();
-  const isSettingsOpen = useUIStore(state => state.isSettingsOpen);
+  const { isSettingsOpen, isOfflineModalOpen, setOfflineModalOpen } = useUIStore();
   
   useTaskbarControls();
   useTrayIntegration();
@@ -190,6 +191,7 @@ function AppContent() {
           <SyncConflictModal />
           <MobileSearchOverlay />
           {isSettingsOpen && <SettingsModal />}
+          {isOfflineModalOpen && <OfflineModeModal isOpen={isOfflineModalOpen} onClose={() => setOfflineModalOpen(false)} />}
         </div>
         
         {showBottomPlayer && <BottomPlayer />}
@@ -237,9 +239,10 @@ if (isTauri()) {
 
 function App() {
   const [serverUrlSet, setServerUrlSet] = useState(!!localStorage.getItem('holadServerUrl'));
-  const isNative = isTauri() || isCapacitor();
+  const isHostedOnBackend = window.location.pathname.toLowerCase().includes('/holad');
+  const needsServerUrl = !serverUrlSet && !isHostedOnBackend;
   
-  if (isNative && !serverUrlSet) {
+  if (needsServerUrl) {
     return <ServerConnectionView onConnected={() => setServerUrlSet(true)} />;
   }
 

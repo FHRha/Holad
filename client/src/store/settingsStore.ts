@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import i18n from 'i18next';
 import type { CrossfadeCurve } from '../audio/types';
+import { setImageCacheLimit } from '../utils/imageCache';
 
 export type AppTheme = 'dark' | 'light' | 'system';
 export type AccentColor = string;
@@ -24,6 +25,9 @@ export interface SettingsState {
   runOnStartup: boolean;
   startMinimized: boolean;
   closeToTray: boolean;
+  imageCacheLimitMb: number;
+  totalStorageLimitGb: number;
+  hideOfflineExplanationModal: boolean;
   
   setTheme: (theme: AppTheme) => void;
   setAccentColor: (color: AccentColor) => void;
@@ -40,6 +44,9 @@ export interface SettingsState {
   setRunOnStartup: (enabled: boolean) => void;
   setStartMinimized: (enabled: boolean) => void;
   setCloseToTray: (enabled: boolean) => void;
+  setImageCacheLimitMb: (limitMb: number) => void;
+  setTotalStorageLimitGb: (limitGb: number) => void;
+  setHideOfflineExplanationModal: (hide: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -60,6 +67,9 @@ export const useSettingsStore = create<SettingsState>()(
       runOnStartup: true,
       startMinimized: true,
       closeToTray: true,
+      imageCacheLimitMb: 256,
+      totalStorageLimitGb: 10,
+      hideOfflineExplanationModal: false,
 
       setTheme: (theme) => set({ theme }),
       setAccentColor: (accentColor) => set({ accentColor }),
@@ -89,9 +99,22 @@ export const useSettingsStore = create<SettingsState>()(
       setRunOnStartup: (runOnStartup) => set({ runOnStartup }),
       setStartMinimized: (startMinimized) => set({ startMinimized }),
       setCloseToTray: (closeToTray) => set({ closeToTray }),
+      setImageCacheLimitMb: (limitMb) => {
+        const clamped = Math.max(32, Math.min(2048, Math.round(limitMb)));
+        setImageCacheLimit(clamped);
+        set({ imageCacheLimitMb: clamped });
+      },
+      setTotalStorageLimitGb: (limitGb) => set({ totalStorageLimitGb: Math.max(0, limitGb) }),
+      setHideOfflineExplanationModal: (hide) => set({ hideOfflineExplanationModal: hide }),
     }),
     {
       name: 'streamnavi-settings',
+      onRehydrateStorage: () => (state) => {
+        if (state && typeof state.imageCacheLimitMb === 'number') {
+          setImageCacheLimit(state.imageCacheLimitMb);
+        }
+      },
     }
   )
 );
+
