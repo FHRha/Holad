@@ -98,7 +98,7 @@ export default function AlbumCard({ album }: { album: any }) {
   const mapTracks = (tracks: any[]): Track[] => {
     return tracks.map((t: any) => ({
       id: t.id,
-      title: t.title,
+      title: t.title || t.name,
       artist: t.artist,
       album: album.title,
       albumId: album.id,
@@ -243,7 +243,7 @@ export default function AlbumCard({ album }: { album: any }) {
           </div>
 
           <div className="flex justify-end items-end z-20">
-            <MoreHorizontal size={20} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
+            <MoreHorizontal size={20} className="text-[#b3b3b3] hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>
       </div>

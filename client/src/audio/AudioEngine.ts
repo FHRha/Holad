@@ -165,6 +165,10 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             const outgoingDeck = this.decks[outgoingIndex];
             const incomingDeck = this.decks[incomingIndex];
 
+            // Abort any active transition cleanly to pause the incoming deck and reset volumes
+            // This prevents old audio's timeupdate events from leaking into the new track while loading
+            this.transitionManager.abortActiveTransition(outgoingDeck, incomingDeck, this.pipeline || undefined, outgoingIndex, this.volume * this.volumeMultiplier);
+
             // R7: Immediately switch activeIndex to incoming track at crossfade start,
             // emitting timeupdate and durationchange immediately so progress slider and lyrics jump to track 2's timing
             this.activeIndex = incomingIndex;
@@ -202,6 +206,8 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             const incomingIndex = (1 - this.activeIndex) as 0 | 1;
             const outgoingDeck = this.decks[outgoingIndex];
             const incomingDeck = this.decks[incomingIndex];
+
+            this.transitionManager.abortActiveTransition(outgoingDeck, incomingDeck, this.pipeline || undefined, outgoingIndex, this.volume * this.volumeMultiplier);
 
             this.activeIndex = incomingIndex;
             this.emit('timeupdate', position);

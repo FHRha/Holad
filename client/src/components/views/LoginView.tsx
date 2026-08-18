@@ -163,7 +163,7 @@ export default function LoginView() {
               }}
               className="w-full text-secondary hover:text-white text-sm font-medium py-2 transition-colors"
             >
-              {t('views.change_server_btn', { defaultValue: 'Сменить сервер Holad' })}
+              {t('views.change_server_btn')}
             </button>
           )}
         </form>

@@ -8,7 +8,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { starItem, unstarItem, setItemRating, getAlbum } from '../../api/subsonic';
 import { getShareUrl } from '../../utils/serverConfig';
 import { handleDownload } from '../../utils/downloadHelper';
-import { useDownloadStore } from '../../store/downloadStore';
+import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { StorageManager } from '../../utils/StorageManager';
 import type { Track } from '../../store/playerStore';
 import { getCoverArtUrl } from '../../api/subsonic';
@@ -65,7 +65,7 @@ export default function ContextMenu() {
   const isAlbum = type === 'album';
   const isLiked = isAlbum ? (likedAlbumIds || []).includes(item?.id) : (likedTrackIds || []).includes(item?.id);
   const isInQueue = !isAlbum && (queue || []).some((t: Track) => t?.id === item?.id);
-  const isDownloaded = !!downloads[item?.id] && downloads[item?.id].status === 'completed';
+  const isDownloaded = item ? isItemDownloaded(downloads, item.id, item.albumId) : false;
 
   const handleAction = async (action: () => void | Promise<void>, shouldClose = true) => {
     try {
@@ -141,6 +141,11 @@ export default function ContextMenu() {
   const onRemoveDownload = async () => {
     let downloadId = item.id;
     let dlItem = downloads[downloadId];
+    
+    if (!dlItem && item.albumId && downloads[item.albumId]) {
+      downloadId = item.albumId;
+      dlItem = downloads[downloadId];
+    }
     
     if (dlItem) {
       if (dlItem.type === 'album') {
@@ -277,7 +282,7 @@ export default function ContextMenu() {
               {!isInQueue && <MobileIconBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
               {!isGuest && <MobileIconBtn icon={Heart} label={t('common.favorite')} onClick={() => handleAction(onLike)} activeColor={isLiked ? "text-primary" : "text-white"} />}
               {!isGuest && (isDownloaded ? (
-                <MobileIconBtn icon={Trash2} color="text-primary" label={t('common.remove_download', { defaultValue: 'Удалить скачанное' })} onClick={() => handleAction(onRemoveDownload)} />
+                <MobileIconBtn icon={Trash2} color="text-primary" label={t('common.remove_download')} onClick={() => handleAction(onRemoveDownload)} />
               ) : (
                 <MobileIconBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />
               ))}
@@ -395,7 +400,7 @@ export default function ContextMenu() {
 
           <div className="py-1 border-t border-white/10">
             {isDownloaded ? (
-              <ItemBtn icon={Trash2} color="text-primary font-bold" label={t('common.remove_download', { defaultValue: 'Удалить скачанное' })} onClick={() => handleAction(onRemoveDownload)} />
+              <ItemBtn icon={Trash2} color="text-primary font-bold" label={t('common.remove_download')} onClick={() => handleAction(onRemoveDownload)} />
             ) : (
               <ItemBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />
             )}

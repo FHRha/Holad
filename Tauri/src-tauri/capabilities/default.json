@@ -11,7 +11,14 @@
     "fs:default",
     "dialog:default",
     "shell:default",
-    "shell:allow-open",
+    {
+      "identifier": "shell:allow-open",
+      "allow": [
+        {
+          "regex": ".*"
+        }
+      ]
+    },
     "core:path:default"
   ]
 }

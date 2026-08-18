@@ -18,8 +18,8 @@ function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode,
   return (
     <button 
       onClick={onClick}
-      className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-colors ${
-        isActive ? 'bg-primary text-primary-foreground' : 'bg-[#282828] text-[#b3b3b3] hover:text-white'
+      className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
+        isActive ? 'bg-primary text-white border-transparent shadow-md' : 'bg-white/5 text-[#b3b3b3] hover:bg-white/10 hover:text-white border-transparent'
       }`}
     >
       {icon}
@@ -183,7 +183,7 @@ export default function FavoritesView() {
 
         {albums.length === 0 && tracks.length === 0 && (
           <div className="flex flex-col items-center justify-center h-64 text-secondary">
-            <Heart size={48} className="mb-4 text-white/10" />
+            <Heart size={48} className="mb-4 text-[#282828]" />
             <p>{t('views.empty_favorites')}</p>
           </div>
         )}
@@ -198,19 +198,19 @@ export default function FavoritesView() {
           >
             <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
             <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
-              {t('views.search_placeholder', { defaultValue: 'Поиск...' })}
+              {t('views.search_placeholder')}
             </div>
           </div>
           <div className="flex items-center justify-between mb-4 relative">
             <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar flex-1 pr-14">
               <FilterChip 
                 icon={<CloudOff size={16} />} 
-                label={t('views.filter_offline', { defaultValue: 'Офлайн' })} 
+                label={t('views.filter_offline')} 
                 isActive={false} 
               />
               <FilterChip 
                 icon={<Download size={16} />} 
-                label={t('views.filter_downloaded', { defaultValue: 'Загружено' })} 
+                label={t('views.filter_downloaded')} 
                 isActive={false} 
               />
             </div>
@@ -223,9 +223,9 @@ export default function FavoritesView() {
           </div>
 
           <div className="flex bg-[#282828] rounded-xl overflow-hidden w-full p-1 mb-2">
-             <button onClick={() => setMobileTab('tracks')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'tracks' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>{t('views.tab_tracks', { defaultValue: 'Песни' })}</button>
-             <button onClick={() => setMobileTab('albums')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'albums' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>{t('views.tab_albums', { defaultValue: 'Альбомы' })}</button>
-             <button onClick={() => setMobileTab('artists')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'artists' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>{t('views.tab_artists', { defaultValue: 'Исполнители' })}</button>
+             <button onClick={() => setMobileTab('tracks')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'tracks' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>{t('views.tab_tracks')}</button>
+             <button onClick={() => setMobileTab('albums')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'albums' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>{t('views.tab_albums')}</button>
+             <button onClick={() => setMobileTab('artists')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'artists' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>{t('views.tab_artists')}</button>
           </div>
         </div>
         
@@ -234,9 +234,9 @@ export default function FavoritesView() {
             searchedTracks.length === 0 ? (
               <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
                 <Heart size={64} className="mb-6 text-primary" strokeWidth={1.5} />
-                <h2 className="text-2xl font-bold text-white mb-4">{t('views.no_favorite_tracks', { defaultValue: 'Нет избранных песен' })}</h2>
+                <h2 className="text-2xl font-bold text-white mb-4">{t('views.no_favorite_tracks')}</h2>
                 <p className="text-[#b3b3b3] text-[15px] leading-relaxed max-w-[280px]">
-                  {t('views.no_favorite_tracks_desc', { defaultValue: 'Отметьте ваши любимые песни, и они появятся здесь или проверьте фильтры' })}
+                  {t('views.no_favorite_tracks_desc')}
                 </p>
               </div>
             ) : (
@@ -283,9 +283,9 @@ export default function FavoritesView() {
             searchedAlbums.length === 0 ? (
               <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
                 <Heart size={64} className="mb-6 text-primary" strokeWidth={1.5} />
-                <h2 className="text-2xl font-bold text-white mb-4">{t('views.no_favorite_albums', { defaultValue: 'Нет избранных альбомов' })}</h2>
+                <h2 className="text-2xl font-bold text-white mb-4">{t('views.no_favorite_albums')}</h2>
                 <p className="text-[#b3b3b3] text-[15px] leading-relaxed max-w-[280px]">
-                  {t('views.no_favorite_albums_desc', { defaultValue: 'Отметьте ваши любимые альбомы, и они появятся здесь или проверьте фильтры' })}
+                  {t('views.no_favorite_albums_desc')}
                 </p>
               </div>
             ) : (
@@ -338,9 +338,9 @@ export default function FavoritesView() {
           {mobileTab === 'artists' && (
             <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
               <Heart size={64} className="mb-6 text-primary" strokeWidth={1.5} />
-              <h2 className="text-2xl font-bold text-white mb-4">{t('views.no_favorite_artists', { defaultValue: 'Нет избранных исполнителей' })}</h2>
+              <h2 className="text-2xl font-bold text-white mb-4">{t('views.no_favorite_artists')}</h2>
               <p className="text-[#b3b3b3] text-[15px] leading-relaxed max-w-[280px]">
-                {t('views.no_favorite_artists_desc', { defaultValue: 'Отметьте ваших любимых исполнителей, и они появятся здесь или проверьте фильтры' })}
+                {t('views.no_favorite_artists_desc')}
               </p>
             </div>
           )}

@@ -38,6 +38,8 @@ import { useUIStore } from './store/uiStore';
 import { useEffect, useState } from 'react';
 import { isTauri } from './utils/StorageManager';
 import ServerConnectionView from './components/views/ServerConnectionView';
+import { useDownloadStore } from './store/downloadStore';
+import { Toaster } from 'sonner';
 
 // Helper to convert hex to rgb string for Tailwind's opacity to work
 function hexToRgb(hex: string) {
@@ -75,7 +77,7 @@ function AppContent() {
           // Apply closeToTray setting
           await invoke('set_close_to_tray', { enabled: settings.closeToTray ?? true });
           
-          // Handle visibility on autostart
+            // Handle visibility on autostart
           const isAutostart = await invoke<boolean>('is_autostart_launch');
           if (isAutostart && settings.startMinimized === false) {
             const win = getCurrentWindow();
@@ -88,6 +90,16 @@ function AppContent() {
       };
       initTauri();
     }
+  }, []);
+
+  useEffect(() => {
+    // Reset any downloads that were stuck in 'downloading' state from a previous crash
+    useDownloadStore.getState().resetStuckDownloads();
+    
+    // Verify that downloaded files still exist on disk
+    import('./store/downloadStore').then(({ verifyDownloads }) => {
+      verifyDownloads().catch(console.error);
+    });
   }, []);
 
   useEffect(() => {
@@ -241,6 +253,7 @@ function App() {
   const [serverUrlSet, setServerUrlSet] = useState(!!localStorage.getItem('holadServerUrl'));
   const isHostedOnBackend = window.location.pathname.toLowerCase().includes('/holad');
   const needsServerUrl = !serverUrlSet && !isHostedOnBackend;
+  const theme = useSettingsStore(state => state.theme);
   
   if (needsServerUrl) {
     return <ServerConnectionView onConnected={() => setServerUrlSet(true)} />;
@@ -248,6 +261,7 @@ function App() {
 
   return (
     <Router>
+      <Toaster theme={theme === 'dark' ? 'dark' : 'light'} position="bottom-center" />
       <Routes>
         <Route path="/*" element={<AppContent />} />
       </Routes>

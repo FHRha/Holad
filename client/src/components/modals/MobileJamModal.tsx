@@ -75,8 +75,8 @@ export default function MobileJamModal({ isOpen, onClose }: MobileJamModalProps)
         >
           <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-4" />
           <div className="flex flex-col items-center gap-1 mb-2">
-            <h3 className="font-bold text-center text-white text-[17px]">{t('common.jam_session_title', { defaultValue: 'Совместный джем' })}</h3>
-            <p className="text-xs text-secondary text-center">{t('common.jam_session_desc', { defaultValue: 'Слушайте музыку вместе с друзьями' })}</p>
+            <h3 className="font-bold text-center text-white text-[17px]">{t('common.jam_session_title')}</h3>
+            <p className="text-xs text-secondary text-center">{t('common.jam_session_desc')}</p>
           </div>
         </div>
 

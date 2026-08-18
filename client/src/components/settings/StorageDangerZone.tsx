@@ -179,12 +179,12 @@ export default function StorageDangerZone({
     <div className={`flex flex-col gap-4 ${className}`}>
       <div className="flex items-center gap-2 text-red-400 font-semibold text-sm uppercase tracking-wider">
         <AlertTriangle size={18} />
-        <span>{t('settings.danger_zone', { defaultValue: 'Опасная зона' })}</span>
+        <span>{t('settings.danger_zone')}</span>
       </div>
 
       <div className={`bg-red-500/5 border border-red-500/20 rounded-2xl flex flex-col gap-4 ${isMobile ? 'p-3.5' : 'p-4 md:p-5'}`}>
         <p className="text-xs text-secondary leading-relaxed">
-          {t('settings.danger_zone_desc', { defaultValue: 'Необратимые действия по очистке кэша и удалению локальных файлов.' })}
+          {t('settings.danger_zone_desc')}
         </p>
 
         <div className="grid grid-cols-1 gap-3">
@@ -196,10 +196,10 @@ export default function StorageDangerZone({
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="text-sm font-medium text-foreground">
-                  {t('settings.clear_image_cache', { defaultValue: 'Очистить кэш изображений' })}
+                  {t('settings.clear_image_cache')}
                 </span>
                 <span className="text-xs text-secondary leading-normal">
-                  {t('settings.clear_image_cache_desc', { defaultValue: 'Очистить кэш обложек из памяти и диска' })}
+                  {t('settings.clear_image_cache_desc')}
                 </span>
               </div>
             </div>
@@ -220,10 +220,10 @@ export default function StorageDangerZone({
               {imageState === 'done' && <Check size={14} />}
               <span>
                 {imageState === 'done'
-                  ? t('settings.action_cleared', { defaultValue: 'Очищено!' })
+                  ? t('settings.action_cleared')
                   : imageState === 'confirm'
-                    ? t('settings.confirm_action', { defaultValue: 'Подтвердить?' })
-                    : t('settings.clear_images_btn', { defaultValue: 'Очистить кэш' })}
+                    ? t('settings.confirm_action')
+                    : t('settings.clear_images_btn')}
               </span>
             </button>
           </div>
@@ -236,10 +236,10 @@ export default function StorageDangerZone({
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="text-sm font-medium text-foreground">
-                  {t('settings.clear_metadata_cache', { defaultValue: 'Очистить кэш метаданных' })}
+                  {t('settings.clear_metadata_cache')}
                 </span>
                 <span className="text-xs text-secondary leading-normal">
-                  {t('settings.clear_metadata_cache_desc', { defaultValue: 'Сбросить локальную историю и кэш данных' })}
+                  {t('settings.clear_metadata_cache_desc')}
                 </span>
               </div>
             </div>
@@ -260,10 +260,10 @@ export default function StorageDangerZone({
               {metadataState === 'done' && <Check size={14} />}
               <span>
                 {metadataState === 'done'
-                  ? t('settings.action_cleared', { defaultValue: 'Очищено!' })
+                  ? t('settings.action_cleared')
                   : metadataState === 'confirm'
-                    ? t('settings.confirm_action', { defaultValue: 'Подтвердить?' })
-                    : t('settings.clear_metadata_btn', { defaultValue: 'Очистить данные' })}
+                    ? t('settings.confirm_action')
+                    : t('settings.clear_metadata_btn')}
               </span>
             </button>
           </div>
@@ -277,10 +277,10 @@ export default function StorageDangerZone({
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm font-medium text-red-300">
-                    {t('settings.delete_all_music', { defaultValue: 'Удалить всю скачанную музыку' })}
+                    {t('settings.delete_all_music')}
                   </span>
                   <span className="text-xs text-red-400/70 leading-normal">
-                    {t('settings.delete_all_music_desc', { defaultValue: 'Безвозвратное удаление всех треков и альбомов' })}
+                    {t('settings.delete_all_music_desc')}
                   </span>
                 </div>
               </div>
@@ -301,10 +301,10 @@ export default function StorageDangerZone({
                 {musicState === 'done' && <Check size={14} />}
                 <span>
                   {musicState === 'done'
-                    ? t('settings.action_deleted', { defaultValue: 'Удалено!' })
+                    ? t('settings.action_deleted')
                     : musicState === 'confirm'
-                      ? t('settings.confirm_delete_all', { defaultValue: 'Удалить всё навсегда?' })
-                      : t('settings.delete_all_music_btn', { defaultValue: 'Удалить загрузки' })}
+                      ? t('settings.confirm_delete_all')
+                      : t('settings.delete_all_music_btn')}
                 </span>
               </button>
             </div>

@@ -98,7 +98,7 @@ export default function Sidebar() {
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             className={`text-foreground flex items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 ${!isWide ? 'flex-col' : 'px-2'} w-full`}
           >
-            <img src={`${import.meta.env.BASE_URL}icons/favicon_tab.png`} alt="Holad" className={`${isWide ? 'w-10 h-10' : 'w-14 h-14'} rounded-lg shadow-lg object-cover flex-shrink-0`} />
+            <img src={`${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/favicon_tab.png`} alt="Holad" className={`${isWide ? 'w-10 h-10' : 'w-14 h-14'} rounded-lg shadow-lg object-cover flex-shrink-0`} />
             {isWide && <span className="font-bold text-lg whitespace-nowrap overflow-hidden text-ellipsis">Holad</span>}
           </button>
 
@@ -115,11 +115,13 @@ export default function Sidebar() {
                   <span className="font-bold text-sm truncate">{user || t('sidebar.user')}</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <img 
-                      src={`${import.meta.env.BASE_URL}icons/navidrome.png`} 
+                      src={`${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/navidrome.png`} 
                       alt="Navidrome" 
                       className="w-3.5 h-3.5 object-contain opacity-80 shrink-0" 
                       onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = `${import.meta.env.BASE_URL}icons/favicon_tab.png`;
+                        const target = e.currentTarget as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = `${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/favicon_tab.png`;
                       }}
                     />
                     <span className="text-xs text-secondary truncate">{url ? new URL(url).hostname : t('sidebar.local_server')}</span>
@@ -146,7 +148,7 @@ export default function Sidebar() {
                   className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
                 >
                   <Clock size={18} />
-                  <span>{t('views.listening_history', { defaultValue: 'История прослушивания' })}</span>
+                  <span>{t('views.listening_history')}</span>
                 </button>
               </div>
 
@@ -192,12 +194,13 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
   
   const items = Object.values(downloads || {});
   const activeDownloads = items.filter(d => d.status === 'downloading');
+  const pausedDownloads = items.filter(d => d.status === 'paused');
   const queuedDownloads = items.filter(d => d.status === 'queued');
-  const isDownloading = activeDownloads.length > 0;
-  const totalActive = activeDownloads.length + queuedDownloads.length;
+  const isDownloading = activeDownloads.length > 0 || pausedDownloads.length > 0;
+  const totalActive = activeDownloads.length + pausedDownloads.length + queuedDownloads.length;
   
-  const totalProgress = activeDownloads.reduce((acc, d) => acc + (d.progress || 0), 0);
-  const avgProgress = isDownloading ? Math.round(totalProgress / activeDownloads.length) : 0;
+  const totalProgress = [...activeDownloads, ...pausedDownloads].reduce((acc, d) => acc + (d.progress || 0), 0);
+  const avgProgress = isDownloading ? Math.round(totalProgress / (activeDownloads.length + pausedDownloads.length)) : 0;
 
   const to = '/Holad/downloads';
   const isActive = location.pathname.startsWith(to);
@@ -207,11 +210,11 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (avgProgress / 100) * circumference;
 
-  let tooltip = t('sidebar.downloads', { defaultValue: 'Загрузки' });
+  let tooltip = t('sidebar.downloads');
   if (isDownloading) {
     tooltip = `${tooltip}: ${avgProgress}% (${activeDownloads.length}/${totalActive})`;
   } else if (totalActive > 0) {
-    tooltip = `${tooltip}: ${totalActive} ${t('views.queued', { defaultValue: 'в очереди' })}`;
+    tooltip = `${tooltip}: ${totalActive} ${t('views.queued')}`;
   }
 
   return (
@@ -275,7 +278,7 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
         <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center justify-between gap-1">
             <span className="text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis pb-0.5">
-              {t('sidebar.downloads', { defaultValue: 'Загрузки' })}
+              {t('sidebar.downloads')}
             </span>
             {isDownloading ? (
               <span className="text-xs font-bold text-primary shrink-0 tabular-nums">
@@ -295,11 +298,10 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
                 <span className="truncate">
                   {totalActive > 1
                     ? t('sidebar.downloading_of', {
-                        defaultValue: `${activeDownloads.length} из ${totalActive}`,
                         current: activeDownloads.length,
                         total: totalActive,
                       })
-                    : t('sidebar.downloading', { defaultValue: 'Загрузка...' })}
+                    : t('sidebar.downloading')}
                 </span>
               </div>
               <div className="w-full bg-white/10 rounded-full h-1 overflow-hidden">
@@ -314,14 +316,14 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
       ) : (
         /* Compact Mode Label */
         <span className="text-[10px] font-bold leading-normal mt-1 px-1 text-center truncate w-full pb-0.5">
-          {isDownloading ? `${avgProgress}%` : t('sidebar.downloads', { defaultValue: 'Загрузки' })}
+          {isDownloading ? `${avgProgress}%` : t('sidebar.downloads')}
         </span>
       )}
     </NavLink>
   );
 }
 
-function SidebarItem({ to, icon, label, end, isWide }: { to: string, icon: React.ReactNode, label: string, end?: boolean, isWide: boolean }) {
+function SidebarItem({ to, icon, label, end, isWide, disabled }: { to: string, icon: React.ReactNode, label: string, end?: boolean, isWide: boolean, disabled?: boolean }) {
   const location = useLocation();
   // Properly check active state including trailing slashes which NavLink sometimes misses
   const path = location.pathname;
@@ -331,11 +333,16 @@ function SidebarItem({ to, icon, label, end, isWide }: { to: string, icon: React
     <NavLink 
       to={to}
       end={end}
-      className={`w-full flex ${isWide ? 'flex-row items-center px-3 py-2.5 gap-3 rounded-lg' : 'flex-col items-center gap-1'} transition-colors group ${isActive ? (isWide ? 'bg-white/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
-      title={label}
+      onClick={(e) => {
+        if (disabled) {
+          e.preventDefault();
+        }
+      }}
+      className={`w-full flex ${isWide ? 'flex-row items-center px-3 py-2.5 gap-3 rounded-lg' : 'flex-col items-center gap-1'} transition-colors group ${disabled ? 'opacity-50 cursor-not-allowed text-secondary' : isActive ? (isWide ? 'bg-white/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+      title={disabled ? `${label} (Offline)` : label}
     >
-      <div className={`relative flex justify-center ${!isWide ? 'w-full' : ''} ${isActive ? 'text-primary' : ''}`}>
-        {!isWide && isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-md"></div>}
+      <div className={`relative flex justify-center ${!isWide ? 'w-full' : ''} ${isActive && !disabled ? 'text-primary' : ''}`}>
+        {!isWide && isActive && !disabled && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-md"></div>}
         {icon}
       </div>
       {isWide ? (

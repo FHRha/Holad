@@ -4,10 +4,14 @@ import ArtistCard from '../common/ArtistCard';
 import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { useDownloadStore, getOfflineTracks } from '../../store/downloadStore';
 
 export default function ArtistsView() {
   const { t } = useTranslation();
   const activeFilter = useUIStore(s => s.activeFilter);
+  const { isOffline } = useNetworkStatus();
+  const downloads = useDownloadStore(state => state.downloads);
   const [artists, setArtists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -37,6 +41,42 @@ export default function ArtistsView() {
       setLoading(false);
     }).catch(err => {
       console.error(err);
+      
+      const offlineTracks = getOfflineTracks();
+      const currentDownloads = useDownloadStore.getState().downloads;
+      
+      const artistMap = new Map<string, any>();
+      
+      offlineTracks.forEach(t => {
+        if (t.artist) {
+          const lower = t.artist.toLowerCase();
+          if (!artistMap.has(lower)) {
+            artistMap.set(lower, {
+              id: t.artistId || lower,
+              name: t.artist,
+              albumCount: 1,
+              starred: false
+            });
+          }
+        }
+      });
+      
+      Object.values(currentDownloads).forEach(d => {
+        if (d.status === 'completed' && d.artist) {
+          const lower = d.artist.toLowerCase();
+          if (!artistMap.has(lower)) {
+            artistMap.set(lower, {
+              id: lower,
+              name: d.artist,
+              albumCount: d.type === 'album' ? 1 : 0,
+              starred: false
+            });
+          }
+        }
+      });
+      
+      const sorted = Array.from(artistMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      setArtists(sorted);
       setLoading(false);
     });
   }, []);
@@ -45,14 +85,24 @@ export default function ArtistsView() {
     let result = artists;
     if (activeFilter === 'Favorites') {
       result = result.filter(a => a.starred);
-    } else if (activeFilter === 'Downloaded' || activeFilter === 'Offline') {
-      result = [];
+    } else if (activeFilter === 'Downloaded' || activeFilter === 'Offline' || isOffline) {
+      const downloadedArtists = new Set<string>();
+      Object.values(downloads).forEach(d => {
+        if (d.status === 'completed' && d.artist) {
+          downloadedArtists.add(d.artist.toLowerCase());
+        }
+      });
+      const offlineTracks = getOfflineTracks();
+      offlineTracks.forEach(t => {
+        if (t.artist) downloadedArtists.add(t.artist.toLowerCase());
+      });
+      result = result.filter(a => downloadedArtists.has(a.name?.toLowerCase() || ''));
     }
     
     if (!search.trim()) return result;
     const lower = search.toLowerCase();
-    return result.filter(a => a.name.toLowerCase().includes(lower));
-  }, [artists, search, activeFilter]);
+    return result.filter(a => a.name?.toLowerCase().includes(lower));
+  }, [artists, search, activeFilter, isOffline, downloads]);
 
   if (loading) {
     return <div className="flex-1 flex items-center justify-center text-secondary">{t('views.loading_artists')}</div>;

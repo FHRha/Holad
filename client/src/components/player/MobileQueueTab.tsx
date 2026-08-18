@@ -34,7 +34,7 @@ export default function MobileQueueTab() {
   return (
     <div className="w-full h-full flex flex-col pt-4 overflow-y-auto hide-scrollbar" ref={listRef}>
       <h3 className="px-6 pb-2 text-lg font-bold text-white mb-2">
-        {t('player.next_in_queue', { defaultValue: 'Next in Queue' })}
+        {t('player.next_in_queue')}
       </h3>
       
       <SortableContext 
@@ -113,7 +113,7 @@ export default function MobileQueueTab() {
       
       {queue.length === 0 && (
         <div className="flex flex-col items-center justify-center h-full text-white/40">
-          <p>{t('player.queue_is_empty', { defaultValue: 'Queue is empty' })}</p>
+          <p>{t('player.queue_is_empty')}</p>
         </div>
       )}
       {/* Extra padding at the bottom so the last item isn't hidden by the navigation */}

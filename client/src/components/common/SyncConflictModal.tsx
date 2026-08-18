@@ -32,15 +32,15 @@ export default function SyncConflictModal() {
             <AlertTriangle size={32} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">{t('sync.title', { defaultValue: 'Синхронизация Истории' })}</h2>
-            <p className="text-sm">{t('sync.conflict', { defaultValue: 'Конфликт устройств' })}</p>
+            <h2 className="text-xl font-bold text-white">{t('sync.title')}</h2>
+            <p className="text-sm">{t('sync.conflict')}</p>
           </div>
         </div>
 
         <p className="text-secondary text-sm mb-6 leading-relaxed">
-          <span dangerouslySetInnerHTML={{ __html: t('sync.description_part1', { count: pendingHistorySync.length, defaultValue: 'На твоём устройстве сейчас пустая история прослушиваний. Однако по сети <span className="text-primary font-medium">Holad Connect</span> найдена история с другого устройства ({{count}} треков).' }) }} />
+          <span dangerouslySetInnerHTML={{ __html: t('sync.description_part1', { count: pendingHistorySync.length }) }} />
           <br /><br />
-          {t('sync.description_part2', { defaultValue: 'Хочешь восстановить эту историю сюда, или ты специально очистил кэш и хочешь удалить историю отовсюду?' })}
+          {t('sync.description_part2')}
         </p>
 
         <div className="flex flex-col gap-3">
@@ -49,14 +49,14 @@ export default function SyncConflictModal() {
             className="flex items-center justify-center gap-2 w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-colors"
           >
             <Server size={18} />
-            {t('sync.restore', { defaultValue: 'Восстановить историю' })}
+            {t('sync.restore')}
           </button>
           <button 
             onClick={handleWipe}
             className="flex items-center justify-center gap-2 w-full py-3 bg-white/5 text-red-400 font-bold rounded-xl hover:bg-white/10 transition-colors"
           >
             <Trash2 size={18} />
-            {t('sync.delete_everywhere', { defaultValue: 'Удалить отовсюду' })}
+            {t('sync.delete_everywhere')}
           </button>
         </div>
       </div>

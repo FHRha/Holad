@@ -63,7 +63,7 @@ export default function MobileSearchOverlay() {
             type="text" 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('topbar.search', { defaultValue: 'Поиск...' })}
+            placeholder={t('topbar.search')}
             className="flex-1 bg-transparent border-none outline-none text-[15px] text-white placeholder-secondary font-medium"
           />
           {query && (
@@ -82,8 +82,8 @@ export default function MobileSearchOverlay() {
         {!query && (
           <div className="h-full flex flex-col items-center justify-center opacity-70 px-8 text-center -mt-20">
             <Search size={56} className="mb-6 text-primary" />
-            <h3 className="text-xl font-bold mb-2 text-white">{t('views.search_favorite_music', { defaultValue: 'Найдите любимую музыку' })}</h3>
-            <p className="text-sm text-secondary font-medium">{t('views.search_desc', { defaultValue: 'Введите название трека, исполнителя или альбома для поиска.' })}</p>
+            <h3 className="text-xl font-bold mb-2 text-white">{t('views.search_favorite_music')}</h3>
+            <p className="text-sm text-secondary font-medium">{t('views.search_desc')}</p>
           </div>
         )}
         {loading && (
@@ -104,7 +104,7 @@ export default function MobileSearchOverlay() {
             {results.song.length > 0 && (
               <section>
                 <h3 className="text-sm font-bold tracking-widest text-secondary mb-4 flex items-center gap-2">
-                  <Music size={16} /> {t('sidebar.tracks', { defaultValue: 'Треки' })}
+                  <Music size={16} /> {t('sidebar.tracks')}
                 </h3>
                 <div className="flex flex-col gap-2">
                   {results.song.slice(0, 5).map(track => (
@@ -151,7 +151,7 @@ export default function MobileSearchOverlay() {
             {results.album.length > 0 && (
               <section>
                 <h3 className="text-sm font-bold tracking-widest text-secondary mb-4 flex items-center gap-2">
-                  <Disc size={16} /> {t('sidebar.albums', { defaultValue: 'Альбомы' })}
+                  <Disc size={16} /> {t('sidebar.albums')}
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   {results.album.slice(0, 4).map(album => (
@@ -184,7 +184,7 @@ export default function MobileSearchOverlay() {
             {results.artist.length > 0 && (
               <section>
                 <h3 className="text-sm font-bold tracking-widest text-secondary mb-4 flex items-center gap-2">
-                  <Users size={16} /> {t('sidebar.artists', { defaultValue: 'Исполнители' })}
+                  <Users size={16} /> {t('sidebar.artists')}
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {results.artist.map(artist => (

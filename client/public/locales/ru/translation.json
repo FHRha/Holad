@@ -131,7 +131,7 @@
     "downloaded_music": "Скачанная музыка",
     "downloaded_music_library": "Скачанная медиатека",
     "download_entire_library": "Скачать всю библиотеку",
-    "download_entire_library_desc": "Скачать все избранные треки и альбомы для прослушивания офлайн",
+    "download_entire_library_desc": "Скачать все доступные треки и альбомы с сервера для прослушивания офлайн",
     "all_library_already_downloaded": "Вся библиотека уже скачана!",
     "library_download_completed": "Загрузка библиотеки завершена!",
     "cannot_download_offline": "Невозможно скачать библиотеку в режиме офлайн",
@@ -147,7 +147,11 @@
     "albums_count": "альбомов",
     "tracks_count": "треков",
     "syncing": "Синхронизация...",
-    "downloading": "Загрузка..."
+    "downloading": "Загрузка...",
+    "download_concurrency": "Параллельные загрузки (потоки)",
+    "download_concurrency_desc": "Максимальное количество одновременно скачиваемых треков",
+    "offline_mode": "Офлайн режим",
+    "offline_mode_desc": "Принудительно работать без сети"
   },
   "topbar": {
     "search": "Поиск...",
@@ -386,7 +390,12 @@
     "multiplier_value": "Процент усиления",
     "track": "Трек",
     "download_error": "Ошибка скачивания",
-    "change_server_btn": "Сменить сервер Holad"
+    "change_server_btn": "Сменить сервер Holad",
+    "downloaded_albums": "Скачанные альбомы",
+    "downloaded_tracks": "Скачанные треки",
+    "rescan": "Обновить",
+    "delete_all": "Удалить всё",
+    "paused": "на паузе"
   },
   "common": {
     "toggle_menu": "Переключить меню",
@@ -441,7 +450,10 @@
     "error_boundary_title": "Что-то пошло не так",
     "error_boundary_desc": "Приложение столкнулось с неожиданной ошибкой.",
     "error_boundary_reload": "Перезагрузить приложение",
-    "music": "МУЗЫКА"
+    "music": "МУЗЫКА",
+    "go_offline": "Перейти в офлайн",
+    "resume": "Продолжить",
+    "pause": "Пауза"
   },
   "jam": {
     "jam_error": "Ошибка сессии",

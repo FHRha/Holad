@@ -59,27 +59,27 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
 
       <div className="grid grid-cols-2 gap-4 mb-8">
         <div className="bg-white/5 rounded-xl p-4 flex flex-col justify-center items-center">
-          <span className="text-xs text-white/40 uppercase font-bold tracking-wider mb-1">{t('player.duration', { defaultValue: 'Duration' })}</span>
+          <span className="text-xs text-white/40 uppercase font-bold tracking-wider mb-1">{t('player.duration')}</span>
           <span className="text-sm font-medium text-white">{formatTime(currentTrack.duration)}</span>
         </div>
         <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center justify-center">
-          <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.year', { defaultValue: 'Год' })}</span>
+          <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.year')}</span>
           <span className="font-bold text-sm text-white">{(currentTrack as any).year || '—'}</span>
         </div>
         
         <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center justify-center">
-          <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.format', { defaultValue: 'Формат' })}</span>
+          <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.format')}</span>
           <span className="font-bold text-sm text-white uppercase">{(currentTrack as any).suffix || 'MP3'}</span>
         </div>
         
         <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center justify-center">
-          <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.bitrate', { defaultValue: 'Битрейт' })}</span>
+          <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.bitrate')}</span>
           <span className="font-bold text-sm text-white">{(currentTrack as any).bitRate ? `${(currentTrack as any).bitRate} kbps` : '320 kbps'}</span>
         </div>
       </div>
 
       <div>
-        <h3 className="text-lg font-bold text-white mb-3">{t('player.about_artist', { defaultValue: 'About Artist' })}</h3>
+        <h3 className="text-lg font-bold text-white mb-3">{t('player.about_artist')}</h3>
         {loading ? (
           <div className="animate-pulse space-y-2">
             <div className="h-4 bg-white/10 rounded w-full"></div>
@@ -92,7 +92,7 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
             dangerouslySetInnerHTML={{ __html: artistBio }}
           />
         ) : (
-          <p className="text-sm text-white/40">{t('player.no_biography', { defaultValue: 'No biography available.' })}</p>
+          <p className="text-sm text-white/40">{t('player.no_biography')}</p>
         )}
       </div>
     </div>

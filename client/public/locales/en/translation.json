@@ -131,7 +131,7 @@
     "downloaded_music": "Downloaded Music",
     "downloaded_music_library": "Downloaded Library",
     "download_entire_library": "Download Entire Library",
-    "download_entire_library_desc": "Download all starred tracks and albums for offline listening",
+    "download_entire_library_desc": "Download all available tracks and albums from the server for offline listening",
     "all_library_already_downloaded": "All library items are already downloaded!",
     "library_download_completed": "Library download completed!",
     "cannot_download_offline": "Cannot download library while offline",
@@ -147,7 +147,11 @@
     "albums_count": "albums",
     "tracks_count": "tracks",
     "syncing": "Syncing...",
-    "downloading": "Downloading..."
+    "downloading": "Downloading...",
+    "download_concurrency": "Concurrent downloads (threads)",
+    "download_concurrency_desc": "Maximum number of simultaneous track downloads",
+    "offline_mode": "Offline Mode",
+    "offline_mode_desc": "Force working without internet"
   },
   "topbar": {
     "search": "Search...",
@@ -386,7 +390,12 @@
     "multiplier_value": "Gain percentage",
     "track": "Track",
     "download_error": "Download error",
-    "change_server_btn": "Change Holad server"
+    "change_server_btn": "Change Holad server",
+    "downloaded_albums": "Downloaded Albums",
+    "downloaded_tracks": "Downloaded Tracks",
+    "rescan": "Rescan",
+    "delete_all": "Delete All",
+    "paused": "Paused"
   },
   "common": {
     "toggle_menu": "Toggle menu",
@@ -441,7 +450,10 @@
     "error_boundary_title": "Something went wrong",
     "error_boundary_desc": "The application encountered an unexpected error.",
     "error_boundary_reload": "Reload application",
-    "music": "MUSIC"
+    "music": "MUSIC",
+    "go_offline": "Go Offline",
+    "resume": "Resume",
+    "pause": "Pause"
   },
   "jam": {
     "jam_error": "Session error",

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { formatArtistName } from '../../utils/formatters';
 import { Play, Pause, Heart, Clock, Search, FilterX, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -13,10 +13,12 @@ import ArtistAvatar from '../common/ArtistAvatar';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useTrackFilters } from '../../hooks/useTrackFilters';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import LongPressWrapper from '../common/LongPressWrapper';
 
 export default function TracksView() {
   const { t } = useTranslation();
+  const { isOffline } = useNetworkStatus();
   const [tracks, setTracks] = useState<any[]>([]);
   const [globalArtists, setGlobalArtists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +30,34 @@ export default function TracksView() {
   const { setQueueAndPlay, queue, currentIndex, likedTrackIds, toggleTrackLike, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const downloads = useDownloadStore(state => state.downloads);
+
+  const baseTracks = useMemo(() => {
+    let result = tracks;
+    if (activeFilter === 'Favorites') {
+      result = result.filter(t => t.userRating && t.userRating >= 4);
+    } else if (activeFilter === 'Downloaded' || activeFilter === 'Offline' || isOffline) {
+      result = result.filter(t => isItemDownloaded(downloads, t.id, t.albumId));
+    }
+    return result;
+  }, [tracks, activeFilter, isOffline, downloads]);
+
+  const baseArtists = useMemo(() => {
+    let result = globalArtists;
+    if (activeFilter === 'Downloaded' || activeFilter === 'Offline' || isOffline) {
+      const downloadedArtists = new Set<string>();
+      Object.values(downloads).forEach(d => {
+        if (d.status === 'completed' && d.artist) {
+          downloadedArtists.add(d.artist.toLowerCase());
+        }
+      });
+      const offlineTracks = getOfflineTracks();
+      offlineTracks.forEach(t => {
+        if (t.artist) downloadedArtists.add(t.artist.toLowerCase());
+      });
+      result = result.filter(a => downloadedArtists.has(a.name?.toLowerCase() || ''));
+    }
+    return result;
+  }, [globalArtists, activeFilter, isOffline, downloads]);
 
   const {
     filterLiked,
@@ -46,7 +76,7 @@ export default function TracksView() {
     filteredTracks,
     toggleArtist,
     toggleAlbum
-  } = useTrackFilters(tracks, globalArtists);
+  } = useTrackFilters(baseTracks, baseArtists);
 
   useEffect(() => {
     const loadTracks = async () => {
@@ -72,16 +102,7 @@ export default function TracksView() {
     loadTracks();
   }, []);
 
-  const finalTracks = (() => {
-    let result = filteredTracks;
-    if (activeFilter === 'Favorites') {
-      result = filteredTracks.filter(t => t.userRating && t.userRating >= 4);
-    } else if (activeFilter === 'Downloaded' || activeFilter === 'Offline') {
-      const { downloads } = useDownloadStore.getState();
-      result = filteredTracks.filter(t => isItemDownloaded(downloads, t.id, t.albumId));
-    }
-    return result;
-  })();
+  const finalTracks = filteredTracks;
 
   const handlePlay = (index: number) => {
     const mapped: Track[] = finalTracks.map(t => ({
@@ -185,7 +206,7 @@ export default function TracksView() {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
             <input 
               type="text" 
-              placeholder={t('views.search_albums', { defaultValue: 'Поиск альбома...' })} 
+              placeholder={t('views.search_albums')} 
               value={albumSearch}
               onChange={e => setAlbumSearch(e.target.value)}
               className="w-full bg-black border border-white/10 rounded-md py-1.5 pl-9 pr-3 text-xs text-white focus:outline-none focus:border-white/30 transition-colors"
@@ -223,11 +244,11 @@ export default function TracksView() {
           {/* Table Header */}
           <div className="hidden md:flex items-center px-6 py-3 border-b border-white/5 text-[11px] font-bold tracking-widest text-secondary uppercase bg-[#181818]">
             <div className="w-10 text-center">#</div>
-            <div className="flex-1 min-w-[200px]">{t('views.title', { defaultValue: 'Title' })}</div>
+            <div className="flex-1 min-w-[200px]">{t('views.title')}</div>
             <div className="w-16 flex justify-center"><Clock size={14} /></div>
-            <div className="flex-1 min-w-[150px]">{t('views.album', { defaultValue: 'Album' })}</div>
-            <div className="w-32 hidden md:block">{t('views.genre', { defaultValue: 'Genre' })}</div>
-            <div className="w-16 text-right hidden lg:block">{t('views.year', { defaultValue: 'Year' })}</div>
+            <div className="flex-1 min-w-[150px]">{t('views.album')}</div>
+            <div className="w-32 hidden md:block">{t('views.genre')}</div>
+            <div className="w-16 text-right hidden lg:block">{t('views.year')}</div>
             <div className="w-16 flex justify-center ml-4"><Heart size={14} /></div>
           </div>
 

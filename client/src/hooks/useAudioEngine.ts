@@ -44,7 +44,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const isHoladConnected = useHoladStore(s => s.roomId !== null);
   const isActiveDevice = !isHoladConnected || holadActiveDeviceId === holadDeviceId || holadActiveDeviceId === null;
 
-  const { src: audioSrc, trackId: srcTrackId, isLoading: srcLoading } = useTrackSource(currentTrack);
+  const { src: audioSrc, trackId: srcTrackId, isLoading: srcLoading, isAvailable } = useTrackSource(currentTrack);
 
   const [activeIndex, setActiveIndex] = useState<0 | 1>(0);
   const engineRef = useRef<AudioEngine>(AudioEngine.getInstance());
@@ -100,7 +100,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const { vol, multiplier, isMobile } = getScaledVolume();
     engineRef.current.setVolume(vol, isMobile);
     engineRef.current.setVolumeMultiplier(multiplier);
-  }, [volume, mobileVolume, volumeMultiplier, getScaledVolume]);
+  }, [getScaledVolume, volume, mobileVolume, volumeMultiplier]);
 
   useEffect(() => {
     engineRef.current.setPlaybackRate(playbackRate);
@@ -136,7 +136,15 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const prevActiveDeviceRef = useRef<boolean>(isActiveDevice);
 
   useEffect(() => {
-    if (!currentTrack || srcLoading || !audioSrc || srcTrackId !== currentTrack.id) return;
+    if (!currentTrack || srcLoading || srcTrackId !== currentTrack.id) return;
+    
+    if (!isAvailable) {
+      setIsPlaying(false);
+      engineRef.current.pause();
+      console.warn('This track is not available offline');
+      return;
+    }
+    if (!audioSrc) return;
     
     const didDeviceBecomeActive = isActiveDevice && !prevActiveDeviceRef.current;
     prevActiveDeviceRef.current = isActiveDevice;
@@ -302,9 +310,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         }
 
         // Auto crossfade trigger
-        if (settings.isCrossfadeEnabled && dur > 0 && currentTrack.id !== crossfadeTriggeredRef.current) {
-          const remaining = dur - currentTime;
-          if (remaining > 0 && remaining <= settings.crossfadeDuration) {
+        const actualDur = engine.getDuration() || currentTrack.duration || 0;
+        if (settings.isCrossfadeEnabled && actualDur > 0 && currentTrack.id !== crossfadeTriggeredRef.current) {
+          const remaining = actualDur - currentTime;
+          if (remaining > 0 && remaining <= settings.crossfadeDuration && currentTime > 0) {
             crossfadeTriggeredRef.current = currentTrack.id;
             nextTrack();
           }

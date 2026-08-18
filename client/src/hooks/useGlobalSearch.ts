@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { searchAll, getCoverArtUrl } from '../api/subsonic';
 import { useUIStore } from '../store/uiStore';
 import { usePlayerStore } from '../store/playerStore';
+import { useNetworkStatus } from './useNetworkStatus';
+import { getOfflineTracks, getDownloadedAlbums } from '../store/downloadStore';
 
 export function useGlobalSearch(
   inputRef: React.RefObject<HTMLInputElement | null>,
@@ -71,6 +73,8 @@ export function useGlobalSearch(
     }
   }, [isSearchOpen, inputRef]);
 
+  const { isOffline } = useNetworkStatus();
+
   useEffect(() => {
     // Ignore fetch if this component is hidden or not mounted
     if (!inputRef.current || inputRef.current.getBoundingClientRect().width === 0) {
@@ -81,12 +85,40 @@ export function useGlobalSearch(
       if (query.trim().length >= 2) {
         setLoading(true);
         try {
-          const data = await searchAll(query);
-          setResults({
-            song: data.song || [],
-            album: data.album || [],
-            artist: data.artist || []
-          });
+          if (isOffline) {
+            const offlineTracks = getOfflineTracks();
+            const offlineAlbums = getDownloadedAlbums();
+            
+            const q = query.toLowerCase();
+            const song = offlineTracks.filter((t: any) => 
+              t.title?.toLowerCase().includes(q) || t.artist?.toLowerCase().includes(q)
+            );
+            const album = offlineAlbums.filter((a: any) => 
+              a.name?.toLowerCase().includes(q) || a.artist?.toLowerCase().includes(q)
+            );
+            
+            // Derive unique artists from the matched songs and albums
+            const artistsMap = new Map();
+            song.forEach((t: any) => {
+              if (t.artist) artistsMap.set(t.artist, { id: t.artistId || t.artist, name: t.artist });
+            });
+            album.forEach((a: any) => {
+              if (a.artist) artistsMap.set(a.artist, { id: a.artistId || a.artist, name: a.artist });
+            });
+            
+            setResults({
+              song,
+              album,
+              artist: Array.from(artistsMap.values())
+            });
+          } else {
+            const data = await searchAll(query);
+            setResults({
+              song: data.song || [],
+              album: data.album || [],
+              artist: data.artist || []
+            });
+          }
         } catch (e) {
           console.error("Search failed", e);
         } finally {
@@ -98,7 +130,7 @@ export function useGlobalSearch(
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, setResults, setLoading, inputRef]);
+  }, [query, setResults, setLoading, inputRef, isOffline]);
 
   const handlePlaySong = (song: any) => {
     setQueueAndPlay([{

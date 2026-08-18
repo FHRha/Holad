@@ -1,11 +1,15 @@
 import { isTauri, isCapacitor, StorageManager } from './StorageManager';
-import { getDownloadUrl, getAlbumFull, getCoverArtUrl, getSong, fetchStarred, getStarred } from '../api/subsonic';
+import { getDownloadUrl, getAlbumFull, getCoverArtUrl, getSong } from '../api/subsonic';
 import { join } from '@tauri-apps/api/path';
 import { useDownloadStore, isItemDownloaded } from '../store/downloadStore';
 import type { DownloadItem } from '../store/downloadStore';
 import { isOffline } from './networkStatus';
 
 const activeAbortControllers = new Map<string, AbortController>();
+
+export const isDownloadActive = (id: string) => {
+  return activeAbortControllers.has(id);
+};
 
 export const cancelActiveDownload = (id: string) => {
   const controller = activeAbortControllers.get(id);
@@ -16,13 +20,26 @@ export const cancelActiveDownload = (id: string) => {
   useDownloadStore.getState().cancelDownload(id);
 };
 
+const waitIfPaused = async (id: string, signal?: AbortSignal) => {
+  while (true) {
+    if (signal?.aborted) return;
+    const status = useDownloadStore.getState().downloads[id]?.status;
+    if (status === 'cancelled' || status === 'error') return;
+    if (status !== 'paused') return;
+    await new Promise(r => setTimeout(r, 500));
+  }
+};
+
+
+
 const downloadSingleFile = async (
   url: string,
   name: string,
   onProgress?: (loaded: number, total: number) => void,
   downloadDirectory?: string | null,
   subDir?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  checkPause?: () => Promise<void>
 ): Promise<{ filePath: string; sizeBytes: number }> => {
   const response = await fetch(url, { signal });
   if (!response.ok) {
@@ -38,6 +55,8 @@ const downloadSingleFile = async (
 
   const chunks: Uint8Array[] = [];
   while (true) {
+    if (checkPause) await checkPause();
+    if (signal?.aborted) throw new Error('Aborted');
     const { done, value } = await reader.read();
     if (done) break;
     if (value) {
@@ -58,6 +77,8 @@ const downloadSingleFile = async (
   }
   
   const contentDisposition = response.headers.get('content-disposition');
+  const contentType = response.headers.get('content-type');
+  
   let ext = '.mp3';
   if (contentDisposition) {
     const match = contentDisposition.match(/filename="?([^"]+)"?/);
@@ -67,6 +88,15 @@ const downloadSingleFile = async (
         ext = '.' + parts[parts.length - 1];
       }
     }
+  } else if (contentType) {
+    if (contentType.includes('audio/flac') || contentType.includes('audio/x-flac')) ext = '.flac';
+    else if (contentType.includes('audio/mp4') || contentType.includes('audio/m4a') || contentType.includes('audio/x-m4a')) ext = '.m4a';
+    else if (contentType.includes('audio/ogg')) ext = '.ogg';
+    else if (contentType.includes('audio/wav') || contentType.includes('audio/x-wav')) ext = '.wav';
+    else if (contentType.includes('audio/aac')) ext = '.aac';
+    else if (contentType.includes('audio/webm')) ext = '.webm';
+    else if (contentType.includes('audio/opus')) ext = '.opus';
+    // default remains .mp3
   }
 
   const safeName = name.replace(/[/\\?%*:|"<>]/g, '-');
@@ -149,6 +179,11 @@ export const handleDownload = async (id: string, name: string, type: 'track' | '
         // 1. Download Album Cover Art
         let localCoverArtUri: string | undefined = undefined;
         if (album.coverArt) {
+          await waitIfPaused(id, signal);
+          if (signal.aborted) {
+            useDownloadStore.getState().cancelDownload(id);
+            return;
+          }
           const coverResult = await downloadCoverArt(album.coverArt, `${safeAlbumName}_cover`, downloadDirectory, 'covers', signal);
           if (signal.aborted) {
             useDownloadStore.getState().cancelDownload(id);
@@ -173,6 +208,7 @@ export const handleDownload = async (id: string, name: string, type: 'track' | '
         const subDir = isTauri() ? await join('albums', safeAlbumName) : `albums/${safeAlbumName}`;
 
         for (const song of songs) {
+          await waitIfPaused(id, signal);
           if (signal.aborted) break;
           const trackName = song.title || song.name || 'track';
           updateCurrentTrack(id, trackName);
@@ -192,7 +228,8 @@ export const handleDownload = async (id: string, name: string, type: 'track' | '
               },
               downloadDirectory,
               subDir,
-              signal
+              signal,
+              () => waitIfPaused(id, signal)
             );
 
             completedSongs++;
@@ -262,6 +299,11 @@ export const handleDownload = async (id: string, name: string, type: 'track' | '
         // Download cover art if available
         let localCoverArtUri: string | undefined = undefined;
         if (track.coverArt) {
+          await waitIfPaused(id, signal);
+          if (signal.aborted) {
+            useDownloadStore.getState().cancelDownload(id);
+            return;
+          }
           const coverResult = await downloadCoverArt(track.coverArt, `track_${id}_cover`, downloadDirectory, 'covers', signal);
           if (signal.aborted) {
             useDownloadStore.getState().cancelDownload(id);
@@ -273,18 +315,30 @@ export const handleDownload = async (id: string, name: string, type: 'track' | '
           }
         }
 
+        await waitIfPaused(id, signal);
+        if (signal.aborted) {
+          useDownloadStore.getState().cancelDownload(id);
+          return;
+        }
+
+        let lastTrackProgress = -1;
         const url = getDownloadUrl(id);
         const { filePath, sizeBytes } = await downloadSingleFile(
           url,
           trackName,
           (loaded, total) => {
             if (total > 0) {
-              updateProgress(id, Math.round((loaded / total) * 100), loaded, total);
+              const currentProgress = Math.round((loaded / total) * 100);
+              if (currentProgress > lastTrackProgress) {
+                lastTrackProgress = currentProgress;
+                updateProgress(id, currentProgress, loaded, total);
+              }
             }
           },
           downloadDirectory,
           'tracks',
-          signal
+          signal,
+          () => waitIfPaused(id, signal)
         );
 
         if (signal.aborted) {
@@ -337,31 +391,23 @@ export interface DownloadEntireLibraryResult {
 }
 
 /**
- * Robustly fetches all starred tracks and albums from Subsonic API.
- * Supports both getStarred2 and getStarred responses.
+ * Robustly fetches all albums from Subsonic API to download the entire server library.
  */
-export const fetchStarredLibrary = async (): Promise<{ songs: any[]; albums: any[] }> => {
+export const fetchAllLibrary = async (): Promise<{ songs: any[]; albums: any[] }> => {
   try {
-    const data = await fetchStarred();
-    const rawSongs = data?.song || (data as any)?.starred?.song || (data as any)?.starred2?.song || [];
-    const rawAlbums = data?.album || (data as any)?.starred?.album || (data as any)?.starred2?.album || [];
-
-    const songs = Array.isArray(rawSongs) ? rawSongs : (rawSongs ? [rawSongs] : []);
+    const { buildUrl, fetchWithRetry } = await import('../api/subsonic-core');
+    const url = buildUrl('getAlbumList2', { type: 'newest', size: '50000' });
+    const res = await fetchWithRetry(url);
+    const data = await res.json();
+    const rawAlbums = data['subsonic-response']?.albumList2?.album || [];
     const albums = Array.isArray(rawAlbums) ? rawAlbums : (rawAlbums ? [rawAlbums] : []);
-
-    if (songs.length === 0 && albums.length === 0) {
-      try {
-        const legacy = await getStarred();
-        const legacySongs = Array.isArray(legacy) ? legacy : (legacy ? [legacy] : []);
-        return { songs: legacySongs, albums: [] };
-      } catch {
-        // Ignore legacy fallback error
-      }
-    }
-
-    return { songs, albums };
+    
+    // To also get loose tracks, we can optionally search or get random, 
+    // but Subsonic usually groups all music into albums.
+    // For safety, we will just return the massive album list.
+    return { songs: [], albums };
   } catch (error) {
-    console.error('Failed to fetch starred library:', error);
+    console.error('Failed to fetch entire library:', error);
     throw error;
   }
 };
@@ -375,7 +421,7 @@ export const filterItemsForLibraryDownload = (
   downloads: Record<string, DownloadItem>
 ) => {
   const albumsToQueue: Array<{ id: string; name: string; coverArt?: string }> = [];
-  const tracksToQueue: Array<{ id: string; name: string; coverArt?: string; albumId?: string; artist?: string; album?: string; duration?: number }> = [];
+  const tracksToQueue: Array<{ id: string; name: string; coverArt?: string; albumId?: string; artist?: string; album?: string; duration?: number; genre?: string; title?: string }> = [];
   const albumIdsToDownload = new Set<string>();
 
   // 1. Process Starred Albums
@@ -427,7 +473,9 @@ export const filterItemsForLibraryDownload = (
       albumId: song.albumId,
       artist: song.artist,
       album: song.album,
-      duration: song.duration
+      duration: song.duration,
+      genre: song.genre,
+      title: song.title
     });
   }
 
@@ -453,7 +501,7 @@ export const downloadEntireLibrary = async (
 
   onProgress?.({ total: 0, queued: 0, skipped: 0, completed: 0, failed: 0, status: 'fetching' });
 
-  const { songs, albums } = await fetchStarredLibrary();
+  const { songs, albums } = await fetchAllLibrary();
   const downloads = useDownloadStore.getState().downloads;
 
   const { albumsToQueue, tracksToQueue, skippedCount, totalCount } = filterItemsForLibraryDownload(songs, albums, downloads);
@@ -472,11 +520,12 @@ export const downloadEntireLibrary = async (
     store.queueDownload(alb.id, alb.name, 'album', alb.coverArt);
   }
   for (const trk of tracksToQueue) {
-    store.queueDownload(trk.id, trk.name, 'track', trk.coverArt, {
+    store.queueDownload(trk.id, trk.name || trk.title || 'Unknown Track', 'track', trk.coverArt, {
       artist: trk.artist,
       album: trk.album,
       albumId: trk.albumId,
-      duration: trk.duration
+      duration: trk.duration,
+      genre: trk.genre,
     });
   }
 

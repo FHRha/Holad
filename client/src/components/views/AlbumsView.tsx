@@ -7,12 +7,15 @@ import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
 import { useDownloadStore, isItemDownloaded, getDownloadedAlbums } from '../../store/downloadStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import LongPressWrapper from '../common/LongPressWrapper';
 
 export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 'list' }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const activeFilter = useUIStore(s => s.activeFilter);
+  const { isOffline } = useNetworkStatus();
+  const downloads = useDownloadStore(state => state.downloads);
   const { openMenu } = useContextMenuStore();
   const [albums, setAlbums] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,8 +49,7 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
     let result = albums;
     if (activeFilter === 'Favorites') {
       result = albums.filter(a => a.userRating && a.userRating >= 4);
-    } else if (activeFilter === 'Downloaded' || activeFilter === 'Offline') {
-      const { downloads } = useDownloadStore.getState();
+    } else if (activeFilter === 'Downloaded' || activeFilter === 'Offline' || isOffline) {
       result = albums.filter(a => isItemDownloaded(downloads, a.id, a.id));
     }
     return result;

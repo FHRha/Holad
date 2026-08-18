@@ -45,6 +45,7 @@ export default function DownloadedMusicGrid({
   const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
   const playNext = usePlayerStore(state => state.playNext);
   const clickAction = useSettingsStore(state => state.clickAction);
+  const maxDownloadConcurrency = useSettingsStore(state => state.maxDownloadConcurrency);
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'albums' | 'tracks'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -88,7 +89,7 @@ export default function DownloadedMusicGrid({
   const handleDownloadEntireLibrary = async () => {
     if (isDownloadingLibrary) return;
     if (isOffline()) {
-      setLibraryDownloadedMsg(t('settings.cannot_download_offline', { defaultValue: 'Невозможно скачать библиотеку в режиме офлайн' }));
+      setLibraryDownloadedMsg(t('settings.cannot_download_offline'));
       setTimeout(() => setLibraryDownloadedMsg(null), 3500);
       return;
     }
@@ -102,15 +103,13 @@ export default function DownloadedMusicGrid({
         if (progress.status === 'downloading' || progress.status === 'enqueuing') {
           setLibraryProgress({ current: progress.completed, total: progress.queued });
         }
-      });
+      }, maxDownloadConcurrency);
 
       if (result.queuedCount === 0) {
-        setLibraryDownloadedMsg(t('settings.all_library_already_downloaded', { defaultValue: 'Вся библиотека уже скачана!' }));
+        setLibraryDownloadedMsg(t('settings.all_library_already_downloaded'));
       } else {
         setLibraryDownloadedMsg(
-          t('settings.library_download_completed', { 
-            defaultValue: 'Загрузка библиотеки завершена!' 
-          })
+          t('settings.library_download_completed')
         );
       }
 
@@ -234,11 +233,11 @@ export default function DownloadedMusicGrid({
           <div className="flex items-center gap-2">
             <Layers size={18} className="text-primary" />
             <span className="text-sm font-semibold text-foreground">
-              {t('settings.downloaded_music_library', { defaultValue: 'Скачанная медиатека' })}
+              {t('settings.downloaded_music_library')}
             </span>
           </div>
           <span className="text-xs text-secondary mt-0.5 font-mono">
-            {albumCount} {t('settings.albums_count', { defaultValue: 'альбомов' })} • {trackCount} {t('settings.tracks_count', { defaultValue: 'треков' })} ({formatBytes(totalSizeBytes)})
+            {albumCount} {t('settings.albums_count')} • {trackCount} {t('settings.tracks_count')} ({formatBytes(totalSizeBytes)})
           </span>
         </div>
 
@@ -251,8 +250,8 @@ export default function DownloadedMusicGrid({
             className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 transition-all disabled:opacity-50"
             title={
               isOffline() 
-                ? t('settings.cannot_download_offline', { defaultValue: 'Невозможно скачать библиотеку в режиме офлайн' }) 
-                : t('settings.download_entire_library_desc', { defaultValue: 'Скачать все избранные треки и альбомы для прослушивания офлайн' })
+                ? t('settings.cannot_download_offline') 
+                : t('settings.download_entire_library_desc')
             }
           >
             {isDownloadingLibrary ? (
@@ -260,14 +259,14 @@ export default function DownloadedMusicGrid({
                 <Loader2 size={14} className="animate-spin text-primary" />
                 <span>
                   {libraryProgress && libraryProgress.total > 0
-                    ? `${t('settings.downloading', { defaultValue: 'Загрузка...' })} (${libraryProgress.current}/${libraryProgress.total})` 
-                    : t('settings.syncing', { defaultValue: 'Синхронизация...' })}
+                    ? `${t('settings.downloading')} (${libraryProgress.current}/${libraryProgress.total})` 
+                    : t('settings.syncing')}
                 </span>
               </>
             ) : (
               <>
                 <DownloadCloud size={15} />
-                <span>{t('settings.download_entire_library', { defaultValue: 'Скачать всю библиотеку' })}</span>
+                <span>{t('settings.download_entire_library')}</span>
               </>
             )}
           </button>
@@ -278,10 +277,10 @@ export default function DownloadedMusicGrid({
               type="button"
               onClick={onManageClick}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/5 hover:bg-white/10 text-secondary hover:text-foreground border border-white/10 transition-colors"
-              title={t('settings.manage_downloads', { defaultValue: 'Управление загрузками' })}
+              title={t('settings.manage_downloads')}
             >
               <Trash2 size={16} />
-              <span>{t('settings.manage_downloads', { defaultValue: 'Управление' })}</span>
+              <span>{t('settings.manage_downloads')}</span>
             </button>
           )}
 
@@ -291,7 +290,7 @@ export default function DownloadedMusicGrid({
               type="button"
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white/15 text-primary' : 'text-secondary hover:text-foreground'}`}
-              title={t('settings.grid_view', { defaultValue: 'Сетка' })}
+              title={t('settings.grid_view')}
             >
               <LayoutGrid size={18} />
             </button>
@@ -299,7 +298,7 @@ export default function DownloadedMusicGrid({
               type="button"
               onClick={() => setViewMode('list')}
               className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white/15 text-primary' : 'text-secondary hover:text-foreground'}`}
-              title={t('settings.list_view', { defaultValue: 'Список' })}
+              title={t('settings.list_view')}
             >
               <List size={18} />
             </button>
@@ -325,21 +324,21 @@ export default function DownloadedMusicGrid({
               onClick={() => setActiveFilter('all')}
               className={`px-3 py-1.5 rounded-lg transition-all ${activeFilter === 'all' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
             >
-              {t('settings.filter_all', { defaultValue: 'Все' })} ({completedItems.length})
+              {t('settings.filter_all')} ({completedItems.length})
             </button>
             <button
               type="button"
               onClick={() => setActiveFilter('albums')}
               className={`px-3 py-1.5 rounded-lg transition-all ${activeFilter === 'albums' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
             >
-              {t('settings.filter_albums', { defaultValue: 'Альбомы' })} ({albumCount})
+              {t('settings.filter_albums')} ({albumCount})
             </button>
             <button
               type="button"
               onClick={() => setActiveFilter('tracks')}
               className={`px-3 py-1.5 rounded-lg transition-all ${activeFilter === 'tracks' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
             >
-              {t('settings.filter_tracks', { defaultValue: 'Треки' })} ({trackCount})
+              {t('settings.filter_tracks')} ({trackCount})
             </button>
           </div>
 
@@ -350,7 +349,7 @@ export default function DownloadedMusicGrid({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('settings.search_downloads', { defaultValue: 'Поиск по скачанным...' })}
+              placeholder={t('settings.search_downloads')}
               className="w-full bg-background/50 border border-white/10 rounded-xl py-1.5 pl-8 pr-3 text-xs text-foreground placeholder:text-secondary focus:border-primary outline-none transition-colors"
             />
           </div>
@@ -365,10 +364,10 @@ export default function DownloadedMusicGrid({
             <Music size={26} className="text-primary" />
           </div>
           <h4 className="text-base font-bold text-foreground mb-1">
-            {t('settings.no_downloaded_music', { defaultValue: 'Нет скачанной музыки' })}
+            {t('settings.no_downloaded_music')}
           </h4>
           <p className="text-xs text-secondary max-w-sm mb-4 leading-relaxed">
-            {t('settings.no_downloaded_music_desc', { defaultValue: 'Скачивайте любимые треки и альбомы для прослушивания офлайн или скачайте всю библиотеку в один клик.' })}
+            {t('settings.no_downloaded_music_desc')}
           </p>
           <button
             type="button"
@@ -377,14 +376,14 @@ export default function DownloadedMusicGrid({
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:brightness-110 shadow-lg shadow-primary/20 transition-all disabled:opacity-50"
           >
             <DownloadCloud size={15} />
-            <span>{t('settings.download_entire_library', { defaultValue: 'Скачать всю библиотеку' })}</span>
+            <span>{t('settings.download_entire_library')}</span>
           </button>
         </div>
       ) : filteredItems.length === 0 ? (
         /* Search No Results */
         <div className="flex flex-col items-center justify-center py-10 text-secondary text-xs">
-          <Search size={24} className="mb-2 opacity-50" />
-          <span>{t('settings.no_matching_downloads', { defaultValue: 'Ничего не найдено по вашему запросу' })}</span>
+          <Search size={24} className="mb-2 text-[#808080]" />
+          <span>{t('settings.no_matching_downloads')}</span>
         </div>
       ) : viewMode === 'grid' ? (
         /* Grid Layout */
@@ -466,12 +465,13 @@ function DownloadedCardItem({
       {/* Cover Image Container */}
       <div className="relative aspect-square rounded-lg overflow-hidden bg-black/40 mb-2">
         {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={item.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
-          />
+            <img 
+              src={coverUrl} 
+              alt={item.name} 
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+              loading="lazy" 
+              onError={() => setCoverUrl(undefined)}
+            />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-secondary">
             {item.type === 'album' ? <Disc3 size={28} /> : <Music size={28} />}
@@ -480,7 +480,7 @@ function DownloadedCardItem({
 
         {/* Type Badge */}
         <div className="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-[10px] font-bold text-white uppercase tracking-wider">
-          {item.type === 'album' ? t('settings.album', { defaultValue: 'Альбом' }) : t('settings.track', { defaultValue: 'Трек' })}
+          {item.type === 'album' ? t('settings.album') : t('settings.track')}
         </div>
 
         {/* Hover / Direct Play Button Overlay */}
@@ -489,7 +489,7 @@ function DownloadedCardItem({
             type="button"
             onClick={onPlay}
             className="w-10 h-10 rounded-full bg-primary text-black flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-transform"
-            title={t('player.play', { defaultValue: 'Воспроизвести' })}
+            title={t('player.play')}
           >
             <Play size={18} fill="currentColor" className="ml-0.5" />
           </button>
@@ -501,7 +501,7 @@ function DownloadedCardItem({
           onClick={onDelete}
           disabled={isDeleting}
           className="absolute top-1.5 right-1.5 z-10 p-1.5 rounded-lg bg-black/60 hover:bg-red-500/80 text-white/70 hover:text-white backdrop-blur-md transition-colors disabled:opacity-50"
-          title={t('common.delete', { defaultValue: 'Удалить' })}
+          title={t('common.delete')}
         >
           {isDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
         </button>
@@ -513,7 +513,7 @@ function DownloadedCardItem({
           {item.name}
         </span>
         <span className="text-[11px] text-secondary truncate mt-0.5">
-          {item.artist || item.album || (item.type === 'album' ? t('settings.album', { defaultValue: 'Альбом' }) : t('settings.track', { defaultValue: 'Трек' }))}
+          {item.artist || item.album || (item.type === 'album' ? t('settings.album') : t('settings.track'))}
         </span>
         <div className="flex items-center justify-between text-[10px] text-secondary/70 font-mono mt-1 pt-1 border-t border-white/5">
           <span>{formatBytes(item.sizeBytes || item.totalBytes || 0)}</span>
@@ -574,7 +574,13 @@ function DownloadedRowItem({
         {/* Thumbnail with quick play button */}
         <div className="relative w-11 h-11 rounded-lg overflow-hidden bg-black/40 flex-shrink-0">
           {coverUrl ? (
-            <img src={coverUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+            <img 
+              src={coverUrl} 
+              alt={item.name} 
+              className="w-full h-full object-cover" 
+              loading="lazy" 
+              onError={() => setCoverUrl(undefined)}
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-secondary">
               {item.type === 'album' ? <Disc3 size={18} /> : <Music size={18} />}
@@ -584,7 +590,7 @@ function DownloadedRowItem({
             type="button"
             onClick={onPlay}
             className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-primary transition-opacity"
-            title={t('player.play', { defaultValue: 'Воспроизвести' })}
+            title={t('player.play')}
           >
             <Play size={16} fill="currentColor" />
           </button>
@@ -597,7 +603,7 @@ function DownloadedRowItem({
               {item.name}
             </span>
             <span className="px-1.5 py-0.2 rounded bg-white/10 text-[9px] font-bold text-secondary uppercase">
-              {item.type === 'album' ? t('settings.album', { defaultValue: 'Альбом' }) : t('settings.track', { defaultValue: 'Трек' })}
+              {item.type === 'album' ? t('settings.album') : t('settings.track')}
             </span>
           </div>
           <span className="text-[11px] text-secondary truncate mt-0.5">
@@ -618,7 +624,7 @@ function DownloadedRowItem({
           onClick={onDelete}
           disabled={isDeleting}
           className="p-2 rounded-lg text-secondary hover:text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-50"
-          title={t('common.delete', { defaultValue: 'Удалить' })}
+          title={t('common.delete')}
         >
           {isDeleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
         </button>

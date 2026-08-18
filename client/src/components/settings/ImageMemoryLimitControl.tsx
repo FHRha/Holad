@@ -56,7 +56,7 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
         <div className="flex items-center gap-2">
           <ImageIcon size={18} className="text-primary" />
           <span className="text-sm font-semibold text-foreground">
-            {t('settings.image_cache_limit', { defaultValue: 'Лимит памяти кэша изображений' })}
+            {t('settings.image_cache_limit')}
           </span>
         </div>
         <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/20">
@@ -66,9 +66,7 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
 
       {/* Description */}
       <p className="text-xs text-secondary leading-relaxed">
-        {t('settings.image_cache_desc', { 
-          defaultValue: 'Кэш сохраняет обложки и фото артистов в RAM для быстрого рендеринга. При заполнении старые элементы автоматически выгружаются.' 
-        })}
+        {t('settings.image_cache_desc')}
       </p>
 
       {/* Preset Chips */}
@@ -116,7 +114,7 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-1.5 text-secondary min-w-0">
             <HardDrive size={14} className="shrink-0" />
-            <span className="shrink-0">{t('settings.image_cache_usage', { defaultValue: 'Занято в RAM' })}:</span>
+            <span className="shrink-0">{t('settings.image_cache_usage')}:</span>
             <span className="font-mono text-foreground font-medium truncate">
               {formatBytes(stats.currentBytes)} / {formatBytes(stats.limitBytes)} ({stats.usagePercent.toFixed(1)}%)
             </span>
@@ -128,7 +126,7 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
             className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 disabled:opacity-40 disabled:hover:text-red-400 transition-colors shrink-0"
           >
             <Trash2 size={12} />
-            <span>{isClearing ? t('settings.clearing', { defaultValue: 'Очистка...' }) : t('settings.clear_image_cache_btn', { defaultValue: 'Очистить' })}</span>
+            <span>{isClearing ? t('settings.clearing') : t('settings.clear_image_cache_btn')}</span>
           </button>
         </div>
 

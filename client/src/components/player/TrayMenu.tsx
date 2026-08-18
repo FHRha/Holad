@@ -156,7 +156,7 @@ export default function TrayMenu() {
             <Music className="text-primary w-4 h-4" />
           </div>
           <div className="font-bold tracking-wider text-sm">
-            HOLAD <span className="text-primary">{t('common.music', { defaultValue: 'MUSIC' })}</span>
+            HOLAD <span className="text-primary">{t('common.music')}</span>
           </div>
         </div>
 
@@ -176,7 +176,7 @@ export default function TrayMenu() {
             </>
           ) : (
             <div className="text-sm text-white/50 italic py-2">
-              {t('common.no_track', { defaultValue: 'Нет активного трека' })}
+              {t('common.no_track')}
             </div>
           )}
         </div>
@@ -186,18 +186,18 @@ export default function TrayMenu() {
           <button onClick={() => handleAction('play_pause')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium w-full text-left">
             {isPlaying ? <Pause className="w-4 h-4 text-primary" /> : <Play className="w-4 h-4 text-primary" />}
             <span className={isPlaying ? 'text-primary' : ''}>
-              {isPlaying ? t('player.pause', { defaultValue: 'Пауза' }) : t('player.play', { defaultValue: 'Воспроизвести' })}
+              {isPlaying ? t('player.pause') : t('player.play')}
             </span>
           </button>
           
           <button onClick={() => handleAction('next')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium w-full text-left">
             <SkipForward className="w-4 h-4" />
-            {t('player.next', { defaultValue: 'Следующий трек' })}
+            {t('player.next')}
           </button>
           
           <button onClick={() => handleAction('prev')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium w-full text-left">
             <SkipBack className="w-4 h-4" />
-            {t('player.previous', { defaultValue: 'Предыдущий трек' })}
+            {t('player.previous')}
           </button>
         </div>
 
@@ -212,20 +212,20 @@ export default function TrayMenu() {
           >
             <Heart className={`w-4 h-4 ${currentTrack && isLiked ? 'fill-primary text-primary' : ''}`} />
             {currentTrack && isLiked 
-              ? t('common.in_favorites', { defaultValue: 'В избранном' })
-              : t('common.add_favorite', { defaultValue: 'Добавить в избранное' })}
+              ? t('common.in_favorites')
+              : t('common.add_favorite')}
           </button>
 
           <div className="h-px bg-white/5 my-2 mx-2"></div>
 
           <button onClick={showApp} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium w-full text-left">
             <Maximize2 className="w-4 h-4" />
-            {t('common.show_app', { defaultValue: 'Показать Holad' })}
+            {t('common.show_app')}
           </button>
 
           <button onClick={quitApp} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors text-sm font-medium w-full text-left">
             <X className="w-4 h-4" />
-            {t('common.quit', { defaultValue: 'Выйти' })}
+            {t('common.quit')}
           </button>
         </div>
       </div>

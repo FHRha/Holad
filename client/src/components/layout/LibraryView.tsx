@@ -5,19 +5,33 @@ import ArtistsView from '../views/ArtistsView';
 import PlaylistsView from '../views/PlaylistsView';
 import { useTranslation } from 'react-i18next';
 import { Search, CloudOff, Download, Heart, LayoutGrid, List } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { toggleOfflineMode } from '../../utils/networkStatus';
-import OfflineModeModal from '../modals/OfflineModeModal';
 
 export default function LibraryView() {
   const { t } = useTranslation();
-  const { setSearchOpen, activeFilter, setActiveFilter, isOfflineModalOpen, setOfflineModalOpen } = useUIStore();
+  const { setSearchOpen, activeFilter, setActiveFilter, setOfflineModalOpen } = useUIStore();
   const { hideOfflineExplanationModal } = useSettingsStore();
   const { isOffline } = useNetworkStatus();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  const prevIsOfflineRef = useRef(isOffline);
+  
+  useEffect(() => {
+    if (prevIsOfflineRef.current === false && isOffline) {
+      if (activeFilter !== 'Offline' && activeFilter !== 'Downloaded') {
+        setActiveFilter('Downloaded');
+      }
+    } else if (prevIsOfflineRef.current === true && !isOffline) {
+      if (activeFilter === 'Offline' || activeFilter === 'Downloaded') {
+        setActiveFilter(null);
+      }
+    }
+    prevIsOfflineRef.current = isOffline;
+  }, [isOffline, activeFilter, setActiveFilter]);
 
   const toggleFilter = (filter: string) => {
     setActiveFilter(activeFilter === filter ? null : filter);
@@ -29,11 +43,11 @@ export default function LibraryView() {
         setOfflineModalOpen(true);
       } else {
         toggleOfflineMode();
-        setActiveFilter(activeFilter === 'Offline' ? null : 'Offline');
+        setActiveFilter(null);
       }
     } else {
       toggleOfflineMode();
-      setActiveFilter('Offline');
+      setActiveFilter('Downloaded');
     }
   };
 
@@ -55,28 +69,28 @@ export default function LibraryView() {
         >
           <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
           <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
-            {t('views.search_tracks', { defaultValue: 'Поиск...' })}
+            {t('views.search_tracks')}
           </div>
         </div>
         <div className="flex items-center justify-between mb-4 relative">
           <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar flex-1 pr-14" style={{ maskImage: 'linear-gradient(to right, black 85%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)' }}>
             <FilterChip 
               icon={<CloudOff size={16} />} 
-              label={t('common.offline', { defaultValue: 'Офлайн' })} 
+              label={t('common.offline')} 
               isActive={activeFilter === 'Offline' || isOffline} 
               onClick={handleOfflineFilterClick}
               testId="library-mobile-offline-chip"
             />
             <FilterChip 
               icon={<Download size={16} />} 
-              label={t('common.downloaded', { defaultValue: 'Загружено' })} 
+              label={t('common.downloaded')} 
               isActive={activeFilter === 'Downloaded'} 
               onClick={() => toggleFilter('Downloaded')} 
               testId="library-mobile-downloaded-chip"
             />
             <FilterChip 
               icon={<Heart size={16} />} 
-              label={t('sidebar.favorites', { defaultValue: 'Избранное' })} 
+              label={t('sidebar.favorites')} 
               isActive={activeFilter === 'Favorites'} 
               onClick={() => toggleFilter('Favorites')} 
             />
@@ -94,8 +108,8 @@ export default function LibraryView() {
         <div className="flex bg-[#282828] rounded-2xl p-1 gap-1 overflow-x-auto hide-scrollbar">
           <MobileNavTab to="/Holad/library/tracks" label={t('sidebar.tracks')} />
           <MobileNavTab to="/Holad/library/albums" label={t('sidebar.albums')} />
-          <MobileNavTab to="/Holad/library/artists" label={t('views.artists_short_tab', { defaultValue: 'Исполните...' })} />
-          <MobileNavTab to="/Holad/library/playlists" label={t('common.playlists', { defaultValue: 'Плейлисты' })} />
+          <MobileNavTab to="/Holad/library/artists" label={t('views.artists_short_tab')} />
+          <MobileNavTab to="/Holad/library/playlists" label={t('common.playlists')} />
         </div>
       </div>
 
@@ -110,13 +124,6 @@ export default function LibraryView() {
           <Route path="*" element={<div className="p-8 text-center text-secondary">{t('common.in_development')}</div>} />
         </Routes>
       </div>
-
-      {isOfflineModalOpen && (
-        <OfflineModeModal 
-          isOpen={isOfflineModalOpen} 
-          onClose={() => setOfflineModalOpen(false)} 
-        />
-      )}
     </div>
   );
 }
@@ -148,8 +155,10 @@ function FilterChip({ icon, label, isActive, onClick, testId }: { icon: React.Re
     <button 
       onClick={onClick}
       data-testid={testId}
-      className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-colors ${
-        isActive ? 'bg-primary text-black border border-primary' : 'bg-[#282828] text-[#b3b3b3] hover:text-white border border-transparent'
+      className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
+        isActive 
+          ? 'bg-primary text-white border-transparent shadow-md' 
+          : 'bg-white/5 text-[#b3b3b3] hover:bg-white/10 hover:text-white border-transparent'
       }`}
     >
       {icon}

@@ -94,7 +94,7 @@ class JamSocketService {
     });
 
     this.socket.on('kicked', () => {
-      usePlayerStore.getState().setJamError(i18n.t('jam.kicked', { defaultValue: 'Вас исключили из сессии' }));
+      usePlayerStore.getState().setJamError(i18n.t('jam.kicked'));
       usePlayerStore.getState().setRoomInfo(null, null);
       this.stopHostSync();
       if (window.location.pathname.startsWith('/jam') && window.location.pathname !== '/jam/') {
@@ -171,7 +171,7 @@ class JamSocketService {
         const isDeviceActive = holadState.roomId === null || holadState.activeDeviceId === holadState.deviceId || holadState.activeDeviceId === null;
         
         if (isDeviceActive) {
-          const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
+          const audioEl = useAudioStore.getState().audioElement;
           if (audioEl) {
             currentTime = audioEl.currentTime;
           }
@@ -214,7 +214,7 @@ class JamSocketService {
             if (trackChanged) {
               currentTime = 0;
             } else if (isDeviceActive) {
-              const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
+              const audioEl = useAudioStore.getState().audioElement;
               if (audioEl) {
                 currentTime = audioEl.currentTime;
               }
@@ -251,7 +251,7 @@ class JamSocketService {
   private applySyncState(state: any) {
     const { currentTime, isPlaying, currentIndex, queue, isAutoDjEnabled } = state;
     const store = usePlayerStore.getState();
-    const audioEl = document.getElementById('main-audio-player') as HTMLAudioElement;
+    const audioEl = useAudioStore.getState().audioElement;
 
     // trackChanged removed
     
@@ -300,7 +300,7 @@ class JamSocketService {
         const targetTime = currentTime + 0.15;
         const drift = targetTime - audioEl.currentTime;
 
-        if (Math.abs(drift) > 4.0) {
+        if (Math.abs(drift) > 2.0) {
           console.log(`Large drift detected (${Math.abs(drift).toFixed(2)}s), hard seeking to match host`);
           audioEl.currentTime = targetTime;
           audioEl.playbackRate = 1.0;

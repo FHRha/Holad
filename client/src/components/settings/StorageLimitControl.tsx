@@ -31,7 +31,7 @@ export default function StorageLimitControl({ className = '', isMobile = false }
   const isNearLimit = totalStorageLimitGb > 0 && stats.totalBytes > 0 && !isOverLimit && totalUsedBytes >= stats.totalBytes * 0.9;
 
   const currentDisplay = totalStorageLimitGb === 0
-    ? t('settings.storage_unlimited', { defaultValue: 'Безлимитно' })
+    ? t('settings.storage_unlimited')
     : `${totalStorageLimitGb} GB`;
 
   return (
@@ -44,7 +44,7 @@ export default function StorageLimitControl({ className = '', isMobile = false }
         <div className="flex items-center gap-2">
           <HardDrive size={18} className="text-primary" />
           <span className="text-sm font-semibold text-foreground">
-            {t('settings.storage_limit_title', { defaultValue: 'Лимит хранилища' })}
+            {t('settings.storage_limit_title')}
           </span>
         </div>
         <span
@@ -57,9 +57,7 @@ export default function StorageLimitControl({ className = '', isMobile = false }
 
       {/* Description */}
       <p className="text-xs text-secondary leading-relaxed">
-        {t('settings.storage_limit_desc', {
-          defaultValue: 'Ограничение максимального объема хранилища для аудио и кэша на устройстве.',
-        })}
+        {t('settings.storage_limit_desc')}
       </p>
 
       {/* Preset Chips */}
@@ -67,7 +65,7 @@ export default function StorageLimitControl({ className = '', isMobile = false }
         {STORAGE_PRESETS.map((preset) => {
           const isSelected = totalStorageLimitGb === preset.value;
           const displayLabel = preset.value === 0
-            ? t('settings.storage_unlimited', { defaultValue: 'Безлимитно' })
+            ? t('settings.storage_unlimited')
             : preset.label;
 
           return (
@@ -96,9 +94,7 @@ export default function StorageLimitControl({ className = '', isMobile = false }
         >
           <AlertTriangle size={14} className="shrink-0" />
           <span>
-            {t('settings.storage_limit_exceeded', {
-              defaultValue: 'Лимит хранилища исчерпан. Удалите треки или увеличьте лимит.',
-            })}
+            {t('settings.storage_limit_exceeded')}
           </span>
         </div>
       )}
@@ -110,9 +106,7 @@ export default function StorageLimitControl({ className = '', isMobile = false }
         >
           <AlertTriangle size={14} className="shrink-0" />
           <span>
-            {t('settings.storage_limit_near', {
-              defaultValue: 'Хранилище заполнено более чем на 90%.',
-            })}
+            {t('settings.storage_limit_near')}
           </span>
         </div>
       )}

@@ -177,7 +177,7 @@ export default function SettingsModal({
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'storage' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
             >
               <HardDrive size={20} className={activeTab === 'storage' ? 'animate-pulse-slow' : ''} />
-              <span>{t('settings.storage', { defaultValue: 'Хранилище' })}</span>
+              <span>{t('settings.storage')}</span>
             </button>
           </div>
           
@@ -204,20 +204,22 @@ export default function SettingsModal({
 
         {/* Content */}
         <div className="flex-1 flex flex-col relative overflow-hidden min-w-0">
-          <button 
-            onClick={handleClose}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors z-20 bg-background/50 backdrop-blur-md"
-          >
-            <X size={20} />
-          </button>
-          
-          <div className="flex-1 p-6 overflow-y-auto overflow-x-hidden">
-            <h3 className="text-xl font-bold mb-6">
+          <div className="flex items-center justify-between p-6 pb-2 shrink-0 z-20 bg-card">
+            <h3 className="text-xl font-bold">
               {activeTab === 'general' && (t('settings.general') || 'Общие')}
               {activeTab === 'appearance' && (t('settings.appearance') || 'Внешний вид')}
               {activeTab === 'player' && (t('settings.player') || 'Плеер')}
-              {activeTab === 'storage' && (t('settings.storage', { defaultValue: 'Хранилище' }))}
+              {activeTab === 'storage' && (t('settings.storage'))}
             </h3>
+            <button 
+              onClick={handleClose}
+              className="p-2 -mr-2 rounded-full hover:bg-white/10 transition-colors bg-background/50 backdrop-blur-md"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          
+          <div className="flex-1 px-6 pb-6 pt-2 overflow-y-auto overflow-x-hidden">
 
             {activeTab === 'general' && (
               <div className="space-y-6">
@@ -232,22 +234,22 @@ export default function SettingsModal({
                   />
                 </SettingSection>
 
-                <SettingSection title={t('settings.startPage', { defaultValue: 'Стартовая страница' })}>
+                <SettingSection title={t('settings.startPage')}>
                   <Dropdown
                     value={settings.startPage}
                     onChange={(val) => settings.setStartPage(val as StartPage)}
                     options={[
-                      { label: t('settings.start_home', { defaultValue: 'Главная' }), value: '/Holad' },
-                      { label: t('settings.start_albums', { defaultValue: 'Альбомы' }), value: '/Holad/albums' },
-                      { label: t('settings.start_radio', { defaultValue: 'Радио' }), value: '/Holad/radio' },
-                      { label: t('settings.start_favorites', { defaultValue: 'Избранное' }), value: '/Holad/favorites' }
+                      { label: t('settings.start_home'), value: '/Holad' },
+                      { label: t('settings.start_albums'), value: '/Holad/albums' },
+                      { label: t('settings.start_radio'), value: '/Holad/radio' },
+                      { label: t('settings.start_favorites'), value: '/Holad/favorites' }
                     ]}
                   />
                 </SettingSection>
 
                 {/* Tauri-only Settings */}
                 {('__TAURI_INTERNALS__' in window) && (
-                  <SettingSection title={t('settings.desktop', { defaultValue: 'Десктоп' })}>
+                  <SettingSection title={t('settings.desktop')}>
                     <div className="flex flex-col gap-4">
                       <label className="flex items-center gap-3 cursor-pointer group">
                         <input 
@@ -267,7 +269,7 @@ export default function SettingsModal({
                           className="accent-primary w-4 h-4 rounded cursor-pointer"
                         />
                         <span className="group-hover:text-primary transition-colors text-sm">
-                          {t('settings.run_on_startup', { defaultValue: 'Автозапуск при старте системы' })}
+                          {t('settings.run_on_startup')}
                         </span>
                       </label>
                       
@@ -280,7 +282,7 @@ export default function SettingsModal({
                           className="accent-primary w-4 h-4 rounded cursor-pointer disabled:cursor-not-allowed"
                         />
                         <span className="group-hover:text-primary transition-colors text-sm">
-                          {t('settings.start_minimized', { defaultValue: 'Запускать свернутым в трей' })}
+                          {t('settings.start_minimized')}
                         </span>
                       </label>
 
@@ -301,7 +303,7 @@ export default function SettingsModal({
                           className="accent-primary w-4 h-4 rounded cursor-pointer"
                         />
                         <span className="group-hover:text-primary transition-colors text-sm">
-                          {t('settings.close_to_tray', { defaultValue: 'Сворачивать в трей при закрытии (крестик)' })}
+                          {t('settings.close_to_tray')}
                         </span>
                       </label>
                     </div>
@@ -353,7 +355,7 @@ export default function SettingsModal({
                                   : 'border-white/10 hover:border-white/30 hover:scale-110'
                             }`}
                             style={color ? { backgroundColor: color } : {}}
-                            title={isEmpty ? t('settings.add_color', { defaultValue: 'Добавить цвет' }) : isSelected ? t('settings.edit_color', { defaultValue: 'Редактировать цвет' }) : t('settings.custom_color_select', { defaultValue: 'Выбрать цвет' })}
+                            title={isEmpty ? t('settings.add_color') : isSelected ? t('settings.edit_color') : t('settings.custom_color_select')}
                           >
                             {isEmpty && <span className="text-white/40 text-lg font-light">+</span>}
                             {isSelected && (
@@ -378,7 +380,7 @@ export default function SettingsModal({
                 >
                   <X size={20} />
                 </button>
-                <h3 className="text-xl font-bold mb-2">{t('settings.custom_color_select', { defaultValue: 'Выбор своего цвета' })}</h3>
+                <h3 className="text-xl font-bold mb-2">{t('settings.custom_color_select')}</h3>
                 
                 <div className="flex flex-col items-center justify-center flex-1 w-full max-w-md mx-auto space-y-4">
                   {/* Big Preview */}
@@ -392,7 +394,7 @@ export default function SettingsModal({
                     {/* Hue Slider */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs text-secondary font-medium">
-                        <span>{t('settings.hue', { defaultValue: 'Оттенок' })}</span>
+                        <span>{t('settings.hue')}</span>
                         <span>{hue}°</span>
                       </div>
                       <input 
@@ -406,7 +408,7 @@ export default function SettingsModal({
                     {/* Saturation Slider */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs text-secondary font-medium">
-                        <span>{t('settings.saturation', { defaultValue: 'Насыщенность' })}</span>
+                        <span>{t('settings.saturation')}</span>
                         <span>{sat}%</span>
                       </div>
                       <input 
@@ -420,7 +422,7 @@ export default function SettingsModal({
                     {/* Lightness Slider */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs text-secondary font-medium">
-                        <span>{t('settings.lightness', { defaultValue: 'Яркость' })}</span>
+                        <span>{t('settings.lightness')}</span>
                         <span>{light}%</span>
                       </div>
                       <input 
@@ -459,7 +461,7 @@ export default function SettingsModal({
                     className="w-full py-2.5 bg-white text-black font-bold rounded-xl hover:bg-gray-200 flex items-center justify-center gap-2 transition-colors"
                   >
                     <Check size={20} />
-                    {t('settings.save_and_close', { defaultValue: 'Сохранить и закрыть' })}
+                    {t('settings.save_and_close')}
                   </button>
                 </div>
               </div>
@@ -479,7 +481,7 @@ export default function SettingsModal({
                         className="accent-primary w-4 h-4 cursor-pointer"
                       />
                       <span className="group-hover:text-primary transition-colors text-sm">
-                        {t('settings.replace_queue', { defaultValue: 'Заменить очередь (Play Now)' })}
+                        {t('settings.replace_queue')}
                       </span>
                     </label>
                     <label className="flex items-center gap-3 cursor-pointer group">
@@ -492,7 +494,7 @@ export default function SettingsModal({
                         className="accent-primary w-4 h-4 cursor-pointer"
                       />
                       <span className="group-hover:text-primary transition-colors text-sm">
-                        {t('settings.add_to_end', { defaultValue: 'Добавить в конец (Play Next)' })}
+                        {t('settings.add_to_end')}
                       </span>
                     </label>
                   </div>
@@ -507,12 +509,12 @@ export default function SettingsModal({
                       className="accent-primary w-4 h-4 rounded cursor-pointer"
                     />
                     <span className="group-hover:text-primary transition-colors text-sm">
-                      {t('settings.auto_dj_desc', { defaultValue: 'Автоматически добавлять похожие треки по окончании очереди' })}
+                      {t('settings.auto_dj_desc')}
                     </span>
                   </label>
                 </SettingSection>
 
-                <SettingSection title={t('settings.crossfade', { defaultValue: 'Плавный переход (Crossfade)' })}>
+                <SettingSection title={t('settings.crossfade')}>
                   <div className="flex flex-col gap-4">
                     <label className="flex items-center gap-3 cursor-pointer group">
                       <input 
@@ -522,14 +524,14 @@ export default function SettingsModal({
                         className="accent-primary w-4 h-4 rounded cursor-pointer"
                       />
                       <span className="group-hover:text-primary transition-colors text-sm">
-                        {t('settings.crossfade_desc', { defaultValue: 'Плавный переход между треками' })}
+                        {t('settings.crossfade_desc')}
                       </span>
                     </label>
                     {settings.isCrossfadeEnabled && (
                       <div className="pt-2 pb-1 space-y-4 opacity-100 transition-opacity">
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>{t('settings.crossfade_duration', { defaultValue: 'Длительность перехода' })}</span>
+                            <span>{t('settings.crossfade_duration')}</span>
                             <span>{settings.crossfadeDuration} сек</span>
                           </div>
                           <input 
@@ -547,21 +549,21 @@ export default function SettingsModal({
                         </div>
 
                         <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
-                          <span className="text-xs text-secondary font-medium">{t('settings.crossfade_curve', { defaultValue: 'Кривая кроссфейда' })}</span>
+                          <span className="text-xs text-secondary font-medium">{t('settings.crossfade_curve')}</span>
                           <div className="flex gap-2">
                             <button
                               type="button"
                               onClick={() => settings.setCrossfadeCurve('equalPower')}
                               className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${settings.crossfadeCurve === 'equalPower' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-secondary hover:border-white/20'}`}
                             >
-                              {t('settings.curve_equal_power', { defaultValue: 'Equal-Power (Равномерная мощность)' })}
+                              {t('settings.curve_equal_power')}
                             </button>
                             <button
                               type="button"
                               onClick={() => settings.setCrossfadeCurve('linear')}
                               className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${settings.crossfadeCurve === 'linear' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-secondary hover:border-white/20'}`}
                             >
-                              {t('settings.curve_linear', { defaultValue: 'Linear (Линейная)' })}
+                              {t('settings.curve_linear')}
                             </button>
                           </div>
                         </div>
@@ -570,7 +572,7 @@ export default function SettingsModal({
                   </div>
                 </SettingSection>
 
-                <SettingSection title={t('settings.gapless', { defaultValue: 'Бесшовное воспроизведение (Gapless)' })}>
+                <SettingSection title={t('settings.gapless')}>
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <input 
                       type="checkbox" 
@@ -579,12 +581,12 @@ export default function SettingsModal({
                       className="accent-primary w-4 h-4 rounded cursor-pointer"
                     />
                     <span className="group-hover:text-primary transition-colors text-sm">
-                      {t('settings.gapless_desc', { defaultValue: 'Мгновенное переключение треков без пауз и щелчков' })}
+                      {t('settings.gapless_desc')}
                     </span>
                   </label>
                 </SettingSection>
 
-                <SettingSection title={t('settings.normalization', { defaultValue: 'Нормализация громкости' })}>
+                <SettingSection title={t('settings.normalization')}>
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <input 
                       type="checkbox" 
@@ -593,12 +595,12 @@ export default function SettingsModal({
                       className="accent-primary w-4 h-4 rounded cursor-pointer"
                     />
                     <span className="group-hover:text-primary transition-colors text-sm">
-                      {t('settings.normalization_desc', { defaultValue: 'Выравнивание уровня громкости для всех треков (компрессор)' })}
+                      {t('settings.normalization_desc')}
                     </span>
                   </label>
                 </SettingSection>
 
-                <SettingSection title={t('settings.prebuffering', { defaultValue: 'Предварительная буферизация' })}>
+                <SettingSection title={t('settings.prebuffering')}>
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <input 
                       type="checkbox" 
@@ -607,7 +609,7 @@ export default function SettingsModal({
                       className="accent-primary w-4 h-4 rounded cursor-pointer"
                     />
                     <span className="group-hover:text-primary transition-colors text-sm">
-                      {t('settings.preload_desc', { defaultValue: 'Предзагрузка следующего трека за 15 секунд до окончания текущего' })}
+                      {t('settings.preload_desc')}
                     </span>
                   </label>
                 </SettingSection>
@@ -626,7 +628,7 @@ export default function SettingsModal({
                   </div>
                 </SettingSection>
 
-                <SettingSection title={t('settings.volume_multiplier', { defaultValue: 'Усилитель громкости (до 300%)' })}>
+                <SettingSection title={t('settings.volume_multiplier')}>
                   <div className="flex items-center gap-3 pt-2 pb-1">
                     <input 
                       type="number"
@@ -715,7 +717,7 @@ function StorageSettingsTab({ t }: { t: any }) {
       const selectedPath = await open({
         directory: true,
         multiple: false,
-        title: t('settings.select_download_folder', { defaultValue: 'Выберите папку для загрузок' })
+        title: t('settings.select_download_folder')
       });
       if (selectedPath && typeof selectedPath === 'string') {
         const currentDir = downloadDirectory || await StorageManager.getDefaultDownloadDir();
@@ -748,9 +750,31 @@ function StorageSettingsTab({ t }: { t: any }) {
       {/* 3. Image Memory Limit Control */}
       <ImageMemoryLimitControl />
 
+      {/* 3.5. Download Concurrency Control */}
+      <SettingSection title={t('settings.download_concurrency')}>
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-secondary mb-2">
+            {t('settings.download_concurrency_desc')}
+          </p>
+          <div className="flex items-center gap-3">
+            <input 
+              type="range" 
+              min="1" 
+              max="10" 
+              value={useSettingsStore(state => state.maxDownloadConcurrency)} 
+              onChange={(e) => useSettingsStore.getState().setMaxDownloadConcurrency(parseInt(e.target.value))}
+              className="flex-1 h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+            />
+            <span className="text-sm font-mono text-secondary w-8 text-right">
+              {useSettingsStore(state => state.maxDownloadConcurrency)}
+            </span>
+          </div>
+        </div>
+      </SettingSection>
+
       {/* 3. Download Location (Desktop / Tauri) */}
       {isTauri() && (
-        <SettingSection title={t('settings.download_location', { defaultValue: 'Папка для загрузок' })}>
+        <SettingSection title={t('settings.download_location')}>
           <div className="flex flex-col gap-4">
             <div className="bg-black/30 p-3 rounded-lg border border-white/5 truncate max-w-full text-sm font-mono text-secondary" title={actualDir}>
               {actualDir}
@@ -760,10 +784,10 @@ function StorageSettingsTab({ t }: { t: any }) {
               disabled={isMoving}
               className="flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary py-2.5 rounded-xl font-medium transition-colors"
             >
-              {isMoving ? <span className="animate-pulse">{t('settings.moving_files', { defaultValue: 'Перемещение файлов...' })}</span> : (
+              {isMoving ? <span className="animate-pulse">{t('settings.moving_files')}</span> : (
                 <>
                   <FolderSearch size={18} />
-                  <span>{t('settings.change_folder', { defaultValue: 'Изменить папку' })}</span>
+                  <span>{t('settings.change_folder')}</span>
                 </>
               )}
             </button>

@@ -27,6 +27,7 @@ export interface SettingsState {
   closeToTray: boolean;
   imageCacheLimitMb: number;
   totalStorageLimitGb: number;
+  maxDownloadConcurrency: number;
   hideOfflineExplanationModal: boolean;
   
   setTheme: (theme: AppTheme) => void;
@@ -46,6 +47,7 @@ export interface SettingsState {
   setCloseToTray: (enabled: boolean) => void;
   setImageCacheLimitMb: (limitMb: number) => void;
   setTotalStorageLimitGb: (limitGb: number) => void;
+  setMaxDownloadConcurrency: (concurrency: number) => void;
   setHideOfflineExplanationModal: (hide: boolean) => void;
 }
 
@@ -69,6 +71,7 @@ export const useSettingsStore = create<SettingsState>()(
       closeToTray: true,
       imageCacheLimitMb: 256,
       totalStorageLimitGb: 10,
+      maxDownloadConcurrency: 3,
       hideOfflineExplanationModal: false,
 
       setTheme: (theme) => set({ theme }),
@@ -105,6 +108,7 @@ export const useSettingsStore = create<SettingsState>()(
         set({ imageCacheLimitMb: clamped });
       },
       setTotalStorageLimitGb: (limitGb) => set({ totalStorageLimitGb: Math.max(0, limitGb) }),
+      setMaxDownloadConcurrency: (concurrency) => set({ maxDownloadConcurrency: Math.max(1, Math.min(10, concurrency)) }),
       setHideOfflineExplanationModal: (hide) => set({ hideOfflineExplanationModal: hide }),
     }),
     {

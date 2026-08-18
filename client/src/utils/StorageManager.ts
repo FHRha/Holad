@@ -205,7 +205,10 @@ export class StorageManager {
           }
         }
       } catch (e) {
-        console.error('Error resolving local cover URI via Tauri:', e);
+        console.warn('Error resolving local cover URI via Tauri, assuming valid if absolute:', e);
+        if (coverPathOrId.includes('/') || coverPathOrId.includes('\\')) {
+          return convertFileSrc(coverPathOrId);
+        }
       }
     } else if (isCapacitor()) {
       try {
@@ -333,7 +336,8 @@ export class StorageManager {
             return convertFileSrc(trackDownload.path);
           }
         } catch (e) {
-          console.error('Error resolving local track uri:', e);
+          console.warn('Error checking track uri via Tauri, assuming it exists to prevent playback blocking:', e);
+          return convertFileSrc(trackDownload.path);
         }
       } else if (isCapacitor()) {
         try {

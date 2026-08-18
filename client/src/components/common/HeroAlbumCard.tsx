@@ -133,7 +133,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
   const mapTracks = (tracks: any[]): Track[] => {
     return tracks.map((t: any) => ({
       id: t.id,
-      title: t.title,
+      title: t.title || t.name,
       artist: t.artist,
       album: album.title,
       albumId: album.id,
@@ -271,7 +271,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
           <div className="flex justify-between items-end">
 
-            <MoreHorizontal size={24} className="text-white/70 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
+            <MoreHorizontal size={24} className="text-[#b3b3b3] hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>
       </div>

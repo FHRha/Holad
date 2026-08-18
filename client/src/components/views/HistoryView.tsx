@@ -14,20 +14,20 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
 
 function formatDuration(seconds: number, t: any) {
-  if (!seconds) return '0' + t('views.mins_abbr', { defaultValue: 'м' });
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}${t('views.mins_abbr', { defaultValue: 'м' })}`;
+  if (!seconds) return '0' + t('views.mins_abbr');
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}${t('views.mins_abbr')}`;
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  return `${h}${t('views.hours_abbr', { defaultValue: 'ч' })} ${m}${t('views.mins_abbr', { defaultValue: 'м' })}`;
+  return `${h}${t('views.hours_abbr')} ${m}${t('views.mins_abbr')}`;
 }
 
 function timeAgo(timestamp: number, t: any) {
   const diff = Math.floor((Date.now() - timestamp) / 1000);
-  if (diff < 60) return t('views.time_just_now', { defaultValue: 'Только что' });
-  if (diff < 3600) return `${Math.floor(diff / 60)} ${t('views.time_mins_ago', { defaultValue: 'минут назад' })}`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} ${t('views.time_hours_ago', { defaultValue: 'часов назад' })}`;
-  if (diff < 86400 * 2) return t('views.time_yesterday', { defaultValue: 'Вчера' });
-  return `${Math.floor(diff / 86400)} ${t('views.time_days_ago', { defaultValue: 'дней назад' })}`;
+  if (diff < 60) return t('views.time_just_now');
+  if (diff < 3600) return `${Math.floor(diff / 60)} ${t('views.time_mins_ago')}`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ${t('views.time_hours_ago')}`;
+  if (diff < 86400 * 2) return t('views.time_yesterday');
+  return `${Math.floor(diff / 86400)} ${t('views.time_days_ago')}`;
 }
 
 const getImageUrl = (idOrUrl: string | undefined, size: number) => {
@@ -51,10 +51,10 @@ export default function HistoryView() {
   const stats = useMemo(() => calculateStats(filteredHistory), [filteredHistory]);
 
   const periods = [
-    { label: t('views.period_7d', { defaultValue: '7 дней' }), value: 7 },
-    { label: t('views.period_30d', { defaultValue: '30 дней' }), value: 30 },
-    { label: t('views.period_90d', { defaultValue: '90 дней' }), value: 90 },
-    { label: t('views.period_all', { defaultValue: 'Всё время' }), value: null }
+    { label: t('views.period_7d'), value: 7 },
+    { label: t('views.period_30d'), value: 30 },
+    { label: t('views.period_90d'), value: 90 },
+    { label: t('views.period_all'), value: null }
   ];
 
   return (
@@ -68,8 +68,8 @@ export default function HistoryView() {
             <Clock size={28} />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t('views.history_title', { defaultValue: 'История и Статистика' })}</h1>
-            <p className="text-secondary text-sm font-medium mt-1">{t('views.history_desc', { defaultValue: 'Твоя личная аналитика прослушиваний' })}</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t('views.history_title')}</h1>
+            <p className="text-secondary text-sm font-medium mt-1">{t('views.history_desc')}</p>
           </div>
         </div>
 
@@ -81,7 +81,7 @@ export default function HistoryView() {
             className="flex-1 md:w-40"
           />
           <Dropdown
-            options={[5, 10, 20, 50].map(l => ({ label: `${t('views.top', { defaultValue: 'Топ ' })}${l}`, value: l }))}
+            options={[5, 10, 20, 50].map(l => ({ label: `${t('views.top')}${l}`, value: l }))}
             value={topLimit}
             onChange={(val) => setTopLimit(val)}
             className="w-28 md:w-32 shrink-0"
@@ -91,10 +91,10 @@ export default function HistoryView() {
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
-        <StatBlock icon={<Music size={24} />} value={stats.totalPlays} label={t('views.stat_tracks', { defaultValue: 'Треки' })} color="text-blue-400" bg="bg-blue-400/10" />
-        <StatBlock icon={<Clock size={24} />} value={formatDuration(stats.totalListeningSeconds, t)} label={t('views.stat_time', { defaultValue: 'Время' })} color="text-primary" bg="bg-primary/10" />
-        <StatBlock icon={<Users size={24} />} value={stats.uniqueArtists} label={t('views.stat_artists', { defaultValue: 'Артисты' })} color="text-pink-400" bg="bg-pink-400/10" />
-        <StatBlock icon={<Flame size={24} />} value={`${stats.streak} ${t('views.days_abbr', { defaultValue: 'дн.' })}`} label={t('views.stat_streak', { defaultValue: 'Серия' })} color="text-orange-400" bg="bg-orange-400/10" />
+        <StatBlock icon={<Music size={24} />} value={stats.totalPlays} label={t('views.stat_tracks')} color="text-blue-400" bg="bg-blue-400/10" />
+        <StatBlock icon={<Clock size={24} />} value={formatDuration(stats.totalListeningSeconds, t)} label={t('views.stat_time')} color="text-primary" bg="bg-primary/10" />
+        <StatBlock icon={<Users size={24} />} value={stats.uniqueArtists} label={t('views.stat_artists')} color="text-pink-400" bg="bg-pink-400/10" />
+        <StatBlock icon={<Flame size={24} />} value={`${stats.streak} ${t('views.days_abbr')}`} label={t('views.stat_streak')} color="text-orange-400" bg="bg-orange-400/10" />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -104,7 +104,7 @@ export default function HistoryView() {
           <section className="bg-[#121212]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-4">
               <Trophy size={20} className="text-yellow-500" />
-              <h2 className="text-xl font-bold">{t('views.top_artists', { defaultValue: 'Топ исполнителей' })}</h2>
+              <h2 className="text-xl font-bold">{t('views.top_artists')}</h2>
             </div>
             <div className="flex flex-col gap-3">
               {stats.topArtists.slice(0, topLimit).map((artist, i) => {
@@ -119,18 +119,18 @@ export default function HistoryView() {
                     <ArtistAvatar artistName={artistName} artistId={artistId} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0" fallbackSize={20} />
                     <span className="font-bold text-[15px]">{artistName}</span>
                   </div>
-                  <span className="text-sm font-bold text-secondary bg-white/5 px-2.5 py-1 rounded-md">{artist.count} {t('views.times', { defaultValue: 'раз' })}</span>
+                  <span className="text-sm font-bold text-secondary bg-white/5 px-2.5 py-1 rounded-md">{artist.count} {t('views.times')}</span>
                 </div>
                 );
               })}
-              {stats.topArtists.length === 0 && <span className="text-secondary text-sm">{t('views.no_data', { defaultValue: 'Нет данных за этот период' })}</span>}
+              {stats.topArtists.length === 0 && <span className="text-secondary text-sm">{t('views.no_data')}</span>}
             </div>
           </section>
 
           <section className="bg-[#121212]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-4">
               <Star size={20} className="text-primary" />
-              <h2 className="text-xl font-bold">{t('views.top_tracks', { defaultValue: 'Топ треков' })}</h2>
+              <h2 className="text-xl font-bold">{t('views.top_tracks')}</h2>
             </div>
             <div className="flex flex-col gap-2">
               {stats.topTracks.slice(0, topLimit).map((track, i) => {
@@ -158,18 +158,18 @@ export default function HistoryView() {
                       </span>
                       <ArtistLinks artistString={artist} className="text-xs text-secondary truncate" />
                     </div>
-                    <span className="text-sm font-bold text-secondary bg-white/5 px-2.5 py-1 rounded-md">{track.count} {t('views.times', { defaultValue: 'раз' })}</span>
+                    <span className="text-sm font-bold text-secondary bg-white/5 px-2.5 py-1 rounded-md">{track.count} {t('views.times')}</span>
                   </LongPressWrapper>
                 );
               })}
-              {stats.topTracks.length === 0 && <span className="text-secondary text-sm">{t('views.no_data', { defaultValue: 'Нет данных за этот период' })}</span>}
+              {stats.topTracks.length === 0 && <span className="text-secondary text-sm">{t('views.no_data')}</span>}
             </div>
           </section>
 
           <section className="bg-[#121212]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-4">
               <Disc size={20} className="text-purple-400" />
-              <h2 className="text-xl font-bold">{t('views.top_albums', { defaultValue: 'Топ альбомов' })}</h2>
+              <h2 className="text-xl font-bold">{t('views.top_albums')}</h2>
             </div>
             <div className="flex flex-col gap-2">
               {stats.topAlbums.slice(0, topLimit).map((album, i) => {
@@ -190,11 +190,11 @@ export default function HistoryView() {
                       <span className="font-bold text-[15px] truncate">{title}</span>
                       <ArtistLinks artistString={artist} className="text-xs text-secondary truncate" />
                     </div>
-                    <span className="text-sm font-bold text-secondary bg-white/5 px-2.5 py-1 rounded-md">{album.count} {t('views.times', { defaultValue: 'раз' })}</span>
+                    <span className="text-sm font-bold text-secondary bg-white/5 px-2.5 py-1 rounded-md">{album.count} {t('views.times')}</span>
                   </LongPressWrapper>
                 );
               })}
-              {stats.topAlbums.length === 0 && <span className="text-secondary text-sm">{t('views.no_data', { defaultValue: 'Нет данных за этот период' })}</span>}
+              {stats.topAlbums.length === 0 && <span className="text-secondary text-sm">{t('views.no_data')}</span>}
             </div>
           </section>
         </div>
@@ -204,7 +204,7 @@ export default function HistoryView() {
           <section className="bg-[#121212]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex-1 flex flex-col h-[600px]">
             <div className="flex items-center gap-2 mb-4">
               <Calendar size={20} className="text-green-400" />
-              <h2 className="text-xl font-bold">{t('views.recently_played', { defaultValue: 'Недавно играло' })}</h2>
+              <h2 className="text-xl font-bold">{t('views.recently_played')}</h2>
             </div>
             
             <div className="flex flex-col overflow-y-auto hide-scrollbar gap-1 pr-2">
@@ -239,7 +239,7 @@ export default function HistoryView() {
               {filteredHistory.length === 0 && (
                 <div className="flex flex-col items-center justify-center flex-1 text-secondary opacity-50 py-20">
                   <Clock size={48} className="mb-4" />
-                  <span className="font-bold text-lg">{t('views.history_empty', { defaultValue: 'История пуста' })}</span>
+                  <span className="font-bold text-lg">{t('views.history_empty')}</span>
                 </div>
               )}
             </div>

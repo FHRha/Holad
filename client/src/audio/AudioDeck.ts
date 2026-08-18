@@ -6,6 +6,7 @@ export const isLocalMediaUrl = (url: string): boolean => {
         url.startsWith('http://asset.localhost') ||
         url.startsWith('asset://') ||
         url.startsWith('_capacitor_file_') ||
+        url.includes('/_capacitor_file_') ||
         url.startsWith('capacitor://') ||
         url.startsWith('file://') ||
         url.startsWith('blob:') ||
@@ -129,9 +130,10 @@ export class AudioDeck implements IAudioDeck {
     public async load(src: string, position: number = 0): Promise<void> {
         try {
             this.setState('loading');
-            if (isLocalMediaUrl(src)) {
+            
+            const isCapacitorLocal = src.includes('_capacitor_file_') || src.startsWith('capacitor://');
+            if (isCapacitorLocal) {
                 this.element.removeAttribute('crossorigin');
-                this.element.crossOrigin = null;
             } else {
                 this.element.crossOrigin = 'anonymous';
             }

@@ -6,6 +6,8 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { clearAppCache } from '../../utils/storage';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { toggleOfflineMode } from '../../utils/networkStatus';
 import Slider from '../common/Slider';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../common/LanguageSelector';
@@ -20,8 +22,8 @@ function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode,
   return (
     <button 
       onClick={onClick}
-      className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-colors ${
-        isActive ? 'bg-primary text-primary-foreground' : 'bg-[#282828] text-[#b3b3b3] hover:text-white'
+      className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
+        isActive ? 'bg-primary text-white border-transparent shadow-md' : 'bg-white/5 text-[#b3b3b3] hover:bg-white/10 hover:text-white border-transparent'
       }`}
     >
       {icon}
@@ -93,7 +95,8 @@ function hslToHex(h: number, s: number, l: number) {
 export default function MobileSettingsView() {
   const { t } = useTranslation();
   const { setAuthenticated, setCredentials } = useAuthStore();
-  const { setSearchOpen } = useUIStore();
+  const { setSearchOpen, setOfflineModalOpen } = useUIStore();
+  const { isOffline } = useNetworkStatus();
   const settings = useSettingsStore();
   const volume = usePlayerStore(state => typeof state.mobileVolume === 'number' ? state.mobileVolume : 1.0);
   const isAutoDjEnabled = usePlayerStore(state => state.isAutoDjEnabled);
@@ -135,6 +138,14 @@ export default function MobileSettingsView() {
     }
   };
 
+  const handleOfflineToggle = () => {
+    if (!settings.hideOfflineExplanationModal) {
+      setOfflineModalOpen(true);
+    } else {
+      toggleOfflineMode();
+    }
+  };
+
   const handleLogout = () => {
     setAuthenticated(false);
     setCredentials('', '', '', '');
@@ -145,26 +156,26 @@ export default function MobileSettingsView() {
   const sections = [
     {
       id: 'server',
-      title: t('views.settings_server_account', { defaultValue: 'Сервер и аккаунт' }),
-      subtitle: t('views.settings_server_desc', { defaultValue: 'Данные сервера, сканирование библиотеки, учетные данные, выход из аккаунта' }),
+      title: t('views.settings_server_account'),
+      subtitle: t('views.settings_server_desc'),
       icon: <Database className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-4 mt-4">
           <button onClick={handleLogout} className="w-full bg-red-500/10 text-red-500 font-bold py-3 rounded-xl border border-red-500/20">
-            {t('views.logout', { defaultValue: 'Выйти из аккаунта' })}
+            {t('views.logout')}
           </button>
         </div>
       )
     },
     {
       id: 'appearance',
-      title: t('views.settings_appearance', { defaultValue: 'Внешний вид' }),
-      subtitle: t('views.settings_appearance_desc', { defaultValue: 'Тема, цвет приложения, сортировка, представления коллекций (сеткой/списком)' }),
+      title: t('views.settings_appearance'),
+      subtitle: t('views.settings_appearance_desc'),
       icon: <Palette className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-6 mt-4">
           <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_theme', { defaultValue: 'Тема' })}</span>
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_theme')}</span>
             <div className="flex gap-2">
               <ThemeOption label="Dark" value="dark" current={settings.theme} onSelect={settings.setTheme} />
               <ThemeOption label="Light" value="light" current={settings.theme} onSelect={settings.setTheme} />
@@ -173,7 +184,7 @@ export default function MobileSettingsView() {
           </div>
           
           <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_accent', { defaultValue: 'Цвет акцента' })}</span>
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_accent')}</span>
             <div className="flex gap-2 flex-wrap">
               <ColorOption color="green" hex="#1db954" current={settings.accentColor} onSelect={settings.setAccentColor} />
               <ColorOption color="blue" hex="#3b82f6" current={settings.accentColor} onSelect={settings.setAccentColor} />
@@ -222,7 +233,7 @@ export default function MobileSettingsView() {
             {editingColorIndex !== null && (
               <div className="bg-black/30 p-4 rounded-2xl border border-white/10 mt-2 space-y-4">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="font-bold text-sm">{t('views.settings_color_setup', { defaultValue: 'Настройка цвета' })}</span>
+                  <span className="font-bold text-sm">{t('views.settings_color_setup')}</span>
                   <button onClick={() => setEditingColorIndex(null)}><Check size={18} className="text-primary" /></button>
                 </div>
                 <input 
@@ -248,13 +259,13 @@ export default function MobileSettingsView() {
     },
     {
       id: 'audio',
-      title: t('views.settings_audio', { defaultValue: 'Звук и воспроизведение' }),
-      subtitle: t('views.settings_audio_desc', { defaultValue: 'Качество стриминга, качество загрузки, управление плеером' }),
+      title: t('views.settings_audio'),
+      subtitle: t('views.settings_audio_desc'),
       icon: <Music className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-6 mt-4">
           <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_click_action', { defaultValue: 'Действие по клику' })}</span>
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_click_action')}</span>
             <div className="flex flex-col gap-3 bg-black/20 p-4 rounded-xl">
               <label className="flex items-center gap-3">
                 <input 
@@ -263,7 +274,7 @@ export default function MobileSettingsView() {
                   onChange={() => settings.setClickAction('play_now')}
                   className="accent-primary w-5 h-5"
                 />
-                <span className="text-[15px] font-medium text-white">{t('views.settings_play_now', { defaultValue: 'Заменить очередь' })}</span>
+                <span className="text-[15px] font-medium text-white">{t('views.settings_play_now')}</span>
               </label>
               <label className="flex items-center gap-3">
                 <input 
@@ -272,13 +283,13 @@ export default function MobileSettingsView() {
                   onChange={() => settings.setClickAction('play_next')}
                   className="accent-primary w-5 h-5"
                 />
-                <span className="text-[15px] font-medium text-white">{t('views.settings_play_next', { defaultValue: 'Добавить в конец' })}</span>
+                <span className="text-[15px] font-medium text-white">{t('views.settings_play_next')}</span>
               </label>
             </div>
           </div>
           
           <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_default_volume', { defaultValue: 'Громкость на устройстве' })}</span>
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_default_volume')}</span>
             <div className="bg-black/20 p-4 rounded-xl">
               <Slider value={volume} onChange={setVolume} thickness="thick" />
               <div className="flex justify-between text-xs text-secondary mt-3">
@@ -289,9 +300,9 @@ export default function MobileSettingsView() {
           </div>
           
           <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('settings.volume_multiplier', { defaultValue: 'Усилитель громкости (до 300%)' })}</span>
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('settings.volume_multiplier')}</span>
             <div className="bg-black/20 p-4 rounded-xl flex items-center justify-between">
-              <span className="text-[15px] font-medium text-white">{t('views.multiplier_value', { defaultValue: 'Процент усиления' })}</span>
+              <span className="text-[15px] font-medium text-white">{t('views.multiplier_value')}</span>
               <div className="flex items-center gap-2">
                 <input 
                   type="number"
@@ -312,8 +323,8 @@ export default function MobileSettingsView() {
           <div className="bg-black/20 p-4 rounded-xl flex flex-col gap-4">
             <label className="flex items-center justify-between">
               <div className="flex flex-col pr-4">
-                <span className="text-[15px] font-medium text-white">{t('settings.crossfade', { defaultValue: 'Плавный переход (Crossfade)' })}</span>
-                <span className="text-[13px] text-[#b3b3b3]">{t('settings.crossfade_desc', { defaultValue: 'Плавный переход между треками' })}</span>
+                <span className="text-[15px] font-medium text-white">{t('settings.crossfade')}</span>
+                <span className="text-[13px] text-[#b3b3b3]">{t('settings.crossfade_desc')}</span>
               </div>
               <input 
                 type="checkbox" 
@@ -326,7 +337,7 @@ export default function MobileSettingsView() {
               <div className="pt-2 pb-1 opacity-100 transition-opacity border-t border-white/5 space-y-4">
                 <div>
                   <div className="flex justify-between text-xs text-[#b3b3b3] mb-2 mt-2">
-                    <span>{t('settings.crossfade_duration', { defaultValue: 'Длительность перехода' })}</span>
+                    <span>{t('settings.crossfade_duration')}</span>
                     <span>{settings.crossfadeDuration} сек</span>
                   </div>
                   <input 
@@ -344,7 +355,7 @@ export default function MobileSettingsView() {
                 </div>
 
                 <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
-                  <span className="text-xs text-[#b3b3b3] font-medium">{t('settings.crossfade_curve', { defaultValue: 'Кривая кроссфейда' })}</span>
+                  <span className="text-xs text-[#b3b3b3] font-medium">{t('settings.crossfade_curve')}</span>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -368,8 +379,8 @@ export default function MobileSettingsView() {
 
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
             <div className="flex flex-col pr-4">
-              <span className="text-[15px] font-medium text-white">{t('settings.gapless', { defaultValue: 'Бесшовное воспроизведение (Gapless)' })}</span>
-              <span className="text-[13px] text-[#b3b3b3]">{t('settings.gapless_desc', { defaultValue: 'Мгновенный переход между треками без пауз' })}</span>
+              <span className="text-[15px] font-medium text-white">{t('settings.gapless')}</span>
+              <span className="text-[13px] text-[#b3b3b3]">{t('settings.gapless_desc')}</span>
             </div>
             <input 
               type="checkbox" 
@@ -381,8 +392,8 @@ export default function MobileSettingsView() {
 
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
             <div className="flex flex-col pr-4">
-              <span className="text-[15px] font-medium text-white">{t('settings.normalization', { defaultValue: 'Нормализация громкости' })}</span>
-              <span className="text-[13px] text-[#b3b3b3]">{t('settings.normalization_desc', { defaultValue: 'Автовыравнивание громкости' })}</span>
+              <span className="text-[15px] font-medium text-white">{t('settings.normalization')}</span>
+              <span className="text-[13px] text-[#b3b3b3]">{t('settings.normalization_desc')}</span>
             </div>
             <input 
               type="checkbox" 
@@ -394,8 +405,8 @@ export default function MobileSettingsView() {
           
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
             <div className="flex flex-col">
-              <span className="text-[15px] font-medium text-white">{t('views.settings_autodj', { defaultValue: 'Авто DJ' })}</span>
-              <span className="text-[13px] text-[#b3b3b3]">{t('views.settings_autodj_desc', { defaultValue: 'Добавлять похожие треки' })}</span>
+              <span className="text-[15px] font-medium text-white">{t('views.settings_autodj')}</span>
+              <span className="text-[13px] text-[#b3b3b3]">{t('views.settings_autodj_desc')}</span>
             </div>
             <input 
               type="checkbox" 
@@ -407,8 +418,8 @@ export default function MobileSettingsView() {
 
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
             <div className="flex flex-col pr-4">
-              <span className="text-[15px] font-medium text-white">{t('settings.prebuffering', { defaultValue: 'Предзагрузка треков' })}</span>
-              <span className="text-[13px] text-[#b3b3b3]">{t('settings.preload_desc', { defaultValue: 'Предварительная буферизация следующего трека' })}</span>
+              <span className="text-[15px] font-medium text-white">{t('settings.prebuffering')}</span>
+              <span className="text-[13px] text-[#b3b3b3]">{t('settings.preload_desc')}</span>
             </div>
             <input 
               type="checkbox" 
@@ -422,24 +433,37 @@ export default function MobileSettingsView() {
     },
     {
       id: 'network',
-      title: t('views.settings_network', { defaultValue: 'Сетевое подключение' }),
-      subtitle: t('views.settings_network_desc', { defaultValue: 'Офлайн-режим, доверенные SSL-сертификаты' }),
+      title: t('views.settings_network'),
+      subtitle: t('views.settings_network_desc'),
       icon: <Globe className="text-primary" size={24} />,
       content: (
-        <div className="text-[#b3b3b3] text-sm mt-4 italic">{t('views.settings_wip', { defaultValue: 'В разработке...' })}</div>
+        <div className="flex flex-col gap-6 mt-4">
+          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">
+            <div className="flex flex-col pr-4">
+              <span className="text-[15px] font-medium text-white">{t('settings.offline_mode')}</span>
+              <span className="text-[13px] text-[#b3b3b3]">{t('settings.offline_mode_desc')}</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={isOffline} 
+              onChange={handleOfflineToggle}
+              className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
+            />
+          </label>
+        </div>
       )
     },
     {
       id: 'storage',
-      title: t('views.settings_storage', { defaultValue: 'Хранилище' }),
-      subtitle: t('views.settings_storage_desc', { defaultValue: 'Управление кешами, загрузки, лимиты хранения' }),
+      title: t('views.settings_storage'),
+      subtitle: t('views.settings_storage_desc'),
       icon: <HardDrive className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-6 mt-4">
           {/* 1. Storage Stats Bar (Mobile Optimized) */}
           <div className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
-              {t('settings.storage_usage', { defaultValue: 'Использование хранилища' })}
+              {t('settings.storage_usage')}
             </span>
             <StorageStatsBar isMobile={true} key={statsKey} onRefreshRequested={refreshStats} />
           </div>
@@ -447,7 +471,7 @@ export default function MobileSettingsView() {
           {/* 2. Storage Limit Control */}
           <div className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
-              {t('settings.storage_limit_title', { defaultValue: 'Лимит хранилища' })}
+              {t('settings.storage_limit_title')}
             </span>
             <StorageLimitControl isMobile={true} />
           </div>
@@ -455,7 +479,7 @@ export default function MobileSettingsView() {
           {/* 3. Image Memory Limit Control */}
           <div className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
-              {t('settings.memory_limit', { defaultValue: 'Лимит памяти для картинок' })}
+              {t('settings.memory_limit')}
             </span>
             <ImageMemoryLimitControl isMobile={true} />
           </div>
@@ -463,7 +487,7 @@ export default function MobileSettingsView() {
           {/* 3. Downloaded Music Library Grid */}
           <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
             <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
-              {t('settings.downloaded_music', { defaultValue: 'Скачанная музыка' })}
+              {t('settings.downloaded_music')}
             </span>
             <DownloadedMusicGrid 
               isMobile={true} 
@@ -489,7 +513,7 @@ export default function MobileSettingsView() {
           >
             <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
             <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
-              {t('views.search_placeholder', { defaultValue: 'Поиск...' })}
+              {t('views.search_placeholder')}
             </div>
           </div>
           <div className="flex-shrink-0">
@@ -499,7 +523,9 @@ export default function MobileSettingsView() {
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-2">
           <FilterChip 
             icon={<CloudOff size={16} />} 
-            label={t('views.filter_offline', { defaultValue: 'Офлайн' })} 
+            label={t('views.filter_offline')} 
+            isActive={isOffline}
+            onClick={handleOfflineToggle}
           />
         </div>
       </div>

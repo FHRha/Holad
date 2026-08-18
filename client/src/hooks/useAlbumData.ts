@@ -4,6 +4,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { extractDominantColor } from '../utils/colorExtractor';
 import { useSettingsStore } from '../store/settingsStore';
 import { useDownloadStore } from '../store/downloadStore';
+import { toast } from 'sonner';
 import i18n from '../i18n';
 
 export function useAlbumData(id: string | undefined, observerTarget: React.RefObject<HTMLDivElement | null>) {
@@ -173,11 +174,11 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
       if (combined.length > 0) {
         setQueueAndPlay(combined, 0);
       } else {
-        alert(i18n.t('views.radio_no_tracks', { defaultValue: 'Не удалось найти треки для радио' }));
+        toast.error(i18n.t('views.radio_no_tracks'));
       }
     } catch (e) {
       console.error(e);
-      alert(i18n.t('views.radio_error', { defaultValue: 'Ошибка запуска радио' }));
+      toast.error(i18n.t('views.radio_error'));
     } finally {
       setIsRadioLoading(false);
       setIsProcessing(false);

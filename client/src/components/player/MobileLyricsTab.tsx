@@ -38,14 +38,14 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
           onClick={forceSync}
           className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 px-8 py-3 bg-primary text-background rounded-full font-bold shadow-lg hover:scale-105 active:scale-95 transition-all text-sm tracking-wider"
         >
-          {t('player.sync', { defaultValue: 'Sync' })}
+          {t('player.sync')}
         </button>
       )}
 
       <div className="flex-1 overflow-y-auto hide-scrollbar px-6">
         <div className="flex flex-col items-center justify-start text-center py-6 min-h-full">
           {loadingLyrics ? (
-            <p className="text-white/50 animate-pulse text-base mt-20">{t('player.loading_lyrics', { defaultValue: 'Loading lyrics...' })}</p>
+            <p className="text-white/50 animate-pulse text-base mt-20">{t('player.loading_lyrics')}</p>
           ) : lrcLines.length > 0 ? (
             <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[30vh] pb-[30vh] w-full transition-all duration-300">
               {lrcLines.map((line, idx) => {
@@ -122,7 +122,7 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
             </div>
           ) : (
             <div className="text-white/40 text-base flex flex-col items-center gap-2 mt-20">
-              <p>{t('player.lyrics_not_found', { defaultValue: 'Lyrics not found' })}</p>
+              <p>{t('player.lyrics_not_found')}</p>
             </div>
           )}
         </div>

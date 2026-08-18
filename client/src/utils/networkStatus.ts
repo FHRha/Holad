@@ -1,3 +1,5 @@
+import { isCapacitor } from './StorageManager';
+
 type NetworkListener = (online: boolean) => void;
 
 class NetworkStatusManager {
@@ -5,6 +7,7 @@ class NetworkStatusManager {
   private forcedOffline: boolean = false;
   private listeners: Set<NetworkListener> = new Set();
   private isTesting: boolean = false;
+  private pingFailures: number = 0;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -18,6 +21,56 @@ class NetworkStatusManager {
           this.setOnline(false);
         }
       });
+    }
+
+    if (isCapacitor()) {
+      import('@capacitor/network').then(({ Network }) => {
+        Network.getStatus().then((status) => {
+          if (!this.isTesting) {
+            this.setOnline(status.connected);
+          }
+        });
+        Network.addListener('networkStatusChange', (status) => {
+          if (!this.isTesting) {
+            this.setOnline(status.connected);
+          }
+        });
+      }).catch(err => {
+        console.error('Failed to initialize @capacitor/network', err);
+      });
+    } else {
+      // Desktop / Web: Poll server lightly to detect true offline status
+      // because window 'offline' events can be unreliable on some desktop WebViews.
+      setInterval(async () => {
+        if (!this.isTesting) {
+          try {
+            const authStore = (await import('../store/authStore')).useAuthStore.getState();
+            if (authStore.isAuthenticated && authStore.url) {
+              const core = await import('../api/subsonic-core');
+              const pingUrl = core.buildUrl('ping');
+              
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 2000);
+              
+              try {
+                await fetch(pingUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                // If we get a response, even an HTTP error, we are technically online.
+                this.pingFailures = 0;
+                this.setOnline(true);
+              } catch (e) {
+                clearTimeout(timeoutId);
+                this.pingFailures++;
+                if (this.pingFailures >= 2) {
+                  this.setOnline(false);
+                }
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+      }, 5000); // Check every 5s
     }
   }
 

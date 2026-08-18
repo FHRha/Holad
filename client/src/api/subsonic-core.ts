@@ -51,10 +51,20 @@ export const fetchWithRetry = async (url: string, options?: RequestInit): Promis
   for (let i = 0; i <= delays.length; i++) {
     try {
       const res = await fetch(url, options);
+      // We got a response, so we're online
+      import('../utils/networkStatus').then(m => m.networkManager.setOnline(true)).catch(() => {});
+      
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res;
-    } catch (e) {
+    } catch (e: any) {
       if (i === delays.length) throw e;
+      
+      // If forced offline, fail fast instead of retrying forever
+      const isOffline = await import('../utils/networkStatus').then(m => m.networkManager.isOffline()).catch(() => false);
+      if (isOffline && !e.message?.startsWith('HTTP ')) {
+        throw e;
+      }
+
       await new Promise(r => setTimeout(r, delays[i]));
     }
   }

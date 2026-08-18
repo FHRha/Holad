@@ -22,6 +22,8 @@ export interface DownloadItem {
   sizeBytes?: number;
   error?: string;
   timestamp: number;
+  genre?: string;
+  title?: string;
 }
 
 interface DownloadState {
@@ -42,6 +44,7 @@ interface DownloadState {
   clearHistory: () => void;
   getDownloadedTracks: () => DownloadItem[];
   getDownloadedAlbums: () => DownloadItem[];
+  resetStuckDownloads: () => void;
 }
 
 export const useDownloadStore = create<DownloadState>()(
@@ -171,7 +174,7 @@ export const useDownloadStore = create<DownloadState>()(
         return { downloads: newDownloads };
       }),
       clearHistory: () => set((state) => {
-        // Only clear completed/error/cancelled ones, keep downloading/queued ones
+        // Only clear completed/error/cancelled/paused ones, keep downloading/queued ones
         const newDownloads = { ...state.downloads };
         for (const key in newDownloads) {
           if (newDownloads[key].status !== 'downloading' && newDownloads[key].status !== 'queued') {
@@ -185,7 +188,17 @@ export const useDownloadStore = create<DownloadState>()(
       },
       getDownloadedAlbums: () => {
         return Object.values(get().downloads).filter(d => d.type === 'album' && d.status === 'completed');
-      }
+      },
+      resetStuckDownloads: () => set((state) => {
+        const newDownloads = { ...state.downloads };
+        for (const key in newDownloads) {
+          if (newDownloads[key].status === 'downloading' || newDownloads[key].status === 'queued') {
+            newDownloads[key].status = 'error';
+            newDownloads[key].error = 'Download interrupted';
+          }
+        }
+        return { downloads: newDownloads };
+      })
     }),
     {
       name: 'download-storage',
@@ -193,6 +206,51 @@ export const useDownloadStore = create<DownloadState>()(
     }
   )
 );
+
+export const verifyDownloads = async () => {
+  const store = useDownloadStore.getState();
+  const downloads = store.downloads;
+  let hasChanges = false;
+  const newDownloads = { ...downloads };
+  
+  const { isTauri, isCapacitor } = await import('../utils/StorageManager');
+  
+  for (const id in newDownloads) {
+    const item = newDownloads[id];
+    if (item.status === 'completed' && item.path) {
+      let fileExists = false;
+      if (isTauri()) {
+        try {
+          const { exists } = await import('@tauri-apps/plugin-fs');
+          fileExists = await exists(item.path);
+        } catch (e) {
+          console.warn('Tauri fs.exists failed, assuming file exists to prevent deletion:', e);
+          fileExists = true;
+        }
+      } else if (isCapacitor()) {
+        try {
+          const { Filesystem, Directory } = await import('@capacitor/filesystem');
+          const stat = await Filesystem.stat({ path: item.path, directory: Directory.Data });
+          fileExists = !!stat;
+        } catch (e) {
+          console.warn('Capacitor fs.stat failed, assuming file exists to prevent deletion:', e);
+          fileExists = true;
+        }
+      } else {
+        fileExists = true; // Browser, can't verify easily
+      }
+      
+      if (!fileExists) {
+        delete newDownloads[id];
+        hasChanges = true;
+      }
+    }
+  }
+  
+  if (hasChanges) {
+    useDownloadStore.setState({ downloads: newDownloads });
+  }
+};
 
 export const isItemDownloaded = (downloads: Record<string, DownloadItem>, trackId: string, albumId?: string) => {
   if (downloads[trackId] && downloads[trackId].status === 'completed') return true;
@@ -231,6 +289,9 @@ export const getOfflineTracks = (): any[] => {
       const item = downloads[t.id];
       offlineTracks.push({
         ...t,
+        title: t.title || t.name || item?.name || 'Unknown Title',
+        name: t.name || t.title || item?.name || 'Unknown Title',
+        genre: t.genre || (item as any)?.genre || '',
         artist: t.artist || item?.artist || 'Unknown Artist',
         album: t.album || item?.album || 'Unknown Album',
         albumId: t.albumId || item?.albumId || '',
@@ -249,7 +310,9 @@ export const getOfflineTracks = (): any[] => {
     if (d.type === 'track' && d.status === 'completed' && !addedIds.has(d.id)) {
       offlineTracks.push({
         id: d.id,
-        title: d.name,
+        title: d.name || (d as any).title || 'Unknown Title',
+        name: d.name || (d as any).title || 'Unknown Title',
+        genre: (d as any).genre || '',
         artist: d.artist || 'Unknown Artist',
         album: d.album || 'Unknown Album',
         albumId: d.albumId || '',
@@ -279,16 +342,17 @@ export interface DownloadQueueStats {
 export const getDownloadQueueStats = (downloads: Record<string, DownloadItem>): DownloadQueueStats => {
   const items = Object.values(downloads || {});
   const activeItems = items.filter(d => d.status === 'downloading');
+  const pausedItems = items.filter(d => d.status === 'paused');
   const queuedItems = items.filter(d => d.status === 'queued');
   const completedCount = items.filter(d => d.status === 'completed').length;
-  const isDownloading = activeItems.length > 0;
-  const activeDownloadsCount = activeItems.length;
+  const isDownloading = activeItems.length > 0 || pausedItems.length > 0;
+  const activeDownloadsCount = activeItems.length + pausedItems.length;
   const queuedCount = queuedItems.length;
   const totalActiveCount = activeDownloadsCount + queuedCount;
   
   let overallProgress = 0;
   if (activeDownloadsCount > 0) {
-    const totalProgress = activeItems.reduce((acc, item) => acc + (item.progress || 0), 0);
+    const totalProgress = [...activeItems, ...pausedItems].reduce((acc, item) => acc + (item.progress || 0), 0);
     overallProgress = Math.round(totalProgress / activeDownloadsCount);
   }
 

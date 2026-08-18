@@ -82,7 +82,7 @@ export default function HoladConnectMenu() {
         } : undefined}
       >
         {isMobileView && <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-4" />}
-        <h3 className="text-sm font-bold text-foreground">{t('player.connect_to_device', { defaultValue: 'Подключиться к устройству' })}</h3>
+        <h3 className="text-sm font-bold text-foreground">{t('player.connect_to_device')}</h3>
       </div>
       
       <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
@@ -110,10 +110,10 @@ export default function HoladConnectMenu() {
               </div>
               <div className="flex flex-col overflow-hidden">
                 <span className={`font-semibold text-sm truncate ${isDeviceActive ? 'text-primary' : 'text-foreground'}`}>
-                  {isThisDevice ? t('player.this_browser', { defaultValue: 'Этот браузер' }) : device.name}
+                  {isThisDevice ? t('player.this_browser') : device.name}
                 </span>
                 <span className="text-xs opacity-70 truncate">
-                  {isDeviceActive ? t('player.listening_here', { defaultValue: 'Слушаем здесь' }) : 'Holad Connect'}
+                  {isDeviceActive ? t('player.listening_here') : 'Holad Connect'}
                 </span>
               </div>
             </button>
@@ -122,7 +122,7 @@ export default function HoladConnectMenu() {
         
         {devices.length === 0 && (
           <div className="px-3 py-4 text-center text-sm text-secondary">
-            {t('player.devices_not_found', { defaultValue: 'Устройства не найдены' })}
+            {t('player.devices_not_found')}
           </div>
         )}
       </div>
@@ -134,7 +134,7 @@ export default function HoladConnectMenu() {
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className={`transition-colors flex items-center justify-center w-5 ${isActive ? 'text-primary' : 'text-secondary hover:text-white'}`}
-        title={t('player.connect_to_device', { defaultValue: 'Подключиться к устройству' })}
+        title={t('player.connect_to_device')}
       >
         <MonitorSpeaker size={16} />
       </button>

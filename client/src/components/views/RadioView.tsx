@@ -1,10 +1,46 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Play, Shuffle, Heart, Disc, Music, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { fetchRandomTracks, getStarred, getGenres, getSongsByGenre, getCoverArtUrl } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import { getOfflineTracks } from '../../store/downloadStore';
+import { toast } from 'sonner';
 import type { Track } from '../../store/playerStore';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { useUIStore } from '../../store/uiStore';
+
+const StationCard = ({ id, title, icon: Icon, description, onClick, colorClass, loadingStation }: any) => {
+  const isThisLoading = loadingStation === id;
+  
+  return (
+    <div 
+      onClick={(e) => {
+        if (isThisLoading) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+      }}
+      className={`relative overflow-hidden rounded-xl cursor-pointer group transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${colorClass}`}
+    >
+      <div className="absolute -bottom-6 -right-6 transform rotate-12 opacity-30 group-hover:opacity-40 transition-opacity">
+        <Icon size={120} className="text-black drop-shadow-lg" />
+      </div>
+      
+      <div className="relative z-10 p-5 flex flex-col h-full min-h-[160px] justify-between">
+        <h3 className="text-2xl font-black text-white drop-shadow-md leading-tight line-clamp-2">{title}</h3>
+        
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-white/80 font-bold drop-shadow-md line-clamp-2">{description}</p>
+          <div className="absolute right-4 bottom-4">
+            <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out transform translate-y-4 group-hover:translate-y-0 shadow-xl">
+              {isThisLoading ? <Loader2 size={24} className="animate-spin text-black" /> : <Play size={24} fill="currentColor" className="ml-1 text-black" />}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function RadioView() {
   const { t } = useTranslation();
@@ -13,6 +49,8 @@ export default function RadioView() {
   const [loadingStation, setLoadingStation] = useState<string | null>(null);
   
   const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
+  const { isOffline } = useNetworkStatus();
+  const { activeFilter } = useUIStore();
 
   useEffect(() => {
     loadGenres();
@@ -30,10 +68,20 @@ export default function RadioView() {
     }
   };
 
+  const visibleGenres = useMemo(() => {
+    if (isOffline || activeFilter === 'Downloaded' || activeFilter === 'Offline') {
+      const offline = getOfflineTracks();
+      return genres.filter(g => 
+        offline.some(t => t.genre?.toLowerCase() === g.value.toLowerCase())
+      );
+    }
+    return genres;
+  }, [genres, isOffline, activeFilter]);
+
   const mapTracks = (tracks: any[]): Track[] => {
     return tracks.map((t: any) => ({
       id: t.id,
-      title: t.title,
+      title: t.title || t.name,
       artist: t.artist,
       album: t.album,
       albumId: t.albumId,
@@ -47,21 +95,35 @@ export default function RadioView() {
   const startStation = async (stationName: string, fetcher: () => Promise<any[]>) => {
     setLoadingStation(stationName);
     try {
-      const isOffline = !navigator.onLine;
       let tracks: any[] = [];
-      if (isOffline && stationName === 'random') {
-        tracks = getOfflineTracks().slice(0, 50);
+      if (isOffline || activeFilter === 'Downloaded' || activeFilter === 'Offline') {
+        if (stationName === 'random' || stationName === 'newest') {
+          tracks = [...getOfflineTracks()].sort(() => Math.random() - 0.5).slice(0, 50);
+        } else if (stationName === 'favorites') {
+          tracks = getOfflineTracks()
+            .filter((t: any) => t.userRating && t.userRating >= 4)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 50);
+        } else if (stationName.startsWith('genre-')) {
+          const genreName = stationName.replace('genre-', '');
+          tracks = getOfflineTracks()
+            .filter((t: any) => t.genre?.toLowerCase() === genreName.toLowerCase())
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 50);
+        } else {
+          tracks = [...getOfflineTracks()].sort(() => Math.random() - 0.5).slice(0, 50);
+        }
       } else {
         tracks = await fetcher();
       }
       if (tracks && tracks.length > 0) {
         setQueueAndPlay(mapTracks(tracks), 0);
       } else {
-        alert(t('views.radio_failed'));
+        toast.error(t('views.radio_failed'));
       }
     } catch (error) {
       console.error(error);
-      alert(t('views.radio_error'));
+      toast.error(t('views.radio_error'));
     } finally {
       setLoadingStation(null);
     }
@@ -84,34 +146,6 @@ export default function RadioView() {
     return <div className="flex-1 flex items-center justify-center text-secondary"><Loader2 className="animate-spin w-8 h-8" /></div>;
   }
 
-  const StationCard = ({ id, title, icon: Icon, description, onClick, colorClass }: any) => {
-    const isThisLoading = loadingStation === id;
-    
-    return (
-      <div 
-        onClick={isThisLoading ? undefined : onClick}
-        className={`relative overflow-hidden rounded-xl cursor-pointer group transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${colorClass}`}
-      >
-        <div className="absolute -bottom-6 -right-6 transform rotate-12 opacity-30 group-hover:opacity-40 transition-opacity">
-          <Icon size={120} className="text-black drop-shadow-lg" />
-        </div>
-        
-        <div className="relative z-10 p-5 flex flex-col h-full min-h-[160px] justify-between">
-          <h3 className="text-2xl font-black text-white drop-shadow-md leading-tight line-clamp-2">{title}</h3>
-          
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-white/80 font-bold drop-shadow-md line-clamp-2">{description}</p>
-            <div className="absolute right-4 bottom-4">
-              <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out transform translate-y-4 group-hover:translate-y-0 shadow-xl">
-                {isThisLoading ? <Loader2 size={24} className="animate-spin text-black" /> : <Play size={24} fill="currentColor" className="ml-1 text-black" />}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="flex-1 bg-transparent md:bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar pt-10 pb-32 md:pb-8">
       <div className="max-w-6xl mx-auto space-y-12">
@@ -127,6 +161,7 @@ export default function RadioView() {
               icon={Shuffle}
               onClick={startRandomRadio}
               colorClass="bg-[#1E3264]"
+              loadingStation={loadingStation}
             />
             <StationCard 
               id="favorites"
@@ -135,6 +170,7 @@ export default function RadioView() {
               icon={Heart}
               onClick={startFavoritesRadio}
               colorClass="bg-[#E8115B]"
+              loadingStation={loadingStation}
             />
             <StationCard 
               id="newest"
@@ -143,16 +179,17 @@ export default function RadioView() {
               icon={Disc}
               onClick={startNewReleases}
               colorClass="bg-[#148A08]"
+              loadingStation={loadingStation}
             />
           </div>
         </section>
 
         {/* Genre Stations */}
-        {genres.length > 0 && (
+        {visibleGenres.length > 0 && (
           <section>
             <h2 className="text-2xl font-bold text-foreground mb-6">{t('views.radio_genres')}</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {genres.map((genre: any, idx: number) => {
+              {visibleGenres.map((genre: any, idx: number) => {
                 const spotifyColors = [
                   'bg-[#E13300]', 'bg-[#1E3264]', 'bg-[#E8115B]', 'bg-[#148A08]', 
                   'bg-[#509BF5]', 'bg-[#FF4632]', 'bg-[#BA5D07]', 'bg-[#7358FF]', 
@@ -169,6 +206,7 @@ export default function RadioView() {
                     icon={Music}
                     onClick={() => startGenreRadio(genre.value)}
                     colorClass={colorClass}
+                    loadingStation={loadingStation}
                   />
                 );
               })}
@@ -179,3 +217,4 @@ export default function RadioView() {
     </div>
   );
 }
+

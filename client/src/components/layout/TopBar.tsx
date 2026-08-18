@@ -9,7 +9,6 @@ import { useUIStore, LEFT_SIDEBAR_DEFAULT_WIDTH, RIGHT_SIDEBAR_DEFAULT_WIDTH } f
 import { useSettingsStore } from '../../store/settingsStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { toggleOfflineMode } from '../../utils/networkStatus';
-import OfflineModeModal from '../modals/OfflineModeModal';
 import { PanelLeft, PanelRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../common/LanguageSelector';
@@ -45,7 +44,6 @@ export default function TopBar() {
     setLeftSidebarWidth, 
     rightSidebarWidth, 
     setRightSidebarWidth,
-    isOfflineModalOpen,
     setOfflineModalOpen
   } = useUIStore();
 
@@ -84,18 +82,20 @@ export default function TopBar() {
           <PanelLeft size={20} />
         </button>
       </div>
-      <div className="flex items-center gap-2 w-full max-w-xl">
-        {isOffline && (
-          <button
-            onClick={handleOfflineChipClick}
-            data-testid="desktop-offline-chip"
-            className="bg-primary/10 text-primary border border-primary/30 rounded-full px-3 py-1 text-xs font-semibold flex items-center gap-1.5 hover:bg-primary/20 transition-all shrink-0 cursor-pointer"
-            title={t('common.offline', { defaultValue: 'Офлайн' })}
-          >
-            <CloudOff size={14} className="shrink-0" />
-            <span>{t('common.offline', { defaultValue: 'Офлайн' })}</span>
-          </button>
-        )}
+      <div className="flex items-center gap-2 flex-1 max-w-3xl mx-4">
+        <button
+          onClick={handleOfflineChipClick}
+          data-testid="desktop-offline-chip"
+          className={`h-10 px-4 rounded-full flex items-center justify-center gap-2 transition-all shrink-0 cursor-pointer border ${
+            isOffline 
+              ? 'bg-primary text-white border-transparent shadow-md hover:scale-105 active:scale-95' 
+              : 'bg-white/5 text-secondary border-transparent hover:bg-white/10 hover:text-white'
+          }`}
+          title={isOffline ? t('common.offline') : t('common.go_offline')}
+        >
+          <CloudOff size={18} className="shrink-0" />
+          <span className="text-sm font-bold hidden sm:inline">{isOffline ? t('common.offline') : t('common.go_offline')}</span>
+        </button>
         <div className="relative w-full" ref={containerRef}>
           <div className="relative flex items-center w-full bg-white/10 rounded-full hover:bg-white/15 transition-colors focus-within:bg-white/15 focus-within:ring-2 focus-within:ring-primary/50">
           <Search size={20} className="text-secondary ml-4" />
@@ -232,9 +232,10 @@ export default function TopBar() {
       <div className="relative flex items-center gap-2" ref={sessionRef}>
         <div className="relative">
           <button 
-            onClick={() => setShowSession(!showSession)}
-            className={`h-10 px-4 rounded-full flex items-center justify-center gap-2 transition-colors ${showSession ? 'bg-primary/20 text-primary' : roomId ? 'bg-primary text-background hover:scale-105' : 'bg-white/5 hover:bg-white/10 text-secondary hover:text-white'}`}
-            title={t('common.jam_session')}
+            onClick={() => !isOffline && setShowSession(!showSession)}
+            disabled={isOffline}
+            className={`h-10 px-4 rounded-full flex items-center justify-center gap-2 transition-colors ${isOffline ? 'opacity-50 cursor-not-allowed bg-white/5 text-secondary' : showSession ? 'bg-primary/20 text-primary' : roomId ? 'bg-primary text-background hover:scale-105' : 'bg-white/5 hover:bg-white/10 text-secondary hover:text-white'}`}
+            title={isOffline ? `${t('common.jam_session')} (Offline)` : t('common.jam_session')}
           >
             <Users size={18} />
             <span className="text-sm font-bold hidden sm:inline">{t('common.jam_session')}</span>
@@ -258,12 +259,6 @@ export default function TopBar() {
         </button>
       </div>
 
-      {isOfflineModalOpen && (
-        <OfflineModeModal 
-          isOpen={isOfflineModalOpen} 
-          onClose={() => setOfflineModalOpen(false)} 
-        />
-      )}
     </div>
   );
 }

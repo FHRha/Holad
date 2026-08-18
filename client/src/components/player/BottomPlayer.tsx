@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Star, Maximize2, Monitor, Smartphone, Tv2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
@@ -28,13 +28,14 @@ export default function BottomPlayer() {
   const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
   const audioRef0 = useRef<HTMLAudioElement>(null);
   const audioRef1 = useRef<HTMLAudioElement>(null);
+  const audioRefs = useMemo(() => [audioRef0, audioRef1] as [React.RefObject<HTMLAudioElement | null>, React.RefObject<HTMLAudioElement | null>], []);
 
   const {
     progress,
     duration,
     handleSeekChange,
     handleSeekEnd
-  } = useAudioEngine([audioRef0, audioRef1], queue[currentIndex]);
+  } = useAudioEngine(audioRefs, queue[currentIndex]);
 
   useMediaSession();
 
@@ -104,7 +105,7 @@ export default function BottomPlayer() {
         <div className="flex flex-col leading-tight justify-center gap-0.5 flex-1 min-w-0">
           <div className="flex items-center gap-1.5 w-full">
             <span onClick={() => navigate(`/Holad/album/${currentTrack.albumId}`)} className="font-bold text-base text-foreground truncate hover:underline cursor-pointer">{currentTrack.title}</span>
-            <MoreVertical size={16} className="text-secondary/50 hover:text-foreground cursor-pointer flex-shrink-0" onClick={(e) => { e.stopPropagation(); openMenu(e.clientX, e.clientY, currentTrack, 'track'); }} />
+            <MoreVertical size={16} className="text-[#808080] hover:text-foreground cursor-pointer flex-shrink-0" onClick={(e) => { e.stopPropagation(); openMenu(e.clientX, e.clientY, currentTrack, 'track'); }} />
           </div>
           <ArtistLinks artistString={currentTrack.artist} artistId={currentTrack.artistId} className="text-sm font-medium text-secondary truncate mt-0.5" />
           {currentTrack.album && (
@@ -117,7 +118,7 @@ export default function BottomPlayer() {
                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
                 {getDeviceIcon(activeDeviceObj.name, 12, "flex-shrink-0 text-primary z-10")}
                 <span className="truncate max-w-[120px] md:max-w-[200px] z-10 drop-shadow-sm">
-                  {t('player.playing_on', { defaultValue: 'Играет на' })} <span className="font-bold text-white">{activeDeviceObj.name}</span>
+                  {t('player.playing_on')} <span className="font-bold text-white">{activeDeviceObj.name}</span>
                 </span>
                 <div className="relative flex items-center justify-center w-2.5 h-2.5 ml-1 z-10 flex-shrink-0">
                   {isPlaying && <div className="absolute inset-0 bg-primary/80 rounded-full animate-ping"></div>}
@@ -335,14 +336,12 @@ export default function BottomPlayer() {
       <audio
         id="main-audio-player-0"
         className="main-audio-player"
-        crossOrigin="anonymous"
         playsInline
         ref={audioRef0}
       />
       <audio
         id="main-audio-player-1"
         className="main-audio-player"
-        crossOrigin="anonymous"
         playsInline
         ref={audioRef1}
       />

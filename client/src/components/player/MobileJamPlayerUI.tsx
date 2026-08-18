@@ -93,7 +93,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
           <div className="w-11" /> // Placeholder for alignment
         )}
         <span className="text-white font-bold text-sm tracking-wider">
-          {t('player.now_playing', { defaultValue: 'Играет' })}
+          {t('player.now_playing')}
         </span>
         {showSessionButton ? (
           <button 
@@ -244,7 +244,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-white flex items-center gap-2">
                 <Moon size={24} className="text-primary" />
-                {t('player.sleepTimer', { defaultValue: 'Sleep Timer' })}
+                {t('player.sleepTimer')}
               </h3>
               <button onClick={() => setShowSleepTimerMenu(false)} className="p-2 text-white/50 hover:text-white transition-colors rounded-full active:scale-95">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -252,24 +252,24 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             </div>
             
             <button onClick={() => handleSetSleepTimer(15)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-white">
-              <span>{t('player.timer.15m', { defaultValue: '15 Minutes' })}</span>
+              <span>{t('player.timer.15m')}</span>
               {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) <= 15 && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 0 && <span className="w-2 h-2 rounded-full bg-primary" />}
             </button>
             <button onClick={() => handleSetSleepTimer(30)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-white">
-              <span>{t('player.timer.30m', { defaultValue: '30 Minutes' })}</span>
+              <span>{t('player.timer.30m')}</span>
               {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 15 && Math.round((sleepTimer.endTime - Date.now()) / 60000) <= 30 && <span className="w-2 h-2 rounded-full bg-primary" />}
             </button>
             <button onClick={() => handleSetSleepTimer(60)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-white">
-              <span>{t('player.timer.60m', { defaultValue: '1 Hour' })}</span>
+              <span>{t('player.timer.60m')}</span>
               {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 30 && <span className="w-2 h-2 rounded-full bg-primary" />}
             </button>
             <button onClick={() => handleSetSleepTimer('track_end')} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-white">
-              <span>{t('player.timer.trackEnd', { defaultValue: 'End of Track' })}</span>
+              <span>{t('player.timer.trackEnd')}</span>
               {sleepTimer.type === 'track_end' && <span className="w-2 h-2 rounded-full bg-primary" />}
             </button>
             <div className="w-full h-px bg-white/10 my-2" />
             <button onClick={() => handleSetSleepTimer(null)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-red-400">
-              <span>{t('player.timer.off', { defaultValue: 'Turn Off' })}</span>
+              <span>{t('player.timer.off')}</span>
             </button>
           </div>
           <div className="absolute inset-0 z-[-1]" onClick={() => setShowSleepTimerMenu(false)} />
@@ -286,7 +286,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xl font-bold text-white flex items-center gap-2">
                 <Users size={24} className="text-primary" />
-                {t('jam.session', { defaultValue: 'Jam Session' })}
+                {t('jam.session')}
               </h3>
               <button onClick={() => setShowSessionMenu(false)} className="p-2 text-white/50 hover:text-white transition-colors rounded-full active:scale-95">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>

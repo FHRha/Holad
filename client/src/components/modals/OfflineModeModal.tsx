@@ -59,11 +59,11 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
             </div>
             <div>
               <h2 className="text-xl font-bold text-foreground">
-                {t('offline_modal.title', { defaultValue: 'Офлайн-режим' })}
+                {t('offline_modal.title')}
               </h2>
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary uppercase tracking-wider mt-0.5">
                 <Sparkles size={11} />
-                {t('common.offline', { defaultValue: 'Офлайн' })}
+                {t('common.offline')}
               </span>
             </div>
           </div>
@@ -71,7 +71,7 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
             onClick={onClose}
             data-testid="offline-modal-close-btn"
             className="p-2 rounded-full text-secondary hover:text-foreground hover:bg-white/10 transition-colors"
-            title={t('player.close', { defaultValue: 'Закрыть' })}
+            title={t('player.close')}
           >
             <X size={20} />
           </button>
@@ -80,9 +80,7 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
         {/* Body */}
         <div className="px-6 py-2 flex flex-col gap-4 text-sm text-secondary">
           <p className="leading-relaxed text-secondary/90">
-            {t('offline_modal.description', { 
-              defaultValue: 'Holad находится в офлайн-режиме. В этом режиме доступно воспроизведение только ранее сохранённых треков и альбомов.' 
-            })}
+            {t('offline_modal.description')}
           </p>
 
           <div className="bg-white/5 border border-white/5 rounded-xl p-3.5 flex flex-col gap-2.5">
@@ -90,13 +88,13 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
               <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
                 <Check size={12} />
               </div>
-              <span>{t('offline_modal.feature_local', { defaultValue: 'Воспроизведение без подключения к интернету' })}</span>
+              <span>{t('offline_modal.feature_local')}</span>
             </div>
             <div className="flex items-center gap-2.5 text-xs text-foreground/90 font-medium">
               <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
                 <HardDriveDownload size={12} />
               </div>
-              <span>{t('offline_modal.feature_cache', { defaultValue: 'Использование локально сохранённых обложек и аудио' })}</span>
+              <span>{t('offline_modal.feature_cache')}</span>
             </div>
           </div>
 
@@ -110,7 +108,7 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
               className="w-4 h-4 rounded text-primary focus:ring-primary/50 accent-primary cursor-pointer"
             />
             <span className="text-xs text-secondary group-hover:text-foreground transition-colors font-medium">
-              {t('offline_modal.dont_show_again', { defaultValue: 'Больше не показывать' })}
+              {t('offline_modal.dont_show_again')}
             </span>
           </label>
         </div>
@@ -122,14 +120,14 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
             data-testid="offline-modal-toggle-btn"
             className="px-4 py-2 rounded-xl text-xs font-semibold text-secondary hover:text-foreground hover:bg-white/10 transition-colors"
           >
-            {t('offline_modal.go_online', { defaultValue: 'Выйти из офлайна' })}
+            {t('offline_modal.go_online')}
           </button>
           <button
             onClick={handleConfirm}
             data-testid="offline-modal-confirm-btn"
             className="px-5 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:brightness-110 active:scale-95 transition-all shadow-md shadow-primary/20"
           >
-            {t('offline_modal.got_it', { defaultValue: 'Понятно' })}
+            {t('offline_modal.got_it')}
           </button>
         </div>
       </div>

@@ -1,9 +1,13 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Music, Play, Loader2 } from 'lucide-react';
 import { getSongsByGenre, getCoverArtUrl } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { getOfflineTracks } from '../../store/downloadStore';
+import { useUIStore } from '../../store/uiStore';
 
 interface GenreCarouselProps {
   title: string;
@@ -17,6 +21,9 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [loadingStation, setLoadingStation] = useState<string | null>(null);
   const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
+  const { isOffline } = useNetworkStatus();
+
+  const { activeFilter } = useUIStore();
 
   const handleScroll = () => {
     if (scrollRef.current) {
@@ -37,7 +44,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
   const mapTracks = (tracks: any[]): Track[] => {
     return tracks.map((t: any) => ({
       id: t.id,
-      title: t.title,
+      title: t.title || t.name,
       artist: t.artist,
       album: t.album,
       albumId: t.albumId,
@@ -48,24 +55,43 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
     }));
   };
 
+  const visibleGenres = useMemo(() => {
+    if (isOffline || activeFilter === 'Downloaded' || activeFilter === 'Offline') {
+      const offline = getOfflineTracks();
+      return genres.filter(g => 
+        offline.some(t => t.genre?.toLowerCase() === g.value.toLowerCase())
+      );
+    }
+    return genres;
+  }, [genres, isOffline, activeFilter]);
+
   const startGenreRadio = async (genreName: string) => {
     setLoadingStation(genreName);
     try {
-      const tracks = await getSongsByGenre(genreName, 50);
+      let tracks: any[] = [];
+      if (isOffline || activeFilter === 'Downloaded' || activeFilter === 'Offline') {
+        tracks = getOfflineTracks()
+          .filter(t => t.genre?.toLowerCase() === genreName.toLowerCase())
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 50);
+      } else {
+        tracks = await getSongsByGenre(genreName, 50);
+      }
+      
       if (tracks && tracks.length > 0) {
         setQueueAndPlay(mapTracks(tracks), 0);
       } else {
-        alert(t('views.radio_failed'));
+        toast.error(t('views.radio_failed'));
       }
     } catch (error) {
       console.error(error);
-      alert(t('views.radio_error'));
+      toast.error(t('views.radio_error'));
     } finally {
       setLoadingStation(null);
     }
   };
 
-  if (!genres || genres.length === 0) return null;
+  if (!visibleGenres || visibleGenres.length === 0) return null;
 
   return (
     <div className="mb-10 relative">
@@ -97,7 +123,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
         className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar py-4 -my-4"
         style={{ scrollSnapType: 'x mandatory' }}
       >
-        {genres.map((genre, idx) => {
+        {visibleGenres.map((genre, idx) => {
           const spotifyColors = [
             'bg-[#E13300]', 'bg-[#1E3264]', 'bg-[#E8115B]', 'bg-[#148A08]', 
             'bg-[#509BF5]', 'bg-[#FF4632]', 'bg-[#BA5D07]', 'bg-[#7358FF]', 
