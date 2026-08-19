@@ -36,6 +36,9 @@ interface HoladState {
 
 
 function generateDeviceId() {
+  if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') {
+    return Math.random().toString(36).substring(2, 15);
+  }
   let id = sessionStorage.getItem('holad_deviceId');
   if (!id) {
     id = Math.random().toString(36).substring(2, 15);

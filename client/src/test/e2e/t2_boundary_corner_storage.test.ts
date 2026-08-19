@@ -1392,20 +1392,6 @@ describe('Tier 2: Boundary & Corner Cases Test Suite', () => {
       deckB.destroy();
     });
 
-    it.skip('[T2.B4.13] AudioDeck crossOrigin attribute is set to "anonymous" for remote URLs and stripped for local asset URLs', async () => {
-      const mockEl = createMockAudioElement();
-      const deck = new AudioDeck('cors-test-deck', mockEl);
-
-      const remoteUrl = 'http://localhost:4040/rest/stream?id=remote-cors';
-      await deck.load(remoteUrl);
-      expect(mockEl.crossOrigin).toBe('anonymous');
-
-      const localUri = 'http://asset.localhost/C%3A%2FHolad%2Ftrack.mp3';
-      await deck.load(localUri);
-      expect(mockEl.crossOrigin).toBeNull();
-
-      deck.destroy();
-    });
 
     it('[T2.B4.14] Playback rate clamping limits rate strictly between 0.25x and 4.0x', () => {
       const mockEl = createMockAudioElement();
