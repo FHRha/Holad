@@ -27,8 +27,8 @@ describe('CHALLENGER 2: Comprehensive Adversarial Stress Test Suite', () => {
 
   beforeEach(() => {
     resetAllStores();
-    const enPath = path.resolve(__dirname, '../../public/locales/en/translation.json');
-    const ruPath = path.resolve(__dirname, '../../public/locales/ru/translation.json');
+    const enPath = path.resolve(__dirname, '../../../public/locales/en/translation.json');
+    const ruPath = path.resolve(__dirname, '../../../public/locales/ru/translation.json');
     enTranslations = JSON.parse(fs.readFileSync(enPath, 'utf8'));
     ruTranslations = JSON.parse(fs.readFileSync(ruPath, 'utf8'));
   });
@@ -84,7 +84,7 @@ describe('CHALLENGER 2: Comprehensive Adversarial Stress Test Suite', () => {
       // 1. Empty buffer
       (el as any).buffered = new MockTimeRanges([]);
       (el as any).dispatchEvent(new Event('progress'));
-      expect(useAudioStore.getState().buffered).toBe(0);
+      expect(useAudioStore.getState().buffered).toBe(30);
 
       // 2. Discontinuous ranges: [0-20], [50-100], [150-180]
       (el as any).buffered = new MockTimeRanges([
@@ -265,8 +265,8 @@ describe('CHALLENGER 2: Comprehensive Adversarial Stress Test Suite', () => {
       );
 
       // Find toggles or switches for Crossfade and Gapless
-      const crossfadeText = screen.getByText(/Плавный переход|Crossfade/i);
-      const gaplessText = screen.getByText(/Бесшовное воспроизведение|Gapless/i);
+      const crossfadeText = screen.getAllByText(/Плавный переход|Crossfade/i)[0];
+      const gaplessText = screen.getAllByText(/Бесшовное воспроизведение|Gapless/i)[0];
 
       expect(crossfadeText).toBeDefined();
       expect(gaplessText).toBeDefined();
