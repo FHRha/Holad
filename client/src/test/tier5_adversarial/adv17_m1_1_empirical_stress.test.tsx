@@ -10,13 +10,13 @@ import {
   registerMockSong,
   registerMockAlbum,
   setSimulatedNetworkFailure,
-} from './e2e/harness';
-import { useContextMenuStore } from '../store/contextMenuStore';
-import { useLongPress } from '../hooks/useLongPress';
-import ContextMenu from '../components/common/ContextMenu';
-import { useDownloadStore } from '../store/downloadStore';
-import { handleDownload, cancelActiveDownload } from '../utils/downloadHelper';
-import { StorageManager } from '../utils/StorageManager';
+} from '../e2e/harness';
+import { useContextMenuStore } from '../../store/contextMenuStore';
+import { useLongPress } from '../../hooks/useLongPress';
+import ContextMenu from '../../components/common/ContextMenu';
+import { useDownloadStore } from '../../store/downloadStore';
+import { handleDownload, cancelActiveDownload } from '../../utils/downloadHelper';
+import { StorageManager } from '../../utils/StorageManager';
 
 describe('CHALLENGER 1 EMPIRICAL STRESS SUITE: Milestone 1 (Context Menu & Downloads)', () => {
   beforeEach(() => {

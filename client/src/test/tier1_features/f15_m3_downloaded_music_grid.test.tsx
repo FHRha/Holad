@@ -8,18 +8,18 @@ import {
   setOnline,
   mockState,
   registerStarredItems,
-} from './e2e/harness';
-import { useDownloadStore } from '../store/downloadStore';
-import { usePlayerStore } from '../store/playerStore';
-import { useSettingsStore } from '../store/settingsStore';
-import { StorageManager } from '../utils/StorageManager';
-import DownloadedMusicGrid from '../components/settings/DownloadedMusicGrid';
-import DownloadsView from '../components/views/DownloadsView';
+} from '../e2e/harness';
+import { useDownloadStore } from '../../store/downloadStore';
+import { usePlayerStore } from '../../store/playerStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { StorageManager } from '../../utils/StorageManager';
+import DownloadedMusicGrid from '../../components/settings/DownloadedMusicGrid';
+import DownloadsView from '../../components/views/DownloadsView';
 import {
   fetchStarredLibrary,
   filterItemsForLibraryDownload,
   downloadEntireLibrary,
-} from '../utils/downloadHelper';
+} from '../../utils/downloadHelper';
 
 describe('Milestone 3 (Feature 11): DownloadedMusicGrid UI & Batch Library Download', () => {
   beforeEach(() => {

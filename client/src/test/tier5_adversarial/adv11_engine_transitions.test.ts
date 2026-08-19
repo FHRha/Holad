@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AudioEngine } from '../audio/AudioEngine';
-import { AudioDeck } from '../audio/AudioDeck';
-import { TransitionManager } from '../audio/TransitionManager';
-import { PreloadManager } from '../audio/PreloadManager';
-import { WebAudioPipeline } from '../audio/WebAudioPipeline';
-import { createMockAudioElement, MockTimeRanges } from './mocks/mockAudio';
-import { createMockTrack, resetAllStores } from './helpers/testUtils';
+import { AudioEngine } from '../../audio/AudioEngine';
+import { AudioDeck } from '../../audio/AudioDeck';
+import { TransitionManager } from '../../audio/TransitionManager';
+import { PreloadManager } from '../../audio/PreloadManager';
+import { WebAudioPipeline } from '../../audio/WebAudioPipeline';
+import { createMockAudioElement, MockTimeRanges } from '../mocks/mockAudio';
+import { createMockTrack, resetAllStores } from '../helpers/testUtils';
 
 describe('Adversarial Audio Engine Stress Suite: Transitions, Crossfades, Loudness & Buffering', () => {
   beforeEach(() => {

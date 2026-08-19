@@ -1,9 +1,9 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import StorageLimitControl from '../components/settings/StorageLimitControl';
-import { useSettingsStore } from '../store/settingsStore';
-import { useStorageStats } from '../utils/storageStatsHelper';
+import StorageLimitControl from '../../components/settings/StorageLimitControl';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useStorageStats } from '../../utils/storageStatsHelper';
 
 // Mock dependencies
 vi.mock('react-i18next', () => ({
@@ -12,11 +12,11 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('../store/settingsStore', () => ({
+vi.mock('../../store/settingsStore', () => ({
   useSettingsStore: vi.fn(),
 }));
 
-vi.mock('../utils/storageStatsHelper', () => ({
+vi.mock('../../utils/storageStatsHelper', () => ({
   useStorageStats: vi.fn(),
 }));
 

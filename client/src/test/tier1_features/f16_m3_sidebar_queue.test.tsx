@@ -5,10 +5,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import {
   resetE2EHarness,
   setPlatform,
-} from './e2e/harness';
-import { useDownloadStore, getDownloadQueueStats } from '../store/downloadStore';
-import { useUIStore } from '../store/uiStore';
-import Sidebar from '../components/layout/Sidebar';
+} from '../e2e/harness';
+import { useDownloadStore, getDownloadQueueStats } from '../../store/downloadStore';
+import { useUIStore } from '../../store/uiStore';
+import Sidebar from '../../components/layout/Sidebar';
 
 describe('Milestone 3 (Feature 12): Left Sidebar Download Queue UI & Store Stats', () => {
   beforeEach(() => {

@@ -6,20 +6,20 @@ import fs from 'fs';
 import path from 'path';
 import i18n from 'i18next';
 
-import Slider from '../components/common/Slider';
-import LiquidSeekBar from '../components/common/LiquidSeekBar';
-import BottomPlayer from '../components/player/BottomPlayer';
-import SettingsModal from '../components/modals/SettingsModal';
-import MobileSettingsView from '../components/views/MobileSettingsView';
+import Slider from '../../components/common/Slider';
+import LiquidSeekBar from '../../components/common/LiquidSeekBar';
+import BottomPlayer from '../../components/player/BottomPlayer';
+import SettingsModal from '../../components/modals/SettingsModal';
+import MobileSettingsView from '../../components/views/MobileSettingsView';
 
-import { usePlayerStore } from '../store/playerStore';
-import { useSettingsStore } from '../store/settingsStore';
-import { useAudioStore } from '../store/audioStore';
-import { useHoladStore } from '../store/holadStore';
-import { AudioEngine } from '../audio/AudioEngine';
-import { AudioDeck } from '../audio/AudioDeck';
-import { createMockAudioElement, MockTimeRanges } from './mocks/mockAudio';
-import { createMockTrack, resetAllStores } from './helpers/testUtils';
+import { usePlayerStore } from '../../store/playerStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useAudioStore } from '../../store/audioStore';
+import { useHoladStore } from '../../store/holadStore';
+import { AudioEngine } from '../../audio/AudioEngine';
+import { AudioDeck } from '../../audio/AudioDeck';
+import { createMockAudioElement, MockTimeRanges } from '../mocks/mockAudio';
+import { createMockTrack, resetAllStores } from '../helpers/testUtils';
 
 describe('CHALLENGER 2: Comprehensive Adversarial Stress Test Suite', () => {
   let enTranslations: Record<string, any>;

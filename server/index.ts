@@ -826,3 +826,5 @@ httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`▶ Access Holad at: http://localhost:${PORT}/`);
 });
+
+export { app, httpServer, io };

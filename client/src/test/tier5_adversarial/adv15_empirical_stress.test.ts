@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { usePlayerStore } from '../store/playerStore';
-import { useSettingsStore } from '../store/settingsStore';
-import { useHoladStore } from '../store/holadStore';
-import { useAudioStore } from '../store/audioStore';
-import { AudioEngine } from '../audio/AudioEngine';
-import { AudioDeck } from '../audio/AudioDeck';
-import { WebAudioPipeline } from '../audio/WebAudioPipeline';
-import { TransitionManager } from '../audio/TransitionManager';
-import { PreloadManager } from '../audio/PreloadManager';
-import { VolumeManager, volumeManager } from '../audio/VolumeManager';
-import { createMockAudioElement, MockAudioContext, MockTimeRanges } from './mocks/mockAudio';
-import { createMockTrack, resetAllStores } from './helpers/testUtils';
+import { usePlayerStore } from '../../store/playerStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useHoladStore } from '../../store/holadStore';
+import { useAudioStore } from '../../store/audioStore';
+import { AudioEngine } from '../../audio/AudioEngine';
+import { AudioDeck } from '../../audio/AudioDeck';
+import { WebAudioPipeline } from '../../audio/WebAudioPipeline';
+import { TransitionManager } from '../../audio/TransitionManager';
+import { PreloadManager } from '../../audio/PreloadManager';
+import { VolumeManager, volumeManager } from '../../audio/VolumeManager';
+import { createMockAudioElement, MockAudioContext, MockTimeRanges } from '../mocks/mockAudio';
+import { createMockTrack, resetAllStores } from '../helpers/testUtils';
 
 describe('CHALLENGER 1: Empirical Adversarial Audio Engine Stress Suite', () => {
   let originalUserAgent: string;

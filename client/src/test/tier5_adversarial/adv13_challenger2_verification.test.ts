@@ -1,18 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import { usePlayerStore } from '../store/playerStore';
-import { useSettingsStore } from '../store/settingsStore';
-import { useHoladStore } from '../store/holadStore';
-import { useAudioStore } from '../store/audioStore';
-import { AudioEngine } from '../audio/AudioEngine';
-import { WebAudioPipeline } from '../audio/WebAudioPipeline';
-import { PreloadManager } from '../audio/PreloadManager';
-import { TransitionManager } from '../audio/TransitionManager';
-import { AudioDeck } from '../audio/AudioDeck';
-import { createMockAudioElement } from './mocks/mockAudio';
-import { createMockTrack, resetAllStores } from './helpers/testUtils';
-import MobileSettingsView from '../components/views/MobileSettingsView';
+import { usePlayerStore } from '../../store/playerStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useHoladStore } from '../../store/holadStore';
+import { useAudioStore } from '../../store/audioStore';
+import { AudioEngine } from '../../audio/AudioEngine';
+import { WebAudioPipeline } from '../../audio/WebAudioPipeline';
+import { PreloadManager } from '../../audio/PreloadManager';
+import { TransitionManager } from '../../audio/TransitionManager';
+import { AudioDeck } from '../../audio/AudioDeck';
+import { createMockAudioElement } from '../mocks/mockAudio';
+import { createMockTrack, resetAllStores } from '../helpers/testUtils';
+import MobileSettingsView from '../../components/views/MobileSettingsView';
 
 describe('Challenger 2 Empirical Adversarial Verification Suite', () => {
   let originalUserAgent: string;

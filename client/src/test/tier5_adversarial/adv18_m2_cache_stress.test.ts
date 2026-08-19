@@ -9,7 +9,7 @@ import {
   setOnline,
   registerMockSong,
   registerMockAlbum,
-} from './e2e/harness';
+} from '../e2e/harness';
 
 import {
   LRUImageMemoryManager,
@@ -19,11 +19,11 @@ import {
   getImageCacheStats,
   clearImageCache,
   imageMemoryCache,
-} from '../utils/imageCache';
-import { useSettingsStore } from '../store/settingsStore';
-import { useDownloadStore } from '../store/downloadStore';
-import { StorageManager } from '../utils/StorageManager';
-import StorageDangerZone from '../components/settings/StorageDangerZone';
+} from '../../utils/imageCache';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useDownloadStore } from '../../store/downloadStore';
+import { StorageManager } from '../../utils/StorageManager';
+import StorageDangerZone from '../../components/settings/StorageDangerZone';
 
 describe('Milestone 2 Challenger: Image Cache & Storage Stress Harness', () => {
   let revokeSpy: any;

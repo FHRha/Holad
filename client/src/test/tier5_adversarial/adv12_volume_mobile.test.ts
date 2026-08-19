@@ -1,18 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import { usePlayerStore } from '../store/playerStore';
-import { useSettingsStore } from '../store/settingsStore';
-import { useHoladStore } from '../store/holadStore';
-import { useAudioStore } from '../store/audioStore';
-import { AudioEngine } from '../audio/AudioEngine';
-import { WebAudioPipeline } from '../audio/WebAudioPipeline';
-import { VolumeManager } from '../audio/VolumeManager';
-import { MobileAudioCore } from '../audio/MobileAudioCore';
-import { WebAudioCore } from '../audio/WebAudioCore';
-import { createMockAudioElement, MockAudioContext } from './mocks/mockAudio';
-import { createMockTrack, resetAllStores } from './helpers/testUtils';
-import MobileSettingsView from '../components/views/MobileSettingsView';
+import { usePlayerStore } from '../../store/playerStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useHoladStore } from '../../store/holadStore';
+import { useAudioStore } from '../../store/audioStore';
+import { AudioEngine } from '../../audio/AudioEngine';
+import { WebAudioPipeline } from '../../audio/WebAudioPipeline';
+import { VolumeManager } from '../../audio/VolumeManager';
+import { MobileAudioCore } from '../../audio/MobileAudioCore';
+import { WebAudioCore } from '../../audio/WebAudioCore';
+import { createMockAudioElement, MockAudioContext } from '../mocks/mockAudio';
+import { createMockTrack, resetAllStores } from '../helpers/testUtils';
+import MobileSettingsView from '../../components/views/MobileSettingsView';
 
 describe('Adversarial Test Suite: Desktop Volume Control (F1, F4) & Mobile Autoplay Prevention (F2, F3)', () => {
   let originalUserAgent: string;

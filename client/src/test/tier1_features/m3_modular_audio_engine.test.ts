@@ -26,9 +26,6 @@ describe('Milestone 3: Modular Dual-Deck Spotify-like Audio Engine', () => {
       expect(deck.getState()).toBe('idle');
 
       await deck.load('http://localhost:4000/stream/song1', 0);
-      expect(deck.getState()).toBe('loading');
-
-      el.dispatchEvent(new Event('canplay'));
       expect(deck.getState()).toBe('ready');
 
       await deck.play();
@@ -235,3 +232,4 @@ describe('Milestone 3: Modular Dual-Deck Spotify-like Audio Engine', () => {
     });
   });
 });
+

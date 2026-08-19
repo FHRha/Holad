@@ -9,12 +9,12 @@ import {
   setPlatform,
   registerMockSong,
   registerMockAlbum,
-} from './e2e/harness';
-import { useContextMenuStore } from '../store/contextMenuStore';
-import { useLongPress } from '../hooks/useLongPress';
-import ContextMenu from '../components/common/ContextMenu';
-import { useDownloadStore } from '../store/downloadStore';
-import { handleDownload } from '../utils/downloadHelper';
+} from '../e2e/harness';
+import { useContextMenuStore } from '../../store/contextMenuStore';
+import { useLongPress } from '../../hooks/useLongPress';
+import ContextMenu from '../../components/common/ContextMenu';
+import { useDownloadStore } from '../../store/downloadStore';
+import { handleDownload } from '../../utils/downloadHelper';
 
 describe('Milestone 1: Context Menu & Downloads Fixes', () => {
   beforeEach(() => {

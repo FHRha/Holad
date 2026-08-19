@@ -5,11 +5,11 @@ import {
   resetE2EHarness,
   setPlatform,
   setOnline,
-} from './e2e/harness';
-import { StorageManager, isTauri, isCapacitor } from '../utils/StorageManager';
-import { isLocalMediaUrl, AudioDeck } from '../audio/AudioDeck';
-import { MobileAudioCore } from '../audio/MobileAudioCore';
-import { useDownloadStore } from '../store/downloadStore';
+} from '../e2e/harness';
+import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
+import { isLocalMediaUrl, AudioDeck } from '../../audio/AudioDeck';
+import { MobileAudioCore } from '../../audio/MobileAudioCore';
+import { useDownloadStore } from '../../store/downloadStore';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { downloadDir, join } from '@tauri-apps/api/path';
 import { Capacitor } from '@capacitor/core';

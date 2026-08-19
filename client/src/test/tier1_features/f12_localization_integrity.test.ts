@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import i18n from '../i18n';
-import ruTranslation from '../../public/locales/ru/translation.json';
-import enTranslation from '../../public/locales/en/translation.json';
+import i18n from '../../i18n';
+import ruTranslation from '../../../public/locales/ru/translation.json';
+import enTranslation from '../../../public/locales/en/translation.json';
 
 function getFlatKeys(obj: any, prefix = ''): string[] {
   let keys: string[] = [];

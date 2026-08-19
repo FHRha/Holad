@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act, renderHook } from '@testing-library/react';
 import React, { useRef } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import MobileMainContent from '../components/layout/MobileMainContent';
-import { useUIStore } from '../store/uiStore';
-import { usePlayerStore } from '../store/playerStore';
-import { useAudioEngine } from '../hooks/useAudioEngine';
-import * as trackSourceHook from '../hooks/useTrackSource';
+import MobileMainContent from '../../components/layout/MobileMainContent';
+import { useUIStore } from '../../store/uiStore';
+import { usePlayerStore } from '../../store/playerStore';
+import { useAudioEngine } from '../../hooks/useAudioEngine';
+import * as trackSourceHook from '../../hooks/useTrackSource';
 import { 
   isOnline, 
   isOffline, 
@@ -17,15 +17,15 @@ import {
   resetNetworkStatusForTesting,
   addNetworkListener,
   networkManager
-} from '../utils/networkStatus';
-import { AudioEngine } from '../audio/AudioEngine';
+} from '../../utils/networkStatus';
+import { AudioEngine } from '../../audio/AudioEngine';
 
-vi.mock('../hooks/useTrackSource', () => ({
+vi.mock('../../hooks/useTrackSource', () => ({
   useTrackSource: vi.fn()
 }));
 
 // Mock audio engine methods
-vi.mock('../audio/AudioEngine', () => {
+vi.mock('../../audio/AudioEngine', () => {
   const mockPause = vi.fn();
   const mockPlayTrack = vi.fn().mockResolvedValue(undefined);
   const mockGetInstance = vi.fn().mockReturnValue({

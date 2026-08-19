@@ -2,12 +2,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import TopBar from '../components/layout/TopBar';
-import MobileMainContent from '../components/layout/MobileMainContent';
-import LibraryView from '../components/layout/LibraryView';
-import OfflineModeModal from '../components/modals/OfflineModeModal';
-import { useUIStore } from '../store/uiStore';
-import { useSettingsStore } from '../store/settingsStore';
+import TopBar from '../../components/layout/TopBar';
+import MobileMainContent from '../../components/layout/MobileMainContent';
+import LibraryView from '../../components/layout/LibraryView';
+import OfflineModeModal from '../../components/modals/OfflineModeModal';
+import { useUIStore } from '../../store/uiStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { 
   isOnline, 
   isOffline, 
@@ -17,7 +17,7 @@ import {
   setNetworkStatusForTesting, 
   resetNetworkStatusForTesting,
   addNetworkListener
-} from '../utils/networkStatus';
+} from '../../utils/networkStatus';
 
 describe('Milestone 4: Offline Mode Indicator Chip & Explanatory Modal', () => {
   beforeEach(() => {

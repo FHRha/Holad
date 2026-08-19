@@ -5,14 +5,14 @@ import {
   vfs,
   resetE2EHarness,
   setPlatform,
-} from './e2e/harness';
+} from '../e2e/harness';
 import {
   formatBytes,
   getMetadataSize,
   getDirectorySize,
   calculateStorageStatistics,
   calculatePartitionPercentages,
-} from '../utils/storageStatsHelper';
+} from '../../utils/storageStatsHelper';
 import {
   imageMemoryCache,
   getCachedImageUrl,
@@ -21,13 +21,13 @@ import {
   getImageCacheStats,
   clearImageCache,
   LRUImageMemoryManager,
-} from '../utils/imageCache';
-import { useSettingsStore } from '../store/settingsStore';
-import { useDownloadStore } from '../store/downloadStore';
-import { StorageManager } from '../utils/StorageManager';
-import StorageStatsBar from '../components/settings/StorageStatsBar';
-import ImageMemoryLimitControl from '../components/settings/ImageMemoryLimitControl';
-import StorageDangerZone from '../components/settings/StorageDangerZone';
+} from '../../utils/imageCache';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useDownloadStore } from '../../store/downloadStore';
+import { StorageManager } from '../../utils/StorageManager';
+import StorageStatsBar from '../../components/settings/StorageStatsBar';
+import ImageMemoryLimitControl from '../../components/settings/ImageMemoryLimitControl';
+import StorageDangerZone from '../../components/settings/StorageDangerZone';
 
 describe('Milestone 2: Storage Statistics, Memory Limit & Danger Zone Core', () => {
   beforeEach(() => {

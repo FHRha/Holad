@@ -7,26 +7,26 @@ import {
   setOnline,
   registerMockSong,
   registerMockAlbum,
-} from './e2e/harness';
-import { StorageManager, isTauri, isCapacitor } from '../utils/StorageManager';
-import { isLocalMediaUrl, AudioDeck } from '../audio/AudioDeck';
-import { MobileAudioCore } from '../audio/MobileAudioCore';
+} from '../e2e/harness';
+import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
+import { isLocalMediaUrl, AudioDeck } from '../../audio/AudioDeck';
+import { MobileAudioCore } from '../../audio/MobileAudioCore';
 import {
   useDownloadStore,
   isItemDownloaded,
   getOfflineTracks,
   getDownloadedTracks,
   getDownloadedAlbums,
-} from '../store/downloadStore';
-import { handleDownload, cancelActiveDownload } from '../utils/downloadHelper';
+} from '../../store/downloadStore';
+import { handleDownload, cancelActiveDownload } from '../../utils/downloadHelper';
 import {
   networkManager,
   isOnline,
   isOffline,
   setNetworkStatusForTesting,
   resetNetworkStatusForTesting,
-} from '../utils/networkStatus';
-import { resolveTrackAudioSource } from '../hooks/useTrackSource';
+} from '../../utils/networkStatus';
+import { resolveTrackAudioSource } from '../../hooks/useTrackSource';
 
 describe('Milestone 1: Core Storage, Asset Protocols & Safe Offline Playback Engine', () => {
   beforeEach(() => {

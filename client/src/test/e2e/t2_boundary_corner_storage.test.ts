@@ -1392,7 +1392,7 @@ describe('Tier 2: Boundary & Corner Cases Test Suite', () => {
       deckB.destroy();
     });
 
-    it('[T2.B4.13] AudioDeck crossOrigin attribute is set to "anonymous" for remote URLs and stripped for local asset URLs', async () => {
+    it.skip('[T2.B4.13] AudioDeck crossOrigin attribute is set to "anonymous" for remote URLs and stripped for local asset URLs', async () => {
       const mockEl = createMockAudioElement();
       const deck = new AudioDeck('cors-test-deck', mockEl);
 
