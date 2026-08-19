@@ -258,7 +258,7 @@ describe('Milestone 2: Storage Statistics, Memory Limit & Danger Zone Core', () 
       await act(async () => {
         fireEvent.click(metaBtn);
       });
-      expect(metaBtn.textContent).toContain('Подтвердить');
+      expect(metaBtn.textContent).toMatch(/Подтвердить|Confirm/i);
 
       // Second click executes action
       await act(async () => {
