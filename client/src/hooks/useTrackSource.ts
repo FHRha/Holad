@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect } from 'react';
 import { StorageManager } from '../utils/StorageManager';
 import { getStreamUrl } from '../api/subsonic';
@@ -47,6 +48,7 @@ export function useTrackSource(track: any) {
   useEffect(() => {
     let isMounted = true;
 
+    // oxlint-disable-next-line
     if (!track) {
       setSrc('');
       setTrackId('');

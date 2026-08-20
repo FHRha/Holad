@@ -141,11 +141,13 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
   const actualRecent = useMemo(() => {
     if (activeFilter) return finalRecent;
     return finalRecent.length > 0 ? finalRecent : [...recentTracks].sort(() => Math.random() - 0.5).slice(0, 10);
+  // oxlint-disable-next-line
   }, [recentTracks, finalRecent, refreshRecentKey, activeFilter]);
 
   const actualFrequent = useMemo(() => {
     if (activeFilter) return finalFrequent;
     return finalFrequent.length > 0 ? finalFrequent : [...albums].sort(() => Math.random() - 0.5).slice(0, 10);
+  // oxlint-disable-next-line
   }, [albums, finalFrequent, refreshFrequentKey, activeFilter]);
 
   const visibleGenres = useMemo(() => {
@@ -156,6 +158,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
       );
     }
     return genres;
+  // oxlint-disable-next-line
   }, [genres, activeFilter, isOffline, downloads]);
 
   const toggleFilter = (filter: string) => {

@@ -37,7 +37,7 @@ export function injectInterludes(lines: LyricLine[]): LyricLine[] {
 export function parseLRC(lrc: string): LyricLine[] {
   const lines = lrc.split('\n');
   const result: LyricLine[] = [];
-  const regex = /\[(\d{2}):(\d{2})(?:[:\.](\d{1,3}))?\](.*)/;
+  const regex = /\[(\d{2}):(\d{2})(?:[:.](\d{1,3}))?\](.*)/;
 
   lines.forEach(line => {
     const match = regex.exec(line);

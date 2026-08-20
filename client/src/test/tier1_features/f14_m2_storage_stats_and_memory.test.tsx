@@ -14,7 +14,9 @@ import {
   calculatePartitionPercentages,
 } from '../../utils/storageStatsHelper';
 import {
+  // oxlint-disable-next-line
   imageMemoryCache,
+  // oxlint-disable-next-line
   getCachedImageUrl,
   setImageCacheLimit,
   getImageCacheLimit,
@@ -178,6 +180,7 @@ describe('Milestone 2: Storage Statistics, Memory Limit & Danger Zone Core', () 
     });
 
     it('clearImageCache revokes all cached blob URLs and resets metrics', () => {
+      // oxlint-disable-next-line
       const revokeSpy = vi.spyOn(URL, 'revokeObjectURL');
       const mgr = new LRUImageMemoryManager(32);
 

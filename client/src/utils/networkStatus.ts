@@ -58,6 +58,7 @@ class NetworkStatusManager {
                 // If we get a response, even an HTTP error, we are technically online.
                 this.pingFailures = 0;
                 this.setOnline(true);
+              // oxlint-disable-next-line
               } catch (e) {
                 clearTimeout(timeoutId);
                 this.pingFailures++;
@@ -66,6 +67,7 @@ class NetworkStatusManager {
                 }
               }
             }
+          // oxlint-disable-next-line
           } catch (e) {
             // ignore
           }

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { WebAudioPipeline } from '../../audio/WebAudioPipeline';
+// oxlint-disable-next-line
 import { AudioEngine } from '../../audio/AudioEngine';
 import { createMockAudioElement } from '../mocks/mockAudio';
 import { resetAllStores } from '../helpers/testUtils';

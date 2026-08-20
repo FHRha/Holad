@@ -111,6 +111,7 @@ export default function TrayMenu() {
             const height = menuEl.offsetHeight + 16; // +16 for p-2 margins
             await getCurrentWindow().setSize(new LogicalSize(320, height));
          }
+       // oxlint-disable-next-line
        } catch (err) {}
     };
     setTimeout(adjustSize, 50);

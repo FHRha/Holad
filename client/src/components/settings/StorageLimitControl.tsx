@@ -4,6 +4,7 @@ import { HardDrive, AlertTriangle } from 'lucide-react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useStorageStats } from '../../utils/storageStatsHelper';
 
+// oxlint-disable-next-line
 export const STORAGE_PRESETS = [
   { label: '5 GB', value: 5 },
   { label: '10 GB', value: 10 },

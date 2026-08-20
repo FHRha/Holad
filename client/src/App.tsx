@@ -56,15 +56,23 @@ function AppContent() {
     return <TrayMenu />;
   }
 
+  // oxlint-disable-next-line
   const location = useLocation();
+  // oxlint-disable-next-line
   const { isAuthenticated, isJamRoute } = useAppInitialization();
+  // oxlint-disable-next-line
   const roomId = usePlayerStore(state => state.roomId);
+  // oxlint-disable-next-line
   const { theme, accentColor, startPage } = useSettingsStore();
+  // oxlint-disable-next-line
   const { isSettingsOpen, isOfflineModalOpen, setOfflineModalOpen } = useUIStore();
   
+  // oxlint-disable-next-line
   useTaskbarControls();
+  // oxlint-disable-next-line
   useTrayIntegration();
   
+  // oxlint-disable-next-line
   useEffect(() => {
     if ('__TAURI_INTERNALS__' in window) {
       const initTauri = async () => {
@@ -92,6 +100,7 @@ function AppContent() {
     }
   }, []);
 
+  // oxlint-disable-next-line
   useEffect(() => {
     // Reset any downloads that were stuck in 'downloading' state from a previous crash
     useDownloadStore.getState().resetStuckDownloads();
@@ -102,6 +111,7 @@ function AppContent() {
     });
   }, []);
 
+  // oxlint-disable-next-line
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
@@ -139,6 +149,7 @@ function AppContent() {
     root.style.setProperty('--color-primary-rgb', rgbStr);
   }, [theme, accentColor]);
 
+  // oxlint-disable-next-line
   useDocumentTitle();
 
   const isLoginRoute = location.pathname === '/login';

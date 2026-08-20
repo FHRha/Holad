@@ -1,12 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+// oxlint-disable-next-line
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { TransitionManager } from '../../audio/TransitionManager';
 import { WebAudioPipeline } from '../../audio/WebAudioPipeline';
 import { AudioDeck } from '../../audio/AudioDeck';
+// oxlint-disable-next-line
 import { AudioEngine } from '../../audio/AudioEngine';
 import { createMockAudioElement } from '../mocks/mockAudio';
+// oxlint-disable-next-line
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
 import { useUIStore } from '../../store/uiStore';
 import SettingsModal from '../../components/modals/SettingsModal';

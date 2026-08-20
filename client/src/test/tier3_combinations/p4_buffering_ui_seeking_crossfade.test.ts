@@ -20,7 +20,9 @@ describe('Tier 3 - Pairwise: Buffering UI (R2) + Crossfade Sync (R7) + UI Seekba
     const el1 = createMockAudioElement();
     const engine = new AudioEngine([el0, el1]);
 
+    // oxlint-disable-next-line
     const track1 = createMockTrack('buf-cf-1', 'Track 1', 180);
+    // oxlint-disable-next-line
     const track2 = createMockTrack('buf-cf-2', 'Track 2', 240);
 
     const progressReports: number[] = [];

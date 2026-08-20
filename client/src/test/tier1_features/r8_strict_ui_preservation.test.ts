@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { usePlayerStore } from '../../store/playerStore';
+// oxlint-disable-next-line
 import { useSettingsStore } from '../../store/settingsStore';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
 import { useUIStore } from '../../store/uiStore';

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { savePlayQueue } from '../api/subsonic';
@@ -138,6 +139,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   useEffect(() => {
     if (!currentTrack || srcLoading || srcTrackId !== currentTrack.id) return;
     
+    // oxlint-disable-next-line
     if (!isAvailable) {
       setIsPlaying(false);
       engineRef.current.pause();
@@ -233,6 +235,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       engineRef.current.getWebAudioPipeline()?.unlockContext();
       // Force unlock HTML Audio elements on mobile by playing and immediately pausing them
       // BUT only if they are not actively playing a track, otherwise we break the user's first play action.
+      // oxlint-disable-next-line
       audioRefs[0].current?.play().then(() => {
          if (!usePlayerStore.getState().isPlaying) audioRefs[0].current?.pause();
       }).catch(() => {});

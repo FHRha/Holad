@@ -4,6 +4,7 @@ import { WebAudioPipeline } from '../../audio/WebAudioPipeline';
 import { PreloadManager } from '../../audio/PreloadManager';
 import { TransitionManager } from '../../audio/TransitionManager';
 import { AudioEngine } from '../../audio/AudioEngine';
+// oxlint-disable-next-line
 import { createMockAudioElement, MockAudioContext } from '../mocks/mockAudio';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
 

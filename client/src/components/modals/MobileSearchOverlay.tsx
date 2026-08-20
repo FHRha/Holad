@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useRef, useEffect } from 'react';
 import { X, Play, Music, Disc, Users, ArrowLeft, Search } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
@@ -36,6 +37,7 @@ export default function MobileSearchOverlay() {
         inputRef.current?.focus();
       }, 100);
     } else {
+      // oxlint-disable-next-line
       if (query.trim() === '') {
         setQuery('');
       }

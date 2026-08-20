@@ -52,9 +52,11 @@ pub fn update_taskbar_state(window: tauri::Window, is_playing: bool) {
                 let hwnd = HWND(window_clone.hwnd().unwrap().0 as _);
                 let taskbar: Result<ITaskbarList3, _> = CoCreateInstance(&TaskbarList, None, CLSCTX_INPROC_SERVER);
                 if let Ok(taskbar) = taskbar {
-                    let mut btn = THUMBBUTTON::default();
-                    btn.dwMask = THB_ICON | THB_TOOLTIP;
-                    btn.iId = BTN_PLAY;
+                    let mut btn = THUMBBUTTON {
+                        dwMask: THB_ICON | THB_TOOLTIP,
+                        iId: BTN_PLAY,
+                        ..Default::default()
+                    };
                     
                     let icon_name = if is_playing { "PAUSE_THUMB.ico" } else { "PLAY_THUMB.ico" };
                     if let Some(path) = get_icon_path(window_clone.app_handle(), icon_name) {
@@ -108,7 +110,7 @@ fn get_icon_path(app: &AppHandle, filename: &str) -> Option<PathBuf> {
 }
 
 #[cfg(target_os = "windows")]
-unsafe fn load_icon(path: &PathBuf) -> HICON {
+unsafe fn load_icon(path: &std::path::Path) -> HICON {
     let mut path_str: Vec<u16> = path.as_os_str().encode_wide().collect();
     path_str.push(0);
     
@@ -141,24 +143,30 @@ unsafe fn setup_taskbar_buttons(window: &tauri::WebviewWindow) {
         let _ = taskbar.HrInit();
 
         let app = window.app_handle();
-        let mut prev = THUMBBUTTON::default();
-        prev.dwMask = THB_ICON | THB_TOOLTIP | THB_FLAGS;
-        prev.iId = BTN_PREV;
-        prev.dwFlags = THBF_ENABLED;
+        let mut prev = THUMBBUTTON {
+            dwMask: THB_ICON | THB_TOOLTIP | THB_FLAGS,
+            iId: BTN_PREV,
+            dwFlags: THBF_ENABLED,
+            ..Default::default()
+        };
         if let Some(ref p) = get_icon_path(app, "PREV_THUMB.ico") { prev.hIcon = load_icon(p); }
         prev.szTip = encode_wide("Previous");
 
-        let mut play = THUMBBUTTON::default();
-        play.dwMask = THB_ICON | THB_TOOLTIP | THB_FLAGS;
-        play.iId = BTN_PLAY;
-        play.dwFlags = THBF_ENABLED;
+        let mut play = THUMBBUTTON {
+            dwMask: THB_ICON | THB_TOOLTIP | THB_FLAGS,
+            iId: BTN_PLAY,
+            dwFlags: THBF_ENABLED,
+            ..Default::default()
+        };
         if let Some(ref p) = get_icon_path(app, "PLAY_THUMB.ico") { play.hIcon = load_icon(p); }
         play.szTip = encode_wide("Play");
 
-        let mut next = THUMBBUTTON::default();
-        next.dwMask = THB_ICON | THB_TOOLTIP | THB_FLAGS;
-        next.iId = BTN_NEXT;
-        next.dwFlags = THBF_ENABLED;
+        let mut next = THUMBBUTTON {
+            dwMask: THB_ICON | THB_TOOLTIP | THB_FLAGS,
+            iId: BTN_NEXT,
+            dwFlags: THBF_ENABLED,
+            ..Default::default()
+        };
         if let Some(ref p) = get_icon_path(app, "NEXT_THUMB.ico") { next.hIcon = load_icon(p); }
         next.szTip = encode_wide("Next");
 

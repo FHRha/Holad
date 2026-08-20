@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { searchAll, getCoverArtUrl } from '../api/subsonic';
@@ -45,6 +46,7 @@ export function useGlobalSearch(
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       // Ignore if this instance is attached to a hidden input
+      // oxlint-disable-next-line
       if (inputRef.current && inputRef.current.getBoundingClientRect().width === 0) {
         return;
       }

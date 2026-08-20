@@ -55,7 +55,9 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
     setShowSleepTimerMenu(false);
   };
 
+  // oxlint-disable-next-line
   const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 1000) : '', [currentTrack?.id]);
+  // oxlint-disable-next-line
   const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 300) : '', [currentTrack?.id]);
 
 

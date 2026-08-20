@@ -120,7 +120,9 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   };
 
 
+  // oxlint-disable-next-line
   const coverArtHighRes = useMemo(() => currentTrack ? (currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 1000)) : '', [currentTrack?.id, currentTrack?.coverArt]);
+  // oxlint-disable-next-line
   const coverArtLowRes = useMemo(() => currentTrack ? (currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 300)) : '', [currentTrack?.id, currentTrack?.coverArt]);
 
   const handleLike = () => {

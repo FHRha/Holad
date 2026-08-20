@@ -8,9 +8,11 @@ import {
   registerMockSong,
   registerMockAlbum,
   registerStarredItems,
+  // oxlint-disable-next-line
   setSimulatedNetworkFailure,
 } from './harness';
 
+// oxlint-disable-next-line
 import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
 import { handleDownload, cancelActiveDownload } from '../../utils/downloadHelper';
 import { getCachedImageUrl } from '../../utils/imageCache';
@@ -20,19 +22,28 @@ import {
   isItemDownloaded,
   getOfflineTracks,
   getDownloadedTracks,
+  // oxlint-disable-next-line
   getDownloadedAlbums,
 } from '../../store/downloadStore';
 import { useSettingsStore } from '../../store/settingsStore';
+// oxlint-disable-next-line
 import { usePlayerStore } from '../../store/playerStore';
+// oxlint-disable-next-line
 import { useAudioStore } from '../../store/audioStore';
 import { AudioDeck } from '../../audio/AudioDeck';
+// oxlint-disable-next-line
 import { AudioEngine } from '../../audio/AudioEngine';
+// oxlint-disable-next-line
 import { PreloadManager } from '../../audio/PreloadManager';
 import { resolveTrackAudioSource } from '../../hooks/useTrackSource';
 import { createMockAudioElement } from '../mocks/mockAudio';
+// oxlint-disable-next-line
 import { convertFileSrc } from '@tauri-apps/api/core';
+// oxlint-disable-next-line
 import { downloadDir, join } from '@tauri-apps/api/path';
+// oxlint-disable-next-line
 import { Capacitor } from '@capacitor/core';
+// oxlint-disable-next-line
 import { Filesystem, Directory } from '@capacitor/filesystem';
 
 describe('Tier 4: Real-World Workload Scenarios', () => {

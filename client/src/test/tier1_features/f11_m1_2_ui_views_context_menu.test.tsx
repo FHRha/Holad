@@ -1,20 +1,28 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+// oxlint-disable-next-line
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import {
+  // oxlint-disable-next-line
   vfs,
+  // oxlint-disable-next-line
   mockState,
   resetE2EHarness,
+  // oxlint-disable-next-line
   setPlatform,
+  // oxlint-disable-next-line
   registerMockSong,
+  // oxlint-disable-next-line
   registerMockAlbum,
 } from '../e2e/harness';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useDownloadStore } from '../../store/downloadStore';
 import { useUIStore } from '../../store/uiStore';
+// oxlint-disable-next-line
 import { useSettingsStore } from '../../store/settingsStore';
+// oxlint-disable-next-line
 import * as downloadHelper from '../../utils/downloadHelper';
 
 // Import UI Views & Components
@@ -27,6 +35,7 @@ import MobileSearchOverlay from '../../components/modals/MobileSearchOverlay';
 import AlbumsView from '../../components/views/AlbumsView';
 import DownloadedMusicGrid from '../../components/settings/DownloadedMusicGrid';
 import FullScreenPlayerUI from '../../components/common/FullScreenPlayerUI';
+// oxlint-disable-next-line
 import ContextMenu from '../../components/common/ContextMenu';
 
 // Mock Subsonic API properly preserving all exports

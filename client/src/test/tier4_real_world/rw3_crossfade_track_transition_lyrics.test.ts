@@ -76,6 +76,7 @@ describe('Tier 4 - Scenario 3: DJ Crossfade Track Transition with Active Lyrics 
     await engine.playTrack(track1, { immediate: true });
 
     // Start fade to track 2
+    // oxlint-disable-next-line
     const fadePromise = engine.playTrack(track2, { immediate: false, transitionDuration: 1 });
 
     // User suddenly clicks Next Track (immediate skip to track 3)

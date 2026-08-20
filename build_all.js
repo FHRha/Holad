@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { spawn } = require('child_process');
 
 // Usage: node build_all.js [--no-archive | --skip-archive] [--skip-client] [--skip-server] [--skip-tauri] [--skip-android]
 
@@ -146,17 +146,72 @@ function getEnv(envOverrides = {}) {
   return env;
 }
 
-function isJavaAvailable(env) {
+function runCommand(taskName, command, cwd, envOverrides = {}) {
+  return new Promise((resolve, reject) => {
+    if (!process.env.GITHUB_ACTIONS) {
+      console.log(`[${taskName}] ⏳ Started: ${command}`);
+    }
+    
+    const env = getEnv(envOverrides);
+    
+    const child = spawn(command, { cwd, env, shell: true });
+    
+    let output = '';
+    
+    child.stdout.on('data', data => {
+      output += data.toString();
+    });
+    
+    child.stderr.on('data', data => {
+      output += data.toString();
+    });
+    
+    child.on('close', code => {
+      if (code === 0) {
+        if (process.env.GITHUB_ACTIONS) {
+          console.log(`::group::${taskName}`);
+          console.log(output);
+          console.log(`::endgroup::`);
+        } else {
+          console.log(`[${taskName}] ✔ Finished: ${command}`);
+        }
+        resolve();
+      } else {
+        console.error(`\n[ERROR] Task "${taskName}" failed: ${command}`);
+        if (process.env.GITHUB_ACTIONS) {
+          console.log(`::group::${taskName} (FAILED)`);
+        }
+        console.error(output);
+        if (process.env.GITHUB_ACTIONS) {
+          console.log(`::endgroup::`);
+        }
+        reject(new Error(`Command failed with code ${code}: ${command}`));
+      }
+    });
+
+    child.on('error', err => {
+      console.error(`\n[ERROR] Task "${taskName}" failed to start: ${command}`);
+      console.error(err);
+      reject(err);
+    });
+  });
+}
+
+function checkCommand(command, envOverrides = {}) {
+  return new Promise(resolve => {
+    const env = getEnv(envOverrides);
+    const child = spawn(command, { env, shell: true, stdio: 'ignore' });
+    child.on('close', code => resolve(code === 0));
+    child.on('error', () => resolve(false));
+  });
+}
+
+async function isJavaAvailable(env) {
   if (env.JAVA_HOME) {
     const javaExe = path.join(env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
     if (fs.existsSync(javaExe)) return true;
   }
-  try {
-    execSync('java -version', { stdio: 'ignore', env });
-    return true;
-  } catch (e) {
-    return false;
-  }
+  return await checkCommand('java -version', env);
 }
 
 function isAndroidSdkAvailable(env) {
@@ -170,12 +225,6 @@ function isAndroidSdkAvailable(env) {
     } catch (e) {}
   }
   return false;
-}
-
-function runCommand(command, cwd, envOverrides = {}) {
-  console.log(`\n> Running: ${command} in ${cwd}`);
-  const env = getEnv(envOverrides);
-  execSync(command, { cwd, stdio: 'inherit', env });
 }
 
 function copyRecursiveSync(src, dest) {
@@ -192,61 +241,72 @@ function copyRecursiveSync(src, dest) {
   }
 }
 
-console.log("Starting unified Holad release build process...");
+async function main() {
+  console.log("Starting unified Holad release build process...");
 
-// Clean up previous builds and artifacts
-console.log("Cleaning up previous builds and artifacts...");
-try {
-  if (fs.existsSync(ARTIFACTS_DIR)) {
-    fs.rmSync(ARTIFACTS_DIR, { recursive: true, force: true });
+  // Clean up previous builds and artifacts
+  console.log("Cleaning up previous builds and artifacts...");
+  try {
+    if (fs.existsSync(ARTIFACTS_DIR)) {
+      fs.rmSync(ARTIFACTS_DIR, { recursive: true, force: true });
+    }
+  } catch (e) {
+    console.warn("Warning: Could not completely remove previous artifacts (they might be in use):", e.message);
   }
-} catch (e) {
-  console.warn("Warning: Could not completely remove previous artifacts (they might be in use):", e.message);
-}
-if (!fs.existsSync(ARTIFACTS_DIR)) {
-  fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
-}
-
-// 1. Build Client (Base: /Holad/ for Web Release)
-if (!skipClient) {
-  console.log("\n--- Building Web Client (Base: /Holad/) ---");
-  runCommand('npx pnpm install', path.join(ROOT_DIR, 'client'));
-  runCommand('npx pnpm run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: '/Holad/' });
-}
-
-// 2. Build Server
-if (!skipServer) {
-  console.log("\n--- Building Server ---");
-  runCommand('npx pnpm install', path.join(ROOT_DIR, 'server'));
-  runCommand('npx pnpm run build', path.join(ROOT_DIR, 'server'));
-}
-
-// Copy to release folder (Server + Web Client bundle)
-if (!skipClient || !skipServer) {
-  console.log("\n--- Preparing Web Release Bundle ---");
-  fs.mkdirSync(path.join(RELEASE_DIR, 'client'), { recursive: true });
-  fs.mkdirSync(path.join(RELEASE_DIR, 'server'), { recursive: true });
-
-  if (fs.existsSync(path.join(ROOT_DIR, 'client', 'dist'))) {
-    copyRecursiveSync(path.join(ROOT_DIR, 'client', 'dist'), path.join(RELEASE_DIR, 'client', 'dist'));
-  }
-  if (fs.existsSync(path.join(ROOT_DIR, 'server', 'dist'))) {
-    copyRecursiveSync(path.join(ROOT_DIR, 'server', 'dist'), path.join(RELEASE_DIR, 'server', 'dist'));
-    fs.copyFileSync(path.join(ROOT_DIR, 'server', 'package.json'), path.join(RELEASE_DIR, 'server', 'package.json'));
+  if (!fs.existsSync(ARTIFACTS_DIR)) {
+    fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
   }
 
-  // Create .env.example
-  fs.writeFileSync(path.join(RELEASE_DIR, 'server', '.env.example'), `PORT=4000
+  const webTasks = [];
+
+  // 1. Build Client (Base: /Holad/ for Web Release)
+  if (!skipClient) {
+    console.log("\n--- Scheduling Web Client Build (Base: /Holad/) ---");
+    webTasks.push((async () => {
+      await runCommand('Web Client Install', 'npx pnpm install --reporter=silent', path.join(ROOT_DIR, 'client'));
+      await runCommand('Web Client Build', 'npx pnpm run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: '/Holad/' });
+    })());
+  }
+
+  // 2. Build Server
+  if (!skipServer) {
+    console.log("\n--- Scheduling Server Build ---");
+    webTasks.push((async () => {
+      await runCommand('Server Install', 'npx pnpm install --reporter=silent', path.join(ROOT_DIR, 'server'));
+      await runCommand('Server Build', 'npx pnpm run build', path.join(ROOT_DIR, 'server'));
+    })());
+  }
+
+  if (webTasks.length > 0) {
+    await Promise.all(webTasks);
+  }
+
+  // Copy to release folder (Server + Web Client bundle)
+  if (!skipClient || !skipServer) {
+    console.log("\n--- Preparing Web Release Bundle ---");
+    fs.mkdirSync(path.join(RELEASE_DIR, 'client'), { recursive: true });
+    fs.mkdirSync(path.join(RELEASE_DIR, 'server'), { recursive: true });
+
+    if (fs.existsSync(path.join(ROOT_DIR, 'client', 'dist'))) {
+      copyRecursiveSync(path.join(ROOT_DIR, 'client', 'dist'), path.join(RELEASE_DIR, 'client', 'dist'));
+    }
+    if (fs.existsSync(path.join(ROOT_DIR, 'server', 'dist'))) {
+      copyRecursiveSync(path.join(ROOT_DIR, 'server', 'dist'), path.join(RELEASE_DIR, 'server', 'dist'));
+      fs.copyFileSync(path.join(ROOT_DIR, 'server', 'package.json'), path.join(RELEASE_DIR, 'server', 'package.json'));
+    }
+
+    // Create .env.example
+    fs.writeFileSync(path.join(RELEASE_DIR, 'server', '.env.example'), `PORT=4000
 # If you want to manually bind the server, uncomment and edit the line below:
 # NAVIDROME_ACCOUNTS='[{"url":"https://your-navidrome.com","user":"admin","token":"...","salt":"..."}]'
 `);
 
-  if (fs.existsSync(path.join(ROOT_DIR, 'holad_cli.sh'))) {
-    fs.copyFileSync(path.join(ROOT_DIR, 'holad_cli.sh'), path.join(RELEASE_DIR, 'holad_cli.sh'));
-  }
+    if (fs.existsSync(path.join(ROOT_DIR, 'holad_cli.sh'))) {
+      fs.copyFileSync(path.join(ROOT_DIR, 'holad_cli.sh'), path.join(RELEASE_DIR, 'holad_cli.sh'));
+    }
 
-  // Startup scripts
-  fs.writeFileSync(path.join(RELEASE_DIR, 'start.bat'), `@echo off
+    // Startup scripts
+    fs.writeFileSync(path.join(RELEASE_DIR, 'start.bat'), `@echo off
 cd /d "%~dp0server"
 if not exist "node_modules" (
     echo Installing production dependencies...
@@ -256,7 +316,7 @@ node dist\\index.js
 pause
 `);
 
-  fs.writeFileSync(path.join(RELEASE_DIR, 'start.sh'), `#!/bin/bash
+    fs.writeFileSync(path.join(RELEASE_DIR, 'start.sh'), `#!/bin/bash
 cd "$(dirname "$0")/server"
 if [ ! -d "node_modules" ]; then
     echo "Installing production dependencies..."
@@ -264,200 +324,212 @@ if [ ! -d "node_modules" ]; then
 fi
 node dist/index.js
 `);
-  try {
-    fs.chmodSync(path.join(RELEASE_DIR, 'start.sh'), 0o755);
-  } catch (e) {}
-
-  // Archive the Web Server Release
-  if (createArchive) {
-    console.log("\n--- Creating Archive ---");
-    const archiveName = `holad-web-release.tar.gz`;
-    runCommand(`tar -czf ${archiveName} holad-release`, ARTIFACTS_DIR);
-    console.log(`Web server release archive is at artifacts/${archiveName}`);
-  }
-}
-
-// Rebuild Client for Native Apps (Base: ./) if Tauri or Android is enabled
-if (!skipTauri || !skipAndroid) {
-  console.log("\n--- Rebuilding Client for Native Apps (Base: ./) ---");
-  if (!fs.existsSync(path.join(ROOT_DIR, 'client', 'node_modules'))) {
-    console.log("node_modules missing, installing dependencies...");
-    runCommand('npx pnpm install', path.join(ROOT_DIR, 'client'));
-  }
-  runCommand('npx pnpm run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: './' });
-}
-
-// 3. Build Tauri Desktop Apps
-if (!skipTauri) {
-  const env = getEnv();
-  let cargoAvailable = false;
-  try {
-    execSync('cargo --version', { stdio: 'ignore', env });
-    cargoAvailable = true;
-  } catch (e) {
-    console.log("\n[SKIP] Skipping Tauri build (Rust/Cargo is not installed)");
-  }
-
-  if (cargoAvailable) {
-    console.log("\n--- Building Tauri (Desktop App) ---");
     try {
-      runCommand('npx @tauri-apps/cli build', path.join(ROOT_DIR, 'Tauri'));
-      
-      // Copy Tauri binaries and bundles to artifacts
-      const tauriReleaseDir = path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'target', 'release');
-      const bundlesDir = path.join(tauriReleaseDir, 'bundle');
-      
-      // Standalone executables for Unix platforms (Linux / macOS)
-      if (process.platform === 'linux') {
-        const possibleLinuxBins = [
-          path.join(tauriReleaseDir, 'holad'),
-          path.join(tauriReleaseDir, 'Holad'),
-          path.join(tauriReleaseDir, 'app')
-        ];
-        for (const bin of possibleLinuxBins) {
-          if (fs.existsSync(bin)) {
-            console.log(`Copying Linux standalone executable ${path.basename(bin)} to artifacts/Holad-Linux...`);
-            fs.copyFileSync(bin, path.join(ARTIFACTS_DIR, 'Holad-Linux'));
-            try { fs.chmodSync(path.join(ARTIFACTS_DIR, 'Holad-Linux'), 0o755); } catch (e) {}
-            break;
-          }
-        }
-      } else if (process.platform === 'darwin') {
-        const possibleMacBins = [
-          path.join(tauriReleaseDir, 'Holad'),
-          path.join(tauriReleaseDir, 'holad'),
-          path.join(tauriReleaseDir, 'app')
-        ];
-        for (const bin of possibleMacBins) {
-          if (fs.existsSync(bin)) {
-            console.log(`Copying macOS standalone executable ${path.basename(bin)} to artifacts/Holad-macOS...`);
-            fs.copyFileSync(bin, path.join(ARTIFACTS_DIR, 'Holad-macOS'));
-            try { fs.chmodSync(path.join(ARTIFACTS_DIR, 'Holad-macOS'), 0o755); } catch (e) {}
-            break;
-          }
-        }
-      }
+      fs.chmodSync(path.join(RELEASE_DIR, 'start.sh'), 0o755);
+    } catch (e) {}
 
-      // Copy all bundles (MSI, NSIS setup .exe, AppImage, DEB, RPM, DMG, PKG)
-      function copyBundlesRecursively(dir) {
-        if (!fs.existsSync(dir)) return;
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const entry of entries) {
-          const fullPath = path.join(dir, entry.name);
-          if (entry.isDirectory()) {
-            // Do not recurse into macOS .app packages as directories
-            if (!entry.name.endsWith('.app')) {
-              copyBundlesRecursively(fullPath);
-            }
-          } else if (entry.isFile()) {
-            const ext = path.extname(entry.name).toLowerCase();
-            if (['.msi', '.exe', '.deb', '.appimage', '.rpm', '.dmg', '.pkg', '.zip'].includes(ext)) {
-              console.log(`Copying bundle installer ${entry.name} to artifacts...`);
-              fs.copyFileSync(fullPath, path.join(ARTIFACTS_DIR, entry.name));
-
-              // On Linux, CI expects *.AppImage with exact casing
-              if (ext === '.appimage' && !entry.name.endsWith('.AppImage')) {
-                const upperName = entry.name.replace(/\.appimage$/i, '.AppImage');
-                fs.copyFileSync(fullPath, path.join(ARTIFACTS_DIR, upperName));
-              }
-            }
-          }
-        }
-      }
-      copyBundlesRecursively(bundlesDir);
-    } catch (err) {
-      console.error("\n[ERROR] Tauri build failed!");
-      console.error(err.message || err);
-      process.exit(1);
+    // Archive the Web Server Release
+    if (createArchive) {
+      console.log("\n--- Creating Archive ---");
+      const archiveName = `holad-web-release.tar.gz`;
+      await runCommand('Web Release Archive', `tar -czf ${archiveName} holad-release`, ARTIFACTS_DIR);
+      console.log(`Web server release archive is at artifacts/${archiveName}`);
     }
   }
-}
 
-// 4. Build Capacitor Android App
-if (!skipAndroid) {
-  if (fs.existsSync(path.join(ROOT_DIR, 'Capacitor', 'android'))) {
-    const env = getEnv();
-    const javaOk = isJavaAvailable(env);
-    const sdkOk = isAndroidSdkAvailable(env);
+  // Rebuild Client for Native Apps (Base: ./) if Tauri or Android is enabled
+  if (!skipTauri || !skipAndroid) {
+    console.log("\n--- Rebuilding Client for Native Apps (Base: ./) ---");
+    if (!fs.existsSync(path.join(ROOT_DIR, 'client', 'node_modules'))) {
+      console.log("node_modules missing, installing dependencies...");
+      await runCommand('Native Client Install', 'npx pnpm install --reporter=silent', path.join(ROOT_DIR, 'client'));
+    }
+    await runCommand('Native Client Build', 'npx pnpm run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: './' });
+  }
 
-    if (!javaOk || !sdkOk) {
-      const missing = [];
-      if (!javaOk) missing.push("Java/JDK");
-      if (!sdkOk) missing.push("Android SDK");
-      console.log(`\n[SKIP] Skipping Capacitor Android build (${missing.join(' and ')} not found)`);
-    } else {
-      console.log("\n--- Building Capacitor (Android App) ---");
+  // 3. Build Tauri Desktop Apps and Capacitor Android App in parallel
+  const nativeTasks = [];
+
+  if (!skipTauri) {
+    nativeTasks.push((async () => {
+      const env = getEnv();
+      const cargoOk = await checkCommand('cargo --version', env);
+      
+      if (!cargoOk) {
+        console.log("\n[SKIP] Skipping Tauri build (Rust/Cargo is not installed)");
+        return;
+      }
+
+      console.log("\n--- Scheduling Tauri Build (Desktop App) ---");
       try {
-        // Install dependencies first
-        runCommand('npx pnpm install', path.join(ROOT_DIR, 'Capacitor'));
+        await runCommand('Tauri Build', 'npx @tauri-apps/cli build', path.join(ROOT_DIR, 'Tauri'));
         
-        // Sync
-        runCommand('npx @capacitor/cli sync', path.join(ROOT_DIR, 'Capacitor'));
+        // Copy Tauri binaries and bundles to artifacts
+        const tauriReleaseDir = path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'target', 'release');
+        const bundlesDir = path.join(tauriReleaseDir, 'bundle');
         
-        // Build APK
-        const gradlew = process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew';
-        if (process.platform !== 'win32') {
-          try { fs.chmodSync(path.join(ROOT_DIR, 'Capacitor', 'android', 'gradlew'), 0o755); } catch(e) {}
+        // Standalone executables for Unix platforms (Linux / macOS)
+        if (process.platform === 'linux') {
+          const possibleLinuxBins = [
+            path.join(tauriReleaseDir, 'holad'),
+            path.join(tauriReleaseDir, 'Holad'),
+            path.join(tauriReleaseDir, 'app')
+          ];
+          for (const bin of possibleLinuxBins) {
+            if (fs.existsSync(bin)) {
+              console.log(`Copying Linux standalone executable ${path.basename(bin)} to artifacts/Holad-Linux...`);
+              fs.copyFileSync(bin, path.join(ARTIFACTS_DIR, 'Holad-Linux'));
+              try { fs.chmodSync(path.join(ARTIFACTS_DIR, 'Holad-Linux'), 0o755); } catch (e) {}
+              break;
+            }
+          }
+        } else if (process.platform === 'darwin') {
+          const possibleMacBins = [
+            path.join(tauriReleaseDir, 'Holad'),
+            path.join(tauriReleaseDir, 'holad'),
+            path.join(tauriReleaseDir, 'app')
+          ];
+          for (const bin of possibleMacBins) {
+            if (fs.existsSync(bin)) {
+              console.log(`Copying macOS standalone executable ${path.basename(bin)} to artifacts/Holad-macOS...`);
+              fs.copyFileSync(bin, path.join(ARTIFACTS_DIR, 'Holad-macOS'));
+              try { fs.chmodSync(path.join(ARTIFACTS_DIR, 'Holad-macOS'), 0o755); } catch (e) {}
+              break;
+            }
+          }
         }
-        const buildType = process.env.ANDROID_KEYSTORE_FILE ? 'assembleRelease' : 'assembleDebug';
-        runCommand(`${gradlew} ${buildType} --no-daemon`, path.join(ROOT_DIR, 'Capacitor', 'android'));
-        
-        // Copy APK
-        const apkDir = path.join(ROOT_DIR, 'Capacitor', 'android', 'app', 'build', 'outputs', 'apk');
-        const debugApk = path.join(apkDir, 'debug', 'app-debug.apk');
-        const releaseApk = path.join(apkDir, 'release', 'app-release.apk');
-        const releaseUnsignedApk = path.join(apkDir, 'release', 'app-release-unsigned.apk');
-        
-        let copiedApk = false;
-        const targetApk = process.env.ANDROID_KEYSTORE_FILE ? (fs.existsSync(releaseApk) ? releaseApk : releaseUnsignedApk) : debugApk;
 
-        if (fs.existsSync(targetApk)) {
-          const artifactName = buildType === 'assembleRelease' ? 'Holad-Android-Release.apk' : 'Holad-Android-Debug.apk';
-          console.log(`Copying Android APK to artifacts/${artifactName}...`);
-          fs.copyFileSync(targetApk, path.join(ARTIFACTS_DIR, artifactName));
-          copiedApk = true;
-        } else if (fs.existsSync(apkDir)) {
-          // Fallback: search for any .apk in apkDir
-          function findAndCopyApk(dir) {
-            const files = fs.readdirSync(dir, { withFileTypes: true });
-            for (const file of files) {
-              const full = path.join(dir, file.name);
-              if (file.isDirectory()) {
-                findAndCopyApk(full);
-              } else if (file.isFile() && file.name.endsWith('.apk')) {
-                const name = file.name.includes('release') ? 'Holad-Android-Release.apk' : 'Holad-Android-Debug.apk';
-                console.log(`Copying Android APK ${file.name} to artifacts/${name}...`);
-                fs.copyFileSync(full, path.join(ARTIFACTS_DIR, name));
-                copiedApk = true;
+        // Copy all bundles (MSI, NSIS setup .exe, AppImage, DEB, RPM, DMG, PKG)
+        function copyBundlesRecursively(dir) {
+          if (!fs.existsSync(dir)) return;
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+              // Do not recurse into macOS .app packages as directories
+              if (!entry.name.endsWith('.app')) {
+                copyBundlesRecursively(fullPath);
+              }
+            } else if (entry.isFile()) {
+              const ext = path.extname(entry.name).toLowerCase();
+              if (['.msi', '.exe', '.deb', '.appimage', '.rpm', '.dmg', '.pkg', '.zip'].includes(ext)) {
+                console.log(`Copying bundle installer ${entry.name} to artifacts...`);
+                fs.copyFileSync(fullPath, path.join(ARTIFACTS_DIR, entry.name));
+
+                // On Linux, CI expects *.AppImage with exact casing
+                if (ext === '.appimage' && !entry.name.endsWith('.AppImage')) {
+                  const upperName = entry.name.replace(/\.appimage$/i, '.AppImage');
+                  fs.copyFileSync(fullPath, path.join(ARTIFACTS_DIR, upperName));
+                }
               }
             }
           }
-          findAndCopyApk(apkDir);
+        }
+        copyBundlesRecursively(bundlesDir);
+      } catch (err) {
+        console.error("\n[ERROR] Tauri build workflow failed!");
+        throw err;
+      }
+    })());
+  }
+
+  if (!skipAndroid) {
+    nativeTasks.push((async () => {
+      if (fs.existsSync(path.join(ROOT_DIR, 'Capacitor', 'android'))) {
+        const env = getEnv();
+        const javaOk = await isJavaAvailable(env);
+        const sdkOk = isAndroidSdkAvailable(env);
+
+        if (!javaOk || !sdkOk) {
+          const missing = [];
+          if (!javaOk) missing.push("Java/JDK");
+          if (!sdkOk) missing.push("Android SDK");
+          console.log(`\n[SKIP] Skipping Capacitor Android build (${missing.join(' and ')} not found)`);
+          return;
         }
 
-        if (!copiedApk) {
-          console.warn("Warning: No Android APK found in build outputs.");
+        console.log("\n--- Scheduling Capacitor Build (Android App) ---");
+        try {
+          // Install dependencies first
+          await runCommand('Capacitor Install', 'npx pnpm install --reporter=silent', path.join(ROOT_DIR, 'Capacitor'));
+          
+          // Sync
+          await runCommand('Capacitor Sync', 'npx @capacitor/cli sync', path.join(ROOT_DIR, 'Capacitor'));
+          
+          // Build APK
+          const gradlew = process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew';
+          if (process.platform !== 'win32') {
+            try { fs.chmodSync(path.join(ROOT_DIR, 'Capacitor', 'android', 'gradlew'), 0o755); } catch(e) {}
+          }
+          const buildType = process.env.ANDROID_KEYSTORE_FILE ? 'assembleRelease' : 'assembleDebug';
+          const daemonFlag = process.env.GITHUB_ACTIONS ? '--no-daemon' : '';
+          await runCommand('Android Build', `${gradlew} ${buildType} ${daemonFlag} -q`.trim(), path.join(ROOT_DIR, 'Capacitor', 'android'));
+          
+          // Copy APK
+          const apkDir = path.join(ROOT_DIR, 'Capacitor', 'android', 'app', 'build', 'outputs', 'apk');
+          const debugApk = path.join(apkDir, 'debug', 'app-debug.apk');
+          const releaseApk = path.join(apkDir, 'release', 'app-release.apk');
+          const releaseUnsignedApk = path.join(apkDir, 'release', 'app-release-unsigned.apk');
+          
+          let copiedApk = false;
+          const targetApk = process.env.ANDROID_KEYSTORE_FILE ? (fs.existsSync(releaseApk) ? releaseApk : releaseUnsignedApk) : debugApk;
+
+          if (fs.existsSync(targetApk)) {
+            const artifactName = buildType === 'assembleRelease' ? 'Holad-Android-Release.apk' : 'Holad-Android-Debug.apk';
+            console.log(`Copying Android APK to artifacts/${artifactName}...`);
+            fs.copyFileSync(targetApk, path.join(ARTIFACTS_DIR, artifactName));
+            copiedApk = true;
+          } else if (fs.existsSync(apkDir)) {
+            // Fallback: search for any .apk in apkDir
+            function findAndCopyApk(dir) {
+              const files = fs.readdirSync(dir, { withFileTypes: true });
+              for (const file of files) {
+                const full = path.join(dir, file.name);
+                if (file.isDirectory()) {
+                  findAndCopyApk(full);
+                } else if (file.isFile() && file.name.endsWith('.apk')) {
+                  const name = file.name.includes('release') ? 'Holad-Android-Release.apk' : 'Holad-Android-Debug.apk';
+                  console.log(`Copying Android APK ${file.name} to artifacts/${name}...`);
+                  fs.copyFileSync(full, path.join(ARTIFACTS_DIR, name));
+                  copiedApk = true;
+                }
+              }
+            }
+            findAndCopyApk(apkDir);
+          }
+
+          if (!copiedApk) {
+            console.warn("Warning: No Android APK found in build outputs.");
+          }
+        } catch (err) {
+          console.error("\n[ERROR] Capacitor Android build workflow failed!");
+          throw err;
         }
-      } catch (err) {
-        console.error("\n[ERROR] Capacitor Android build failed!");
-        console.error(err.message || err);
-        process.exit(1);
       }
+    })());
+  }
+
+  if (nativeTasks.length > 0) {
+    await Promise.all(nativeTasks);
+  }
+
+  console.log("\n--- Build Complete! ---");
+  console.log("Artifacts generated in artifacts/:");
+  if (fs.existsSync(ARTIFACTS_DIR)) {
+    const artifacts = fs.readdirSync(ARTIFACTS_DIR);
+    if (artifacts.length === 0) {
+      console.log("  (no artifacts found)");
+    } else {
+      artifacts.forEach(file => {
+        const stats = fs.statSync(path.join(ARTIFACTS_DIR, file));
+        const sizeStr = stats.isDirectory() ? '[DIR]' : `${(stats.size / 1024 / 1024).toFixed(2)} MB`;
+        console.log(`  - ${file} (${sizeStr})`);
+      });
     }
   }
 }
 
-console.log("\n--- Build Complete! ---");
-console.log("Artifacts generated in artifacts/:");
-if (fs.existsSync(ARTIFACTS_DIR)) {
-  const artifacts = fs.readdirSync(ARTIFACTS_DIR);
-  if (artifacts.length === 0) {
-    console.log("  (no artifacts found)");
-  } else {
-    artifacts.forEach(file => {
-      const stats = fs.statSync(path.join(ARTIFACTS_DIR, file));
-      const sizeStr = stats.isDirectory() ? '[DIR]' : `${(stats.size / 1024 / 1024).toFixed(2)} MB`;
-      console.log(`  - ${file} (${sizeStr})`);
-    });
-  }
-}
+main().catch(err => {
+  console.error("Build process failed:", err);
+  process.exit(1);
+});

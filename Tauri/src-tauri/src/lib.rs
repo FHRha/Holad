@@ -74,8 +74,8 @@ pub fn run() {
                           window.hide().unwrap();
                       } else {
                           let _ = window.set_shadow(false);
-                          let x = position.x as f64;
-                          let y = position.y as f64;
+                          let x = position.x;
+                          let y = position.y;
                           let size = window.outer_size().unwrap();
                           
                           // Position above tray icon if it's at the bottom of the screen
@@ -132,10 +132,8 @@ pub fn run() {
                     }
                 }
             }
-            tauri::WindowEvent::Focused(focused) => {
-                if !focused && window.label() == "tray_menu" {
-                    window.hide().unwrap();
-                }
+            tauri::WindowEvent::Focused(false) if window.label() == "tray_menu" => {
+                window.hide().unwrap();
             }
             _ => {}
         }

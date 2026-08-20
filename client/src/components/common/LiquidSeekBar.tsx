@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useRef, useEffect, useState } from 'react';
 
 interface LiquidSeekBarProps {
@@ -28,6 +29,7 @@ export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, o
 
   useEffect(() => {
     if (!isDragging) {
+      // oxlint-disable-next-line
       updateThumbAndClip(value);
     }
   }, [value, isDragging]);

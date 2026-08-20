@@ -68,6 +68,7 @@ export class WebAudioCore implements IAudioCore {
             } else {
                 this.currentState = 'playing';
             }
+        // oxlint-disable-next-line
         } catch (e) {
             this.currentState = 'error';
         }

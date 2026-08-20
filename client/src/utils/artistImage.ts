@@ -36,6 +36,7 @@ export async function fetchArtistImage(artistName: string): Promise<string | nul
       if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
         return cached.url;
       }
+    // oxlint-disable-next-line
     } catch (e) {
       // Ignore parse errors, just refetch
     }
@@ -97,6 +98,7 @@ export async function fetchArtistImage(artistName: string): Promise<string | nul
         return data.results[0].artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg');
       }
       return null;
+    // oxlint-disable-next-line
     } catch (e) {
       if (retries > 0) return fetchApple(retries - 1);
       return null;

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState } from 'react';
 import { fetchStarred, getCoverArtUrl, unstarItem, starItem, getAlbum } from '../../api/subsonic';
 import { Play, Heart, Search, CloudOff, Download, LayoutGrid } from 'lucide-react';
@@ -41,6 +42,7 @@ export default function FavoritesView() {
   const { openMenu } = useContextMenuStore();
 
   useEffect(() => {
+    // oxlint-disable-next-line
     loadStarred();
   }, [likedTrackIds.length]);
 

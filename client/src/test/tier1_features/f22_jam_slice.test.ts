@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { usePlayerStore } from '../../store/playerStore';
+// oxlint-disable-next-line
 import { JamParticipant, JamRole } from '../../types';
 
 describe('jamSlice', () => {

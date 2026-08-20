@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AudioEngine } from '../../audio/AudioEngine';
+// oxlint-disable-next-line
 import { AudioDeck } from '../../audio/AudioDeck';
+// oxlint-disable-next-line
 import { useAudioStore } from '../../store/audioStore';
+// oxlint-disable-next-line
 import { usePlayerStore } from '../../store/playerStore';
 import { createMockAudioElement } from '../mocks/mockAudio';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';

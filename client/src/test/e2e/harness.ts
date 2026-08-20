@@ -552,6 +552,7 @@ export function createChunkedStream(data: Uint8Array, numChunks: number = 3, sig
 /**
  * Global fetch mock interceptor
  */
+// oxlint-disable-next-line
 const originalFetch = globalThis.fetch;
 
 export function setupFetchMock(): void {

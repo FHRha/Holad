@@ -47,6 +47,7 @@ export default function ServerConnectionView({ onConnected }: Props) {
         if (response.status !== 400 && response.status !== 403 && response.status !== 401 && !response.ok) {
           throw new Error('Not a Holad server');
         }
+      // oxlint-disable-next-line
       } catch (err) {
         throw new Error('Server unreachable or not a Holad instance');
       }

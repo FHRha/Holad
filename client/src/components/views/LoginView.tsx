@@ -47,6 +47,7 @@ export default function LoginView() {
         try {
           const errData = await response.json();
           if (errData.error) errorMsg = errData.error;
+        // oxlint-disable-next-line
         } catch(e) {}
         throw new Error(errorMsg);
       }

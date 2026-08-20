@@ -1,5 +1,7 @@
+// oxlint-disable-next-line
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useSettingsStore } from '../../store/settingsStore';
+// oxlint-disable-next-line
 import { usePlayerStore } from '../../store/playerStore';
 import { WebAudioPipeline } from '../../audio/WebAudioPipeline';
 import { AudioEngine } from '../../audio/AudioEngine';
@@ -136,7 +138,9 @@ describe('Audio Engine Requirements (R3, R4, R5, R7) Implementation Suite', () =
     expect(engine.getActiveDeckIndex()).toBe(0);
     expect(engine.getCurrentTrack().id).toBe('cf-t1');
 
+    // oxlint-disable-next-line
     let receivedTime = -1;
+    // oxlint-disable-next-line
     let receivedDuration = -1;
     engine.on('timeupdate', (time: number) => {
       receivedTime = time;

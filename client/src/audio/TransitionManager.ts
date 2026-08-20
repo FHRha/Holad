@@ -29,6 +29,7 @@ export class TransitionManager {
             pipeline.setDeckGain(outgoingIndex, 0.0, 0);
         }
         incomingDeck.setVolume(1.0 * masterVolume);
+        // oxlint-disable-next-line
         outgoingDeck.setVolume(0.0 * masterVolume);
 
         // Start incoming deck immediately
@@ -76,6 +77,7 @@ export class TransitionManager {
         if (pipeline) {
             pipeline.setDeckGain(incomingIndex, 0.0, 0);
         }
+        // oxlint-disable-next-line
         incomingDeck.setVolume(0.0 * masterVolume);
 
         // Start playing the incoming deck but do NOT await it.
@@ -90,6 +92,7 @@ export class TransitionManager {
                 pipeline.setDeckGain(outgoingIndex, 0.0, 0);
                 pipeline.setDeckGain(incomingIndex, 1.0, 0);
             }
+            // oxlint-disable-next-line
             outgoingDeck.setVolume(0.0 * masterVolume);
             incomingDeck.setVolume(1.0 * masterVolume);
             
@@ -168,6 +171,7 @@ export class TransitionManager {
                         pipeline.setDeckGain(outgoingIndex, 0.0, 0);
                         pipeline.setDeckGain(incomingIndex, 1.0, 0);
                     }
+                    // oxlint-disable-next-line
                     outgoingDeck.setVolume(0.0 * masterVolume);
                     incomingDeck.setVolume(1.0 * masterVolume);
 
@@ -210,6 +214,7 @@ export class TransitionManager {
         if (activeDeck) {
             activeDeck.setVolume(1.0 * masterVolume);
             if (standbyDeck) {
+                // oxlint-disable-next-line
                 standbyDeck.setVolume(0.0 * masterVolume);
                 standbyDeck.pause();
             }

@@ -6,6 +6,7 @@ import LiquidSeekBar from '../../components/common/LiquidSeekBar';
 import { useAudioStore } from '../../store/audioStore';
 import { AudioEngine } from '../../audio/AudioEngine';
 import { AudioDeck } from '../../audio/AudioDeck';
+// oxlint-disable-next-line
 import { createMockAudioElement, MockTimeRanges } from '../mocks/mockAudio';
 import { resetAllStores } from '../helpers/testUtils';
 

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+// oxlint-disable-next-line
 import i18n from 'i18next';
 import fs from 'fs';
 import path from 'path';

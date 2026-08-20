@@ -38,7 +38,9 @@ export default function FullScreenPlayerUI({
   
   const queueContainerRef = useRef<HTMLDivElement>(null);
   
+  // oxlint-disable-next-line
   const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 1000) : '', [currentTrack?.id]);
+  // oxlint-disable-next-line
   const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 300) : '', [currentTrack?.id]);
 
   const {

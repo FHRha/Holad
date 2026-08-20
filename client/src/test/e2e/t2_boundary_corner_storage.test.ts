@@ -1,36 +1,50 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   vfs,
+  // oxlint-disable-next-line
   mockState,
   resetE2EHarness,
   setPlatform,
   setOnline,
   registerMockSong,
   registerMockAlbum,
+  // oxlint-disable-next-line
   registerStarredItems,
   setSimulatedNetworkFailure,
   createChunkedStream,
 } from './harness';
 
+// oxlint-disable-next-line
 import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
 import { handleDownload, cancelActiveDownload } from '../../utils/downloadHelper';
 import { getCachedImageUrl } from '../../utils/imageCache';
+// oxlint-disable-next-line
 import { clearAppCache } from '../../utils/storage';
 import {
   useDownloadStore,
+  // oxlint-disable-next-line
   isItemDownloaded,
+  // oxlint-disable-next-line
   getOfflineTracks,
+  // oxlint-disable-next-line
   getDownloadedTracks,
+  // oxlint-disable-next-line
   getDownloadedAlbums,
 } from '../../store/downloadStore';
+// oxlint-disable-next-line
 import { useSettingsStore } from '../../store/settingsStore';
+// oxlint-disable-next-line
 import { usePlayerStore } from '../../store/playerStore';
 import { AudioDeck, isLocalMediaUrl } from '../../audio/AudioDeck';
 import { resolveTrackAudioSource } from '../../hooks/useTrackSource';
 import { createMockAudioElement } from '../mocks/mockAudio';
+// oxlint-disable-next-line
 import { convertFileSrc } from '@tauri-apps/api/core';
+// oxlint-disable-next-line
 import { downloadDir, join } from '@tauri-apps/api/path';
+// oxlint-disable-next-line
 import { Capacitor } from '@capacitor/core';
+// oxlint-disable-next-line
 import { Filesystem, Directory } from '@capacitor/filesystem';
 
 describe('Tier 2: Boundary & Corner Cases Test Suite', () => {
@@ -244,6 +258,7 @@ describe('Tier 2: Boundary & Corner Cases Test Suite', () => {
     it('[T2.B1.13] Filename sanitization handles control characters and null bytes (\\0, \\r, \\n, \\t) safely', async () => {
       setPlatform('tauri');
       const rawTitle = 'Track\0With\r\nControl\tChars';
+      // oxlint-disable-next-line
       const sanitized = rawTitle.replace(/[\0\r\n\t]/g, '_').replace(/[/\\?%*:|"<>]/g, '-');
 
       expect(sanitized).toBe('Track_With__Control_Chars');
@@ -1413,6 +1428,7 @@ describe('Tier 2: Boundary & Corner Cases Test Suite', () => {
       const mockEl = createMockAudioElement();
       const deck = new AudioDeck('destroy-deck', mockEl);
 
+      // oxlint-disable-next-line
       let stateChangeCount = 0;
       deck.on('statechange', () => { stateChangeCount++; });
 

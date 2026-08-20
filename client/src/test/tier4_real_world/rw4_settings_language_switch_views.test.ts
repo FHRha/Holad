@@ -70,6 +70,7 @@ describe('Tier 4 - Scenario 4: Settings Toggling & Language Switching Across UI 
       isPlaying: true,
     });
 
+    // oxlint-disable-next-line
     const { container, rerender } = render(
       React.createElement(
         MemoryRouter,

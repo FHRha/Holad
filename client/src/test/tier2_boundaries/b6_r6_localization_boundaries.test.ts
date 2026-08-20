@@ -41,7 +41,8 @@ describe('Tier 2 - B6: Localization Boundary & Translation Integrity Cases', () 
   it('B6-2: Interpolation placeholders (e.g. {{count}}, {{name}}) match identically between EN and RU', () => {
     function extractPlaceholders(str: string): string[] {
       const matches = str.match(/\{\{([^}]+)\}\}/g);
-      return matches ? matches.map((m) => m.replace(/[\{\}]/g, '').trim()).sort() : [];
+    // oxlint-disable-next-line
+      return matches ? matches.map((m) => m.replace(/[{\}]/g, '').trim()).sort() : [];
     }
 
     function checkPlaceholderParity(enObj: any, ruObj: any, path = ''): void {

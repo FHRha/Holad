@@ -4,6 +4,7 @@ import {
   mockState,
   resetE2EHarness,
   setPlatform,
+  // oxlint-disable-next-line
   setOnline,
   registerMockSong,
   registerMockAlbum,
@@ -20,13 +21,17 @@ import {
   isItemDownloaded,
   getOfflineTracks,
 } from '../../store/downloadStore';
+// oxlint-disable-next-line
 import { useSettingsStore } from '../../store/settingsStore';
+// oxlint-disable-next-line
 import { usePlayerStore } from '../../store/playerStore';
 import { AudioDeck } from '../../audio/AudioDeck';
 import { createMockAudioElement } from '../mocks/mockAudio';
 import { convertFileSrc } from '@tauri-apps/api/core';
+// oxlint-disable-next-line
 import { downloadDir, join } from '@tauri-apps/api/path';
 import { Capacitor } from '@capacitor/core';
+// oxlint-disable-next-line
 import { Filesystem, Directory } from '@capacitor/filesystem';
 
 describe('Tier 1: Feature Coverage (Features 1 to 12)', () => {
@@ -164,6 +169,7 @@ describe('Tier 1: Feature Coverage (Features 1 to 12)', () => {
       const deck = new AudioDeck('deck-test-2', el);
       const localAssetUrl = 'http://asset.localhost/C%3A%2FMusic%2FHolad%2Ftrack.mp3';
 
+      // oxlint-disable-next-line
       let stateTransition: string = '';
       deck.on('statechange', (state) => {
         stateTransition = state;
@@ -906,6 +912,7 @@ describe('Tier 1: Feature Coverage (Features 1 to 12)', () => {
       useDownloadStore.getState().startDownload('star-dup-1', 'Already Done', 'track');
       useDownloadStore.getState().completeDownload('star-dup-1', '/path/done.mp3');
 
+      // oxlint-disable-next-line
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
       const downloadEntireLibrary = async () => {

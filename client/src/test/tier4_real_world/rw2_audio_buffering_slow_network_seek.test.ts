@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import React from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import { AudioEngine } from '../../audio/AudioEngine';
+// oxlint-disable-next-line
 import { createMockAudioElement, MockTimeRanges } from '../mocks/mockAudio';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
 import Slider from '../../components/common/Slider';
