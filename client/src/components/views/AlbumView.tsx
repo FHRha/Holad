@@ -173,11 +173,11 @@ export default function AlbumView() {
                 >
                   <div className="w-8 sm:w-12 text-center text-xs sm:text-sm font-medium text-secondary">
                     {currentPlaying ? (
-                      isPlaying ? <Pause size={14} className="text-primary mx-auto" fill="currentColor" /> : <Play size={14} className="text-primary mx-auto" fill="currentColor" />
+                      isPlaying ? <Pause size={14} className="text-primary mx-auto stroke-none" fill="currentColor" /> : <Play size={14} className="text-primary mx-auto stroke-none" fill="currentColor" />
                     ) : (
                       <>
                         <span className="group-hover:hidden">{index + 1}</span>
-                        <Play size={14} className="hidden group-hover:block mx-auto text-white" fill="currentColor" />
+                        <Play size={14} className="hidden group-hover:block mx-auto text-white stroke-none" fill="currentColor" />
                       </>
                     )}
                   </div>

@@ -471,6 +471,10 @@ interface Room {
   isAutoDjEnabled: boolean;
   stateVersion: number;
   participants: Participant[];
+  isCrossfadeEnabled?: boolean;
+  crossfadeDuration?: number;
+  crossfadeCurve?: string;
+  isGaplessEnabled?: boolean;
 }
 
 const rooms = new Map<string, Room>();
@@ -726,7 +730,7 @@ io.on('connection', (socket) => {
   });
 
   // Sync events
-  socket.on('syncState', (data: { roomId: string, trackId: string, currentTime: number, isPlaying: boolean, currentIndex: number, isAutoDjEnabled: boolean, version?: number }) => {
+  socket.on('syncState', (data: { roomId: string, trackId: string, currentTime: number, isPlaying: boolean, currentIndex: number, isAutoDjEnabled: boolean, version?: number, isCrossfadeEnabled?: boolean, crossfadeDuration?: number, crossfadeCurve?: string, isGaplessEnabled?: boolean }) => {
     const room = rooms.get(data.roomId);
     if (room && isHostOrCohost(room, socket.id)) {
       // If version is provided, ensure it's not older than our stateVersion to prevent race condition reverting
@@ -743,6 +747,10 @@ io.on('connection', (socket) => {
       if (data.isAutoDjEnabled !== undefined) {
         room.isAutoDjEnabled = data.isAutoDjEnabled;
       }
+      if (data.isCrossfadeEnabled !== undefined) room.isCrossfadeEnabled = data.isCrossfadeEnabled;
+      if (data.crossfadeDuration !== undefined) room.crossfadeDuration = data.crossfadeDuration;
+      if (data.crossfadeCurve !== undefined) room.crossfadeCurve = data.crossfadeCurve;
+      if (data.isGaplessEnabled !== undefined) room.isGaplessEnabled = data.isGaplessEnabled;
       // Broadcast to everyone else
       socket.to(data.roomId).emit('syncState', { ...room, version: room.stateVersion });
       // Send version back to sender so their next ping isn't outdated

@@ -25,7 +25,7 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
             album: t.album,
             albumId: t.albumId,
             artistId: t.artistId,
-            coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
+            coverArt: t.coverArt?.includes('http') ? t.coverArt : getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
             duration: t.duration
           }], 0);
         }
@@ -91,7 +91,11 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
             onClick={() => setIsPlaying(!isPlaying)}
             className="w-16 h-16 bg-primary text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform"
           >
-            {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
+            {isPlaying ? (
+              <Pause size={24} fill="currentColor" className="stroke-none" />
+            ) : (
+              <Play size={24} fill="currentColor" className="stroke-none translate-x-[2px]" />
+            )}
           </button>
         </div>
 

@@ -310,7 +310,7 @@ export default function FullScreenPlayerUI({
                             }}
                           >
                             <div className="w-8 flex justify-center text-white/50 text-sm font-medium select-none pointer-events-none">
-                              {isPlayingQueue ? <Play size={14} className="text-primary" fill="currentColor" /> : idx + 1}
+                              {isPlayingQueue ? <Play size={14} className="text-primary stroke-none" fill="currentColor" /> : idx + 1}
                             </div>
                             <div className="w-12 h-12 flex-shrink-0 mx-4 rounded-lg overflow-hidden shadow-md select-none pointer-events-none">
                               <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />

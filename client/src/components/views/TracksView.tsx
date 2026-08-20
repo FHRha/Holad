@@ -284,11 +284,11 @@ export default function TracksView() {
                     >
                       <div className="w-10 hidden md:flex text-center text-xs font-semibold text-secondary justify-center">
                         {currentPlaying ? (
-                          isPlaying ? <Pause size={14} className="text-primary" fill="currentColor" /> : <Play size={14} className="text-primary" fill="currentColor" />
+                          isPlaying ? <Pause size={14} className="text-primary stroke-none" fill="currentColor" /> : <Play size={14} className="text-primary stroke-none" fill="currentColor" />
                         ) : (
                           <>
                             <span className="group-hover:hidden">{index + 1}</span>
-                            <Play size={14} className="hidden group-hover:block text-white" fill="currentColor" />
+                            <Play size={14} className="hidden group-hover:block text-white stroke-none" fill="currentColor" />
                           </>
                         )}
                       </div>

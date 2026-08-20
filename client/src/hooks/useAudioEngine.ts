@@ -26,6 +26,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     initialPosition,
     setInitialPosition,
     repeatMode,
+    hostSettings,
   } = usePlayerStore();
 
   const {
@@ -69,22 +70,32 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
   // Sync settings with AudioEngine
   const settings = useSettingsStore();
+  
+  const effectiveSettings = {
+    isCrossfadeEnabled: role === 'listener' && hostSettings ? (hostSettings.isCrossfadeEnabled ?? settings.isCrossfadeEnabled) : settings.isCrossfadeEnabled,
+    crossfadeDuration: role === 'listener' && hostSettings ? (hostSettings.crossfadeDuration ?? settings.crossfadeDuration) : settings.crossfadeDuration,
+    crossfadeCurve: role === 'listener' && hostSettings ? (hostSettings.crossfadeCurve ?? settings.crossfadeCurve) : settings.crossfadeCurve,
+    isGaplessEnabled: role === 'listener' && hostSettings ? (hostSettings.isGaplessEnabled ?? settings.isGaplessEnabled) : settings.isGaplessEnabled,
+    isLoudnessNormalizationEnabled: settings.isLoudnessNormalizationEnabled,
+    preloadNextTrack: settings.preloadNextTrack,
+  };
+
   useEffect(() => {
     engineRef.current.updateSettings({
-      isCrossfadeEnabled: settings.isCrossfadeEnabled,
-      crossfadeDuration: settings.crossfadeDuration,
-      crossfadeCurve: settings.crossfadeCurve,
-      isGaplessEnabled: settings.isGaplessEnabled,
-      isLoudnessNormalizationEnabled: settings.isLoudnessNormalizationEnabled,
-      preloadNextTrack: settings.preloadNextTrack,
+      isCrossfadeEnabled: effectiveSettings.isCrossfadeEnabled,
+      crossfadeDuration: effectiveSettings.crossfadeDuration,
+      crossfadeCurve: effectiveSettings.crossfadeCurve,
+      isGaplessEnabled: effectiveSettings.isGaplessEnabled,
+      isLoudnessNormalizationEnabled: effectiveSettings.isLoudnessNormalizationEnabled,
+      preloadNextTrack: effectiveSettings.preloadNextTrack,
     });
   }, [
-    settings.isCrossfadeEnabled,
-    settings.crossfadeDuration,
-    settings.crossfadeCurve,
-    settings.isGaplessEnabled,
-    settings.isLoudnessNormalizationEnabled,
-    settings.preloadNextTrack,
+    effectiveSettings.isCrossfadeEnabled,
+    effectiveSettings.crossfadeDuration,
+    effectiveSettings.crossfadeCurve,
+    effectiveSettings.isGaplessEnabled,
+    effectiveSettings.isLoudnessNormalizationEnabled,
+    effectiveSettings.preloadNextTrack,
   ]);
 
   // Volume calculations and updates
@@ -157,8 +168,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     prevTrackIdRef.current = currentTrack.id;
 
     const isPlayingStore = usePlayerStore.getState().isPlaying;
-    const isCrossfade = settings.isCrossfadeEnabled;
-    const durationSec = isAutoSkip ? settings.crossfadeDuration : 2;
+    const isCrossfade = effectiveSettings.isCrossfadeEnabled;
+    const durationSec = isAutoSkip ? effectiveSettings.crossfadeDuration : 2;
     
     // Check if the engine was actually playing previously to avoid crossfading when resuming/unpausing
     // Use prevIsPlayingRef to avoid being tricked by queueSlice's triggerPlay() which calls .play() blindly
@@ -200,7 +211,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       deck.load(audioSrc, initialPosition > 0 ? initialPosition / 1000 : 0).catch(() => {});
       if (initialPosition > 0) setInitialPosition(0);
     }
-  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, audioRefs, setAudioElement, settings.isCrossfadeEnabled, settings.crossfadeDuration, initialPosition, setInitialPosition]);
+  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition]);
 
   // Handle play/pause toggle
   useEffect(() => {
@@ -319,9 +330,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
         // Auto crossfade trigger
         const actualDur = engine.getDuration() || currentTrack.duration || 0;
-        if (settings.isCrossfadeEnabled && actualDur > 0 && currentTrack.id !== crossfadeTriggeredRef.current) {
+        if (effectiveSettings.isCrossfadeEnabled && actualDur > 0 && currentTrack.id !== crossfadeTriggeredRef.current) {
           const remaining = actualDur - currentTime;
-          if (remaining > 0 && remaining <= settings.crossfadeDuration && currentTime > 0) {
+          if (remaining > 0 && remaining <= effectiveSettings.crossfadeDuration && currentTime > 0) {
             crossfadeTriggeredRef.current = currentTrack.id;
             nextTrack();
           }
@@ -354,7 +365,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       engine.off('ended', handleEnded);
       engine.off('requestPreload', handleRequestPreload);
     };
-  }, [currentTrack, isActiveDevice, duration, role, sleepTimer, settings.isCrossfadeEnabled, settings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer]);
+  }, [currentTrack, isActiveDevice, duration, role, sleepTimer, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer]);
 
   // Holad Syncing
   useEffect(() => {

@@ -10,6 +10,12 @@ export interface JamSlice {
   syncDrift: number;
   jamError: string | null;
   isMinimized: boolean;
+  hostSettings: {
+    isCrossfadeEnabled?: boolean;
+    crossfadeDuration?: number;
+    crossfadeCurve?: any;
+    isGaplessEnabled?: boolean;
+  } | null;
 
   setRoomInfo: (roomId: string | null, role: JamRole) => void;
   setJamError: (error: string | null) => void;
@@ -17,6 +23,7 @@ export interface JamSlice {
   setParticipants: (participants: JamParticipant[]) => void;
   setIsMinimized: (minimized: boolean) => void;
   setSyncDrift: (drift: number) => void;
+  setHostSettings: (settings: any) => void;
 }
 
 export const createJamSlice: StateCreator<
@@ -32,12 +39,13 @@ export const createJamSlice: StateCreator<
   syncDrift: 0,
   jamError: null,
   isMinimized: false,
+  hostSettings: null,
 
   setRoomInfo: (roomId, role) => set(() => {
     if (roomId) {
-      return { roomId, role, jamError: null };
+      return { roomId, role, jamError: null, hostSettings: null };
     } else {
-      return { roomId: null, role: null, participants: [], isMinimized: false };
+      return { roomId: null, role: null, participants: [], isMinimized: false, hostSettings: null };
     }
   }),
   setJamError: (error) => set({ jamError: error }),
@@ -45,4 +53,5 @@ export const createJamSlice: StateCreator<
   setParticipants: (participants) => set({ participants }),
   setIsMinimized: (isMinimized) => set({ isMinimized }),
   setSyncDrift: (syncDrift) => set({ syncDrift }),
+  setHostSettings: (settings) => set({ hostSettings: settings }),
 });

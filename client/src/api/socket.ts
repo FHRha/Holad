@@ -3,6 +3,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { useHoladStore } from '../store/holadStore';
 import { useAudioStore } from '../store/audioStore';
 import i18n from '../i18n';
+import { useSettingsStore } from '../store/settingsStore';
 
 import { getSocketUrl } from '../utils/serverConfig';
 
@@ -160,36 +161,43 @@ class JamSocketService {
       this.socket?.emit('syncQueue', { roomId: state.roomId, queue: state.queue, currentIndex: state.currentIndex });
     }
 
-    this.syncInterval = setInterval(() => {
-      const state = usePlayerStore.getState();
-      if (state.roomId && state.queue.length > 0 && state.currentIndex >= 0 && state.currentIndex < state.queue.length && (state.role === 'host' || state.role === 'cohost')) {
-        const currentTrack = state.queue[state.currentIndex];
-        
-        let currentTime = 0;
-        
-        const holadState = useHoladStore.getState();
-        const isDeviceActive = holadState.roomId === null || holadState.activeDeviceId === holadState.deviceId || holadState.activeDeviceId === null;
-        
-        if (isDeviceActive) {
-          const audioEl = useAudioStore.getState().audioElement;
-          if (audioEl) {
-            currentTime = audioEl.currentTime;
+    if (state.role === 'host') {
+      this.syncInterval = setInterval(() => {
+        const state = usePlayerStore.getState();
+        if (state.roomId && state.queue.length > 0 && state.currentIndex >= 0 && state.currentIndex < state.queue.length && (state.role === 'host' || state.role === 'cohost')) {
+          const currentTrack = state.queue[state.currentIndex];
+          
+          let currentTime = 0;
+          
+          const holadState = useHoladStore.getState();
+          const isDeviceActive = holadState.roomId === null || holadState.activeDeviceId === holadState.deviceId || holadState.activeDeviceId === null;
+          
+          if (isDeviceActive) {
+            const audioEl = useAudioStore.getState().audioElement;
+            if (audioEl) {
+              currentTime = audioEl.currentTime;
+            }
+          } else {
+            currentTime = (useAudioStore.getState().progress / 100) * (currentTrack.duration || 0);
           }
-        } else {
-          currentTime = (useAudioStore.getState().progress / 100) * (currentTrack.duration || 0);
-        }
 
-        this.socket?.emit('syncState', {
-          roomId: state.roomId,
-          trackId: currentTrack.id,
-          currentTime,
-          isPlaying: state.isPlaying,
-          currentIndex: state.currentIndex,
-          isAutoDjEnabled: state.isAutoDjEnabled,
-          version: this.latestStateVersion
-        });
-      }
-    }, 2000); // Send sync ping every 2 seconds
+          const settings = useSettingsStore.getState();
+          this.socket?.emit('syncState', {
+            roomId: state.roomId,
+            trackId: currentTrack.id,
+            currentTime,
+            isPlaying: state.isPlaying,
+            currentIndex: state.currentIndex,
+            isAutoDjEnabled: state.isAutoDjEnabled,
+            version: this.latestStateVersion,
+            isCrossfadeEnabled: settings.isCrossfadeEnabled,
+            crossfadeDuration: settings.crossfadeDuration,
+            crossfadeCurve: settings.crossfadeCurve,
+            isGaplessEnabled: settings.isGaplessEnabled
+          });
+        }
+      }, 2000); // Send sync ping every 2 seconds
+    }
 
     this.unsubscribeStore = usePlayerStore.subscribe((newState, prevState) => {
       if (this.isApplyingRemoteState) return;
@@ -222,6 +230,7 @@ class JamSocketService {
               currentTime = (useAudioStore.getState().progress / 100) * (currentTrack.duration || 0);
             }
             
+            const settings = useSettingsStore.getState();
             this.socket?.emit('syncState', {
               roomId: newState.roomId,
               trackId: currentTrack.id,
@@ -229,7 +238,11 @@ class JamSocketService {
               isPlaying: newState.isPlaying,
               currentIndex: newState.currentIndex,
               isAutoDjEnabled: newState.isAutoDjEnabled,
-              version: this.latestStateVersion
+              version: this.latestStateVersion,
+              isCrossfadeEnabled: settings.isCrossfadeEnabled,
+              crossfadeDuration: settings.crossfadeDuration,
+              crossfadeCurve: settings.crossfadeCurve,
+              isGaplessEnabled: settings.isGaplessEnabled
             });
           }
         }
@@ -249,9 +262,18 @@ class JamSocketService {
   }
 
   private applySyncState(state: any) {
-    const { currentTime, isPlaying, currentIndex, queue, isAutoDjEnabled } = state;
+    const { currentTime, isPlaying, currentIndex, queue, isAutoDjEnabled, isCrossfadeEnabled, crossfadeDuration, crossfadeCurve, isGaplessEnabled } = state;
     const store = usePlayerStore.getState();
     const audioEl = useAudioStore.getState().audioElement;
+
+    if (isCrossfadeEnabled !== undefined) {
+      usePlayerStore.getState().setHostSettings({
+        isCrossfadeEnabled,
+        crossfadeDuration,
+        crossfadeCurve,
+        isGaplessEnabled
+      });
+    }
 
     // trackChanged removed
     
@@ -299,8 +321,12 @@ class JamSocketService {
         // Compensate for network latency (~150ms)
         const targetTime = currentTime + 0.15;
         const drift = targetTime - audioEl.currentTime;
+        
+        // Dynamic hard sync threshold: be aggressive at the start of a track
+        const isEarlyInTrack = audioEl.currentTime < 5;
+        const hardSyncThreshold = isEarlyInTrack ? 0.3 : 2.0;
 
-        if (Math.abs(drift) > 2.0) {
+        if (Math.abs(drift) > hardSyncThreshold) {
           console.log(`Large drift detected (${Math.abs(drift).toFixed(2)}s), hard seeking to match host`);
           audioEl.currentTime = targetTime;
           audioEl.playbackRate = 1.0;

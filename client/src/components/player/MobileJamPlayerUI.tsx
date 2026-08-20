@@ -56,11 +56,9 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
   };
 
   // oxlint-disable-next-line
-  const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 1000) : '', [currentTrack?.id]);
+  const coverArtHighRes = useMemo(() => currentTrack ? (currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 1000)) : '', [currentTrack?.id, currentTrack?.coverArt]);
   // oxlint-disable-next-line
-  const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 300) : '', [currentTrack?.id]);
-
-
+  const coverArtLowRes = useMemo(() => currentTrack ? (currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 300)) : '', [currentTrack?.id, currentTrack?.coverArt]);
 
   const handlePlayPause = () => {
     if (role === 'listener') return; 
@@ -158,16 +156,16 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             <button 
               onClick={toggleShuffle} 
               disabled={role === 'listener'}
-              className={`transition-colors active:scale-95 disabled:opacity-50 ${isShuffle ? 'text-primary' : 'text-white/70'}`}
+              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${isShuffle ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-white/70 hover:bg-white/10'}`}
             >
-              <Shuffle size={24} />
+              <Shuffle size={20} />
             </button>
             <button 
               onClick={prevTrack} 
               disabled={role === 'listener'} 
-              className="text-white hover:text-white/80 active:scale-95 transition-colors disabled:opacity-50"
+              className="text-white hover:text-white/80 active:scale-95 transition-colors disabled:opacity-50 p-2"
             >
-              <SkipBack size={36} fill="currentColor" />
+              <SkipBack size={32} fill="currentColor" />
             </button>
             <button 
               onClick={handlePlayPause} 
@@ -183,16 +181,16 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             <button 
               onClick={nextTrack} 
               disabled={role === 'listener'} 
-              className="text-white hover:text-white/80 active:scale-95 transition-colors disabled:opacity-50"
+              className="text-white hover:text-white/80 active:scale-95 transition-colors disabled:opacity-50 p-2"
             >
-              <SkipForward size={36} fill="currentColor" />
+              <SkipForward size={32} fill="currentColor" />
             </button>
             <button 
               onClick={cycleRepeatMode} 
               disabled={role === 'listener'}
-              className={`transition-colors active:scale-95 disabled:opacity-50 ${repeatMode !== 'none' ? 'text-primary' : 'text-white/70'}`}
+              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${repeatMode !== 'none' ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-white/70 hover:bg-white/10'}`}
             >
-              {repeatMode === 'one' ? <Repeat1 size={24} /> : <Repeat size={24} />}
+              {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
             </button>
           </div>
 

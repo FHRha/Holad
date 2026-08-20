@@ -204,14 +204,14 @@ export default function RightSidebar() {
                   >
                     {!isSmall && (
                       <div className="w-6 flex justify-center text-secondary text-xs select-none pointer-events-none">
-                        {isPlaying ? <Play size={12} className="text-primary" fill="currentColor" /> : idx + 1}
+                        {isPlaying ? <Play size={12} className="text-primary stroke-none" fill="currentColor" /> : idx + 1}
                       </div>
                     )}
                     <div className={`relative group rounded overflow-hidden shadow-sm flex-shrink-0 ${isSmall ? 'w-14 h-14' : 'w-10 h-10 mx-2'}`}>
                       <TrackImage src={track.coverArt || getCoverArtUrl(track.id, 100)} className="w-full h-full rounded object-cover pointer-events-none" alt="" trackId={track.id} />
                       {isSmall && (
                         <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} pointer-events-none`}>
-                          <Play size={16} className={isPlaying ? "text-primary" : "text-white"} fill="currentColor" />
+                          <Play size={16} className={isPlaying ? "text-primary stroke-none" : "text-white stroke-none"} fill="currentColor" />
                         </div>
                       )}
                     </div>
