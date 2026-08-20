@@ -16,6 +16,7 @@ export function useAppInitialization() {
   
   const setLikedItems = usePlayerStore(state => state.setLikedItems);
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const user = useAuthStore(state => state.user);
   const isJamRoute = location.pathname.startsWith('/jam');
   const queueFetched = useRef(false);
 
@@ -25,15 +26,12 @@ export function useAppInitialization() {
     
     jamSocket.connect();
     
-    if (isAuthenticated) {
-      const user = useAuthStore.getState().user;
-      if (user && typeof user === 'string') {
-         if (!isJamRoute) {
-            useHoladStore.getState().connect(user);
-         } else {
-            useHoladStore.getState().disconnect();
-         }
-      }
+    if (isAuthenticated && typeof user === 'string') {
+       if (!isJamRoute) {
+          useHoladStore.getState().connect(user);
+       } else {
+          useHoladStore.getState().disconnect();
+       }
     }
     
     // Connection logic is now handled in JamLayout if needed
@@ -89,7 +87,7 @@ export function useAppInitialization() {
         }
       }).catch(e => console.error("Failed to fetch play queue", e));
     }
-  }, [isAuthenticated, roomToJoin, trackId, albumId, setLikedItems, isJamRoute]);
+  }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, isJamRoute]);
 
   return { isAuthenticated, isJamRoute };
 }

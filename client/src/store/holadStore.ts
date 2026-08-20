@@ -31,6 +31,7 @@ interface HoladState {
   disconnect: () => void;
   setActiveDevice: (deviceId: string) => void;
   sendRemoteCommand: (type: string, payload?: any) => void;
+  triggerManualSync: () => Promise<void>;
 }
 
 
@@ -121,15 +122,17 @@ export const useHoladStore = create<HoladState>((set, get) => {
         const wasNotActive = get().activeDeviceId !== deviceId;
         set({ devices: data.devices, activeDeviceId: data.activeDeviceId });
         
-        // Request history if we just joined and there's an active device to ask
-        if (!hasRequestedHistory && data.activeDeviceId && data.activeDeviceId !== deviceId) {
+        // Request history if we just joined and there's another device to ask
+        if (!hasRequestedHistory && data.devices.length > 1) {
           hasRequestedHistory = true;
-          console.log('[Holad] Emitting requestHistory because activeDevice is', data.activeDeviceId);
+          console.log('[Holad] Emitting requestHistory because there are other devices in the room');
           socket!.emit('holad_remoteCommand', { type: 'requestHistory' });
         }
 
         if (data.activeDeviceId === null) {
-            usePlayerStore.getState().setIsPlaying(false);
+            if (!usePlayerStore.getState().isPlaying) {
+                usePlayerStore.getState().setIsPlaying(false);
+            }
         } else if (data.activeDeviceId === deviceId && wasNotActive) {
             // We just became the active device! (e.g. someone transferred playback to us)
             const playerStore = usePlayerStore.getState();
@@ -165,9 +168,12 @@ export const useHoladStore = create<HoladState>((set, get) => {
         const isMobile = isMobileClient();
 
         if (state.isPlaying !== undefined) {
-          if (isInitialSync && isMobile) {
-            // Guard against remote room state forcing autoplay on mobile during initial startup/sync
-            store.setIsPlaying(false);
+          if (isInitialSync) {
+            // Guard against remote room state forcing pause/play during initial startup/sync
+            // if the user has ALREADY initiated local playback.
+            if (!store.isPlaying) {
+              store.setIsPlaying(isMobile ? false : state.isPlaying);
+            }
           } else {
             store.setIsPlaying(state.isPlaying);
           }
@@ -221,24 +227,22 @@ export const useHoladStore = create<HoladState>((set, get) => {
         }
         
         if (command.type === 'requestHistory') {
-          console.log('[Holad] Received requestHistory. Am I active?', get().activeDeviceId === deviceId);
-          if (get().activeDeviceId === deviceId) {
-             const history = useHistoryStore.getState().history;
-             console.log('[Holad] Emitting history via REST API with tracks:', history.length);
-             if (history.length > 0) {
-               const { user, token, salt, url } = useAuthStore.getState();
-               fetch(`${import.meta.env.BASE_URL}api/holad/history/${get().roomId}`, {
-                 method: 'POST',
-                 headers: {
-                   'Content-Type': 'application/json',
-                   'x-user': user,
-                   'x-token': token,
-                   'x-salt': salt,
-                   'x-url': url
-                 },
-                 body: JSON.stringify(history)
-               }).catch(err => console.error('[Holad] Failed to upload history:', err));
-             }
+          console.log('[Holad] Received requestHistory.');
+          const history = useHistoryStore.getState().history;
+          console.log('[Holad] Emitting history via REST API with tracks:', history.length);
+          if (history.length > 0) {
+            const { user, token, salt, url } = useAuthStore.getState();
+            fetch(`${getSocketUrl()}/api/holad/history/${encodeURIComponent(get().roomId!)}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-user': encodeURIComponent(user),
+                'x-token': encodeURIComponent(token),
+                'x-salt': encodeURIComponent(salt),
+                'x-url': encodeURIComponent(url)
+              },
+              body: JSON.stringify(history)
+            }).catch(err => console.error('[Holad] Failed to upload history:', err));
           }
           return;
         }
@@ -246,25 +250,42 @@ export const useHoladStore = create<HoladState>((set, get) => {
         if (command.type === 'historyAvailable') {
            console.log('[Holad] Received historyAvailable, fetching from API...');
            const { user, token, salt, url } = useAuthStore.getState();
-           fetch(`${import.meta.env.BASE_URL}api/holad/history/${get().roomId}`, {
+           fetch(`${getSocketUrl()}/api/holad/history/${encodeURIComponent(get().roomId!)}`, {
              headers: {
-               'x-user': user,
-               'x-token': token,
-               'x-salt': salt,
-               'x-url': url
+               'x-user': encodeURIComponent(user),
+               'x-token': encodeURIComponent(token),
+               'x-salt': encodeURIComponent(salt),
+               'x-url': encodeURIComponent(url)
              }
            })
-             .then(res => res.json())
+             .then(res => {
+               if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+               return res.json();
+             })
              .then(historyData => {
                console.log('[Holad] Downloaded history with tracks:', historyData.length);
                const localHistory = useHistoryStore.getState().history;
                console.log('[Holad] localHistory length is:', localHistory.length);
-               if (localHistory.length === 0 && historyData.length > 0) {
-                 console.log('[Holad] Triggering SyncConflictModal');
-                 useUIStore.getState().setPendingHistorySync(historyData);
-               } else {
+               if (localHistory.length === 0 || historyData.length === 0) {
                  console.log('[Holad] Merging history silently');
                  useHistoryStore.getState().syncHistoryData(historyData);
+               } else {
+                 const localIds = new Set(localHistory.map(t => t.id));
+                 const remoteIds = new Set(historyData.map((t: any) => t.id));
+                 let overlapCount = 0;
+                 localIds.forEach(id => {
+                     if (remoteIds.has(id)) overlapCount++;
+                 });
+                 const minSize = Math.min(localIds.size, remoteIds.size);
+                 const overlapPercentage = (overlapCount / minSize) * 100;
+                 
+                 if (overlapPercentage > 50) {
+                     console.log('[Holad] Merging history silently (>50% overlap)');
+                     useHistoryStore.getState().syncHistoryData(historyData);
+                 } else {
+                     console.log('[Holad] Triggering SyncConflictModal (<=50% overlap)');
+                     useUIStore.getState().setPendingHistorySync(historyData);
+                 }
                }
              })
              .catch(err => console.error('[Holad] Failed to fetch history:', err));
@@ -443,6 +464,57 @@ export const useHoladStore = create<HoladState>((set, get) => {
     sendRemoteCommand: (type: string, payload?: any) => {
       if (socket) {
         socket.emit('holad_remoteCommand', { type, payload });
+      }
+    },
+
+    triggerManualSync: async () => {
+      const state = get();
+      if (!state.roomId) return;
+      
+      try {
+        const { user, token, salt, url } = useAuthStore.getState();
+        const res = await fetch(`${getSocketUrl()}/api/holad/history/${encodeURIComponent(state.roomId)}`, {
+          headers: {
+            'x-user': encodeURIComponent(user),
+            'x-token': encodeURIComponent(token),
+            'x-salt': encodeURIComponent(salt),
+            'x-url': encodeURIComponent(url)
+          }
+        });
+        
+        if (res.ok) {
+          const historyData = await res.json();
+          
+          const localHistory = useHistoryStore.getState().history;
+          if (localHistory.length === 0 || historyData.length === 0) {
+            useHistoryStore.getState().syncHistoryData(historyData);
+          } else {
+            const localIds = new Set(localHistory.map(t => t.id));
+            const remoteIds = new Set(historyData.map((t: any) => t.id));
+            
+            let overlapCount = 0;
+            localIds.forEach(id => {
+                if (remoteIds.has(id)) overlapCount++;
+            });
+            
+            const minSize = Math.min(localIds.size, remoteIds.size);
+            const overlapPercentage = (overlapCount / minSize) * 100;
+            
+            if (overlapPercentage > 50) {
+                useHistoryStore.getState().syncHistoryData(historyData);
+            } else {
+                useUIStore.getState().setPendingHistorySync(historyData);
+            }
+          }
+        } else {
+          console.log('[Holad] Manual sync GET returned status:', res.status);
+        }
+      } catch (err) {
+        console.error('[Holad] Failed manual sync via REST:', err);
+      }
+      
+      if (state.socket) {
+        state.socket.emit('holad_remoteCommand', { type: 'requestHistory' });
       }
     }
   };

@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useHistoryStore, getFilteredHistory, calculateStats } from '../../store/historyStore';
-import { Clock, Play, Music, Users, Star, Flame, Calendar, Trophy, ChevronLeft, Disc, Download } from 'lucide-react';
+import { Clock, Play, Music, Users, Star, Flame, Calendar, Trophy, ChevronLeft, Disc, Download, RefreshCw } from 'lucide-react';
 import TrackImage from '../common/TrackImage';
 import ArtistLinks from '../common/ArtistLinks';
 import ArtistAvatar from '../common/ArtistAvatar';
 import Dropdown from '../common/Dropdown';
 import { getCoverArtUrl } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
+import { useHoladStore } from '../../store/holadStore';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
@@ -46,6 +47,7 @@ export default function HistoryView() {
 
   const [period, setPeriod] = useState<number | null>(7); // null = all time
   const [topLimit, setTopLimit] = useState<number>(5);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const filteredHistory = useMemo(() => getFilteredHistory(history, period), [history, period]);
   const stats = useMemo(() => calculateStats(filteredHistory), [filteredHistory]);
@@ -56,6 +58,17 @@ export default function HistoryView() {
     { label: t('views.period_90d'), value: 90 },
     { label: t('views.period_all'), value: null }
   ];
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      await useHoladStore.getState().triggerManualSync();
+      // wait a bit for animation
+      await new Promise(r => setTimeout(r, 1000));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   return (
     <div className="flex flex-col p-6 overflow-y-auto w-full h-full text-white bg-background/50 pb-32">
@@ -74,6 +87,14 @@ export default function HistoryView() {
         </div>
 
         <div className="flex items-center gap-2 lg:gap-3 w-full md:w-auto">
+          <button 
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-secondary hover:text-white shrink-0 disabled:opacity-50"
+            title={t('views.manual_sync') || "Sync History"}
+          >
+            <RefreshCw size={20} className={isSyncing ? "animate-spin" : ""} />
+          </button>
           <Dropdown
             options={periods}
             value={period}

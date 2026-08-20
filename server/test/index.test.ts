@@ -7,7 +7,7 @@ process.env.NAVIDROME_URL = 'http://mock-navidrome.local';
 process.env.NAVIDROME_USER = 'testuser';
 process.env.NAVIDROME_PASS = 'testpass';
 
-import { app, httpServer, io } from '../index.ts';
+import { app, httpServer, io } from '../index.js';
 
 let port: number;
 

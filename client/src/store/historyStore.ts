@@ -41,16 +41,24 @@ export const useHistoryStore = create<HistoryState>()(
       syncHistoryData: (entries) => {
         set((state) => {
           const merged = [...state.history, ...entries];
-          // deduplicate by playedAt + id
-          const uniqueMap = new Map<string, PlayHistoryEntry>();
-          merged.forEach(e => {
-            uniqueMap.set(`${e.id}-${e.playedAt}`, e);
-          });
-          const newHistory = Array.from(uniqueMap.values())
-            .sort((a, b) => b.playedAt - a.playedAt)
-            .slice(0, 5000);
+          // Sort descending by playedAt
+          merged.sort((a, b) => b.playedAt - a.playedAt);
           
-          return { history: newHistory };
+          const newHistory: PlayHistoryEntry[] = [];
+          
+          for (const e of merged) {
+            // Deduplicate if same track was played within 5 minutes
+            const isDuplicate = newHistory.some(existing => 
+              existing.id === e.id && 
+              Math.abs(existing.playedAt - e.playedAt) < 5 * 60 * 1000
+            );
+            
+            if (!isDuplicate) {
+              newHistory.push(e);
+            }
+          }
+          
+          return { history: newHistory.slice(0, 5000) };
         });
       },
       clearHistory: () => set({ history: [] }),

@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Express } from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -14,7 +14,7 @@ if (!process.env.NAVIDROME_URL) {
   dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 }
 
-const app = express();
+const app: Express = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   path: '/Holad/socket.io',
@@ -247,16 +247,26 @@ const validateAuthCache = new Map<string, number>();
 
 const validateRestAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const roomId = req.params.roomId as string;
-  const user = req.headers['x-user'] as string;
-  const token = req.headers['x-token'] as string;
-  const salt = req.headers['x-salt'] as string;
-  const url = req.headers['x-url'] as string;
+  let user = req.headers['x-user'] as string;
+  let token = req.headers['x-token'] as string;
+  let salt = req.headers['x-salt'] as string;
+  let url = req.headers['x-url'] as string;
 
-  if (!user || !token || !salt || !url || user !== roomId) {
-    return res.status(401).send('Unauthorized or Room mismatch');
+  if (!user || !token || !salt || !url) {
+    return res.status(401).send('Unauthorized');
   }
 
-  const isWhitelisted = navidromeAccounts.some(a => a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
+  // Decode URI components in case native clients encoded them to pass non-ASCII headers
+  user = decodeURIComponent(user);
+  token = decodeURIComponent(token);
+  salt = decodeURIComponent(salt);
+  url = decodeURIComponent(url);
+
+  if (user !== roomId) {
+    return res.status(401).send('Room mismatch');
+  }
+
+  const isWhitelisted = navidromeAccounts.some(a => a.user === user || a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
   if (!isWhitelisted) {
     return res.status(403).send('Forbidden: Unauthorized server URL');
   }
@@ -268,7 +278,8 @@ const validateRestAuth = async (req: express.Request, res: express.Response, nex
   }
 
   try {
-    const pingUrl = `${url.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(user)}&t=${encodeURIComponent(token)}&s=${encodeURIComponent(salt)}&v=1.16.1&c=StreamNavi&f=json`;
+    const resolvedUrl = url.replace('localhost', '127.0.0.1');
+    const pingUrl = `${resolvedUrl.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(user)}&t=${encodeURIComponent(token)}&s=${encodeURIComponent(salt)}&v=1.16.1&c=StreamNavi&f=json`;
     const response = await fetch(pingUrl);
     const json = await response.json();
     
@@ -516,7 +527,7 @@ io.on('connection', (socket) => {
       return;
     }
     
-    const isWhitelisted = navidromeAccounts.some(a => a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
+    const isWhitelisted = navidromeAccounts.some(a => a.user === auth.user || a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
     if (!isWhitelisted) {
       socket.emit('holad_authError', 'Unauthorized server URL');
       socket.disconnect();
@@ -524,7 +535,8 @@ io.on('connection', (socket) => {
     }
 
     try {
-      const pingUrl = `${auth.url.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(auth.user)}&t=${encodeURIComponent(auth.token)}&s=${encodeURIComponent(auth.salt)}&v=1.16.1&c=StreamNavi&f=json`;
+      const resolvedUrl = auth.url.replace('localhost', '127.0.0.1');
+      const pingUrl = `${resolvedUrl.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(auth.user)}&t=${encodeURIComponent(auth.token)}&s=${encodeURIComponent(auth.salt)}&v=1.16.1&c=StreamNavi&f=json`;
       const response = await fetch(pingUrl);
       const json = await response.json();
       

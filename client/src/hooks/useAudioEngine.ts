@@ -232,8 +232,13 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const handleInteraction = () => {
       engineRef.current.getWebAudioPipeline()?.unlockContext();
       // Force unlock HTML Audio elements on mobile by playing and immediately pausing them
-      audioRefs[0].current?.play().then(() => audioRefs[0].current?.pause()).catch(() => {});
-      audioRefs[1].current?.play().then(() => audioRefs[1].current?.pause()).catch(() => {});
+      // BUT only if they are not actively playing a track, otherwise we break the user's first play action.
+      audioRefs[0].current?.play().then(() => {
+         if (!usePlayerStore.getState().isPlaying) audioRefs[0].current?.pause();
+      }).catch(() => {});
+      audioRefs[1].current?.play().then(() => {
+         if (!usePlayerStore.getState().isPlaying) audioRefs[1].current?.pause();
+      }).catch(() => {});
       
       document.removeEventListener('click', handleInteraction);
       document.removeEventListener('touchstart', handleInteraction);
