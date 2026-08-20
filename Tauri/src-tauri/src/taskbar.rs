@@ -1,16 +1,22 @@
 #![allow(unused)]
 use tauri::{AppHandle, Manager, Window, Emitter};
+
+#[cfg(target_os = "windows")]
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+#[cfg(target_os = "windows")]
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER, CoInitializeEx, COINIT_APARTMENTTHREADED};
+#[cfg(target_os = "windows")]
 use windows::Win32::UI::Shell::{
     DefSubclassProc, ITaskbarList3, SetWindowSubclass, TaskbarList,
     THBN_CLICKED, THUMBBUTTON, THB_FLAGS, THB_ICON, THB_TOOLTIP, THBF_ENABLED
 };
+#[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{
     LoadImageW, IMAGE_ICON, LR_DEFAULTSIZE, LR_LOADFROMFILE, WM_COMMAND, HICON
 };
 use std::sync::OnceLock;
 use std::path::PathBuf;
+#[cfg(target_os = "windows")]
 use std::os::windows::ffi::OsStrExt;
 
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
