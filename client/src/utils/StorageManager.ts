@@ -1,5 +1,5 @@
 import { writeFile, mkdir, exists, remove, copyFile, readDir } from '@tauri-apps/plugin-fs';
-import { downloadDir, join } from '@tauri-apps/api/path';
+import { appDataDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useDownloadStore } from '../store/downloadStore';
 
@@ -10,13 +10,21 @@ export const isTauri = () => {
 
 // Check if we are running inside Capacitor natively
 export const isCapacitor = () => {
-  return typeof window !== 'undefined' && !!(window as any).Capacitor && !!(window as any).Capacitor.isNative;
+  if (typeof window === 'undefined') return false;
+  const cap = (window as any).Capacitor;
+  if (!cap) return false;
+  if (typeof cap.getPlatform === 'function') {
+    const platform = cap.getPlatform();
+    return platform === 'android' || platform === 'ios';
+  }
+  return cap.isNative === true;
 };
 
 export class StorageManager {
   static async getDefaultDownloadDir(): Promise<string> {
     if (isTauri()) {
       try {
+        const { downloadDir } = await import('@tauri-apps/api/path');
         const dDir = await downloadDir();
         return await join(dDir, 'Holad');
       } catch (err) {
