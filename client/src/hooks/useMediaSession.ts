@@ -1,16 +1,15 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { getCoverArtUrl } from '../api/subsonic';
-import { Capacitor } from '@capacitor/core';
-import { MediaSession } from '@capgo/capacitor-media-session';
 
 export function useMediaSession() {
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack } = usePlayerStore();
-  const currentTrack = queue[currentIndex];
+  const currentTrack = usePlayerStore(state => state.queue[state.currentIndex]);
+  const isPlaying = usePlayerStore(state => state.isPlaying);
+  const setIsPlaying = usePlayerStore(state => state.setIsPlaying);
+  const nextTrack = usePlayerStore(state => state.nextTrack);
+  const prevTrack = usePlayerStore(state => state.prevTrack);
 
   useEffect(() => {
-    const isNative = Capacitor.isNativePlatform();
-
     if (currentTrack) {
       const metadata = {
         title: currentTrack.title || 'Unknown Title',
