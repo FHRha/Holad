@@ -99,7 +99,7 @@ export default function FullScreenPlayerUI({
               className="p-2 bg-black/20 hover:bg-black/40 rounded-full backdrop-blur-md transition-colors border border-white/10 shadow-lg"
               title={t('player.close')}
             >
-              <ChevronDown size={28} className="text-white" />
+              <ChevronDown size={28} className="text-[#b3b3b3]" />
             </button>
           )}
           {!onClose && isJamRoute && (role === 'host' || role === 'cohost') && (
@@ -108,7 +108,7 @@ export default function FullScreenPlayerUI({
               className="p-2 bg-black/20 hover:bg-black/40 rounded-full backdrop-blur-md transition-colors border border-white/10 shadow-lg"
               title={t('player.minimize_session')}
             >
-              <ChevronDown size={28} className="text-white" />
+              <ChevronDown size={28} className="text-[#b3b3b3]" />
             </button>
           )}
         </div>

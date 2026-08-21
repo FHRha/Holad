@@ -288,7 +288,7 @@ export default function TracksView() {
                         ) : (
                           <>
                             <span className="group-hover:hidden">{index + 1}</span>
-                            <Play size={14} className="hidden group-hover:block text-white stroke-none" fill="currentColor" />
+                            <Play size={14} className="hidden group-hover:block text-[#b3b3b3] stroke-none" fill="currentColor" />
                           </>
                         )}
                       </div>
@@ -323,7 +323,7 @@ export default function TracksView() {
                       <div className="w-10 md:w-16 flex items-center justify-end md:justify-center md:ml-4">
                         <Heart 
                           size={18} 
-                          className={`md:opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3] md:text-white/30 hover:text-white'}`}
+                          className={`md:opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3] md:text-[#b3b3b3]/30 hover:text-white'}`}
                           fill={isTrackLiked ? "currentColor" : "none"}
                           onClick={(e) => {
                             e.stopPropagation();

@@ -360,7 +360,7 @@ export default function SettingsModal({
                             {isEmpty && <span className="text-white/40 text-lg font-light">+</span>}
                             {isSelected && (
                               <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity rounded-full">
-                                <Pencil size={12} className="text-white" />
+                                <Pencil size={12} className="text-[#b3b3b3]" />
                               </div>
                             )}
                           </div>

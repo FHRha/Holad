@@ -222,7 +222,7 @@ export default function MobileSettingsView() {
                     {isEmpty && <span className="text-white/40 text-lg font-light">+</span>}
                     {isSelected && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
-                        <Pencil size={14} className="text-white" />
+                        <Pencil size={14} className="text-[#b3b3b3]" />
                       </div>
                     )}
                   </div>

@@ -177,7 +177,7 @@ export default function AlbumView() {
                     ) : (
                       <>
                         <span className="group-hover:hidden">{index + 1}</span>
-                        <Play size={14} className="hidden group-hover:block mx-auto text-white stroke-none" fill="currentColor" />
+                        <Play size={14} className="hidden group-hover:block mx-auto text-[#b3b3b3] stroke-none" fill="currentColor" />
                       </>
                     )}
                   </div>
@@ -191,7 +191,7 @@ export default function AlbumView() {
                   <div className="hidden md:flex w-16 justify-center">
                     <Heart 
                       size={16} 
-                      className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-white/50 hover:text-white'}`}
+                      className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3]/50 hover:text-white'}`}
                       fill={isTrackLiked ? "currentColor" : "none"}
                       onClick={(e) => {
                         e.stopPropagation();

@@ -202,7 +202,7 @@ export default function AlbumCard({ album }: { album: any }) {
           <div className="flex justify-between items-start z-20">
             <Heart 
               size={20} 
-              className={`cursor-pointer transition-colors hover:scale-110 ${isLiked ? 'text-primary' : 'text-white hover:text-primary'}`} 
+              className={`cursor-pointer transition-colors hover:scale-110 ${isLiked ? 'text-primary' : 'text-[#b3b3b3] hover:text-primary'}`} 
               fill={isLiked ? "currentColor" : "none"}
               onClick={handleLike}
             />
