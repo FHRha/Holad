@@ -1,5 +1,5 @@
 import { writeFile, mkdir, exists, remove, copyFile, readDir } from '@tauri-apps/plugin-fs';
-import { appDataDir, join } from '@tauri-apps/api/path';
+import { join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useDownloadStore } from '../store/downloadStore';
 
