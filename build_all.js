@@ -263,8 +263,8 @@ async function main() {
   if (!skipClient) {
     console.log("\n--- Scheduling Web Client Build (Base: /Holad/) ---");
     webTasks.push((async () => {
-      await runCommand('Web Client Install', 'npx pnpm install --reporter=silent', path.join(ROOT_DIR, 'client'));
-      await runCommand('Web Client Build', 'npx pnpm run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: '/Holad/' });
+      await runCommand('Web Client Install', 'npx pnpm@10.28.2 install --reporter=silent', path.join(ROOT_DIR, 'client'));
+      await runCommand('Web Client Build', 'npx pnpm@10.28.2 run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: '/Holad/' });
     })());
   }
 
@@ -272,8 +272,8 @@ async function main() {
   if (!skipServer) {
     console.log("\n--- Scheduling Server Build ---");
     webTasks.push((async () => {
-      await runCommand('Server Install', 'npx pnpm install --reporter=silent', path.join(ROOT_DIR, 'server'));
-      await runCommand('Server Build', 'npx pnpm run build', path.join(ROOT_DIR, 'server'));
+      await runCommand('Server Install', 'npx pnpm@10.28.2 install --reporter=silent', path.join(ROOT_DIR, 'server'));
+      await runCommand('Server Build', 'npx pnpm@10.28.2 run build', path.join(ROOT_DIR, 'server'));
     })());
   }
 
@@ -342,9 +342,9 @@ node dist/index.js
     console.log("\n--- Rebuilding Client for Native Apps (Base: ./) ---");
     if (!fs.existsSync(path.join(ROOT_DIR, 'client', 'node_modules'))) {
       console.log("node_modules missing, installing dependencies...");
-      await runCommand('Native Client Install', 'npx pnpm install --reporter=silent', path.join(ROOT_DIR, 'client'));
+      await runCommand('Native Client Install', 'npx pnpm@10.28.2 install --reporter=silent', path.join(ROOT_DIR, 'client'));
     }
-    await runCommand('Native Client Build', 'npx pnpm run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: './' });
+    await runCommand('Native Client Build', 'npx pnpm@10.28.2 run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: './' });
   }
 
   // 3. Build Tauri Desktop Apps and Capacitor Android App in parallel
@@ -451,7 +451,7 @@ node dist/index.js
         console.log("\n--- Scheduling Capacitor Build (Android App) ---");
         try {
           // Install dependencies first
-          await runCommand('Capacitor Install', 'npx pnpm install --reporter=silent', path.join(ROOT_DIR, 'Capacitor'));
+          await runCommand('Capacitor Install', 'npx pnpm@10.28.2 install --reporter=silent', path.join(ROOT_DIR, 'Capacitor'));
           
           // Sync
           await runCommand('Capacitor Sync', 'npx @capacitor/cli sync', path.join(ROOT_DIR, 'Capacitor'));
