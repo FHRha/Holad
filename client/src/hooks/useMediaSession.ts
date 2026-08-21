@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { MediaSession } from '@capgo/capacitor-media-session';
 import { usePlayerStore } from '../store/playerStore';
 import { getCoverArtUrl } from '../api/subsonic';
 
@@ -25,7 +27,27 @@ export function useMediaSession() {
         ]
       };
 
-      if ('mediaSession' in navigator) {
+      if (Capacitor.isNativePlatform()) {
+        MediaSession.setMetadata(metadata);
+        
+        MediaSession.setActionHandler({ action: 'play' }, () => setIsPlaying(true));
+        MediaSession.setActionHandler({ action: 'pause' }, () => setIsPlaying(false));
+        MediaSession.setActionHandler({ action: 'previoustrack' }, () => prevTrack());
+        MediaSession.setActionHandler({ action: 'nexttrack' }, () => nextTrack());
+
+        const doSeek = (offset: number) => {
+          import('../store/audioStore').then(({ useAudioStore }) => {
+            const state = useAudioStore.getState();
+            const duration = state.duration || 1;
+            const currentTime = (state.progress / 100) * duration;
+            const newVal = Math.max(0, Math.min(1, (currentTime + offset) / duration));
+            state.handleSeekEnd(newVal);
+          });
+        };
+
+        MediaSession.setActionHandler({ action: 'seekbackward' }, () => doSeek(-30));
+        MediaSession.setActionHandler({ action: 'seekforward' }, () => doSeek(30));
+      } else if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata(metadata);
         navigator.mediaSession.setActionHandler('play', () => setIsPlaying(true));
         navigator.mediaSession.setActionHandler('pause', () => setIsPlaying(false));
@@ -46,7 +68,9 @@ export function useMediaSession() {
         navigator.mediaSession.setActionHandler('seekforward', () => doSeek(30));
       }
     } else {
-      if ('mediaSession' in navigator) {
+      if (Capacitor.isNativePlatform()) {
+        MediaSession.setMetadata({ title: '', artist: '', album: '' });
+      } else if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = null;
       }
     }
@@ -57,7 +81,9 @@ export function useMediaSession() {
   useEffect(() => {
     const state = isPlaying ? 'playing' : 'paused';
 
-    if ('mediaSession' in navigator) {
+    if (Capacitor.isNativePlatform()) {
+      MediaSession.setPlaybackState({ playbackState: state });
+    } else if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = state;
     }
   }, [isPlaying]);
