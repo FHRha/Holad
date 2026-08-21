@@ -10,7 +10,7 @@ export const isTauri = () => {
 
 // Check if we are running inside Capacitor natively
 export const isCapacitor = () => {
-  return typeof window !== 'undefined' && (window as any).Capacitor !== undefined && (window as any).Capacitor.isNativePlatform();
+  return typeof window !== 'undefined' && !!(window as any).Capacitor && !!(window as any).Capacitor.isNative;
 };
 
 export class StorageManager {
