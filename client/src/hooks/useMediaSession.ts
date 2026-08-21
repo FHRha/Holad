@@ -26,30 +26,7 @@ export function useMediaSession() {
         ]
       };
 
-      if (isNative) {
-        MediaSession.setMetadata(metadata);
-        
-        const setupListeners = async () => {
-           await MediaSession.setActionHandler({ action: 'play' }, () => setIsPlaying(true));
-           await MediaSession.setActionHandler({ action: 'pause' }, () => setIsPlaying(false));
-           await MediaSession.setActionHandler({ action: 'previoustrack' }, () => prevTrack());
-           await MediaSession.setActionHandler({ action: 'nexttrack' }, () => nextTrack());
-           
-           const doSeek = (offset: number) => {
-             import('../store/audioStore').then(({ useAudioStore }) => {
-               const state = useAudioStore.getState();
-               const duration = state.duration || 1;
-               const currentTime = (state.progress / 100) * duration;
-               const newVal = Math.max(0, Math.min(1, (currentTime + offset) / duration));
-               state.handleSeekEnd(newVal);
-             });
-           };
-
-           await MediaSession.setActionHandler({ action: 'seekbackward' }, () => doSeek(-30));
-           await MediaSession.setActionHandler({ action: 'seekforward' }, () => doSeek(30));
-        };
-        setupListeners();
-      } else if ('mediaSession' in navigator) {
+      if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata(metadata);
         navigator.mediaSession.setActionHandler('play', () => setIsPlaying(true));
         navigator.mediaSession.setActionHandler('pause', () => setIsPlaying(false));
@@ -70,33 +47,18 @@ export function useMediaSession() {
         navigator.mediaSession.setActionHandler('seekforward', () => doSeek(30));
       }
     } else {
-      if (isNative) {
-        MediaSession.setMetadata({});
-      } else if ('mediaSession' in navigator) {
+      if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = null;
       }
     }
     
-    return () => {
-      const cleanupListeners = async () => {
-        if (Capacitor.isNativePlatform()) {
-          await MediaSession.setActionHandler({ action: 'play' }, null);
-          await MediaSession.setActionHandler({ action: 'pause' }, null);
-          await MediaSession.setActionHandler({ action: 'previoustrack' }, null);
-          await MediaSession.setActionHandler({ action: 'nexttrack' }, null);
-        }
-      };
-      cleanupListeners();
-    };
+    return () => {};
   }, [currentTrack, setIsPlaying, nextTrack, prevTrack]);
 
   useEffect(() => {
-    const isNative = Capacitor.isNativePlatform();
     const state = isPlaying ? 'playing' : 'paused';
 
-    if (isNative) {
-      MediaSession.setPlaybackState({ playbackState: state });
-    } else if ('mediaSession' in navigator) {
+    if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = state;
     }
   }, [isPlaying]);
