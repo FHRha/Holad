@@ -45,9 +45,16 @@ export default function LoginView() {
       if (!response.ok) {
         let errorMsg = 'Invalid credentials';
         try {
-          const errData = await response.json();
-          if (errData.error) errorMsg = errData.error;
-        // oxlint-disable-next-line
+          const text = await response.text();
+          try {
+            const errData = JSON.parse(text);
+            if (errData.error) errorMsg = errData.error;
+          } catch (e) {
+            // If it's not JSON, use the raw text if it's not too long
+            if (text && text.length < 200) {
+              errorMsg = text;
+            }
+          }
         } catch(e) {}
         throw new Error(errorMsg);
       }

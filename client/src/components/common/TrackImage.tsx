@@ -106,7 +106,7 @@ export default function TrackImage({ src, className, alt = '', trackId }: TrackI
     if (retries < 3) {
       setTimeout(() => {
         setRetries(r => r + 1);
-      }, 1000);
+      }, 1000 * Math.pow(2, retries));
     } else {
       setError(true);
     }

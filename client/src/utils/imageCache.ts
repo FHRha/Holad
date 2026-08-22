@@ -126,7 +126,7 @@ export class LRUImageMemoryManager {
 
         return objectUrl;
       } catch (error) {
-        console.error('Failed to fetch and cache image:', error);
+        console.debug('Failed to fetch and cache image (fallback to original):', error);
         this.fetchingCache.delete(originalUrl);
         return originalUrl; // Graceful fallback
       }

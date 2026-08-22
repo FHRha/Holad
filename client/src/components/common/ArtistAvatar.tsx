@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Users } from 'lucide-react';
 import { fetchArtistImage } from '../../utils/artistImage';
 import { getCoverArtUrl, getArtistInfo } from '../../api/subsonic';
@@ -14,9 +14,25 @@ interface ArtistAvatarProps {
 export default function ArtistAvatar({ artistName, artistId, className = "w-6 h-6 rounded-full overflow-hidden bg-white/10 flex-shrink-0 flex items-center justify-center", fallbackSize = 12 }: ArtistAvatarProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
+
+    if (!isVisible) return;
 
     const loadAvatar = async () => {
       setLoading(true);
@@ -63,10 +79,10 @@ export default function ArtistAvatar({ artistName, artistId, className = "w-6 h-
     return () => {
       isMounted = false;
     };
-  }, [artistName, artistId]);
+  }, [artistName, artistId, isVisible]);
 
   return (
-    <div className={className}>
+    <div ref={containerRef} className={className}>
       {imageUrl && !loading ? (
         <img src={imageUrl} loading="lazy" alt={artistName} className="w-full h-full object-cover" onError={(e) => {
           // If the loaded image fails (e.g. broken Last.fm link from Navidrome), fallback to icon

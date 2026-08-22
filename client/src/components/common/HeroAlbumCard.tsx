@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Heart, Star, MoreHorizontal, SkipForward, ListPlus, Download } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
@@ -112,21 +112,38 @@ export default function HeroAlbumCard({ album }: { album: any }) {
   };
 
   const [finalCoverUrl, setFinalCoverUrl] = useState<string | undefined>(undefined);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const coverUrl = getCoverArtUrl(album.coverArt || album.id);
 
   useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
+    if (!isVisible) return;
     getCachedImageUrl(coverUrl).then(url => {
       if (isMounted) setFinalCoverUrl(url);
     }).catch(() => {
       if (isMounted) setFinalCoverUrl(coverUrl);
     });
     return () => { isMounted = false; };
-  }, [coverUrl]);
+  }, [coverUrl, isVisible]);
 
   useEffect(() => {
+    if (!isVisible) return;
     extractDominantColor(coverUrl).then(color => setDominantColor(color));
-  }, [coverUrl]);
+  }, [coverUrl, isVisible]);
 
   const isLight = isLightColor(dominantColor);
 
@@ -178,6 +195,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
   return (
     <div 
+      ref={containerRef}
       className="group relative rounded-xl cursor-pointer flex flex-col p-6 flex-shrink-0 h-full"
       style={{
         backgroundColor: dominantColor ? dominantColor : '#181818'

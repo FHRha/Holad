@@ -138,6 +138,10 @@ function isValidHttpUrl(string: string) {
   }
 }
 
+console.log("=== SERVER STARTED ===");
+console.log("LOADED ACCOUNTS:", navidromeAccounts);
+console.log("======================");
+
 app.get('/api/ping', (req, res) => {
   res.json({ ok: true, server: 'holad' });
 });
@@ -145,9 +149,11 @@ app.get('/api/ping', (req, res) => {
 app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, res) => {
   const { url: originalUrl, username, token, salt } = req.body;
   if (!originalUrl || !username || !token || !salt) return res.status(400).send('Missing fields');
-  if (!isValidHttpUrl(originalUrl)) return res.status(400).send('Invalid URL');
   
-  const url = originalUrl.replace(/\/$/, '');
+  const trimmedUrl = originalUrl.trim();
+  if (!isValidHttpUrl(trimmedUrl)) return res.status(400).send('Invalid URL');
+  
+  const url = trimmedUrl.replace(/\/$/, '');
   
   if (navidromeAccounts.length > 0 && navidromeAccounts[0]!.url.replace(/\/$/, '') !== url) {
     return res.status(403).send('Proxy server is already bound to a different Navidrome URL.');

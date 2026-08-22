@@ -431,9 +431,25 @@ function DownloadedCardItem({
   const { t } = useTranslation();
   const { openMenu } = useContextMenuStore();
   const [coverUrl, setCoverUrl] = useState<string | undefined>(item.localCoverArtUri || item.coverArt);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let active = true;
+    if (!isVisible) return;
+    
     if (item.localCoverArtUri) {
       setCoverUrl(item.localCoverArtUri);
     } else if (item.coverArt) {
@@ -445,10 +461,11 @@ function DownloadedCardItem({
       });
     }
     return () => { active = false; };
-  }, [item.localCoverArtUri, item.coverArt]);
+  }, [item.localCoverArtUri, item.coverArt, isVisible]);
 
   return (
     <div 
+      ref={containerRef}
       className="group relative bg-[#181818] hover:bg-[#222222] border border-white/5 hover:border-white/15 rounded-xl p-2.5 flex flex-col transition-all duration-200 cursor-pointer"
       onContextMenu={(e) => {
         e.preventDefault();
@@ -539,9 +556,24 @@ function DownloadedRowItem({
   const { t } = useTranslation();
   const { openMenu } = useContextMenuStore();
   const [coverUrl, setCoverUrl] = useState<string | undefined>(item.localCoverArtUri || item.coverArt);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let active = true;
+    if (!isVisible) return;
     if (item.localCoverArtUri) {
       setCoverUrl(item.localCoverArtUri);
     } else if (item.coverArt) {
@@ -553,10 +585,11 @@ function DownloadedRowItem({
       });
     }
     return () => { active = false; };
-  }, [item.localCoverArtUri, item.coverArt]);
+  }, [item.localCoverArtUri, item.coverArt, isVisible]);
 
   return (
     <div 
+      ref={containerRef}
       className="group flex items-center justify-between gap-3 p-2.5 rounded-xl bg-[#181818] hover:bg-[#222222] border border-white/5 hover:border-white/10 transition-colors cursor-pointer"
       onContextMenu={(e) => {
         e.preventDefault();

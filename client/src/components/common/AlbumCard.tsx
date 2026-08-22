@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Heart, Star, MoreHorizontal, SkipForward, ListPlus, Download } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
@@ -83,17 +83,33 @@ export default function AlbumCard({ album }: { album: any }) {
   };
 
   const [finalCoverUrl, setFinalCoverUrl] = useState<string | undefined>(undefined);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
   const coverUrl = getCoverArtUrl(album.coverArt, 300);
 
   useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
+    if (!isVisible) return;
     getCachedImageUrl(coverUrl).then((url: string) => {
       if (isMounted) setFinalCoverUrl(url);
     }).catch(() => {
       if (isMounted) setFinalCoverUrl(coverUrl);
     });
     return () => { isMounted = false; };
-  }, [coverUrl]);
+  }, [coverUrl, isVisible]);
 
   const mapTracks = (tracks: any[]): Track[] => {
     return tracks.map((t: any) => ({
@@ -143,6 +159,7 @@ export default function AlbumCard({ album }: { album: any }) {
 
   return (
     <div 
+      ref={containerRef}
       className="group relative bg-[#181818] hover:bg-[#282828] rounded-xl cursor-pointer flex flex-col p-4 flex-shrink-0 transition-colors duration-300 shadow-sm hover:shadow-lg h-full"
       {...longPressProps}
     >

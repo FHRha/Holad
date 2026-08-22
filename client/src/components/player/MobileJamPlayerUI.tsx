@@ -60,9 +60,23 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
   };
 
   // oxlint-disable-next-line
-  const coverArtHighRes = useMemo(() => currentTrack ? (currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 1000)) : '', [currentTrack?.id, currentTrack?.coverArt]);
-  // oxlint-disable-next-line
-  const coverArtLowRes = useMemo(() => currentTrack ? (currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 300)) : '', [currentTrack?.id, currentTrack?.coverArt]);
+  const coverArtHighRes = useMemo(() => {
+    if (!currentTrack) return '';
+    const cover = currentTrack.coverArt || currentTrack.id;
+    if (cover.startsWith('http')) {
+      return cover.replace(/([?&])size=\d+&?/, (m, p1) => m.endsWith('&') ? p1 : '').replace(/&$/, '') + (cover.includes('?') ? '&size=1000' : '?size=1000');
+    }
+    return cover.startsWith('capacitor://') || cover.startsWith('asset://') || cover.startsWith('blob:') || cover.startsWith('file://') ? cover : getCoverArtUrl(cover, 1000);
+  }, [currentTrack?.id, currentTrack?.coverArt]);
+
+  const coverArtLowRes = useMemo(() => {
+    if (!currentTrack) return '';
+    const cover = currentTrack.coverArt || currentTrack.id;
+    if (cover.startsWith('http')) {
+      return cover.replace(/([?&])size=\d+&?/, (m, p1) => m.endsWith('&') ? p1 : '').replace(/&$/, '') + (cover.includes('?') ? '&size=300' : '?size=300');
+    }
+    return cover.startsWith('capacitor://') || cover.startsWith('asset://') || cover.startsWith('blob:') || cover.startsWith('file://') ? cover : getCoverArtUrl(cover, 300);
+  }, [currentTrack?.id, currentTrack?.coverArt]);
 
   const handlePlayPause = () => {
     if (role === 'listener') return; 
