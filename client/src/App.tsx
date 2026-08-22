@@ -182,7 +182,7 @@ function AppContent() {
                     <div className="hidden md:block">
                       <TopBar />
                     </div>
-                    <div className="flex-1 overflow-y-auto relative hide-scrollbar">
+                    <div className="flex-1 overflow-hidden flex flex-col relative hide-scrollbar">
                       <Routes>
                         <Route path="/" element={<MainContent />} />
                         <Route path="/library/*" element={<LibraryView />} />

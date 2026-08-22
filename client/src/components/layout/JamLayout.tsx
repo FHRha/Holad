@@ -2,7 +2,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { jamSocket } from '../../api/socket';
 import { usePlayerStore } from '../../store/playerStore';
-import { useAudioStore } from '../../store/audioStore';
+import { getAudioEngine } from '../../audio/AudioEngine';
 import JamSessionControl from '../jam/JamSessionControl';
 import FullScreenPlayerUI from '../common/FullScreenPlayerUI';
 import { getSong, getCoverArtUrl, getAlbumFull } from '../../api/subsonic';
@@ -48,8 +48,7 @@ export default function JamLayout() {
       getSong(trackId).then(t => {
         if (ignore) return;
         if (t) {
-          const { audioElement } = useAudioStore.getState();
-          if (audioElement) audioElement.currentTime = 0;
+          getAudioEngine().seek(0);
           setQueueAndPlay([{
             id: t.id,
             title: t.title,
@@ -61,14 +60,12 @@ export default function JamLayout() {
             duration: t.duration
           }], 0);
         }
-      }).catch(() => {});
-    } else if (albumId && albumId.trim() !== '' && !roomToJoin) {
-      usePlayerStore.setState({ queue: [], currentIndex: 0, isAutoDjEnabled: false });
+      });
+    } else if (albumId) {
       getAlbumFull(albumId).then(a => {
         if (ignore) return;
         if (a && a.song) {
-          const { audioElement } = useAudioStore.getState();
-          if (audioElement) audioElement.currentTime = 0;
+          getAudioEngine().seek(0);
           const songs = Array.isArray(a.song) ? a.song : [a.song];
           const tracks = songs.map((t: any) => ({
             id: t.id,
@@ -274,7 +271,7 @@ export default function JamLayout() {
                 </div>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto relative hide-scrollbar">
+            <div className="flex-1 overflow-hidden flex flex-col relative hide-scrollbar">
               <Routes>
                 <Route path="/" element={<Navigate to={`/jam/albums?room=${roomToJoin}`} replace />} />
                 <Route path="/albums" element={<AlbumsView />} />

@@ -53,11 +53,10 @@ export const pingServer = async () => {
 };
 
 export const getArtists = async () => {
-  // getIndexes returns ALL artists (including track-only artists) instead of just album artists
-  const url = buildUrl('getIndexes');
+  const url = buildUrl('getArtists');
   const res = await fetchWithRetry(url);
   const data = await res.json();
-  const index = data['subsonic-response']?.indexes?.index || [];
+  const index = data['subsonic-response']?.artists?.index || [];
   const artists: any[] = [];
   index.forEach((group: any) => {
     if (group.artist) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Music } from 'lucide-react';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { useDownloadStore } from '../../store/downloadStore';
@@ -15,11 +15,27 @@ export default function TrackImage({ src, className, alt = '', trackId }: TrackI
   const [error, setError] = useState(false);
   const [retries, setRetries] = useState(0);
   const [finalSrc, setFinalSrc] = useState<string | undefined>(undefined);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   const downloadItem = useDownloadStore(state => trackId ? state.downloads[trackId] : undefined);
 
   useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
+
+    if (!isVisible) return;
 
     // Check local cover art URI from download store first
     if (downloadItem?.localCoverArtUri) {
@@ -84,7 +100,7 @@ export default function TrackImage({ src, className, alt = '', trackId }: TrackI
     return () => {
       isMounted = false;
     };
-  }, [src, trackId, retries, downloadItem?.localCoverArtUri]);
+  }, [src, trackId, retries, downloadItem?.localCoverArtUri, isVisible]);
 
   const handleError = () => {
     if (retries < 3) {
@@ -96,23 +112,25 @@ export default function TrackImage({ src, className, alt = '', trackId }: TrackI
     }
   };
 
-  if (error || !finalSrc) {
+  if (error || (!finalSrc && isVisible)) {
     return (
-      <div className={`flex items-center justify-center bg-white/10 ${className}`}>
+      <div ref={containerRef} className={`flex items-center justify-center bg-white/10 ${className}`}>
         <Music className="w-1/2 h-1/2 text-[#808080]" />
       </div>
     );
   }
 
   return (
-    <div className={`relative overflow-hidden ${className}`}>
-      <img 
-        src={finalSrc} 
-        className="w-full h-full object-cover" 
-        alt={alt} 
-        onError={handleError}
-        loading="lazy"
-      />
+    <div ref={containerRef} className={`relative overflow-hidden ${className}`}>
+      {finalSrc && (
+        <img 
+          src={finalSrc} 
+          className="w-full h-full object-cover" 
+          alt={alt} 
+          onError={handleError}
+          loading="lazy"
+        />
+      )}
     </div>
   );
 }

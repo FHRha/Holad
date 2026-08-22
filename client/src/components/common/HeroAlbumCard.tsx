@@ -112,7 +112,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
   };
 
   const [finalCoverUrl, setFinalCoverUrl] = useState<string | undefined>(undefined);
-  const coverUrl = getCoverArtUrl(album.coverArt, 600);
+  const coverUrl = getCoverArtUrl(album.coverArt || album.id);
 
   useEffect(() => {
     let isMounted = true;

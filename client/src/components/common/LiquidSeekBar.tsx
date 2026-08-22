@@ -11,7 +11,11 @@ interface LiquidSeekBarProps {
   isAnimated?: boolean;
 }
 
-export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, onDragEnd, className = '', isAnimated = false }: LiquidSeekBarProps) {
+export interface LiquidSeekBarRef {
+  setValue: (value: number) => void;
+}
+
+const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({ value, buffered = 0, onChange, onDrag, onDragEnd, className = '', isAnimated = false }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -20,6 +24,14 @@ export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, o
   const lastUpdate = useRef(0);
 
   const normalizedBuffered = buffered > 1 ? Math.min(1, buffered / 100) : Math.max(0, buffered);
+
+  React.useImperativeHandle(ref, () => ({
+    setValue: (val: number) => {
+      if (!isDragging) {
+        updateThumbAndClip(val);
+      }
+    }
+  }), [isDragging]);
 
   // Animation Refs
   const timeRef = useRef(0);
@@ -37,9 +49,11 @@ export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, o
   const updateThumbAndClip = (val: number) => {
     const percent = Math.max(0, Math.min(val * 100, 100));
     
-    // Smooth transition only for small natural playback increments, not for seeks or drags
-    const isSmallIncrement = !isDragging && Math.abs(val - prevValueRef.current) < 0.02;
-    const transitionDuration = isSmallIncrement ? '250ms' : '0ms';
+    // We don't need CSS transitions for natural playback because the parent
+    // uses requestAnimationFrame and calls this 60 times a second.
+    // CSS transitions on clip-path when updated every frame cause the browser
+    // transition engine to freeze and hide the element.
+    const transitionDuration = '0ms';
     
     if (thumbRef.current) {
       thumbRef.current.style.transitionProperty = 'left';
@@ -48,14 +62,16 @@ export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, o
       thumbRef.current.style.left = `${percent}%`;
     }
     if (canvasContainerRef.current) {
-      canvasContainerRef.current.style.transitionProperty = 'clip-path';
+      canvasContainerRef.current.style.transitionProperty = 'width';
       canvasContainerRef.current.style.transitionDuration = transitionDuration;
       canvasContainerRef.current.style.transitionTimingFunction = 'linear';
-      canvasContainerRef.current.style.clipPath = `polygon(0 0, ${percent}% 0, ${percent}% 100%, 0 100%)`;
+      canvasContainerRef.current.style.width = `${percent}%`;
     }
     
     prevValueRef.current = val;
   };
+
+  const lastValueRef = useRef<number>(0);
 
   const updateValue = (clientX: number, isEnd = false) => {
     if (!containerRef.current) return;
@@ -63,6 +79,7 @@ export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, o
     const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
     const newValue = x / rect.width;
     
+    lastValueRef.current = newValue;
     updateThumbAndClip(newValue);
     
     if (onDrag) onDrag(newValue);
@@ -85,12 +102,15 @@ export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, o
       updateValue(e.clientX);
     };
 
-    const handlePointerUp = (e: PointerEvent) => {
+    const handlePointerUp = () => {
       setIsDragging(false);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
       
-      const finalValue = updateValue(e.clientX, true);
+      const finalValue = lastValueRef.current;
+      updateThumbAndClip(finalValue);
+      
       if (onDragEnd && finalValue !== undefined) {
         onDragEnd(finalValue);
       }
@@ -98,6 +118,7 @@ export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, o
 
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
   };
 
   // Dynamic Color Tracking
@@ -138,9 +159,7 @@ export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, o
     const resizeObserver = new ResizeObserver(() => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
-      // Supersampling: force at least 2x internal resolution for ultra smooth rendering
-      const baseDpr = window.devicePixelRatio || 1;
-      const dpr = Math.max(2, baseDpr * 1.5); 
+      const dpr = window.devicePixelRatio || 1; 
       width = rect.width;
       height = rect.height;
       
@@ -176,7 +195,7 @@ export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, o
       // Breathing effect: modulating amplitude
       const currentAmp = baseAmp * (0.8 + 0.2 * Math.sin(time * speed * 0.5));
       
-      const step = 0.5; // Ultra smooth precision
+      const step = 4; // Optimized for performance
 
       for (let x = 0; x <= width + step; x += step) {
         const t = time * speed;
@@ -252,18 +271,15 @@ export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, o
         />
       )}
       
-      {/* Canvas container with clip-path */}
+      {/* Canvas container with overflow hidden */}
       <div 
         ref={canvasContainerRef}
-        className="absolute left-0 top-0 bottom-0 pointer-events-none"
-        style={{ 
-          width: '100%',
-          clipPath: 'polygon(0 0, 0% 0, 0% 100%, 0 100%)' 
-        }}
+        className="absolute left-0 top-0 bottom-0 pointer-events-none overflow-hidden"
+        style={{ width: '0%' }}
       >
         <canvas 
           ref={canvasRef}
-          className="w-full h-full"
+          className="absolute left-0 top-0 h-full"
         />
       </div>
 
@@ -275,4 +291,6 @@ export default function LiquidSeekBar({ value, buffered = 0, onChange, onDrag, o
       />
     </div>
   );
-}
+});
+
+export default LiquidSeekBar;

@@ -7,6 +7,12 @@ export class MobileAudioCore implements IAudioCore {
     private currentState: AudioState = 'idle';
     private crossfadeInterval: any = null;
     
+    private audioCtx: AudioContext | null = null;
+    private primaryGain: GainNode | null = null;
+    private secondaryGain: GainNode | null = null;
+    private primarySource: MediaElementAudioSourceNode | null = null;
+    private secondarySource: MediaElementAudioSourceNode | null = null;
+    
     constructor() {
         this.audioElement = new Audio();
         this.audioElement.style.display = 'none';
@@ -24,6 +30,24 @@ export class MobileAudioCore implements IAudioCore {
             document.body.appendChild(this.secondaryElement);
         }
 
+        try {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContextClass) {
+                this.audioCtx = new AudioContextClass();
+                this.primarySource = this.audioCtx.createMediaElementSource(this.audioElement);
+                this.primaryGain = this.audioCtx.createGain();
+                this.primarySource.connect(this.primaryGain);
+                this.primaryGain.connect(this.audioCtx.destination);
+
+                this.secondarySource = this.audioCtx.createMediaElementSource(this.secondaryElement);
+                this.secondaryGain = this.audioCtx.createGain();
+                this.secondarySource.connect(this.secondaryGain);
+                this.secondaryGain.connect(this.audioCtx.destination);
+            }
+        } catch (e) {
+            console.warn("Web Audio API not supported", e);
+        }
+
         // Events will be handled by UnifiedAudioEngine
     }
 
@@ -31,7 +55,15 @@ export class MobileAudioCore implements IAudioCore {
         try {
             if (this.crossfadeInterval) clearInterval(this.crossfadeInterval);
             
+            if (this.audioCtx && this.audioCtx.state === 'suspended') {
+                this.audioCtx.resume();
+            }
+
             // Ensure volume is reset in case it was crossfaded
+            if (this.primaryGain && this.audioCtx) {
+                this.primaryGain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+                this.primaryGain.gain.setValueAtTime(1.0, this.audioCtx.currentTime);
+            }
             this.audioElement.volume = 1.0;
             this.secondaryElement.pause();
         
@@ -71,7 +103,10 @@ export class MobileAudioCore implements IAudioCore {
     seek(time: number): void { this.audioElement.currentTime = time; }
     
     setVolume(volume: number): void {
-        if (this.audioElement) {
+        if (this.primaryGain && this.audioCtx) {
+            this.primaryGain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+            this.primaryGain.gain.setValueAtTime(volume, this.audioCtx.currentTime);
+        } else if (this.audioElement) {
             this.audioElement.volume = volume;
         }
     }
@@ -81,10 +116,19 @@ export class MobileAudioCore implements IAudioCore {
     async crossfadeTo(url: string, durationSeconds: number, position: number = 0): Promise<void> {
         if (this.crossfadeInterval) clearInterval(this.crossfadeInterval);
         
-        // Swap primary and secondary
+        // Swap primary and secondary elements
         const oldAudio = this.audioElement;
         this.audioElement = this.secondaryElement;
         this.secondaryElement = oldAudio;
+
+        // Swap gain nodes
+        const oldGain = this.primaryGain;
+        this.primaryGain = this.secondaryGain;
+        this.secondaryGain = oldGain;
+
+        if (this.audioCtx && this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+        }
         
         if (isLocalMediaUrl(url)) {
             this.audioElement.removeAttribute('crossorigin');
@@ -99,9 +143,18 @@ export class MobileAudioCore implements IAudioCore {
         }
         if (position > 0) this.audioElement.currentTime = position;
         
-        // Try to start the new track
         this.currentState = 'loading';
-        this.audioElement.volume = 0; // Start new track silent
+        
+        if (this.primaryGain && this.secondaryGain && this.audioCtx) {
+            const currTime = this.audioCtx.currentTime;
+            this.primaryGain.gain.cancelScheduledValues(currTime);
+            this.primaryGain.gain.setValueAtTime(0, currTime);
+            
+            this.secondaryGain.gain.cancelScheduledValues(currTime);
+            this.secondaryGain.gain.setValueAtTime(this.secondaryGain.gain.value, currTime);
+        } else {
+            this.audioElement.volume = 0;
+        }
         
         try {
             const playPromise = this.audioElement.play();
@@ -113,24 +166,34 @@ export class MobileAudioCore implements IAudioCore {
             console.warn("Crossfade play error", e);
         }
         
-        // Animate volumes
-        const steps = 20;
-        const stepTime = (durationSeconds * 1000) / steps;
-        let currentStep = 0;
-        
-        this.crossfadeInterval = setInterval(() => {
-            currentStep++;
-            const ratio = currentStep / steps;
+        if (this.primaryGain && this.secondaryGain && this.audioCtx) {
+            const currTime = this.audioCtx.currentTime;
+            this.primaryGain.gain.linearRampToValueAtTime(1.0, currTime + durationSeconds);
+            this.secondaryGain.gain.linearRampToValueAtTime(0.0, currTime + durationSeconds);
             
-            this.audioElement.volume = Math.min(1.0, ratio);
-            this.secondaryElement.volume = Math.max(0.0, 1.0 - ratio);
-        
-            if (currentStep >= steps) {
-                clearInterval(this.crossfadeInterval);
+            setTimeout(() => {
                 this.secondaryElement.pause();
-                this.secondaryElement.src = ''; // free memory
-            }
-        }, stepTime);
+                this.secondaryElement.src = '';
+            }, durationSeconds * 1000);
+        } else {
+            const steps = 20;
+            const stepTime = (durationSeconds * 1000) / steps;
+            let currentStep = 0;
+            
+            this.crossfadeInterval = setInterval(() => {
+                currentStep++;
+                const ratio = currentStep / steps;
+                
+                this.audioElement.volume = Math.min(1.0, ratio);
+                this.secondaryElement.volume = Math.max(0.0, 1.0 - ratio);
+            
+                if (currentStep >= steps) {
+                    clearInterval(this.crossfadeInterval);
+                    this.secondaryElement.pause();
+                    this.secondaryElement.src = ''; 
+                }
+            }, stepTime);
+        }
     }
     
     async preload(_url: string): Promise<void> {}

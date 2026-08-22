@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import MobileQueueTab from './MobileQueueTab';
 import MobileLyricsTab from './MobileLyricsTab';
 import JamSessionControl from '../jam/JamSessionControl';
+import { getAudioEngine } from '../../audio/AudioEngine';
 
 export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -25,7 +26,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
     repeatMode, cycleRepeatMode, playbackRate, cyclePlaybackRate, 
     sleepTimer, setSleepTimer, roomId
   } = usePlayerStore();
-  const { audioElement, progress, buffered, duration, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
+  const { progress, buffered, duration, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
   
   const currentTrack = queue[currentIndex];
   
@@ -39,14 +40,17 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
   const isStandalone = isJamRoute && (!!searchParams.get('track') || !!searchParams.get('album')) && !roomId;
 
   const handleRewind = () => {
-    if (audioElement && currentTrack) {
-      audioElement.currentTime = Math.max(0, audioElement.currentTime - 15);
+    if (currentTrack) {
+      const engine = getAudioEngine();
+      engine.seek(Math.max(0, engine.getCurrentTime() - 15));
     }
   };
 
   const handleFastForward = () => {
-    if (audioElement && currentTrack) {
-      audioElement.currentTime = Math.min(currentTrack.duration, audioElement.currentTime + 30);
+    if (currentTrack) {
+      const engine = getAudioEngine();
+      const dur = engine.getDuration() || currentTrack.duration || 0;
+      engine.seek(Math.min(dur, engine.getCurrentTime() + 30));
     }
   };
 

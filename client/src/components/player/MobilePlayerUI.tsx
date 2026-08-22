@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   ChevronDown, MoreHorizontal, Heart, Shuffle, SkipBack, 
   Play, Pause, SkipForward, Repeat, Repeat1, Moon, 
@@ -18,6 +18,7 @@ import MobileQueueTab from './MobileQueueTab';
 import MobileInfoTab from './MobileInfoTab';
 import MobileLyricsTab from './MobileLyricsTab';
 import HoladConnectMenu from './HoladConnectMenu';
+import { getAudioEngine } from '../../audio/AudioEngine';
 
 export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -27,7 +28,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     repeatMode, cycleRepeatMode, playbackRate, cyclePlaybackRate, 
     sleepTimer, setSleepTimer
   } = usePlayerStore();
-  const { audioElement, progress, buffered, duration, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
+  const { progress, buffered, duration, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
   const { openMenu } = useContextMenuStore();
   
   const isConnected = useHoladStore(s => s.roomId !== null);
@@ -103,14 +104,17 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   };
 
   const handleRewind = () => {
-    if (audioElement && currentTrack) {
-      audioElement.currentTime = Math.max(0, audioElement.currentTime - 15);
+    if (currentTrack) {
+      const engine = getAudioEngine();
+      engine.seek(Math.max(0, engine.getCurrentTime() - 15));
     }
   };
 
   const handleFastForward = () => {
-    if (audioElement && currentTrack) {
-      audioElement.currentTime = Math.min(currentTrack.duration, audioElement.currentTime + 30);
+    if (currentTrack) {
+      const engine = getAudioEngine();
+      const dur = engine.getDuration() || currentTrack.duration || 0;
+      engine.seek(Math.min(dur, engine.getCurrentTime() + 30));
     }
   };
 
@@ -121,7 +125,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
 
   // oxlint-disable-next-line
-  const coverArtHighRes = useMemo(() => currentTrack ? (currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 1000)) : '', [currentTrack?.id, currentTrack?.coverArt]);
+  const coverArtHighRes = useMemo(() => currentTrack ? (currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id)) : '', [currentTrack?.id, currentTrack?.coverArt]);
   // oxlint-disable-next-line
   const coverArtLowRes = useMemo(() => currentTrack ? (currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 300)) : '', [currentTrack?.id, currentTrack?.coverArt]);
 
@@ -139,32 +143,52 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const handlePlayPause = () => {
     if (role === 'listener') return; 
     
-    if (!isPlaying && audioElement && (!isConnected || activeDeviceId === localDeviceId || activeDeviceId === null)) {
-      audioElement.play().catch(() => {});
+    if (!isPlaying && (!isConnected || activeDeviceId === localDeviceId || activeDeviceId === null)) {
+      getAudioEngine().resume().catch(() => {});
     }
     
     setIsPlaying(!isPlaying);
   };
 
-  const [localTime, setLocalTime] = useState((progress / 100) * (duration || 0));
+  const timeTextRef = useRef<HTMLSpanElement>(null);
+  const seekbarRef = useRef<any>(null);
 
   useEffect(() => {
     if (!isPlaying) {
-      setLocalTime((progress / 100) * (duration || 0));
+      if (timeTextRef.current) timeTextRef.current.textContent = formatTime((progress / 100) * (duration || 0));
+      if (seekbarRef.current) seekbarRef.current.setValue(progress / 100);
       return;
     }
     let animationFrameId: number;
     const updateTime = () => {
-      if (audioElement && !isNaN(audioElement.duration) && audioElement.duration > 0) {
-        setLocalTime(audioElement.currentTime);
+      const engine = getAudioEngine();
+      let t = 0;
+      const engDur = engine.getDuration();
+      if (engDur > 0) {
+        t = engine.getCurrentTime();
       } else {
-        setLocalTime((progress / 100) * (duration || 0));
+        t = (progress / 100) * (duration || 0);
       }
+      
+      if (timeTextRef.current) {
+        // Only update text if not seeking, to avoid jumping text while user drags
+        if (!useAudioStore.getState().isSeeking) {
+          timeTextRef.current.textContent = formatTime(t);
+        } else {
+          timeTextRef.current.textContent = formatTime((useAudioStore.getState().progress / 100) * (duration || 0));
+        }
+      }
+      
+      if (seekbarRef.current && !useAudioStore.getState().isSeeking) {
+        const dur = engDur > 0 ? engDur : duration;
+        seekbarRef.current.setValue(dur ? t / dur : 0);
+      }
+      
       animationFrameId = requestAnimationFrame(updateTime);
     };
     updateTime();
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isPlaying, audioElement, progress, duration]);
+  }, [isPlaying, progress, duration]);
 
   if (!currentTrack) return null;
 
@@ -174,7 +198,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-300">
       {/* Blurred Background */}
       <div 
-        className="absolute inset-0 z-0 bg-cover bg-center blur-[60px] opacity-60 saturate-150 scale-110 transform-gpu will-change-transform"
+        className="absolute inset-0 z-0 bg-cover bg-center blur-[30px] opacity-70 scale-110 transform-gpu will-change-transform"
         style={{ backgroundImage: `url(${coverArtLowRes})` }}
       />
       <div className="absolute inset-0 z-0 bg-black/40" />
@@ -243,6 +267,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
           {/* Progress Bar */}
           <div className="w-full flex flex-col gap-2">
             <LiquidSeekBar 
+              ref={seekbarRef}
               value={progress / 100} 
               buffered={buffered / 100}
               onChange={handleSeekChange} 
@@ -251,7 +276,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               isAnimated={isPlaying && !isSeeking}
             />
             <div className="flex justify-between text-xs font-medium text-white/50 px-1">
-              <span>{formatTime(isSeeking ? (progress / 100) * (duration || 0) : localTime)}</span>
+              <span ref={timeTextRef}>{formatTime(isSeeking ? (progress / 100) * (duration || 0) : ((progress / 100) * (duration || 0)))}</span>
               <span>{formatTime(duration)}</span>
             </div>
           </div>

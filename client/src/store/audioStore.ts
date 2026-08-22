@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import { useHoladStore } from './holadStore';
 import { usePlayerStore } from './playerStore';
+import { getAudioEngine } from '../audio/AudioEngine';
 
 interface AudioStore {
   audioElement: HTMLAudioElement | null;
@@ -71,13 +72,13 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
     const isDeviceActive = store.roomId === null || store.activeDeviceId === store.deviceId || store.activeDeviceId === null;
     
     const currentTrack = usePlayerStore.getState().queue[usePlayerStore.getState().currentIndex];
-    
-    if (state.audioElement && currentTrack) {
-      if (isDeviceActive) {
-        state.audioElement.currentTime = val * currentTrack.duration;
-      } else {
-        useHoladStore.getState().sendRemoteCommand('seek', val * currentTrack.duration * 1000);
-      }
+    const engine = getAudioEngine();
+    const targetDuration = engine.getDuration() || state.duration || (currentTrack ? currentTrack.duration : 0);
+
+    if (isDeviceActive) {
+      engine.seek(val * targetDuration);
+    } else {
+      useHoladStore.getState().sendRemoteCommand('seek', val * targetDuration * 1000);
     }
   }
 }));

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { fetchAlbums, getCoverArtUrl } from '../../api/subsonic';
 import { useTranslation } from 'react-i18next';
 import AlbumCard from '../common/AlbumCard';
@@ -9,6 +9,7 @@ import { useDownloadStore, isItemDownloaded, getDownloadedAlbums } from '../../s
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import LongPressWrapper from '../common/LongPressWrapper';
+import { VirtuosoGrid } from 'react-virtuoso';
 
 export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 'list' }) {
   const { t } = useTranslation();
@@ -20,26 +21,54 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
   const [albums, setAlbums] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const virtuosoRef = useRef<any>(null);
+
   useEffect(() => {
-    fetchAlbums().then(data => {
-      // Sort alphabetically by default for library
-      const sorted = [...(data || [])].sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
-      setAlbums(sorted);
-      setLoading(false);
-    }).catch(err => {
-      console.error('Failed to fetch albums, falling back to downloaded albums:', err);
-      const downloaded = getDownloadedAlbums().map(d => ({
-        id: d.id,
-        name: d.name,
-        title: d.name,
-        artist: d.artist || 'Unknown Artist',
-        coverArt: d.localCoverArtUri || d.coverArt || d.id,
-        songCount: d.totalTrackCount || d.completedTrackCount || 0
-      }));
-      setAlbums(downloaded);
-      setLoading(false);
-    });
+    const loadInitial = async () => {
+      setLoading(true);
+      try {
+        const data = await fetchAlbums(0, 50);
+        const sorted = [...(data || [])].sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
+        setAlbums(sorted);
+        if (data.length < 50) setHasMore(false);
+      } catch (err) {
+        console.error('Failed to fetch albums, falling back to downloaded albums:', err);
+        const downloaded = getDownloadedAlbums().map(d => ({
+          id: d.id,
+          name: d.name,
+          title: d.name,
+          artist: d.artist || 'Unknown Artist',
+          coverArt: d.localCoverArtUri || d.coverArt || d.id,
+          songCount: d.totalTrackCount || d.completedTrackCount || 0
+        }));
+        setAlbums(downloaded);
+        setHasMore(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadInitial();
   }, []);
+
+  const loadMoreAlbums = async () => {
+    if (loadingMore || !hasMore || loading) return;
+    setLoadingMore(true);
+    try {
+      const data = await fetchAlbums(albums.length, 50);
+      if (data.length < 50) setHasMore(false);
+      setAlbums(prev => {
+        const combined = [...prev, ...data];
+        const unique = Array.from(new Map(combined.map(a => [a.id, a])).values());
+        return unique.sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
+      });
+    } catch (err) {
+      console.error('Failed to load more albums:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   if (loading) {
     return <div className="flex-1 flex items-center justify-center text-secondary">{t('views.loading_albums')}</div>;
@@ -62,23 +91,37 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
     return /[A-ZА-Я]/.test(firstChar) ? firstChar : '#';
   }))).sort();
 
+
   const scrollToLetter = (letter: string) => {
-    const el = document.getElementById(`letter-${letter}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const index = finalAlbums.findIndex(a => {
+      const firstChar = (a.name || a.title || '').charAt(0).toUpperCase();
+      const l = /[A-ZА-Я]/.test(firstChar) ? firstChar : '#';
+      return l === letter;
+    });
+    if (index !== -1 && virtuosoRef.current) {
+      virtuosoRef.current.scrollToIndex({ index, behavior: 'smooth', align: 'start' });
     }
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-transparent px-4 pt-4 pb-32 md:p-8 relative scroll-smooth">
-      <h1 className="text-2xl font-bold mb-8 text-foreground hidden md:block">{t('views.albums')}</h1>
+    <div className="flex-1 overflow-hidden flex flex-col bg-transparent relative">
+      <div className="px-4 pt-4 md:px-8 shrink-0">
+        <h1 className="text-2xl font-bold mb-8 text-foreground hidden md:block">{t('views.albums')}</h1>
+      </div>
       
-      <div className={viewMode === 'grid' 
-        ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6 pr-6 md:pr-0"
-        : "flex flex-col gap-4 pr-6 md:pr-0"
-      }>
-        {finalAlbums.map((album, index) => {
-          const firstChar = (album.name || album.title || '').charAt(0).toUpperCase();
+      <div className="flex-1 overflow-hidden px-4 md:px-8 md:pb-8">
+        <VirtuosoGrid
+          ref={virtuosoRef}
+          data={finalAlbums}
+          endReached={loadMoreAlbums}
+          className="h-full custom-scrollbar"
+          listClassName={
+            viewMode === 'grid' 
+              ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6 pr-6 md:pr-0 pb-[80px] md:pb-0"
+              : "flex flex-col gap-4 pr-6 md:pr-0 pb-[80px] md:pb-0"
+          }
+          itemContent={(index: number, album: any) => {
+            const firstChar = (album.name || album.title || '').charAt(0).toUpperCase();
           const letter = /[A-ZА-Я]/.test(firstChar) ? firstChar : '#';
           const prevFirstChar = index > 0 ? (finalAlbums[index-1].name || finalAlbums[index-1].title || '').charAt(0).toUpperCase() : '';
           const prevLetter = /[A-ZА-Я]/.test(prevFirstChar) ? prevFirstChar : '#';
@@ -89,7 +132,7 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
               <LongPressWrapper 
                 key={album.id} 
                 id={isFirstOfLetter ? `letter-${letter}` : undefined} 
-                className="flex items-center gap-4 cursor-pointer scroll-mt-24"
+                className="flex items-center gap-4 cursor-pointer scroll-mt-24 w-full"
                 onClick={() => navigate(`/Holad/album/${album.id}`)}
                 onLongPress={(e: any) => {
                   e.preventDefault?.();
@@ -112,7 +155,8 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
               <AlbumCard album={album} />
             </div>
           );
-        })}
+        }}
+      />
       </div>
 
       {/* Mobile Alphabetical Scrollbar */}

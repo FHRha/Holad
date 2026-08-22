@@ -11,12 +11,12 @@
 }
 
 @keyframes volumetric-wave {
-  0% { background-position: 200% center; }
-  100% { background-position: -200% center; }
+  0% { transform: translateX(50%); }
+  100% { transform: translateX(-50%); }
 }
 
 .animate-volumetric {
-  background-size: 200% 100%;
+  width: 200%;
   animation: volumetric-wave 3s linear infinite;
 }
 

@@ -11,6 +11,7 @@ import { useLyricsSync } from '../../hooks/useLyricsSync';
 import { useSimilarTracks } from '../../hooks/useSimilarTracks';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from './LanguageSelector';
+import { getAudioEngine } from '../../audio/AudioEngine';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from './dnd/SortableItem';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
@@ -47,7 +48,7 @@ export default function FullScreenPlayerUI({
     lyricsText,
     lrcLines,
     loadingLyrics,
-    activeLyricIndex,
+    activeLyricIndexRef,
     isUserScrolled,
     lyricsContainerRef,
     handleUserScroll,
@@ -204,8 +205,8 @@ export default function FullScreenPlayerUI({
                 ) : lrcLines.length > 0 ? (
                   <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[350px] pb-[350px] w-full transition-all duration-300">
                     {lrcLines.map((line, idx) => {
-                      const isActive = idx === activeLyricIndex;
-                      const isPast = idx < activeLyricIndex;
+                      const isActive = idx === activeLyricIndexRef.current;
+                      const isPast = idx < activeLyricIndexRef.current;
                       
                       if (line.isInterlude) {
                         return (
@@ -236,12 +237,10 @@ export default function FullScreenPlayerUI({
                           }`}
                           onClick={() => {
                             if (role === 'listener') return;
-                            if (audioElement) {
-                              if (audioElement.paused) {
-                                audioElement.play().catch(console.error);
-                                usePlayerStore.getState().setIsPlaying(true);
-                              }
-                              audioElement.currentTime = line.time;
+                            if (getAudioEngine()) {
+                              getAudioEngine().resume().catch(console.error);
+                              usePlayerStore.getState().setIsPlaying(true);
+                              getAudioEngine().seek(line.time);
                             }
                             setIsUserScrolled(false);
                           }}

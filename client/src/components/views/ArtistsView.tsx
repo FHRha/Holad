@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useDownloadStore, getOfflineTracks } from '../../store/downloadStore';
+import { useDebounce } from '../../hooks/useDebounce';
+import { VirtuosoGrid } from 'react-virtuoso';
 
 export default function ArtistsView() {
   const { t } = useTranslation();
@@ -81,6 +83,8 @@ export default function ArtistsView() {
     });
   }, []);
 
+  const debouncedSearch = useDebounce(search, 300);
+
   const filteredArtists = useMemo(() => {
     let result = artists;
     if (activeFilter === 'Favorites') {
@@ -99,19 +103,19 @@ export default function ArtistsView() {
       result = result.filter(a => downloadedArtists.has(a.name?.toLowerCase() || ''));
     }
     
-    if (!search.trim()) return result;
-    const lower = search.toLowerCase();
+    if (!debouncedSearch.trim()) return result;
+    const lower = debouncedSearch.toLowerCase();
     return result.filter(a => a.name?.toLowerCase().includes(lower));
-  }, [artists, search, activeFilter, isOffline, downloads]);
+  }, [artists, debouncedSearch, activeFilter, isOffline, downloads]);
 
   if (loading) {
     return <div className="flex-1 flex items-center justify-center text-secondary">{t('views.loading_artists')}</div>;
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-transparent md:bg-card hide-scrollbar md:custom-scrollbar relative pb-24 px-4 pt-4 md:p-0">
+    <div className="flex-1 overflow-hidden flex flex-col bg-transparent md:bg-card relative md:p-0">
       {/* Header section similar to Albums */}
-      <div className="hidden md:flex sticky top-0 z-20 bg-card/90 backdrop-blur p-6 pb-4 border-b border-white/5 items-center justify-between">
+      <div className="hidden md:flex sticky top-0 z-20 bg-card/90 backdrop-blur p-6 pb-4 border-b border-white/5 items-center justify-between shrink-0">
         <h1 className="text-2xl font-bold text-foreground">{t('views.artists')}</h1>
         
         <div className="relative w-64 hidden sm:block">
@@ -126,9 +130,9 @@ export default function ArtistsView() {
         </div>
       </div>
       
-      <div className="md:p-6">
+      <div className="flex-1 overflow-hidden flex flex-col px-4 pt-4 md:p-6">
         {/* Mobile search */}
-        <div className="relative w-full mb-6 md:hidden">
+        <div className="relative w-full mb-6 md:hidden shrink-0">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b3b3b3]" />
           <input 
             type="text" 
@@ -144,10 +148,15 @@ export default function ArtistsView() {
             {t('views.artists_not_found')}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 md:gap-6 pr-6 md:pr-0">
-            {filteredArtists.map(artist => (
-              <ArtistCard key={artist.id} artist={artist} />
-            ))}
+          <div className="flex-1 overflow-hidden">
+            <VirtuosoGrid
+              data={filteredArtists}
+              className="h-full custom-scrollbar"
+              listClassName="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 md:gap-6 pr-6 md:pr-0 pb-32 md:pb-8"
+              itemContent={(_index: number, artist: any) => (
+                <ArtistCard key={artist.id} artist={artist} />
+              )}
+            />
           </div>
         )}
       </div>

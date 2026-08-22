@@ -6,6 +6,7 @@ import i18n from '../i18n';
 import { useSettingsStore } from '../store/settingsStore';
 
 import { getSocketUrl } from '../utils/serverConfig';
+import { getAudioEngine } from '../audio/AudioEngine';
 
 class JamSocketService {
   private socket: Socket | null = null;
@@ -173,9 +174,9 @@ class JamSocketService {
           const isDeviceActive = holadState.roomId === null || holadState.activeDeviceId === holadState.deviceId || holadState.activeDeviceId === null;
           
           if (isDeviceActive) {
-            const audioEl = useAudioStore.getState().audioElement;
-            if (audioEl) {
-              currentTime = audioEl.currentTime;
+            const engine = getAudioEngine();
+            if (engine) {
+              currentTime = engine.getCurrentTime();
             }
           } else {
             currentTime = (useAudioStore.getState().progress / 100) * (currentTrack.duration || 0);
@@ -222,9 +223,9 @@ class JamSocketService {
             if (trackChanged) {
               currentTime = 0;
             } else if (isDeviceActive) {
-              const audioEl = useAudioStore.getState().audioElement;
-              if (audioEl) {
-                currentTime = audioEl.currentTime;
+              const engine = getAudioEngine();
+              if (engine) {
+                currentTime = engine.getCurrentTime();
               }
             } else {
               currentTime = (useAudioStore.getState().progress / 100) * (currentTrack.duration || 0);
@@ -264,7 +265,6 @@ class JamSocketService {
   private applySyncState(state: any) {
     const { currentTime, isPlaying, currentIndex, queue, isAutoDjEnabled, isCrossfadeEnabled, crossfadeDuration, crossfadeCurve, isGaplessEnabled } = state;
     const store = usePlayerStore.getState();
-    const audioEl = useAudioStore.getState().audioElement;
 
     if (isCrossfadeEnabled !== undefined) {
       usePlayerStore.getState().setHostSettings({
@@ -307,47 +307,43 @@ class JamSocketService {
       usePlayerStore.setState({ isAutoDjEnabled });
     }
 
-    if (audioEl) {
-      if (isPlaying && audioEl.paused) {
-        audioEl.play().catch(e => console.error("Playback prevented", e));
+    const engine = getAudioEngine();
+    
+    if (engine) {
+      if (isPlaying && engine.getState() !== 'playing') {
+        engine.resume().catch((e: any) => console.error("Playback prevented", e));
         store.setIsPlaying(true);
-      } else if (!isPlaying && !audioEl.paused) {
-        audioEl.pause();
+      } else if (!isPlaying && engine.getState() === 'playing') {
+        engine.pause();
         store.setIsPlaying(false);
-        audioEl.playbackRate = 1.0; // Reset rate on pause
+        engine.setPlaybackRate(1.0); // Reset rate on pause
       }
 
       if (isPlaying) {
         // Compensate for network latency (~150ms)
         const targetTime = currentTime + 0.15;
-        const drift = targetTime - audioEl.currentTime;
+        const drift = targetTime - engine.getCurrentTime();
         
         // Dynamic hard sync threshold: be aggressive at the start of a track
-        const isEarlyInTrack = audioEl.currentTime < 5;
+        const isEarlyInTrack = engine.getCurrentTime() < 5;
         const hardSyncThreshold = isEarlyInTrack ? 0.3 : 2.0;
 
         if (Math.abs(drift) > hardSyncThreshold) {
           console.log(`Large drift detected (${Math.abs(drift).toFixed(2)}s), hard seeking to match host`);
-          audioEl.currentTime = targetTime;
-          audioEl.playbackRate = 1.0;
+          engine.seek(targetTime);
+          engine.setPlaybackRate(1.0);
         } else if (drift > 0.15) {
           // We are behind the host, speed up
-          if (audioEl.playbackRate !== 1.05) {
-            audioEl.playbackRate = 1.05;
-            console.log(`Soft sync: Catching up (+${drift.toFixed(2)}s)`);
-          }
+          engine.setPlaybackRate(1.05);
+          console.log(`Soft sync: Catching up (+${drift.toFixed(2)}s)`);
         } else if (drift < -0.15) {
           // We are ahead of the host, slow down
-          if (audioEl.playbackRate !== 0.95) {
-            audioEl.playbackRate = 0.95;
-            console.log(`Soft sync: Waiting (-${Math.abs(drift).toFixed(2)}s)`);
-          }
+          engine.setPlaybackRate(0.95);
+          console.log(`Soft sync: Waiting (-${Math.abs(drift).toFixed(2)}s)`);
         } else {
           // Perfect sync
-          if (audioEl.playbackRate !== 1.0) {
-            audioEl.playbackRate = 1.0;
-            console.log("Soft sync: Perfectly in sync");
-          }
+          engine.setPlaybackRate(1.0);
+          console.log("Soft sync: Perfectly in sync");
         }
       }
     }

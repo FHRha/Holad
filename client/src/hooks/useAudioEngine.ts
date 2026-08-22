@@ -415,9 +415,6 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         const delta = (now - lastTime) / 1000;
         lastTime = now;
         localCurrentTime += delta;
-        if (localCurrentTime <= currentTrack.duration) {
-          setProgress((localCurrentTime / currentTrack.duration) * 100);
-        }
       } else {
         lastTime = performance.now();
       }
@@ -430,7 +427,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       cancelAnimationFrame(animationFrame);
       if (socket) socket.off('holad_syncTime', onSyncTime);
     };
-  }, [isActiveDevice, currentTrack, isHoladConnected, duration, setDuration, progress, setProgress]);
+  }, [isActiveDevice, currentTrack, isHoladConnected, duration, setDuration, progress]);
 
   return {
     progress,

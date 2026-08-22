@@ -1,6 +1,16 @@
 import { beforeEach, vi } from 'vitest';
 import { MockAudioContext, createMockAudioElement } from './mocks/mockAudio';
 import i18n from 'i18next';
+import React from 'react';
+
+vi.mock('react-virtuoso', async (importOriginal) => {
+  const actual: any = await importOriginal();
+  return {
+    ...actual,
+    Virtuoso: (props: any) => React.createElement(actual.Virtuoso, { initialItemCount: props.data ? props.data.length : 50, ...props }),
+    VirtuosoGrid: (props: any) => React.createElement(actual.VirtuosoGrid, { initialItemCount: props.data ? props.data.length : 50, ...props }),
+  };
+});
 
 // Initialize i18n mock for testing
 if (!i18n.isInitialized) {
@@ -57,6 +67,20 @@ if (typeof window !== 'undefined') {
     };
   })();
   Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+
+  // Mock IntersectionObserver
+  class IntersectionObserverMock {
+    callback: IntersectionObserverCallback;
+    constructor(callback: IntersectionObserverCallback) {
+      this.callback = callback;
+    }
+    observe(element: Element) {
+      this.callback([{ isIntersecting: true, target: element } as any], this as any);
+    }
+    unobserve() {}
+    disconnect() {}
+  }
+  Object.defineProperty(window, 'IntersectionObserver', { value: IntersectionObserverMock });
 }
 
 // Reset stores and mock global context before each test

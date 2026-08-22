@@ -5,12 +5,13 @@ import { parseLRC, injectInterludes } from '../utils/lyrics';
 import type { LyricLine } from '../utils/lyrics';
 import { type Track } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
+import { getAudioEngine } from '../audio/AudioEngine';
 
 export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTMLAudioElement | null, isActive: boolean) {
   const [lyricsText, setLyricsText] = useState<string | null>(null);
   const [lrcLines, setLrcLines] = useState<LyricLine[]>([]);
   const [loadingLyrics, setLoadingLyrics] = useState(false);
-  const [activeLyricIndex, setActiveLyricIndex] = useState(-1);
+  // unused activeLyricIndex state removed
   const [isUserScrolled, setIsUserScrolled] = useState(false);
   
   const isAutoScrolling = useRef(false);
@@ -124,7 +125,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     
     let rafId: number;
     // oxlint-disable-next-line
-    let lastActiveIndex = activeLyricIndex;
+    let lastActiveIndex = activeLyricIndexRef.current;
 
     const updateCurrentLyric = () => {
       const audioStore = useAudioStore.getState();
@@ -151,12 +152,38 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
 
       if (newIndex !== lastActiveIndex) {
         lastActiveIndex = newIndex;
-        setActiveLyricIndex(newIndex);
+        // Comment out setState to decouple rAF from React state
+        // setActiveLyricIndex(newIndex);
         activeLyricIndexRef.current = newIndex;
         
         if (lyricsContainerRef.current) {
           const targetIndex = Math.max(0, newIndex);
           const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
+          
+          // Direct DOM manipulation for lyric classes
+          Array.from(lyricsContainerRef.current.children).forEach((child, idx) => {
+            const isSectionHeader = child.textContent?.trim().startsWith('[') || child.textContent?.trim().startsWith('(');
+            
+            if (idx === newIndex) {
+              child.classList.add('text-primary', 'scale-110', 'drop-shadow-[0_0_15px_rgba(29,185,84,0.5)]');
+              child.classList.remove('text-white/40', 'text-white/30', 'hover:text-white/50', 'text-primary/40', 'text-primary/70');
+            } else if (idx < newIndex) {
+              child.classList.remove('text-primary', 'scale-110', 'drop-shadow-[0_0_15px_rgba(29,185,84,0.5)]', 'text-white/30', 'hover:text-white/50', 'text-primary/70');
+              if (isSectionHeader) {
+                child.classList.add('text-primary/40');
+              } else {
+                child.classList.add('text-white/40');
+              }
+            } else {
+              child.classList.remove('text-primary', 'scale-110', 'drop-shadow-[0_0_15px_rgba(29,185,84,0.5)]', 'text-white/40', 'text-primary/40');
+              if (isSectionHeader) {
+                child.classList.add('text-primary/70');
+              } else {
+                child.classList.add('text-white/30', 'hover:text-white/50');
+              }
+            }
+          });
+
           if (activeElement && !isUserScrolledRef.current) {
             scrollToActiveElement(activeElement);
           }
@@ -173,7 +200,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
   useEffect(() => {
     if (isActive && lyricsContainerRef.current) {
       // oxlint-disable-next-line
-      const targetIndex = Math.max(0, activeLyricIndex);
+      const targetIndex = Math.max(0, activeLyricIndexRef.current);
       const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
       if (activeElement && !isUserScrolledRef.current) {
         scrollToActiveElement(activeElement);
@@ -187,7 +214,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current);
 
     if (lyricsContainerRef.current) {
-      const targetIndex = Math.max(0, activeLyricIndex);
+      const targetIndex = Math.max(0, activeLyricIndexRef.current);
       const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
       if (activeElement) {
         scrollToActiveElement(activeElement);
@@ -196,8 +223,8 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
   };
 
   const handleLyricClick = (time: number) => {
-    if (audioElement && currentTrack) {
-      audioElement.currentTime = time;
+    if (currentTrack) {
+      getAudioEngine().seek(time);
       setIsUserScrolled(false);
     }
   };
@@ -208,7 +235,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     lyricsText,
     lrcLines,
     loadingLyrics,
-    activeLyricIndex,
+    activeLyricIndexRef,
     isUserScrolled,
     lyricsContainerRef,
     handleUserScroll,

@@ -113,7 +113,7 @@ export default function LibraryView() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-[80px]">
+      <div className="flex-1 overflow-hidden flex flex-col">
         <Routes>
           <Route path="/" element={<Navigate to="/Holad/library/albums" replace />} />
           <Route path="/tracks" element={<TracksView />} />

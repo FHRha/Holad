@@ -15,6 +15,7 @@ import { useTrackFilters } from '../../hooks/useTrackFilters';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import LongPressWrapper from '../common/LongPressWrapper';
+import { Virtuoso } from 'react-virtuoso';
 
 export default function TracksView() {
   const { t } = useTranslation();
@@ -78,29 +79,55 @@ export default function TracksView() {
     toggleAlbum
   } = useTrackFilters(baseTracks, baseArtists);
 
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   useEffect(() => {
-    const loadTracks = async () => {
+    const loadInitial = async () => {
       setLoading(true);
       try {
         const [tracksData, artistsData] = await Promise.all([
-          searchTracks('', 3000),
+          searchTracks('', 50, 0),
           getArtists()
         ]);
-        const sorted = tracksData.sort((a: any, b: any) => a.title.localeCompare(b.title));
+        const sorted = tracksData.sort((a: any, b: any) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
         setTracks(sorted);
         setGlobalArtists(artistsData);
+        if (tracksData.length < 50) setHasMore(false);
       } catch (e) {
-        console.error('Failed to load tracks from server, falling back to offline tracks:', e);
+        console.error('Failed to load initial tracks:', e);
         const offlineList = getOfflineTracks();
         if (offlineList.length > 0) {
           setTracks(offlineList);
         }
+        setHasMore(false);
       } finally {
         setLoading(false);
       }
     };
-    loadTracks();
+    loadInitial();
   }, []);
+
+  const loadMoreTracks = async () => {
+    if (loadingMore || !hasMore || loading) return;
+    setLoadingMore(true);
+    try {
+      const newTracks = await searchTracks('', 50, tracks.length);
+      if (newTracks.length < 50) {
+        setHasMore(false);
+      }
+      setTracks(prev => {
+        const combined = [...prev, ...newTracks];
+        // optional: deduplicate by id if search3 gives weird results
+        const unique = Array.from(new Map(combined.map(t => [t.id, t])).values());
+        return unique.sort((a: any, b: any) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
+      });
+    } catch (e) {
+      console.error('Failed to load more tracks:', e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const finalTracks = filteredTracks;
 
@@ -127,7 +154,7 @@ export default function TracksView() {
   };
 
   return (
-    <div className="flex h-full bg-transparent md:bg-background text-foreground pb-24 md:pb-0 relative">
+    <div className="flex h-full bg-transparent md:bg-background text-foreground md:pb-0 relative">
       {/* LEFT SIDEBAR: FILTERS */}
       <div className="hidden md:flex w-64 border-r border-white/5 bg-[#121212] flex-col p-4 overflow-y-auto custom-scrollbar">
         <div className="flex items-center justify-between mb-6">
@@ -179,7 +206,7 @@ export default function TracksView() {
             />
           </div>
           <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
-            {filteredArtists.map(artist => (
+            {filteredArtists.slice(0, 100).map(artist => (
               <div 
                 key={artist.name}
                 onClick={() => toggleArtist(artist.name)}
@@ -213,7 +240,7 @@ export default function TracksView() {
             />
           </div>
           <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
-            {filteredAlbums.map(album => (
+            {filteredAlbums.slice(0, 100).map(album => (
               <div 
                 key={album}
                 onClick={() => toggleAlbum(album)}
@@ -236,7 +263,7 @@ export default function TracksView() {
               <Play fill="currentColor" size={20} className="ml-1" />
             </div>
             {t('views.tracks')}
-            <span className="bg-white/10 text-white/50 text-sm font-semibold px-3 py-1 rounded-full">{finalTracks.length}</span>
+            <span className="bg-white/10 text-white/50 text-sm font-semibold px-3 py-1 rounded-full">{hasMore ? `${finalTracks.length}+` : finalTracks.length}</span>
           </h1>
         </div>
 
@@ -253,22 +280,26 @@ export default function TracksView() {
           </div>
 
           {/* Table Body */}
-          <div 
-            className="flex-1 overflow-y-auto hide-scrollbar md:custom-scrollbar pt-2 px-4 md:px-0"
-            onScroll={(e) => {
-              const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 200;
-              if (bottom && visibleCount < finalTracks.length) {
-                setVisibleCount(prev => prev + 50);
-              }
-            }}
-          >
+          <div className="flex-1 overflow-hidden pt-2 px-4 md:px-0 relative">
             {loading ? (
               <div className="flex items-center justify-center h-full text-secondary">{t('views.loading')}</div>
             ) : finalTracks.length === 0 ? (
               <div className="flex items-center justify-center h-full text-secondary">{t('views.not_found')}</div>
             ) : (
-              <div className="py-2 flex flex-col gap-3 md:gap-0">
-                {finalTracks.slice(0, visibleCount).map((track, index) => {
+              <Virtuoso
+                data={finalTracks.slice(0, visibleCount)}
+                endReached={() => {
+                  if (visibleCount < finalTracks.length) {
+                    setVisibleCount((prev) => Math.min(prev + 50, finalTracks.length));
+                  } else {
+                    loadMoreTracks();
+                  }
+                }}
+                className="h-full custom-scrollbar hide-scrollbar-mobile"
+                components={{
+                  Footer: () => <div className="h-[80px] md:hidden" />
+                }}
+                itemContent={(index: number, track: any) => {
                   const currentPlaying = queue[currentIndex]?.id === track.id;
                   const isTrackLiked = likedTrackIds.includes(track.id);
 
@@ -280,7 +311,7 @@ export default function TracksView() {
                         e.preventDefault(); 
                         openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId, 300) }, 'track'); 
                       }}
-                      className={`flex items-center md:px-6 md:py-2 cursor-pointer group hover:bg-white/5 transition-colors ${currentPlaying ? 'md:bg-white/10' : ''}`}
+                      className={`flex items-center md:px-6 md:py-2 cursor-pointer group hover:bg-white/5 transition-colors mb-3 md:mb-0 ${currentPlaying ? 'md:bg-white/10' : ''}`}
                     >
                       <div className="w-10 hidden md:flex text-center text-xs font-semibold text-secondary justify-center">
                         {currentPlaying ? (
@@ -335,8 +366,8 @@ export default function TracksView() {
                       </div>
                     </LongPressWrapper>
                   );
-                })}
-              </div>
+                }}
+              />
             )}
           </div>
         </div>

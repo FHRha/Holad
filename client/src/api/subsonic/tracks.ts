@@ -14,8 +14,8 @@ export const getSong = async (id: string) => {
   return data['subsonic-response']?.song;
 };
 
-export const searchTracks = async (query = '', count = 500) => {
-  const url = buildUrl('search3', { query, songCount: count.toString() });
+export const searchTracks = async (query = '', count = 50, offset = 0) => {
+  const url = buildUrl('search3', { query, songCount: count.toString(), songOffset: offset.toString() });
   const res = await fetchWithRetry(url);
   const data = await res.json();
   return data['subsonic-response']?.searchResult3?.song || [];
@@ -32,7 +32,9 @@ export const getGenres = async () => {
   const url = buildUrl('getGenres');
   const res = await fetchWithRetry(url);
   const data = await res.json();
-  return data['subsonic-response']?.genres?.genre || [];
+  const genre = data['subsonic-response']?.genres?.genre;
+  if (!genre) return [];
+  return Array.isArray(genre) ? genre : [genre];
 };
 
 export const getSongsByGenre = async (genre: string, count = 50) => {

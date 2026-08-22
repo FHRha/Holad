@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { usePlayerStore } from '../store/playerStore';
+import { useDebounce } from './useDebounce';
 
 export function useTrackFilters(tracks: any[], globalArtists: any[]) {
   const [filterLiked, setFilterLiked] = useState<'all' | 'yes' | 'no'>('all');
@@ -54,8 +55,11 @@ export function useTrackFilters(tracks: any[], globalArtists: any[]) {
     return Array.from(albumSet).sort((a, b) => a.localeCompare(b));
   }, [tracks]);
 
-  const filteredArtists = allArtists.filter(a => a.name.toLowerCase().includes(artistSearch.toLowerCase()));
-  const filteredAlbums = allAlbums.filter(a => a.toLowerCase().includes(albumSearch.toLowerCase()));
+  const debouncedArtistSearch = useDebounce(artistSearch, 300);
+  const debouncedAlbumSearch = useDebounce(albumSearch, 300);
+
+  const filteredArtists = useMemo(() => allArtists.filter(a => a.name.toLowerCase().includes(debouncedArtistSearch.toLowerCase())), [allArtists, debouncedArtistSearch]);
+  const filteredAlbums = useMemo(() => allAlbums.filter(a => a.toLowerCase().includes(debouncedAlbumSearch.toLowerCase())), [allAlbums, debouncedAlbumSearch]);
 
   const filteredTracks = useMemo(() => {
     return tracks.filter(t => {

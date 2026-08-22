@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useAudioStore } from '../../store/audioStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useLyricsSync } from '../../hooks/useLyricsSync';
+import { getAudioEngine } from '../../audio/AudioEngine';
 import type { Track } from '../../types';
 
 interface MobileLyricsTabProps {
@@ -18,7 +19,7 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
     lyricsText,
     lrcLines,
     loadingLyrics,
-    activeLyricIndex,
+    activeLyricIndexRef,
     isUserScrolled,
     lyricsContainerRef,
     handleUserScroll,
@@ -49,8 +50,8 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
           ) : lrcLines.length > 0 ? (
             <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[30vh] pb-[30vh] w-full transition-all duration-300">
               {lrcLines.map((line, idx) => {
-                const isLyricActive = idx === activeLyricIndex;
-                const isPast = idx < activeLyricIndex;
+                const isLyricActive = idx === activeLyricIndexRef.current;
+                const isPast = idx < activeLyricIndexRef.current;
                 
                 if (line.isInterlude) {
                   return (
@@ -83,12 +84,10 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
                     } ${role !== 'listener' ? 'cursor-pointer' : ''}`}
                     onClick={() => {
                       if (role === 'listener') return;
-                      if (audioElement) {
-                        if (audioElement.paused) {
-                          audioElement.play().catch(console.error);
-                          usePlayerStore.getState().setIsPlaying(true);
-                        }
-                        audioElement.currentTime = line.time;
+                      if (currentTrack) {
+                        getAudioEngine().resume().catch(console.error);
+                        usePlayerStore.getState().setIsPlaying(true);
+                        getAudioEngine().seek(line.time);
                       }
                       setIsUserScrolled(false);
                     }}
