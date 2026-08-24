@@ -293,12 +293,15 @@ jobs:
           ANALYSIS: ${{ steps.vt.outputs.analysis }}
         run: |
           echo "" >> release-notes.md
-          echo "### 🛡 Отчеты VirusTotal" >> release-notes.md
+          echo "### ![VirusTotal Scans](https://img.shields.io/badge/VirusTotal-Scans-blue?logo=virustotal&style=flat-square)" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "| File | Report |" >> release-notes.md
+          echo "|:---|:---|" >> release-notes.md
           IFS=',' read -ra ADDR <<< "$ANALYSIS"
           for i in "${ADDR[@]}"; do
             FILE="${i%%=*}"
             URL="${i#*=}"
-            echo "* [$FILE]($URL)" >> release-notes.md
+            echo "| \`$FILE\` | [View Analysis]($URL) |" >> release-notes.md
           done
           TAG_NAME="${{ github.ref_name }}"
           gh release view "$TAG_NAME" --json body -q .body > current_body.md || echo "" > current_body.md
