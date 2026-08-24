@@ -14,6 +14,7 @@
 
   [![GitHub release (latest by date)](https://img.shields.io/github/v/release/FHRha/Holad)](https://github.com/FHRha/Holad/releases)
   [![License: Non-Commercial](https://img.shields.io/badge/License-Non_Commercial-red.svg)](LICENSE)
+  [![VirusTotal Scanned](https://img.shields.io/badge/VirusTotal-Scanned-success?logo=virustotal)](https://github.com/FHRha/Holad/releases)
 
   <br />
   
