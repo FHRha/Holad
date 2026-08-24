@@ -32,3 +32,11 @@ RELEASE_NOTES.md
 TEST_INFRA.md
 PROJECT.md
 ORIGINAL_REQUEST.md
+
+# Lint outputs
+lint-results.json
+remaining-lint.json
+
+# Force pnpm usage
+package-lock.json
+yarn.lock
