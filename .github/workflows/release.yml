@@ -274,11 +274,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: VirusTotal Scan
+        id: vt
         uses: crazy-max/ghaction-virustotal@v4
         with:
           vt_api_key: ${{ secrets.VT_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          update_release_body: true
           files: |
             holad-web-release.tar.gz
             *.apk
@@ -286,3 +285,22 @@ jobs:
             *.msi
             *.AppImage
             *.deb
+
+      - name: Update Release Body
+        if: ${{ steps.vt.outputs.analysis != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANALYSIS: ${{ steps.vt.outputs.analysis }}
+        run: |
+          echo "" >> release-notes.md
+          echo "### 🛡 Отчеты VirusTotal" >> release-notes.md
+          IFS=',' read -ra ADDR <<< "$ANALYSIS"
+          for i in "${ADDR[@]}"; do
+            FILE="${i%%=*}"
+            URL="${i#*=}"
+            echo "* [$FILE]($URL)" >> release-notes.md
+          done
+          TAG_NAME="${{ github.ref_name }}"
+          gh release view "$TAG_NAME" --json body -q .body > current_body.md || echo "" > current_body.md
+          cat release-notes.md >> current_body.md
+          gh release edit "$TAG_NAME" --notes-file current_body.md
