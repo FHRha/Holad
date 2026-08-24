@@ -47,13 +47,9 @@
 - **Localization**: Built-in multi-language support (currently **Russian** and **English** are available).
 - **Self-Hosted**: Full control over your data. Deploy it easily on your own Linux or Windows server.
 
-## Screenshots
+## Interface Demo
 
-### Main Dashboard
-<img src=".github/assets/en-main.png" alt="Main Dashboard" style="border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;" />
-
-### Player & Visualization
-<img src=".github/assets/en-visual.png" alt="Player" style="border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;" />
+<img src=".github/assets/Holad-en.gif" alt="Interface Demo" style="border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;" />
 
 ## Quick Start (Linux)
 

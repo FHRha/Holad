@@ -47,13 +47,9 @@
 - **Мультиязычность**: Встроенная поддержка нескольких языков (в данный момент доступны **Русский** и **Английский**).
 - **Self-Hosted**: Полный контроль над вашими данными. Легко разворачивается на собственном Linux или Windows сервере.
 
-## Скриншоты
+## Демонстрация интерфейса
 
-### Главный экран
-<img src=".github/assets/ru-main.png" alt="Главный экран" style="border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;" />
-
-### Плеер и визуализация
-<img src=".github/assets/ru-visual.png" alt="Плеер" style="border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;" />
+<img src=".github/assets/Holad-ru.gif" alt="Демонстрация" style="border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;" />
 
 ## Быстрый старт (Linux)
 
