@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Home, Heart, Disc, Music, Radio, Users, Settings, LogOut, User, Clock, Download } from 'lucide-react';
+import { Home, Heart, Disc, Music, Radio, Users, Settings, LogOut, User, Clock, Download, Github, DownloadCloud } from 'lucide-react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { UpdateService } from '../../services/UpdateService';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
@@ -149,6 +150,27 @@ export default function Sidebar() {
                 >
                   <Clock size={18} />
                   <span>{t('views.listening_history')}</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    window.open('https://github.com/FHRha/Holad', '_blank');
+                    setIsProfileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
+                >
+                  <Github size={18} />
+                  <span>GitHub</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    // @ts-ignore
+                    UpdateService.checkUpdates?.(true) ?? UpdateService.checkForUpdates?.();
+                    setIsProfileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
+                >
+                  <DownloadCloud size={18} />
+                  <span>Проверить обновления</span>
                 </button>
               </div>
 

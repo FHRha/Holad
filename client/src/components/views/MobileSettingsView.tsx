@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil } from 'lucide-react';
+import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil, Info, Github, DownloadCloud } from 'lucide-react';
+import { UpdateService } from '../../services/UpdateService';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { AppTheme, AccentColor } from '../../store/settingsStore';
 import { usePlayerStore } from '../../store/playerStore';
@@ -154,6 +155,33 @@ export default function MobileSettingsView() {
   };
 
   const sections = [
+    {
+      id: 'about',
+      title: 'О приложении',
+      subtitle: 'Версия, обновления и исходный код',
+      icon: <Info className="text-primary" size={24} />,
+      content: (
+        <div className="flex flex-col gap-4 mt-4">
+          <button 
+            onClick={() => window.open('https://github.com/FHRha/Holad', '_blank')} 
+            className="flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl border border-white/10 transition-colors"
+          >
+            <Github size={20} />
+            GitHub
+          </button>
+          <button 
+            onClick={() => {
+              // @ts-ignore
+              UpdateService.checkUpdates?.(true) ?? UpdateService.checkForUpdates?.();
+            }} 
+            className="flex items-center justify-center gap-2 w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold py-3 rounded-xl border border-primary/20 transition-colors"
+          >
+            <DownloadCloud size={20} />
+            Проверить обновления
+          </button>
+        </div>
+      )
+    },
     {
       id: 'server',
       title: t('views.settings_server_account'),

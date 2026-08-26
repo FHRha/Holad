@@ -69,5 +69,12 @@
       "icons/taskbar/*"
     ]
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://api.github.com/repos/username/reponame/releases/latest"
+      ],
+      "pubkey": "YOUR_PUBLIC_KEY_HERE"
+    }
+  }
 }

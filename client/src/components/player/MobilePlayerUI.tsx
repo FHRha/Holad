@@ -179,7 +179,9 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       const engine = getAudioEngine();
       let t = 0;
       const engDur = engine.getDuration();
-      if (engDur > 0) {
+      const state = useHoladStore.getState();
+      const isActiveDevice = !state.roomId || state.activeDeviceId === state.deviceId;
+      if (engDur > 0 && isActiveDevice) {
         t = engine.getCurrentTime();
       } else {
         t = (progress / 100) * (duration || 0);
@@ -280,7 +282,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               </button>
               <button 
                 onClick={() => toggleTrackExclude(currentTrack.id)}
-                className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${excludedTrackIds.includes(currentTrack.id) ? 'text-red-500' : 'text-secondary hover:text-red-400'}`}
+                className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${excludedTrackIds.includes(currentTrack.id) ? 'text-red-500' : 'text-secondary'}`}
               >
                 <Ban size={24} />
               </button>
