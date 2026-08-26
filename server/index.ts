@@ -309,7 +309,19 @@ app.post('/api/holad/history/:roomId', validateRestAuth, express.json({ limit: '
     return res.status(400).send('Expected JSON array');
   }
   
-  holadHistoryCache.set(roomId, history);
+  const existing = holadHistoryCache.get(roomId) || [];
+  const merged = [...existing, ...history];
+  merged.sort((a, b) => b.playedAt - a.playedAt);
+  
+  const newHistory: any[] = [];
+  for (const e of merged) {
+    const isDuplicate = newHistory.some(ex => ex.id === e.id && Math.abs(ex.playedAt - e.playedAt) < 5 * 60 * 1000);
+    if (!isDuplicate) {
+      newHistory.push(e);
+    }
+  }
+  
+  holadHistoryCache.set(roomId, newHistory.slice(0, 5000));
   io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'historyAvailable' });
   
   if (historyTimers.has(roomId)) {

@@ -87,4 +87,37 @@ export function useMediaSession() {
       navigator.mediaSession.playbackState = state;
     }
   }, [isPlaying]);
+
+  useEffect(() => {
+    let unsubscribe: () => void;
+    import('../store/audioStore').then(({ useAudioStore }) => {
+      unsubscribe = useAudioStore.subscribe((state) => {
+        if (!currentTrack) return;
+        const duration = state.duration || 1;
+        const position = (state.progress / 100) * duration;
+        
+        try {
+          if (Capacitor.isNativePlatform()) {
+            MediaSession.setPositionState({
+              duration,
+              playbackRate: 1,
+              position
+            });
+          } else if ('mediaSession' in navigator && navigator.mediaSession.setPositionState) {
+            navigator.mediaSession.setPositionState({
+              duration,
+              playbackRate: 1,
+              position
+            });
+          }
+        } catch (e) {
+          // Ignore errors from rapid updates or unsupported browsers
+        }
+      });
+    });
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [currentTrack]);
 }

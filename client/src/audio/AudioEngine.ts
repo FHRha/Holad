@@ -20,6 +20,10 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         isGaplessEnabled: false,
         isLoudnessNormalizationEnabled: true,
         preloadNextTrack: true,
+        compressorThreshold: -24,
+        compressorRatio: 12,
+        compressorAttack: 0.003,
+        compressorRelease: 0.25,
     };
 
     private volume: number = 1.0;

@@ -4,7 +4,7 @@ import { usePlayerStore } from './playerStore';
 import { useAudioStore } from './audioStore';
 import { useSettingsStore } from './settingsStore';
 import { useHistoryStore } from './historyStore';
-import { useUIStore } from './uiStore';
+
 import { useAuthStore } from './authStore';
 import { getSocketUrl } from '../utils/serverConfig';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
@@ -261,29 +261,8 @@ export const useHoladStore = create<HoladState>((set, get) => {
              })
              .then(historyData => {
                console.log('[Holad] Downloaded history with tracks:', historyData.length);
-               const localHistory = useHistoryStore.getState().history;
-               console.log('[Holad] localHistory length is:', localHistory.length);
-               if (localHistory.length === 0 || historyData.length === 0) {
-                 console.log('[Holad] Merging history silently');
-                 useHistoryStore.getState().syncHistoryData(historyData);
-               } else {
-                 const localIds = new Set(localHistory.map(t => t.id));
-                 const remoteIds = new Set(historyData.map((t: any) => t.id));
-                 let overlapCount = 0;
-                 localIds.forEach(id => {
-                     if (remoteIds.has(id)) overlapCount++;
-                 });
-                 const minSize = Math.min(localIds.size, remoteIds.size);
-                 const overlapPercentage = (overlapCount / minSize) * 100;
-                 
-                 if (overlapPercentage > 50) {
-                     console.log('[Holad] Merging history silently (>50% overlap)');
-                     useHistoryStore.getState().syncHistoryData(historyData);
-                 } else {
-                     console.log('[Holad] Triggering SyncConflictModal (<=50% overlap)');
-                     useUIStore.getState().setPendingHistorySync(historyData);
-                 }
-               }
+               console.log('[Holad] Merging history silently from all devices');
+               useHistoryStore.getState().syncHistoryData(historyData);
              })
              .catch(err => console.error('[Holad] Failed to fetch history:', err));
            return;
@@ -474,46 +453,26 @@ export const useHoladStore = create<HoladState>((set, get) => {
       const state = get();
       if (!state.roomId) return;
       
+      const { user, token, salt, url } = useAuthStore.getState();
+      const localHistory = useHistoryStore.getState().history;
+      
       try {
-        const { user, token, salt, url } = useAuthStore.getState();
-        const res = await fetch(`${getSocketUrl()}/api/holad/history/${encodeURIComponent(state.roomId)}`, {
-          headers: {
-            'x-user': encodeURIComponent(user),
-            'x-token': encodeURIComponent(token),
-            'x-salt': encodeURIComponent(salt),
-            'x-url': encodeURIComponent(url)
-          }
-        });
-        
-        if (res.ok) {
-          const historyData = await res.json();
-          
-          const localHistory = useHistoryStore.getState().history;
-          if (localHistory.length === 0 || historyData.length === 0) {
-            useHistoryStore.getState().syncHistoryData(historyData);
-          } else {
-            const localIds = new Set(localHistory.map(t => t.id));
-            const remoteIds = new Set(historyData.map((t: any) => t.id));
-            
-            let overlapCount = 0;
-            localIds.forEach(id => {
-                if (remoteIds.has(id)) overlapCount++;
-            });
-            
-            const minSize = Math.min(localIds.size, remoteIds.size);
-            const overlapPercentage = (overlapCount / minSize) * 100;
-            
-            if (overlapPercentage > 50) {
-                useHistoryStore.getState().syncHistoryData(historyData);
-            } else {
-                useUIStore.getState().setPendingHistorySync(historyData);
-            }
-          }
-        } else {
-          console.log('[Holad] Manual sync GET returned status:', res.status);
+        if (localHistory.length > 0) {
+          console.log('[Holad] Pushing local history for manual sync...');
+          await fetch(`${getSocketUrl()}/api/holad/history/${encodeURIComponent(state.roomId)}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-user': encodeURIComponent(user),
+              'x-token': encodeURIComponent(token),
+              'x-salt': encodeURIComponent(salt),
+              'x-url': encodeURIComponent(url)
+            },
+            body: JSON.stringify(localHistory)
+          });
         }
       } catch (err) {
-        console.error('[Holad] Failed manual sync via REST:', err);
+        console.error('[Holad] Failed to push local history during manual sync:', err);
       }
       
       if (state.socket) {

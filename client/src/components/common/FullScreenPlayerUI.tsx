@@ -3,7 +3,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
 import { Play, ChevronDown, Download } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
-import { formatArtistName } from '../../utils/formatters';
+
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from './TrackImage';
 import ArtistLinks from './ArtistLinks';

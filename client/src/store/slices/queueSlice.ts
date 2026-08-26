@@ -57,20 +57,20 @@ export const createQueueSlice: StateCreator<
   isProcessing: false,
 
   setQueue: (tracks) => set((state) => {
-    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !state.excludedAlbumIds.includes(t.albumId));
+    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
     return { queue: filtered, originalQueue: filtered, currentIndex: filtered.length > 0 ? 0 : -1, isShuffle: false };
   }),
   setQueueAndPlay: (tracks, startIndex = 0) => set((state) => {
     triggerPlay();
     const targetTrackId = tracks[startIndex]?.id;
-    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !state.excludedAlbumIds.includes(t.albumId));
+    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
     let newIndex = filtered.findIndex(t => t.id === targetTrackId);
     if (newIndex === -1) newIndex = 0;
     return { queue: filtered, originalQueue: filtered, currentIndex: newIndex, isPlaying: true, isShuffle: false };
   }),
   playNext: (tracks) => set((state) => {
     triggerPlay();
-    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !state.excludedAlbumIds.includes(t.albumId));
+    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
     if (filtered.length === 0) return state;
 
     let newQueue = [...state.queue];
@@ -104,7 +104,7 @@ export const createQueueSlice: StateCreator<
     return { queue: newQueue, originalQueue: newOriginalQueue, currentIndex: newCurrentIndex, isPlaying: true };
   }),
   addToQueue: (tracks) => set((state) => {
-    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !state.excludedAlbumIds.includes(t.albumId));
+    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
     if (filtered.length === 0) return state;
     return { 
       queue: [...state.queue, ...filtered],
