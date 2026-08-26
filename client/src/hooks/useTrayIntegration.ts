@@ -34,6 +34,7 @@ export function useTrayIntegration() {
               try {
                 const win = getCurrentWindow();
                 await win.show();
+                await win.unminimize();
                 await win.setFocus();
               } catch (err) {
                 console.warn('show_app focus error:', err);

@@ -140,7 +140,7 @@ export default function BottomPlayer() {
           >
             <Shuffle size={20} />
           </button>
-          <button onClick={prevTrack} disabled={role === 'listener'} className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"><SkipBack size={24} fill="currentColor" className="stroke-none" /></button>
+          <button onClick={prevTrack} disabled={role === 'listener'} className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"><SkipBack size={24} fill="currentColor" /></button>
           
           <button 
             onClick={handlePlayPause} 
@@ -150,7 +150,7 @@ export default function BottomPlayer() {
             {isPlaying ? <Pause fill="currentColor" size={20} className="stroke-none" /> : <Play fill="currentColor" size={20} className="stroke-none translate-x-[2px]" />}
           </button>
           
-          <button onClick={nextTrack} disabled={role === 'listener'} className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"><SkipForward size={24} fill="currentColor" className="stroke-none" /></button>
+          <button onClick={nextTrack} disabled={role === 'listener'} className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"><SkipForward size={24} fill="currentColor" /></button>
           <button 
             onClick={cycleRepeatMode} 
             disabled={role === 'listener'}

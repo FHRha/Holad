@@ -6,6 +6,7 @@ import { getCoverArtUrl } from '../../api/subsonic';
 import { formatArtistName } from '../../utils/formatters';
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from './TrackImage';
+import ArtistLinks from './ArtistLinks';
 import AudioVisualizer from './AudioVisualizer';
 import { useLyricsSync } from '../../hooks/useLyricsSync';
 import { useSimilarTracks } from '../../hooks/useSimilarTracks';
@@ -127,7 +128,11 @@ export default function FullScreenPlayerUI({
             <TrackImage src={coverArtHighRes} className="w-full h-full object-cover" alt={displayTrack.title} />
           </div>
           <h1 className="text-4xl lg:text-5xl font-bold mb-3 text-center drop-shadow-xl leading-tight text-white">{displayTrack.title}</h1>
-          <h2 className="text-2xl text-white/70 mb-2 text-center drop-shadow-lg font-medium">{formatArtistName(displayTrack.artist)}</h2>
+          <ArtistLinks 
+            artistString={displayTrack.artist} 
+            artistId={(displayTrack as any).artistId} 
+            className="text-2xl text-white/70 mb-2 text-center drop-shadow-lg font-medium" 
+          />
           <p className="text-base text-white/40 mb-8 text-center drop-shadow">{displayTrack.album || 'Unknown Album'}</p>
           
           <div className="flex gap-4">
@@ -325,7 +330,7 @@ export default function FullScreenPlayerUI({
                                 <span className="truncate">{track.title}</span>
                                 {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
                               </p>
-                              <p className="truncate text-sm text-white/60">{formatArtistName(track.artist)}</p>
+                              <ArtistLinks artistString={track.artist} artistId={(track as any).artistId} className="truncate text-sm text-white/60" />
                             </div>
                             <div className="w-16 text-sm text-white/50 flex justify-end font-medium select-none pointer-events-none">
                               {formatTime(track.duration)}
@@ -359,7 +364,7 @@ export default function FullScreenPlayerUI({
                         <span className="truncate">{track.title}</span>
                         {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
                       </p>
-                      <p className="truncate text-sm text-white/60">{formatArtistName(track.artist)}</p>
+                      <ArtistLinks artistString={track.artist} artistId={(track as any).artistId} className="truncate text-sm text-white/60" />
                     </div>
                     <div className="w-16 text-sm text-white/50 flex justify-end font-medium">
                       {formatTime(track.duration)}

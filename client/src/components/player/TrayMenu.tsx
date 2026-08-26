@@ -22,7 +22,7 @@ const COLORS: Record<string, string> = {
 };
 
 export default function TrayMenu() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -48,8 +48,16 @@ export default function TrayMenu() {
       if (e.key === 'streamnavi-settings') {
         useSettingsStore.persist.rehydrate();
       }
+      if (e.key === 'i18nextLng' && e.newValue) {
+        i18n.changeLanguage(e.newValue);
+      }
     };
     window.addEventListener('storage', handleStorage);
+    
+    const lang = localStorage.getItem('i18nextLng');
+    if (lang && i18n.language !== lang) {
+      i18n.changeLanguage(lang);
+    }
 
     return () => { 
       if (root) root.style.backgroundColor = '';
