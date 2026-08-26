@@ -222,7 +222,7 @@ export default function SettingsModal({
             </h3>
             <button 
               onClick={handleClose}
-              className="p-2 -mr-2 rounded-full hover:bg-white/10 transition-colors bg-background/50 backdrop-blur-md"
+              className="p-2 -mr-2 rounded-full hover:bg-foreground/10 transition-colors bg-background/50 backdrop-blur-md"
             >
               <X size={20} />
             </button>
@@ -256,7 +256,7 @@ export default function SettingsModal({
                   />
                 </SettingSection>
 
-                <SettingSection title="Источники информации (Data Sources)">
+                <SettingSection title={t('settings.data_sources') || "Источники информации (Data Sources)"}>
                   <div className="flex flex-col gap-4">
                     <label className="flex items-center gap-3 cursor-pointer group">
                       <input 
@@ -266,7 +266,7 @@ export default function SettingsModal({
                         className="accent-primary w-4 h-4 rounded cursor-pointer"
                       />
                       <span className="group-hover:text-primary transition-colors text-sm">
-                        Navidrome/Subsonic
+                        {t('settings.navidrome')}
                       </span>
                     </label>
 
@@ -278,19 +278,19 @@ export default function SettingsModal({
                         className="accent-primary w-4 h-4 rounded cursor-pointer"
                       />
                       <span className="group-hover:text-primary transition-colors text-sm">
-                        Last.fm
+                        {t('settings.lastfm')}
                       </span>
                     </label>
                     <div className="pl-7">
                       <input 
                         type="text"
-                        placeholder="Last.fm API Key"
+                        placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
                         value={settings.lastFmKey}
                         onChange={(e) => settings.setLastFmKey(e.target.value)}
                         className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white"
                       />
                       <p className="text-xs text-secondary mt-1">
-                        Получите API ключ на <a href="https://www.last.fm/api/account/create" target="_blank" rel="noreferrer" className="text-primary hover:underline">сайте Last.fm</a>.
+                        {t('settings.lastfm_get_key_part1')}<a href="https://www.last.fm/api/account/create" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.lastfm_get_key_link')}</a>{t('settings.lastfm_get_key_part2')}
                       </p>
                     </div>
 
@@ -302,19 +302,19 @@ export default function SettingsModal({
                         className="accent-primary w-4 h-4 rounded cursor-pointer"
                       />
                       <span className="group-hover:text-primary transition-colors text-sm">
-                        Яндекс.Музыка
+                        {t('settings.yandex_music')}
                       </span>
                     </label>
                     <div className="pl-7">
                       <input 
                         type="text"
-                        placeholder="Yandex Token"
+                        placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
                         value={settings.yandexToken}
                         onChange={(e) => settings.setYandexToken(e.target.value)}
                         className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white"
                       />
                       <p className="text-xs text-secondary mt-1">
-                        Токен Яндекс.Музыки. Можно получить через расширение Яндекс.Музыка Token или <a href="https://github.com/MarshalX/yandex-music-api/discussions/513" target="_blank" rel="noreferrer" className="text-primary hover:underline">инструкцию</a>.
+                        {t('settings.yandex_token_desc_part1')}<a href="https://github.com/MarshalX/yandex-music-api/discussions/513" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.yandex_token_desc_link')}</a>{t('settings.yandex_token_desc_part2')}
                       </p>
                     </div>
                   </div>
@@ -424,7 +424,7 @@ export default function SettingsModal({
                               isSelected 
                                 ? 'border-primary ring-2 ring-primary' 
                                 : isEmpty 
-                                  ? 'border-dashed border-white/20 hover:bg-white/10'
+                                  ? 'border-dashed border-white/20 hover:bg-foreground/10'
                                   : 'border-white/10 hover:border-white/30 hover:scale-110'
                             }`}
                             style={color ? { backgroundColor: color } : {}}
@@ -449,7 +449,7 @@ export default function SettingsModal({
               <div className="absolute inset-0 z-50 bg-card flex flex-col p-6">
                 <button 
                   onClick={() => setEditingColorIndex(null)}
-                  className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors z-10"
+                  className="absolute top-4 right-4 p-2 rounded-full hover:bg-foreground/10 transition-colors z-10"
                 >
                   <X size={20} />
                 </button>

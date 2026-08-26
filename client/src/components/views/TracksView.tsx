@@ -141,7 +141,9 @@ export default function TracksView() {
       artistId: t.artistId,
       coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
       duration: t.duration,
-      userRating: t.userRating
+      userRating: t.userRating,
+      bitRate: t.bitRate,
+      suffix: t.suffix
     }));
     
     const action = useSettingsStore.getState().clickAction;
@@ -166,7 +168,7 @@ export default function TracksView() {
               setSelectedArtists(new Set());
               setArtistSearch('');
             }}
-            className="text-xs text-secondary hover:text-white flex items-center gap-1"
+            className="text-xs text-secondary hover:text-foreground flex items-center gap-1"
           >
             {t('views.reset')} <FilterX size={12} />
           </button>
@@ -215,10 +217,10 @@ export default function TracksView() {
                 <ArtistAvatar 
                   artistName={artist.name} 
                   artistId={artist.id} 
-                  className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex-shrink-0 flex items-center justify-center" 
+                  className="w-6 h-6 rounded-full overflow-hidden bg-foreground/10 flex-shrink-0 flex items-center justify-center" 
                   fallbackSize={12} 
                 />
-                <span className={`text-xs truncate ${selectedArtists.has(artist.name) ? 'text-primary font-bold' : 'text-secondary group-hover:text-white'}`}>
+                <span className={`text-xs truncate ${selectedArtists.has(artist.name) ? 'text-primary font-bold' : 'text-secondary group-hover:text-foreground'}`}>
                   {artist.name}
                 </span>
               </div>
@@ -246,7 +248,7 @@ export default function TracksView() {
                 onClick={() => toggleAlbum(album)}
                 className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-colors group ${selectedAlbums.has(album) ? 'bg-primary/20 border border-primary/30' : 'hover:bg-white/5 border border-transparent'}`}
               >
-                <span className={`text-xs truncate ${selectedAlbums.has(album) ? 'text-primary font-bold' : 'text-secondary group-hover:text-white'}`}>
+                <span className={`text-xs truncate ${selectedAlbums.has(album) ? 'text-primary font-bold' : 'text-secondary group-hover:text-foreground'}`}>
                   {album}
                 </span>
               </div>
@@ -263,7 +265,7 @@ export default function TracksView() {
               <Play fill="currentColor" size={20} className="ml-1" />
             </div>
             {t('views.tracks')}
-            <span className="bg-white/10 text-white/50 text-sm font-semibold px-3 py-1 rounded-full">{hasMore ? `${finalTracks.length}+` : finalTracks.length}</span>
+            <span className="bg-foreground/10 text-white/50 text-sm font-semibold px-3 py-1 rounded-full">{hasMore ? `${finalTracks.length}+` : finalTracks.length}</span>
           </h1>
         </div>
 
@@ -311,7 +313,7 @@ export default function TracksView() {
                         e.preventDefault(); 
                         openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId, 300) }, 'track'); 
                       }}
-                      className={`flex items-center md:px-6 md:py-2 cursor-pointer group hover:bg-white/5 transition-colors mb-3 md:mb-0 ${currentPlaying ? 'md:bg-white/10' : ''}`}
+                      className={`flex items-center md:px-6 md:py-2 cursor-pointer group hover:bg-white/5 transition-colors mb-3 md:mb-0 ${currentPlaying ? 'md:bg-foreground/10' : ''}`}
                     >
                       <div className="w-10 hidden md:flex text-center text-xs font-semibold text-secondary justify-center">
                         {currentPlaying ? (
@@ -354,7 +356,7 @@ export default function TracksView() {
                       <div className="w-16 md:w-24 flex items-center justify-end md:justify-center gap-2 md:gap-4 md:ml-4">
                         <Heart 
                           size={18} 
-                          className={`md:opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3] md:text-[#b3b3b3]/30 hover:text-white'}`}
+                          className={`md:opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3] md:text-[#b3b3b3]/30 hover:text-foreground'}`}
                           fill={isTrackLiked ? "currentColor" : "none"}
                           onClick={(e) => {
                             e.stopPropagation();

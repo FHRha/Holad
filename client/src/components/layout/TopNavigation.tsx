@@ -19,7 +19,7 @@ function NavTab({ to, label }: { to: string, label: string }) {
   return (
     <NavLink 
       to={to}
-      className={({ isActive }) => `px-4 py-2 rounded-full whitespace-nowrap text-sm font-semibold transition-colors ${isActive ? 'bg-white/10 text-foreground' : 'text-secondary hover:text-foreground'}`}
+      className={({ isActive }) => `px-4 py-2 rounded-full whitespace-nowrap text-sm font-semibold transition-colors ${isActive ? 'bg-foreground/10 text-foreground' : 'text-secondary hover:text-foreground'}`}
     >
       {label}
     </NavLink>

@@ -26,7 +26,9 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
             albumId: t.albumId,
             artistId: t.artistId,
             coverArt: t.coverArt?.includes('http') ? t.coverArt : getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
-            duration: t.duration
+            duration: t.duration,
+            bitRate: t.bitRate,
+            suffix: t.suffix
           }], 0);
         }
       });
@@ -83,8 +85,8 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
           <p className="text-sm text-foreground/50 mb-6 text-center">{currentTrack.album || 'Unknown Album'}</p>
           
           <div className="flex gap-4 mb-6">
-            <span className="px-3 py-1 bg-black/50 rounded text-[10px] font-bold tracking-wider border border-white/5">MP3</span>
-            <span className="px-3 py-1 bg-black/50 rounded text-[10px] font-bold tracking-wider border border-white/5">320kbps</span>
+            <span className="px-3 py-1 bg-black/50 rounded text-[10px] font-bold tracking-wider border border-white/5">{currentTrack.suffix || 'MP3'}</span>
+            <span className="px-3 py-1 bg-black/50 rounded text-[10px] font-bold tracking-wider border border-white/5">{currentTrack.bitRate || 'UNKNOWN'}kbps</span>
           </div>
 
           <button 
@@ -122,7 +124,7 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
               return (
                 <div 
                   key={idx} 
-                  className={`flex items-center px-4 py-2 rounded-md ${isPlaying ? 'bg-white/10' : ''}`}
+                  className={`flex items-center px-4 py-2 rounded-md ${isPlaying ? 'bg-foreground/10' : ''}`}
                 >
                   <div className="w-8 text-secondary text-xs flex items-center">
                     {isPlaying ? <Play size={12} className="text-primary" fill="currentColor" /> : idx + 1}

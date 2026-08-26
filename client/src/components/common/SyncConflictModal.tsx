@@ -53,7 +53,7 @@ export default function SyncConflictModal() {
           </button>
           <button 
             onClick={handleWipe}
-            className="flex items-center justify-center gap-2 w-full py-3 bg-white/5 text-red-400 font-bold rounded-xl hover:bg-white/10 transition-colors"
+            className="flex items-center justify-center gap-2 w-full py-3 bg-white/5 text-red-400 font-bold rounded-xl hover:bg-foreground/10 transition-colors"
           >
             <Trash2 size={18} />
             {t('sync.delete_everywhere')}

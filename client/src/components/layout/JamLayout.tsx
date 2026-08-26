@@ -18,6 +18,8 @@ import RightSidebar from './RightSidebar';
 import { Disc, Music, Users, LogOut, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
+import LanguageSelector from '../common/LanguageSelector';
+import ThemeSelector from '../common/ThemeSelector';
 
 export default function JamLayout() {
   const { t } = useTranslation();
@@ -57,7 +59,9 @@ export default function JamLayout() {
             albumId: t.albumId,
             artistId: t.artistId,
             coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
-            duration: t.duration
+            duration: t.duration,
+            bitRate: t.bitRate,
+            suffix: t.suffix
           }], 0);
         }
       });
@@ -75,7 +79,9 @@ export default function JamLayout() {
             albumId: t.albumId || a.id,
             artistId: t.artistId || a.artistId,
             coverArt: getCoverArtUrl(t.coverArt || a.coverArt || a.id, 300),
-            duration: t.duration
+            duration: t.duration,
+            bitRate: t.bitRate,
+            suffix: t.suffix
           }));
           setQueueAndPlay(tracks, 0);
         }
@@ -96,7 +102,11 @@ export default function JamLayout() {
 
   if (jamError) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6">
+      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6 relative">
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <ThemeSelector />
+          <LanguageSelector />
+        </div>
         <div className="w-24 h-24 mb-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 border border-red-500/30">
           <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
         </div>
@@ -111,7 +121,7 @@ export default function JamLayout() {
           <a href="/" className="px-8 py-3 rounded-full bg-primary text-background font-bold hover:scale-105 transition-transform shadow-[0_0_20px_rgba(29,185,84,0.3)]">
             {t('jam.go_home')}
           </a>
-          <a href="/login" className="px-8 py-3 rounded-full bg-white/5 text-foreground font-medium hover:bg-white/10 transition-colors border border-white/10">
+          <a href="/login" className="px-8 py-3 rounded-full bg-white/5 text-foreground font-medium hover:bg-foreground/10 transition-colors border border-white/10">
             {t('jam.login_account')}
           </a>
         </div>
@@ -162,7 +172,11 @@ export default function JamLayout() {
 
   if (!hasJoined.current && !userName && !jamError && (usePlayerStore.getState().role !== 'host')) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6">
+      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6 relative">
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <ThemeSelector />
+          <LanguageSelector />
+        </div>
         <h2 className="text-3xl font-bold mb-8">{t('jam.join_jam')}</h2>
         <p className="text-secondary mb-8">{t('jam.join_jam_desc')}</p>
         
@@ -186,7 +200,7 @@ export default function JamLayout() {
             value={localName}
             onChange={(e) => setLocalName(e.target.value)}
             placeholder={t('jam.your_nickname')} 
-            className="w-full bg-white/10 border border-white/20 rounded-full px-6 py-3 outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+            className="w-full bg-foreground/10 border border-white/20 rounded-full px-6 py-3 outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
             required
             maxLength={20}
           />
@@ -202,7 +216,11 @@ export default function JamLayout() {
   
   if (hasJoined.current && !currentRoomId && usePlayerStore.getState().role !== 'host') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6">
+      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6 relative">
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <ThemeSelector />
+          <LanguageSelector />
+        </div>
         <div className="w-24 h-24 mb-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 border border-red-500/30">
           <LogOut size={48} />
         </div>
@@ -214,7 +232,7 @@ export default function JamLayout() {
           <a href="/login" className="px-8 py-3 rounded-full bg-primary text-background font-bold hover:scale-105 transition-transform shadow-[0_0_20px_rgba(29,185,84,0.3)]">
             {t('jam.login_account')}
           </a>
-          <button onClick={() => window.location.reload()} className="px-8 py-3 rounded-full bg-white/5 text-foreground font-medium hover:bg-white/10 transition-colors border border-white/10">
+          <button onClick={() => window.location.reload()} className="px-8 py-3 rounded-full bg-white/5 text-foreground font-medium hover:bg-foreground/10 transition-colors border border-white/10">
             {t('jam.rejoin')}
           </button>
         </div>

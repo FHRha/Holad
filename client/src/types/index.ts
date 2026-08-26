@@ -8,6 +8,8 @@ export interface Track {
   coverArt: string;
   duration: number;
   userRating?: number;
+  bitRate?: number;
+  suffix?: string;
 }
 
 export interface Playlist {

@@ -12,6 +12,7 @@ import { toggleOfflineMode } from '../../utils/networkStatus';
 import { PanelLeft, PanelRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../common/LanguageSelector';
+import ThemeSelector from '../common/ThemeSelector';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 
 export default function TopBar() {
@@ -89,7 +90,7 @@ export default function TopBar() {
           className={`h-10 px-4 rounded-full flex items-center justify-center gap-2 transition-all shrink-0 cursor-pointer border ${
             isOffline 
               ? 'bg-primary text-white border-transparent shadow-md hover:scale-105 active:scale-95' 
-              : 'bg-white/5 text-secondary border-transparent hover:bg-white/10 hover:text-white'
+              : 'bg-white/5 text-secondary border-transparent hover:bg-foreground/10 hover:text-foreground'
           }`}
           title={isOffline ? t('common.offline') : t('common.go_offline')}
         >
@@ -97,7 +98,7 @@ export default function TopBar() {
           <span className="text-sm font-bold hidden sm:inline">{isOffline ? t('common.offline') : t('common.go_offline')}</span>
         </button>
         <div className="relative w-full" ref={containerRef}>
-          <div className="relative flex items-center w-full bg-white/10 rounded-full hover:bg-white/15 transition-colors focus-within:bg-white/15 focus-within:ring-2 focus-within:ring-primary/50">
+          <div className="relative flex items-center w-full bg-foreground/10 rounded-full hover:bg-white/15 transition-colors focus-within:bg-white/15 focus-within:ring-2 focus-within:ring-primary/50">
           <Search size={20} className="text-secondary ml-4" />
           <input 
             ref={inputRef}
@@ -213,7 +214,7 @@ export default function TopBar() {
                         <div 
                           key={artist.id}
                           onClick={() => navigateToArtist(artist)}
-                          className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 cursor-pointer text-xs font-medium transition-colors"
+                          className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-foreground/10 border border-white/5 cursor-pointer text-xs font-medium transition-colors"
                         >
                           {formatArtistName(artist.name)}
                         </div>
@@ -226,7 +227,10 @@ export default function TopBar() {
           </div>
         )}
       </div>
-      <LanguageSelector />
+      <div className="flex items-center gap-2">
+        <ThemeSelector />
+        <LanguageSelector />
+      </div>
     </div>
 
       <div className="relative flex items-center gap-2" ref={sessionRef}>
@@ -234,7 +238,7 @@ export default function TopBar() {
           <button 
             onClick={() => !isOffline && setShowSession(!showSession)}
             disabled={isOffline}
-            className={`h-10 px-4 rounded-full flex items-center justify-center gap-2 transition-colors ${isOffline ? 'opacity-50 cursor-not-allowed bg-white/5 text-secondary' : showSession ? 'bg-primary/20 text-primary' : roomId ? 'bg-primary text-background hover:scale-105' : 'bg-white/5 hover:bg-white/10 text-secondary hover:text-white'}`}
+            className={`h-10 px-4 rounded-full flex items-center justify-center gap-2 transition-colors ${isOffline ? 'opacity-50 cursor-not-allowed bg-white/5 text-secondary' : showSession ? 'bg-primary/20 text-primary' : roomId ? 'bg-primary text-background hover:scale-105' : 'bg-white/5 hover:bg-foreground/10 text-secondary hover:text-foreground'}`}
             title={isOffline ? `${t('common.jam_session')} (Offline)` : t('common.jam_session')}
           >
             <Users size={18} />
@@ -252,7 +256,7 @@ export default function TopBar() {
         
         <button 
           onClick={toggleRightSidebar} 
-          className="h-10 w-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-secondary hover:text-white transition-colors"
+          className="h-10 w-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-foreground/10 text-secondary hover:text-foreground transition-colors"
           title={t('common.toggle_queue')}
         >
           <PanelRight size={18} />

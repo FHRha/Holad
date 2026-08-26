@@ -86,13 +86,13 @@ export default function ArtistView() {
         </button>
         <button 
           onClick={handleShuffleArtist}
-          className="text-secondary hover:text-white p-3 transition-colors"
+          className="text-secondary hover:text-foreground p-3 transition-colors"
         >
           <Shuffle size={24} />
         </button>
         <button
           onClick={handleShuffleArtist /* fallback, will be updated by other agents */}
-          className="bg-white/10 hover:bg-white/20 text-white font-medium py-3 px-6 rounded-full flex items-center gap-2 transition-colors ml-2"
+          className="bg-foreground/10 hover:bg-white/20 text-white font-medium py-3 px-6 rounded-full flex items-center gap-2 transition-colors ml-2"
         >
           <Radio size={20} />
           {t('views.artist_radio', 'Радио артиста')}
@@ -118,7 +118,7 @@ export default function ArtistView() {
                   }}
                   className="group flex items-center gap-4 p-2 sm:p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
                 >
-                  <div className="w-6 text-center text-sm font-medium text-secondary/70 group-hover:text-white">
+                  <div className="w-6 text-center text-sm font-medium text-secondary/70 group-hover:text-foreground">
                     {index + 1}
                   </div>
                   

@@ -92,7 +92,7 @@ export default function DownloadsView() {
           <button 
             onClick={handleRescan}
             disabled={isScanning}
-            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 bg-foreground/10 hover:bg-white/20 px-4 py-2 rounded-xl transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <RefreshCw size={18} className={isScanning ? "animate-spin" : ""} />
             <span className="hidden sm:inline">{t('views.rescan')}</span>
@@ -100,7 +100,7 @@ export default function DownloadsView() {
           {isTauri() && (
             <button 
               onClick={handleOpenFolder}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl transition-colors text-sm font-medium"
+              className="flex items-center gap-2 bg-foreground/10 hover:bg-white/20 px-4 py-2 rounded-xl transition-colors text-sm font-medium"
             >
               <FolderOpen size={18} />
               <span className="hidden sm:inline">{t('views.open_folder')}</span>
@@ -149,7 +149,7 @@ export default function DownloadsView() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h4 className="font-bold text-sm truncate text-foreground">{item.name}</h4>
-                      <span className="px-1.5 py-0.2 rounded bg-white/10 text-[9px] font-bold text-secondary uppercase">
+                      <span className="px-1.5 py-0.2 rounded bg-foreground/10 text-[9px] font-bold text-secondary uppercase">
                         {item.type === 'album' ? t('settings.album') : t('settings.track')}
                       </span>
                     </div>

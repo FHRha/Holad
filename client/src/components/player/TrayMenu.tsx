@@ -193,19 +193,19 @@ export default function TrayMenu() {
 
         {/* Controls */}
         <div className="flex flex-col gap-1 mt-2">
-          <button onClick={() => handleAction('play_pause')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium w-full text-left">
+          <button onClick={() => handleAction('play_pause')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/10 transition-colors text-sm font-medium w-full text-left">
             {isPlaying ? <Pause className="w-4 h-4 text-primary" /> : <Play className="w-4 h-4 text-primary" />}
             <span className={isPlaying ? 'text-primary' : ''}>
               {isPlaying ? t('player.pause') : t('player.play')}
             </span>
           </button>
           
-          <button onClick={() => handleAction('next')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium w-full text-left">
+          <button onClick={() => handleAction('next')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/10 transition-colors text-sm font-medium w-full text-left">
             <SkipForward className="w-4 h-4" />
             {t('player.next')}
           </button>
           
-          <button onClick={() => handleAction('prev')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium w-full text-left">
+          <button onClick={() => handleAction('prev')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/10 transition-colors text-sm font-medium w-full text-left">
             <SkipBack className="w-4 h-4" />
             {t('player.previous')}
           </button>
@@ -218,7 +218,7 @@ export default function TrayMenu() {
           <button 
             onClick={() => handleAction('favorite')}
             disabled={!currentTrack}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium w-full text-left ${currentTrack && isLiked ? 'text-primary hover:bg-primary/10' : 'hover:bg-white/10 disabled:opacity-50 disabled:hover:bg-transparent'}`}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium w-full text-left ${currentTrack && isLiked ? 'text-primary hover:bg-primary/10' : 'hover:bg-foreground/10 disabled:opacity-50 disabled:hover:bg-transparent'}`}
           >
             <Heart className={`w-4 h-4 ${currentTrack && isLiked ? 'fill-primary text-primary' : ''}`} />
             {currentTrack && isLiked 
@@ -228,7 +228,7 @@ export default function TrayMenu() {
 
           <div className="h-px bg-white/5 my-2 mx-2"></div>
 
-          <button onClick={showApp} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium w-full text-left">
+          <button onClick={showApp} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/10 transition-colors text-sm font-medium w-full text-left">
             <Maximize2 className="w-4 h-4" />
             {t('common.show_app')}
           </button>

@@ -276,7 +276,7 @@ export default function DownloadedMusicGrid({
             <button
               type="button"
               onClick={onManageClick}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/5 hover:bg-white/10 text-secondary hover:text-foreground border border-white/10 transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/5 hover:bg-foreground/10 text-secondary hover:text-foreground border border-white/10 transition-colors"
               title={t('settings.manage_downloads')}
             >
               <Trash2 size={16} />
@@ -517,7 +517,7 @@ function DownloadedCardItem({
           type="button"
           onClick={onDelete}
           disabled={isDeleting}
-          className="absolute top-1.5 right-1.5 z-10 p-1.5 rounded-lg bg-black/60 hover:bg-red-500/80 text-white/70 hover:text-white backdrop-blur-md transition-colors disabled:opacity-50"
+          className="absolute top-1.5 right-1.5 z-10 p-1.5 rounded-lg bg-black/60 hover:bg-red-500/80 text-white/70 hover:text-foreground backdrop-blur-md transition-colors disabled:opacity-50"
           title={t('common.delete')}
         >
           {isDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
@@ -635,7 +635,7 @@ function DownloadedRowItem({
             <span className="text-xs font-bold text-foreground truncate" title={item.name}>
               {item.name}
             </span>
-            <span className="px-1.5 py-0.2 rounded bg-white/10 text-[9px] font-bold text-secondary uppercase">
+            <span className="px-1.5 py-0.2 rounded bg-foreground/10 text-[9px] font-bold text-secondary uppercase">
               {item.type === 'album' ? t('settings.album') : t('settings.track')}
             </span>
           </div>

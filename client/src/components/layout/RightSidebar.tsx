@@ -137,7 +137,7 @@ export default function RightSidebar() {
     >
       {/* Resizer */}
       <div 
-        className="absolute top-0 left-0 w-2 h-full cursor-col-resize hover:bg-white/10 active:bg-white/20 transition-colors z-20"
+        className="absolute top-0 left-0 w-2 h-full cursor-col-resize hover:bg-foreground/10 active:bg-white/20 transition-colors z-20"
         onMouseDown={handleMouseDown}
       />
 
@@ -151,10 +151,10 @@ export default function RightSidebar() {
                 </button>
                 {showShareMenu && (
                   <div className="absolute top-full right-0 mt-2 py-1 bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl z-[60] flex flex-col min-w-[180px]">
-                    <button onClick={handleDownloadAlbum} className="text-left px-4 py-2 hover:bg-white/10 text-sm text-white font-medium transition-colors flex items-center gap-3 whitespace-nowrap">
+                    <button onClick={handleDownloadAlbum} className="text-left px-4 py-2 hover:bg-foreground/10 text-sm text-white font-medium transition-colors flex items-center gap-3 whitespace-nowrap">
                       <Download size={18} className="shrink-0" /> {t('common.download_album')}
                     </button>
-                    <button onClick={handleShareItem} className={`text-left px-4 py-2 hover:bg-white/10 text-sm font-medium transition-colors border-t border-white/5 flex items-center gap-3 whitespace-nowrap ${isCopied ? 'text-primary' : 'text-white'}`}>
+                    <button onClick={handleShareItem} className={`text-left px-4 py-2 hover:bg-foreground/10 text-sm font-medium transition-colors border-t border-white/5 flex items-center gap-3 whitespace-nowrap ${isCopied ? 'text-primary' : 'text-white'}`}>
                       <Share size={18} className="shrink-0" /> {isCopied ? t('common.copied') : t('common.share_album')}
                     </button>
                   </div>
@@ -199,7 +199,7 @@ export default function RightSidebar() {
                     {...listeners}
                     onClick={() => playTrack(idx)}
                     onLongPress={(e: any) => handleContextMenu(e, track, idx)}
-                    className={`flex items-center ${isSmall ? 'justify-center p-1 hover:scale-105 transition-transform' : `px-2 py-2 rounded-md ${isPlaying ? 'bg-white/10' : 'hover:bg-white/5'}`} cursor-grab active:cursor-grabbing group ${isDragging ? 'opacity-30' : ''}`}
+                    className={`flex items-center ${isSmall ? 'justify-center p-1 hover:scale-105 transition-transform' : `px-2 py-2 rounded-md ${isPlaying ? 'bg-foreground/10' : 'hover:bg-white/5'}`} cursor-grab active:cursor-grabbing group ${isDragging ? 'opacity-30' : ''}`}
                     title={isSmall ? `${track.title} • ${formatArtistName(track.artist)}` : undefined}
                   >
                     {!isSmall && (

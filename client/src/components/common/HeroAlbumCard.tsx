@@ -159,7 +159,9 @@ export default function HeroAlbumCard({ album }: { album: any }) {
       albumId: album.id,
       artistId: t.artistId || album.artistId,
       coverArt: getCoverArtUrl(album.coverArt || album.id, 300),
-      duration: t.duration
+      duration: t.duration,
+      bitRate: t.bitRate,
+      suffix: t.suffix
     }));
   };
 
@@ -292,7 +294,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
           <div className="flex justify-between items-end">
             <Ban size={22} className={`cursor-pointer transition-colors hover:text-red-500 ${isExcluded ? 'text-red-500' : 'text-[#b3b3b3]'}`} onClick={(e) => { e.stopPropagation(); toggleAlbumExclude(album.id); }} />
-            <MoreHorizontal size={24} className="text-[#b3b3b3] hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
+            <MoreHorizontal size={24} className="text-[#b3b3b3] hover:text-foreground cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Play, ListPlus, SkipForward, Trash2, Heart, Star, Download, Share2, User, Disc } from 'lucide-react';
+import { Play, ListPlus, SkipForward, Trash2, Heart, Star, Download, Share2, User, Disc, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { usePlayerStore } from '../../store/playerStore';
@@ -17,7 +17,7 @@ export default function ContextMenu() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isOpen, x, y, item, type, closeMenu } = useContextMenuStore();
-  const { setQueueAndPlay, playNext, addToQueue, queue, setQueue, likedTrackIds, likedAlbumIds, toggleTrackLike, toggleAlbumLike, role } = usePlayerStore();
+  const { setQueueAndPlay, playNext, addToQueue, queue, setQueue, likedTrackIds, likedAlbumIds, toggleTrackLike, toggleAlbumLike, role, toggleTrackExclude, toggleAlbumExclude, excludedTrackIds, excludedAlbumIds } = usePlayerStore();
   const isJamRoute = window.location.pathname.startsWith('/jam');
   const isGuest = isJamRoute && role !== 'host';
   const menuRef = useRef<HTMLDivElement>(null);
@@ -87,7 +87,9 @@ export default function ContextMenu() {
       albumId: t.albumId,
       artistId: t.artistId,
       coverArt: getCoverArtUrl(t.coverArt, 300),
-      duration: t.duration
+      duration: t.duration,
+      bitRate: t.bitRate,
+      suffix: t.suffix
     }));
   };
 
@@ -123,6 +125,26 @@ export default function ContextMenu() {
       toggleTrackLike(item.id);
       if (isLiked) unstarItem(item.id);
       else starItem(item.id);
+    }
+  };
+
+  const isExcluded = isAlbum ? (excludedAlbumIds || []).includes(item?.id) : (excludedTrackIds || []).includes(item?.id);
+
+  const onExclude = () => {
+    if (isAlbum) {
+      toggleAlbumExclude(item.id);
+      const state = usePlayerStore.getState();
+      const currentTrack = state.queue[state.currentIndex];
+      if (!isExcluded && currentTrack?.albumId === item.id) {
+        state.playNext();
+      }
+    } else {
+      toggleTrackExclude(item.id);
+      const state = usePlayerStore.getState();
+      const currentTrack = state.queue[state.currentIndex];
+      if (!isExcluded && currentTrack?.id === item.id) {
+        state.playNext();
+      }
     }
   };
 
@@ -193,7 +215,7 @@ export default function ContextMenu() {
         e.stopPropagation(); 
         onClick(); 
       }}
-      className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-white/10 transition-colors text-sm font-semibold ${color}`}
+      className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-foreground/10 transition-colors text-sm font-semibold ${color}`}
     >
       <Icon size={16} />
       <span>{label}</span>
@@ -203,7 +225,7 @@ export default function ContextMenu() {
   const MobileIconBtn = ({ icon: Icon, label, onClick, color = 'text-white', activeColor = '' }: any) => (
     <button 
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className={`flex flex-col items-center justify-center gap-1.5 p-2 active:bg-white/10 rounded-xl transition-colors`}
+      className={`flex flex-col items-center justify-center gap-1.5 p-2 active:bg-foreground/10 rounded-xl transition-colors`}
     >
       <Icon size={22} className={activeColor || color} />
       <span className={`text-[10px] font-medium text-center leading-tight ${color} opacity-80`}>{label}</span>
@@ -281,6 +303,7 @@ export default function ContextMenu() {
               <MobileIconBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
               {!isInQueue && <MobileIconBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
               {!isGuest && <MobileIconBtn icon={Heart} label={t('common.favorite')} onClick={() => handleAction(onLike)} activeColor={isLiked ? "text-primary" : "text-white"} />}
+              {!isGuest && <MobileIconBtn icon={Ban} label={t('common.ignore', 'В игнор')} onClick={() => handleAction(onExclude)} activeColor={isExcluded ? "text-red-500" : "text-white"} />}
               {!isGuest && (isDownloaded ? (
                 <MobileIconBtn icon={Trash2} color="text-primary" label={t('common.remove_download')} onClick={() => handleAction(onRemoveDownload)} />
               ) : (
@@ -377,9 +400,15 @@ export default function ContextMenu() {
               onClick={() => handleAction(onLike)} 
               color={isLiked ? "text-primary" : "text-white"} 
             />
+            <ItemBtn 
+              icon={Ban} 
+              label={isExcluded ? t('common.unignore', 'Убрать из игнора') : t('common.ignore', 'В игнор')} 
+              onClick={() => handleAction(onExclude)} 
+              color={isExcluded ? "text-red-500" : "text-white"} 
+            />
             
             {/* Rating inline */}
-            <div className="flex items-center justify-between px-4 py-2 hover:bg-white/10 transition-colors cursor-default">
+            <div className="flex items-center justify-between px-4 py-2 hover:bg-foreground/10 transition-colors cursor-default">
               <div className="flex items-center gap-3 text-sm font-semibold text-white">
                 <Star size={16} />
                 <span>{t('common.rate')}</span>

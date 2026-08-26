@@ -55,11 +55,11 @@ export default function MobileSearchOverlay() {
       <div className="flex items-center gap-2 px-3 py-3 border-b border-white/5 bg-background">
         <button 
           onClick={() => setSearchOpen(false)}
-          className="p-2 text-secondary hover:text-white transition-colors"
+          className="p-2 text-secondary hover:text-foreground transition-colors"
         >
           <ArrowLeft size={24} />
         </button>
-        <div className="flex-1 relative flex items-center bg-white/10 rounded-xl px-3 py-2">
+        <div className="flex-1 relative flex items-center bg-foreground/10 rounded-xl px-3 py-2">
           <input 
             ref={inputRef}
             type="text" 
@@ -71,7 +71,7 @@ export default function MobileSearchOverlay() {
           {query && (
             <button 
               onClick={() => { setQuery(''); inputRef.current?.focus(); }}
-              className="p-1 text-secondary hover:text-white transition-colors"
+              className="p-1 text-secondary hover:text-foreground transition-colors"
             >
               <X size={18} />
             </button>
@@ -112,7 +112,7 @@ export default function MobileSearchOverlay() {
                   {results.song.slice(0, 5).map(track => (
                     <LongPressWrapper 
                       key={track.id}
-                      className="group flex items-center gap-3 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors active:scale-[0.98]"
+                      className="group flex items-center gap-3 p-2 rounded-xl bg-white/5 hover:bg-foreground/10 transition-colors active:scale-[0.98]"
                       onClick={() => {
                         handlePlaySong(track);
                         setSearchOpen(false);
@@ -135,7 +135,7 @@ export default function MobileSearchOverlay() {
                             artistString={track.artist} 
                             artistId={track.artistId} 
                             onLinkClick={() => setSearchOpen(false)}
-                            className="hover:text-white transition-colors relative z-10"
+                            className="hover:text-foreground transition-colors relative z-10"
                           />
                           <span className="pointer-events-none">• {track.album}</span>
                         </div>
@@ -193,7 +193,7 @@ export default function MobileSearchOverlay() {
                     <div 
                       key={artist.id}
                       onClick={() => navigateToArtist(artist)}
-                      className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/5 cursor-pointer text-sm font-medium transition-colors"
+                      className="px-3 py-2 rounded-full bg-white/5 hover:bg-foreground/10 active:bg-white/20 border border-white/5 cursor-pointer text-sm font-medium transition-colors"
                     >
                       {formatArtistName(artist.name)}
                     </div>

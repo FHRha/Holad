@@ -74,7 +74,7 @@ export default function HistoryView() {
     <div className="flex flex-col p-6 overflow-y-auto w-full h-full text-white bg-background/50 pb-32">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div className="flex items-center gap-3 relative">
-          <button onClick={() => navigate(-1)} className="md:hidden p-2 -ml-2 text-secondary hover:text-white transition-colors">
+          <button onClick={() => navigate(-1)} className="md:hidden p-2 -ml-2 text-secondary hover:text-foreground transition-colors">
             <ChevronLeft size={28} />
           </button>
           <div className="w-12 h-12 rounded-2xl bg-primary/20 hidden md:flex items-center justify-center text-primary shrink-0">
@@ -90,7 +90,7 @@ export default function HistoryView() {
           <button 
             onClick={handleManualSync}
             disabled={isSyncing}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-secondary hover:text-white shrink-0 disabled:opacity-50"
+            className="p-2 rounded-xl bg-white/5 hover:bg-foreground/10 transition-colors text-secondary hover:text-foreground shrink-0 disabled:opacity-50"
             title={t('views.manual_sync') || "Sync History"}
           >
             <RefreshCw size={20} className={isSyncing ? "animate-spin" : ""} />
@@ -137,7 +137,7 @@ export default function HistoryView() {
                 }}>
                   <div className="flex items-center gap-4">
                     <span className="text-xl font-black text-white/20 w-6 text-center">{i + 1}</span>
-                    <ArtistAvatar artistName={artistName} artistId={artistId} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center overflow-hidden shrink-0" fallbackSize={20} />
+                    <ArtistAvatar artistName={artistName} artistId={artistId} className="w-10 h-10 rounded-full bg-foreground/10 flex items-center justify-center overflow-hidden shrink-0" fallbackSize={20} />
                     <span className="font-bold text-[15px]">{artistName}</span>
                   </div>
                   <span className="text-sm font-bold text-secondary bg-white/5 px-2.5 py-1 rounded-md">{artist.count} {t('views.times')}</span>

@@ -16,7 +16,9 @@ export function useSimilarTracks(trackId: string | undefined) {
           albumId: t.albumId,
           artistId: t.artistId,
           coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
-          duration: t.duration
+          duration: t.duration,
+          bitRate: t.bitRate,
+          suffix: t.suffix
         }));
         setSimilarTracks(mapped);
       });

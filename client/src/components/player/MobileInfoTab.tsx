@@ -69,14 +69,14 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
         
         <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center justify-center">
           <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.format')}</span>
-          <span className="font-bold text-sm text-white uppercase">{(currentTrack as any).suffix || 'MP3'}</span>
+          <span className="font-bold text-sm text-white uppercase">{currentTrack.suffix || 'MP3'}</span>
         </div>
         
         <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center justify-center">
           <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.bitrate')}</span>
           <span className="font-bold text-sm text-white">
-            {((currentTrack as any).bitRate || (currentTrack as any).bitrate) 
-              ? `${(currentTrack as any).bitRate || (currentTrack as any).bitrate} kbps` 
+            {currentTrack.bitRate 
+              ? `${currentTrack.bitRate} kbps` 
               : 'Unknown'}
           </span>
         </div>
@@ -86,9 +86,9 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
         <h3 className="text-lg font-bold text-white mb-3">{t('player.about_artist')}</h3>
         {loading ? (
           <div className="animate-pulse space-y-2">
-            <div className="h-4 bg-white/10 rounded w-full"></div>
-            <div className="h-4 bg-white/10 rounded w-5/6"></div>
-            <div className="h-4 bg-white/10 rounded w-4/6"></div>
+            <div className="h-4 bg-foreground/10 rounded w-full"></div>
+            <div className="h-4 bg-foreground/10 rounded w-5/6"></div>
+            <div className="h-4 bg-foreground/10 rounded w-4/6"></div>
           </div>
         ) : artistBio ? (
           <div 

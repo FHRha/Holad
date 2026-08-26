@@ -47,10 +47,10 @@ export default function StorageStatsBar({
     return (
       <div className={`flex flex-col gap-4 bg-background/50 rounded-xl border border-white/5 ${isMobile ? 'p-3' : 'p-4'} ${className}`}>
         <div className="flex items-center justify-between">
-          <div className="h-4 w-32 bg-white/10 rounded animate-pulse" />
-          <div className="h-4 w-16 bg-white/10 rounded animate-pulse" />
+          <div className="h-4 w-32 bg-foreground/10 rounded animate-pulse" />
+          <div className="h-4 w-16 bg-foreground/10 rounded animate-pulse" />
         </div>
-        <div className="h-3 w-full bg-white/10 rounded-full animate-pulse" />
+        <div className="h-3 w-full bg-foreground/10 rounded-full animate-pulse" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-10 bg-white/5 rounded-lg animate-pulse" />
@@ -80,7 +80,7 @@ export default function StorageStatsBar({
           type="button"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-secondary hover:text-foreground transition-all disabled:opacity-50"
+          className="p-2 rounded-lg bg-white/5 hover:bg-foreground/10 text-secondary hover:text-foreground transition-all disabled:opacity-50"
           title={t('settings.refresh_stats')}
         >
           <RefreshCw size={15} className={isRefreshing ? 'animate-spin text-primary' : ''} />

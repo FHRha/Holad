@@ -68,7 +68,9 @@ export function useArtistData(id: string | undefined) {
             artistId: s.artistId || artistData.id,
             coverArt: getCoverArtUrl(s.coverArt || s.albumId || s.id, 300),
             duration: s.duration,
-            userRating: s.userRating
+            userRating: s.userRating,
+            bitRate: s.bitRate,
+            suffix: s.suffix
           }));
 
           setTopSongs(tracksForQueue);
@@ -122,7 +124,9 @@ export function useArtistData(id: string | undefined) {
         artistId: s.artistId || artist.id,
         coverArt: getCoverArtUrl(s.coverArt || s.albumId || s.id, 300),
         duration: s.duration,
-        userRating: s.userRating
+        userRating: s.userRating,
+        bitRate: s.bitRate,
+        suffix: s.suffix
       }));
 
       if (tracksForQueue.length > 0) {

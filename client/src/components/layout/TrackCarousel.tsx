@@ -47,6 +47,8 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
       artistId: track.artistId,
       coverArt: track.coverArt || track.id,
       duration: track.duration,
+      bitRate: track.bitRate,
+      suffix: track.suffix,
       path: track.path
     };
     setQueueAndPlay([mappedTrack], 0);
@@ -61,14 +63,14 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
         <div className="flex gap-2">
           <button 
             onClick={() => scroll('left')} 
-            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors ${!canScrollLeft ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-foreground/10 transition-colors ${!canScrollLeft ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollLeft}
           >
             <ChevronLeft size={20} />
           </button>
           <button 
             onClick={() => scroll('right')} 
-            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors ${!canScrollRight ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-foreground/10 transition-colors ${!canScrollRight ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollRight}
           >
             <ChevronRight size={20} />

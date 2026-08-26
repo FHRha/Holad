@@ -98,7 +98,7 @@ export default function LibraryView() {
 
           <button 
             onClick={() => setViewMode(prev => prev === 'grid' ? 'list' : 'grid')}
-            className="absolute right-0 text-[#b3b3b3] hover:text-white transition-colors bg-[#282828] p-2 rounded-full z-10"
+            className="absolute right-0 text-[#b3b3b3] hover:text-foreground transition-colors bg-[#282828] p-2 rounded-full z-10"
           >
             {viewMode === 'grid' ? <List size={20} /> : <LayoutGrid size={20} />}
           </button>
@@ -143,7 +143,7 @@ function MobileNavTab({ to, label }: { to: string, label: string }) {
   return (
     <NavLink 
       to={to}
-      className={({ isActive }) => `flex-1 px-3 py-2.5 rounded-xl whitespace-nowrap text-[14px] font-bold transition-colors text-center ${isActive ? 'bg-[#181818] text-white shadow-sm' : 'text-[#b3b3b3] hover:text-white'}`}
+      className={({ isActive }) => `flex-1 px-3 py-2.5 rounded-xl whitespace-nowrap text-[14px] font-bold transition-colors text-center ${isActive ? 'bg-[#181818] text-white shadow-sm' : 'text-[#b3b3b3] hover:text-foreground'}`}
     >
       {label}
     </NavLink>
@@ -158,7 +158,7 @@ function FilterChip({ icon, label, isActive, onClick, testId }: { icon: React.Re
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
         isActive 
           ? 'bg-primary text-white border-transparent shadow-md' 
-          : 'bg-white/5 text-[#b3b3b3] hover:bg-white/10 hover:text-white border-transparent'
+          : 'bg-white/5 text-[#b3b3b3] hover:bg-foreground/10 hover:text-foreground border-transparent'
       }`}
     >
       {icon}

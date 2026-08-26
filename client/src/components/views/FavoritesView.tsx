@@ -20,7 +20,7 @@ function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode,
     <button 
       onClick={onClick}
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
-        isActive ? 'bg-primary text-white border-transparent shadow-md' : 'bg-white/5 text-[#b3b3b3] hover:bg-white/10 hover:text-white border-transparent'
+        isActive ? 'bg-primary text-white border-transparent shadow-md' : 'bg-white/5 text-[#b3b3b3] hover:bg-foreground/10 hover:text-foreground border-transparent'
       }`}
     >
       {icon}
@@ -84,7 +84,9 @@ export default function FavoritesView() {
       artistId: t.artistId,
       coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
       duration: t.duration,
-      userRating: t.userRating
+      userRating: t.userRating,
+      bitRate: t.bitRate,
+      suffix: t.suffix
     }));
     
     const action = useSettingsStore.getState().clickAction;
@@ -152,7 +154,7 @@ export default function FavoritesView() {
                       </button>
                     </div>
                     
-                    <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-white/10 relative shadow-sm">
+                    <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-foreground/10 relative shadow-sm">
                       {track.coverArt && <TrackImage src={getCoverArtUrl(track.coverArt, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />}
                     </div>
 
@@ -170,7 +172,7 @@ export default function FavoritesView() {
                       className="opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(e) => handleToggleLike(e, track.id)}
                     >
-                      <Heart size={16} fill={isLiked ? "currentColor" : "none"} className={isLiked ? "text-primary" : "text-white/30 hover:text-white"} />
+                      <Heart size={16} fill={isLiked ? "currentColor" : "none"} className={isLiked ? "text-primary" : "text-white/30 hover:text-foreground"} />
                     </button>
 
                     <div className="w-12 text-right text-xs text-secondary">
@@ -218,7 +220,7 @@ export default function FavoritesView() {
             </div>
             <button 
               onClick={() => setViewMode(prev => prev === 'grid' ? 'list' : 'grid')}
-              className="absolute right-0 text-[#b3b3b3] hover:text-white transition-colors bg-[#282828] p-2 rounded-full z-10"
+              className="absolute right-0 text-[#b3b3b3] hover:text-foreground transition-colors bg-[#282828] p-2 rounded-full z-10"
             >
               {viewMode === 'grid' ? <List size={20} /> : <LayoutGrid size={20} />}
             </button>
@@ -255,7 +257,7 @@ export default function FavoritesView() {
                         openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
                       }}
                     >
-                      <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-white/10 relative shadow-sm">
+                      <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-foreground/10 relative shadow-sm">
                         {track.coverArt && <TrackImage src={getCoverArtUrl(track.coverArt, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />}
                       </div>
 
@@ -272,7 +274,7 @@ export default function FavoritesView() {
                       <button 
                         onClick={(e) => handleToggleLike(e, track.id)}
                       >
-                        <Heart size={18} fill={isLiked ? "currentColor" : "none"} className={isLiked ? "text-primary" : "text-[#b3b3b3] hover:text-white"} />
+                        <Heart size={18} fill={isLiked ? "currentColor" : "none"} className={isLiked ? "text-primary" : "text-[#b3b3b3] hover:text-foreground"} />
                       </button>
                     </LongPressWrapper>
                   );
@@ -309,7 +311,9 @@ export default function FavoritesView() {
                               albumId: album.id,
                               artistId: t.artistId || album.artistId,
                               coverArt: getCoverArtUrl(album.coverArt || album.id, 300),
-                              duration: t.duration
+                              duration: t.duration,
+                              bitRate: t.bitRate,
+                              suffix: t.suffix
                             }));
                             usePlayerStore.getState().setQueueAndPlay(mappedTracks, 0);
                             usePlayerStore.getState().setIsProcessing(false);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Server, AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../common/LanguageSelector';
+import ThemeSelector from '../common/ThemeSelector';
 
 interface Props {
   onConnected: () => void;
@@ -68,8 +69,9 @@ export default function ServerConnectionView({ onConnected }: Props) {
 
   return (
     <div className="h-[100dvh] w-full bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden text-foreground">
-      {/* Language Selector */}
-      <div className="absolute top-4 right-4 z-50">
+      {/* Language & Theme Selectors */}
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+        <ThemeSelector />
         <LanguageSelector />
       </div>
       {/* Abstract Background */}
@@ -99,7 +101,7 @@ export default function ServerConnectionView({ onConnected }: Props) {
                 value={url}
                 onChange={e => setUrl(e.target.value)}
                 placeholder="https://holad.example.com"
-                className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-[#4ade80]/50 focus:ring-1 focus:ring-[#4ade80]/50 transition-all placeholder:text-white/20"
+                className="w-full bg-card border border-white/10 rounded-xl py-3 pl-10 pr-4 text-foreground focus:outline-none focus:border-[#4ade80]/50 focus:ring-1 focus:ring-[#4ade80]/50 transition-all placeholder:text-foreground/20"
                 required
               />
             </div>

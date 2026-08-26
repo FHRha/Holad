@@ -49,7 +49,9 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
               album: downloadedAlbum.name,
               albumId: id,
               coverArt: t.localCoverArtUri || downloadedAlbum.localCoverArtUri || t.coverArt,
-              duration: t.duration || 0
+              duration: t.duration || 0,
+              bitRate: t.bitRate,
+              suffix: t.suffix
             }))
           };
           setAlbum(fallbackAlbum);
@@ -98,7 +100,9 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
       artistId: t.artistId || album.artistId,
       coverArt: getCoverArtUrl(album.coverArt || t.coverArt || t.id, 300),
       duration: t.duration,
-      userRating: t.userRating
+      userRating: t.userRating,
+      bitRate: t.bitRate,
+      suffix: t.suffix
     }));
   };
 
@@ -166,7 +170,9 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
           albumId: t.albumId,
           artistId: t.artistId,
           coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
-          duration: t.duration
+          duration: t.duration,
+          bitRate: t.bitRate,
+          suffix: t.suffix
         }));
       }
       

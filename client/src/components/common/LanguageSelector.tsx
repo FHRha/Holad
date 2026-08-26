@@ -34,7 +34,7 @@ export default function LanguageSelector({ align = 'right' }: { align?: 'left' |
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-10 h-10 ml-2 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-secondary hover:text-foreground transition-colors"
+        className="w-10 h-10 ml-2 rounded-full bg-white/5 hover:bg-foreground/10 flex items-center justify-center text-secondary hover:text-foreground transition-colors"
         title={t('topbar.language')}
       >
         <Globe size={18} />

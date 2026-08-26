@@ -105,7 +105,7 @@ export default function HoladConnectMenu() {
                 ${isDeviceActive ? 'bg-primary/20 text-primary' : 'hover:bg-white/5 text-secondary hover:text-foreground'}
               `}
             >
-              <div className={`p-2 rounded-full ${isDeviceActive ? 'bg-primary text-black' : 'bg-white/5 group-hover:bg-white/10 text-foreground'}`}>
+              <div className={`p-2 rounded-full ${isDeviceActive ? 'bg-primary text-black' : 'bg-white/5 group-hover:bg-foreground/10 text-foreground'}`}>
                 {getDeviceIcon(device.name)}
               </div>
               <div className="flex flex-col overflow-hidden">
@@ -133,7 +133,7 @@ export default function HoladConnectMenu() {
     <div className="relative" ref={menuRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`transition-colors flex items-center justify-center w-5 ${isActive ? 'text-primary' : 'text-secondary hover:text-white'}`}
+        className={`transition-colors flex items-center justify-center w-5 ${isActive ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
         title={t('player.connect_to_device')}
       >
         <MonitorSpeaker size={16} />

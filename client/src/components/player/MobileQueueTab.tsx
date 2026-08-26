@@ -72,7 +72,7 @@ export default function MobileQueueTab() {
                       openMenu(e.clientX, e.clientY, { ...track, queueIndex: idx, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
                     }}
                     className={`flex items-center w-full px-6 py-3 transition-colors ${
-                      isPlaying ? 'bg-white/10' : ''
+                      isPlaying ? 'bg-foreground/10' : ''
                     } ${!readOnly ? 'cursor-grab active:cursor-grabbing active:bg-white/20' : ''} ${
                       isDragging ? 'opacity-30' : ''
                     }`}
@@ -108,7 +108,7 @@ export default function MobileQueueTab() {
                             const rect = e.currentTarget.getBoundingClientRect();
                             openMenu(rect.left, rect.bottom, { ...track, queueIndex: idx, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
                           }}
-                          className="p-1 text-white/40 hover:text-white transition-colors"
+                          className="p-1 text-white/40 hover:text-foreground transition-colors"
                         >
                           <MoreHorizontal size={18} />
                         </button>

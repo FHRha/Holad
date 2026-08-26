@@ -80,7 +80,7 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
                         ? 'text-primary scale-110 drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
                         : isPast 
                           ? (isSectionHeader ? 'text-primary/40' : 'text-white/40')
-                          : (isSectionHeader ? 'text-primary/70' : 'text-white/30 hover:text-white/50')
+                          : (isSectionHeader ? 'text-primary/70' : 'text-white/30 hover:text-foreground/50')
                     } ${role !== 'listener' ? 'cursor-pointer' : ''}`}
                     onClick={() => {
                       if (role === 'listener') return;

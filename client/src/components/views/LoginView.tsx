@@ -8,6 +8,7 @@ import md5 from 'md5';
 import { getHoladServerUrl } from '../../utils/serverConfig';
 import { isTauri, isCapacitor } from '../../utils/StorageManager';
 import LanguageSelector from '../common/LanguageSelector';
+import ThemeSelector from '../common/ThemeSelector';
 
 export default function LoginView() {
   const { t } = useTranslation();
@@ -77,8 +78,9 @@ export default function LoginView() {
 
   return (
     <div className="h-full w-full bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Language Selector */}
-      <div className="absolute top-4 right-4 z-50">
+      {/* Language & Theme Selectors */}
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+        <ThemeSelector />
         <LanguageSelector />
       </div>
 
@@ -109,7 +111,7 @@ export default function LoginView() {
                 value={url}
                 onChange={e => setUrl(e.target.value)}
                 placeholder="https://navidrome.example.com"
-                className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-white/20"
+                className="w-full bg-card border border-white/10 rounded-xl py-3 pl-10 pr-4 text-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-foreground/20"
                 required
               />
             </div>
@@ -124,7 +126,7 @@ export default function LoginView() {
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 placeholder={t('views.username')}
-                className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-white/20"
+                className="w-full bg-card border border-white/10 rounded-xl py-3 pl-10 pr-4 text-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-foreground/20"
                 required
               />
             </div>
@@ -139,15 +141,15 @@ export default function LoginView() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-white/20"
+                className="w-full bg-card border border-white/10 rounded-xl py-3 pl-10 pr-10 text-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-foreground/20"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-white transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-foreground transition-colors"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
               </button>
             </div>
           </div>
@@ -178,7 +180,7 @@ export default function LoginView() {
                 localStorage.removeItem('holadServerUrl');
                 window.location.reload();
               }}
-              className="w-full text-secondary hover:text-white text-sm font-medium py-2 transition-colors"
+              className="w-full text-secondary hover:text-foreground text-sm font-medium py-2 transition-colors"
             >
               {t('views.change_server_btn')}
             </button>

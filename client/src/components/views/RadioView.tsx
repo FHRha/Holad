@@ -101,7 +101,9 @@ export default function RadioView() {
       artistId: t.artistId,
       coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
       duration: t.duration,
-      userRating: t.userRating
+      userRating: t.userRating,
+      bitRate: t.bitRate,
+      suffix: t.suffix
     }));
   };
 

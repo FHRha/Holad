@@ -70,7 +70,7 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
               <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                 <button 
                   onClick={() => jamSocket.grantRole(p.id, p.role === 'cohost' ? 'listener' : 'cohost')}
-                  className={`p-1.5 rounded-md transition-colors ${p.role === 'cohost' ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/40' : 'bg-white/5 text-secondary hover:text-white hover:bg-white/10'}`}
+                  className={`p-1.5 rounded-md transition-colors ${p.role === 'cohost' ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/40' : 'bg-white/5 text-secondary hover:text-foreground hover:bg-foreground/10'}`}
                   title={p.role === 'cohost' ? t('common.revoke_rights') : t('common.grant_rights')}
                 >
                   {p.role === 'cohost' ? <ShieldAlert size={14} /> : <Shield size={14} />}
@@ -88,13 +88,13 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
         ))}
       </div>
 
-      <div className="h-[1px] w-full bg-white/10 my-1" />
+      <div className="h-[1px] w-full bg-foreground/10 my-1" />
 
       {/* Controls */}
       <div className="flex flex-col gap-2 mt-2">
         <button 
           onClick={handleCopyLink}
-          className={`w-full py-3 rounded-xl flex items-center justify-center gap-3 text-sm font-bold transition-colors ${copied ? 'bg-primary text-background' : 'bg-white/10 hover:bg-white/20 text-foreground'}`}
+          className={`w-full py-3 rounded-xl flex items-center justify-center gap-3 text-sm font-bold transition-colors ${copied ? 'bg-primary text-background' : 'bg-foreground/10 hover:bg-white/20 text-foreground'}`}
         >
           <Link size={18} />
           {copied ? t('common.copied') : t('common.copy_link')}

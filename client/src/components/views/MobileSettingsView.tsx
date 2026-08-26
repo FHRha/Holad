@@ -24,7 +24,7 @@ function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode,
     <button 
       onClick={onClick}
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
-        isActive ? 'bg-primary text-white border-transparent shadow-md' : 'bg-white/5 text-[#b3b3b3] hover:bg-white/10 hover:text-white border-transparent'
+        isActive ? 'bg-primary text-white border-transparent shadow-md' : 'bg-white/5 text-[#b3b3b3] hover:bg-foreground/10 hover:text-foreground border-transparent'
       }`}
     >
       {icon}
@@ -37,7 +37,7 @@ function ThemeOption({ label, value, current, onSelect }: { label: string, value
   return (
     <button 
       onClick={() => onSelect(value)}
-      className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium transition-colors ${current === value ? 'border-primary text-primary bg-primary/5' : 'border-white/10 text-secondary hover:border-white/30 hover:text-white'}`}
+      className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium transition-colors ${current === value ? 'border-primary text-primary bg-primary/5' : 'border-white/10 text-secondary hover:border-white/30 hover:text-foreground'}`}
     >
       {label}
     </button>
@@ -157,14 +157,14 @@ export default function MobileSettingsView() {
   const sections = [
     {
       id: 'about',
-      title: 'О приложении',
-      subtitle: 'Версия, обновления и исходный код',
+      title: t('settings.about_app') || 'О приложении',
+      subtitle: t('settings.about_app_desc') || 'Версия, обновления и исходный код',
       icon: <Info className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-4 mt-4">
           <button 
             onClick={() => window.open('https://github.com/FHRha/Holad', '_blank')} 
-            className="flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl border border-white/10 transition-colors"
+            className="flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-foreground/10 text-white font-bold py-3 rounded-xl border border-white/10 transition-colors"
           >
             <img src="/icons/github.png" className="w-[20px] h-[20px] invert" alt="GitHub" />
             GitHub
@@ -177,7 +177,7 @@ export default function MobileSettingsView() {
             className="flex items-center justify-center gap-2 w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold py-3 rounded-xl border border-primary/20 transition-colors"
           >
             <DownloadCloud size={20} />
-            Проверить обновления
+            {t('settings.check_updates') || 'Проверить обновления'}
           </button>
         </div>
       )
@@ -197,14 +197,14 @@ export default function MobileSettingsView() {
     },
     {
       id: 'datasources',
-      title: 'Источники информации',
-      subtitle: 'Настройки Data Sources',
+      title: t('settings.data_sources') || 'Источники информации',
+      subtitle: t('settings.data_sources_desc') || 'Настройки Data Sources',
       icon: <Globe className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-6 mt-4">
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">
             <div className="flex flex-col pr-4">
-              <span className="text-[15px] font-medium text-white">Navidrome/Subsonic</span>
+              <span className="text-[15px] font-medium text-white">{t('settings.navidrome') || 'Navidrome/Subsonic'}</span>
             </div>
             <input 
               type="checkbox" 
@@ -215,7 +215,7 @@ export default function MobileSettingsView() {
           </label>
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">
             <div className="flex flex-col pr-4">
-              <span className="text-[15px] font-medium text-white">Last.fm</span>
+              <span className="text-[15px] font-medium text-white">{t('settings.lastfm') || 'Last.fm'}</span>
             </div>
             <input 
               type="checkbox" 
@@ -227,18 +227,18 @@ export default function MobileSettingsView() {
           <div className="bg-black/20 p-4 rounded-xl">
             <input 
               type="text"
-              placeholder="Last.fm API Key"
+              placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
               value={settings.lastFmKey}
               onChange={(e) => settings.setLastFmKey(e.target.value)}
               className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white mb-2"
             />
             <p className="text-xs text-secondary">
-              Получите API ключ на <a href="https://www.last.fm/api/account/create" target="_blank" rel="noreferrer" className="text-primary hover:underline">сайте Last.fm</a>.
+              {t('settings.lastfm_get_key_part1') || 'Получите API ключ на '}<a href="https://www.last.fm/api/account/create" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.lastfm_get_key_link') || 'сайте Last.fm'}</a>{t('settings.lastfm_get_key_part2') || '.'}
             </p>
           </div>
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">
             <div className="flex flex-col pr-4">
-              <span className="text-[15px] font-medium text-white">Яндекс.Музыка</span>
+              <span className="text-[15px] font-medium text-white">{t('settings.yandex_music') || 'Яндекс.Музыка'}</span>
             </div>
             <input 
               type="checkbox" 
@@ -250,13 +250,13 @@ export default function MobileSettingsView() {
           <div className="bg-black/20 p-4 rounded-xl">
             <input 
               type="text"
-              placeholder="Yandex Token"
+              placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
               value={settings.yandexToken}
               onChange={(e) => settings.setYandexToken(e.target.value)}
               className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white mb-2"
             />
             <p className="text-xs text-secondary">
-              Токен Яндекс.Музыки. Можно получить через расширение Яндекс.Музыка Token.
+              {t('settings.yandex_token_desc_part1') || 'Токен Яндекс.Музыки. Можно получить через расширение Яндекс.Музыка Token или '}<a href="https://github.com/MarshalX/yandex-music-api/discussions/513" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.yandex_token_desc_link') || 'инструкцию'}</a>{t('settings.yandex_token_desc_part2') || '.'}
             </p>
           </div>
         </div>
@@ -309,7 +309,7 @@ export default function MobileSettingsView() {
                       isSelected 
                         ? 'border-primary ring-2 ring-primary' 
                         : isEmpty 
-                          ? 'border-dashed border-white/20 hover:bg-white/10'
+                          ? 'border-dashed border-white/20 hover:bg-foreground/10'
                           : 'border-white/10 hover:border-white/30'
                     }`}
                     style={color ? { backgroundColor: color } : {}}
@@ -408,7 +408,7 @@ export default function MobileSettingsView() {
                     const val = parseInt(e.target.value);
                     if (!isNaN(val)) setVolumeMultiplier(Math.min(Math.max(val, 1), 300) / 100);
                   }}
-                  className="bg-white/10 border border-white/20 rounded-lg py-1 px-2 w-16 text-center outline-none focus:border-primary transition-colors text-white font-mono"
+                  className="bg-foreground/10 border border-white/20 rounded-lg py-1 px-2 w-16 text-center outline-none focus:border-primary transition-colors text-white font-mono"
                 />
                 <span className="text-sm text-[#b3b3b3]">%</span>
               </div>

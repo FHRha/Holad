@@ -79,7 +79,7 @@ export default function FullScreenPlayerUI({
     album: '',
     coverArt: '',
     duration: 0
-  };
+  } as import('../../types').Track;
 
   return (
     <div className={`absolute inset-0 bg-background flex text-foreground overflow-hidden ${onClose ? 'z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-500 ease-out' : 'z-10'}`}>
@@ -137,18 +137,18 @@ export default function FullScreenPlayerUI({
           
           <div className="flex gap-4">
             <span className="px-4 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest border border-primary/30 backdrop-blur-md shadow-lg">
-              {((displayTrack as any).suffix || 'MP3').toUpperCase()}
+              {(displayTrack.suffix || 'MP3').toUpperCase()}
             </span>
             <span className="px-4 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest border border-primary/30 backdrop-blur-md shadow-lg">
-              {((displayTrack as any).bitRate || (displayTrack as any).bitrate) 
-                ? `${((displayTrack as any).bitRate || (displayTrack as any).bitrate)}kbps` 
+              {displayTrack.bitRate 
+                ? `${displayTrack.bitRate}kbps` 
                 : 'UNKNOWN'}
             </span>
           </div>
         </div>
 
         {/* Right: Tabs and Content */}
-        <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-white/10 rounded-3xl border border-white/20 backdrop-blur-2xl overflow-hidden shadow-2xl relative">
+        <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-foreground/10 rounded-3xl border border-white/20 backdrop-blur-2xl overflow-hidden shadow-2xl relative">
           
           {/* Sync Button Floating Over Lyrics */}
           {activeTab === 'lyrics' && isUserScrolled && lrcLines.length > 0 && (
@@ -167,27 +167,27 @@ export default function FullScreenPlayerUI({
             </div>
             <button 
               onClick={() => setActiveTab('queue')}
-              className={`transition-all rounded-full px-5 py-2 ${activeTab === 'queue' ? 'bg-primary text-background shadow-md' : 'hover:bg-white/10 hover:text-white'}`}
+              className={`transition-all rounded-full px-5 py-2 ${activeTab === 'queue' ? 'bg-primary text-background shadow-md' : 'hover:bg-foreground/10 hover:text-foreground'}`}
             >
               {t('player.queue')}
             </button>
             {!isStandalone && !readOnlyControls && (
               <button 
                 onClick={() => setActiveTab('similar')}
-                className={`transition-all rounded-full px-5 py-2 ${activeTab === 'similar' ? 'bg-primary text-background shadow-md' : 'hover:bg-white/10 hover:text-white'}`}
+                className={`transition-all rounded-full px-5 py-2 ${activeTab === 'similar' ? 'bg-primary text-background shadow-md' : 'hover:bg-foreground/10 hover:text-foreground'}`}
               >
                 {t('player.similar')}
               </button>
             )}
             <button 
               onClick={() => setActiveTab('lyrics')}
-              className={`transition-all rounded-full px-5 py-2 ${activeTab === 'lyrics' ? 'bg-primary text-background shadow-md' : 'hover:bg-white/10 hover:text-white'}`}
+              className={`transition-all rounded-full px-5 py-2 ${activeTab === 'lyrics' ? 'bg-primary text-background shadow-md' : 'hover:bg-foreground/10 hover:text-foreground'}`}
             >
               {t('player.lyrics')}
             </button>
             <button 
               onClick={() => setActiveTab('visualizer')}
-              className={`transition-all rounded-full px-5 py-2 ${activeTab === 'visualizer' ? 'bg-primary text-background shadow-md' : 'hover:bg-white/10 hover:text-white'}`}
+              className={`transition-all rounded-full px-5 py-2 ${activeTab === 'visualizer' ? 'bg-primary text-background shadow-md' : 'hover:bg-foreground/10 hover:text-foreground'}`}
             >
               {t('player.visualizer')}
             </button>
@@ -244,7 +244,7 @@ export default function FullScreenPlayerUI({
                               ? 'text-primary scale-110 drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
                               : isPast 
                                 ? 'text-white/40' 
-                                : 'text-white/30 hover:text-white/50'
+                                : 'text-white/30 hover:text-foreground/50'
                           }`}
                           onClick={() => {
                             if (role === 'listener') return;
@@ -275,7 +275,7 @@ export default function FullScreenPlayerUI({
                           className={`${
                             isSectionHeader 
                               ? 'text-sm md:text-base font-bold text-primary tracking-[0.2em] uppercase mt-8 mb-2 opacity-80 drop-shadow-md' 
-                              : 'text-2xl md:text-3xl font-bold tracking-tight text-white/70 hover:text-white transition-colors cursor-default'
+                              : 'text-2xl md:text-3xl font-bold tracking-tight text-white/70 hover:text-foreground transition-colors cursor-default'
                           }`}
                         >
                           {text}
@@ -309,7 +309,7 @@ export default function FullScreenPlayerUI({
                             style={style}
                             {...(!readOnlyControls ? attributes : {})}
                             {...(!readOnlyControls ? listeners : {})}
-                            className={`flex items-center px-4 py-3 rounded-xl transition-colors ${isPlayingQueue ? 'bg-primary/20 shadow-sm border border-primary/30' : 'hover:bg-white/10'} ${!readOnlyControls ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-30' : ''}`}
+                            className={`flex items-center px-4 py-3 rounded-xl transition-colors ${isPlayingQueue ? 'bg-primary/20 shadow-sm border border-primary/30' : 'hover:bg-foreground/10'} ${!readOnlyControls ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-30' : ''}`}
                             onClick={() => {
                               // Only handle play if it wasn't a drag
                               if (!readOnlyControls && !isDragging) setQueueAndPlay(queue, idx);
@@ -349,7 +349,7 @@ export default function FullScreenPlayerUI({
                 {similarTracks.length > 0 ? similarTracks.map((track, idx) => (
                   <div 
                     key={idx} 
-                    className="flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-white/10 cursor-pointer"
+                    className="flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-foreground/10 cursor-pointer"
                     onClick={() => !readOnlyControls && setQueueAndPlay(similarTracks, idx)}
                     onContextMenu={(e) => {
                       e.preventDefault();

@@ -108,7 +108,7 @@ export default function DeleteDownloadsModal({ onClose }: Props) {
           </div>
           <button 
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-white/10 transition-colors"
+            className="p-2 rounded-full hover:bg-foreground/10 transition-colors"
           >
             <X size={20} />
           </button>
@@ -202,7 +202,7 @@ export default function DeleteDownloadsModal({ onClose }: Props) {
                       />
                     </div>
                   ) : (
-                    <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                    <div className="w-12 h-12 rounded-lg bg-foreground/10 flex items-center justify-center shrink-0">
                       {item.type === 'album' ? <Disc3 size={20} className="text-secondary" /> : <Music size={20} className="text-secondary" />}
                     </div>
                   )}
@@ -210,7 +210,7 @@ export default function DeleteDownloadsModal({ onClose }: Props) {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm truncate">{item.name}</h3>
                     <p className="text-xs text-secondary truncate flex items-center gap-2 mt-0.5">
-                      <span className="px-1.5 py-0.5 bg-white/10 rounded uppercase text-[10px] font-bold shrink-0">
+                      <span className="px-1.5 py-0.5 bg-foreground/10 rounded uppercase text-[10px] font-bold shrink-0">
                         {item.type === 'album' ? t('settings.album') : t('settings.track')}
                       </span>
                       <span className="truncate">{item.artist || item.album || item.path}</span>
@@ -225,7 +225,7 @@ export default function DeleteDownloadsModal({ onClose }: Props) {
         <div className="p-5 border-t border-white/10 bg-background/50 flex justify-end gap-3 shrink-0">
           <button 
             onClick={onClose}
-            className="px-6 py-2.5 rounded-xl text-sm font-medium text-white bg-white/10 hover:bg-white/20 transition-colors"
+            className="px-6 py-2.5 rounded-xl text-sm font-medium text-white bg-foreground/10 hover:bg-white/20 transition-colors"
           >
             {t('settings.cancel')}
           </button>

@@ -204,7 +204,7 @@ export default function BottomPlayer() {
                     return (
                       <button 
                         key={star} 
-                        className={`transition-colors ${isFilled ? 'text-primary' : 'text-white/20 hover:text-white/60'}`}
+                        className={`transition-colors ${isFilled ? 'text-primary' : 'text-white/20 hover:text-foreground/60'}`}
                         onClick={() => {
                           const newRating = currentRating === star ? 0 : star;
                           setTrackRating(currentTrack.id, newRating);
@@ -222,7 +222,7 @@ export default function BottomPlayer() {
               <button 
                 onClick={toggleAutoDj}
                 disabled={role === 'listener'}
-                className={`text-[10px] font-bold tracking-widest transition-colors w-16 text-right disabled:opacity-50 ${isAutoDjEnabled ? 'text-primary' : 'text-secondary hover:text-white'}`}
+                className={`text-[10px] font-bold tracking-widest transition-colors w-16 text-right disabled:opacity-50 ${isAutoDjEnabled ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
               >
                 {t('player.auto_dj')}
               </button>
@@ -237,7 +237,7 @@ export default function BottomPlayer() {
             ) : (isJamRoute && role !== 'host') ? (
               <button 
                 onClick={() => setIsMinimized(!isMinimized)}
-                className={`transition-colors flex items-center justify-center w-5 ${!isMinimized ? 'text-primary' : 'text-secondary hover:text-white'}`}
+                className={`transition-colors flex items-center justify-center w-5 ${!isMinimized ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
                 title={isMinimized ? t('player.expand') : t('player.minimize_session')}
               >
                 <Maximize2 size={16} />
@@ -248,7 +248,7 @@ export default function BottomPlayer() {
                   <HoladConnectMenu />
                   <button 
                     onClick={toggleNowPlaying}
-                    className={`transition-colors flex items-center justify-center w-5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-white'}`}
+                    className={`transition-colors flex items-center justify-center w-5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
                     title={t('player.now_playing')}
                   >
                     <Maximize2 size={16} />

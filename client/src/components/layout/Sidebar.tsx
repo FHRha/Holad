@@ -202,7 +202,7 @@ export default function Sidebar() {
       
       {/* Resizer */}
       <div 
-        className="absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-white/10 active:bg-white/20 transition-colors z-20"
+        className="absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-foreground/10 active:bg-white/20 transition-colors z-20"
         onMouseDown={handleMouseDown}
       />
     </div>
@@ -245,7 +245,7 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
       className={`w-full flex ${
         isWide ? 'flex-row items-center px-3 py-2.5 gap-3 rounded-lg' : 'flex-col items-center gap-1'
       } transition-colors group ${
-        isActive ? (isWide ? 'bg-white/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-white/5'
+        isActive ? (isWide ? 'bg-foreground/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-white/5'
       }`}
       title={tooltip}
     >
@@ -326,7 +326,7 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
                     : t('sidebar.downloading')}
                 </span>
               </div>
-              <div className="w-full bg-white/10 rounded-full h-1 overflow-hidden">
+              <div className="w-full bg-foreground/10 rounded-full h-1 overflow-hidden">
                 <div
                   className="bg-primary h-full rounded-full transition-all duration-300 ease-out"
                   style={{ width: `${avgProgress}%` }}
@@ -360,7 +360,7 @@ function SidebarItem({ to, icon, label, end, isWide, disabled }: { to: string, i
           e.preventDefault();
         }
       }}
-      className={`w-full flex ${isWide ? 'flex-row items-center px-3 py-2.5 gap-3 rounded-lg' : 'flex-col items-center gap-1'} transition-colors group ${disabled ? 'opacity-50 cursor-not-allowed text-secondary' : isActive ? (isWide ? 'bg-white/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+      className={`w-full flex ${isWide ? 'flex-row items-center px-3 py-2.5 gap-3 rounded-lg' : 'flex-col items-center gap-1'} transition-colors group ${disabled ? 'opacity-50 cursor-not-allowed text-secondary' : isActive ? (isWide ? 'bg-foreground/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
       title={disabled ? `${label} (Offline)` : label}
     >
       <div className={`relative flex justify-center ${!isWide ? 'w-full' : ''} ${isActive && !disabled ? 'text-primary' : ''}`}>

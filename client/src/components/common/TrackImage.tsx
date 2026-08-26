@@ -114,7 +114,7 @@ export default function TrackImage({ src, className, alt = '', trackId }: TrackI
 
   if (error || (!finalSrc && isVisible)) {
     return (
-      <div ref={containerRef} className={`flex items-center justify-center bg-white/10 ${className}`}>
+      <div ref={containerRef} className={`flex items-center justify-center bg-foreground/10 ${className}`}>
         <Music className="w-1/2 h-1/2 text-[#808080]" />
       </div>
     );

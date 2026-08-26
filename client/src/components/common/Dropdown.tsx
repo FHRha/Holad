@@ -53,7 +53,7 @@ export default function Dropdown({ options, value, onChange, className = '', pre
                 setIsOpen(false);
               }}
               className={`w-full text-left px-4 py-2 text-sm font-bold transition-colors ${
-                option.value === value ? 'bg-primary text-primary-foreground' : 'text-secondary hover:bg-white/5 hover:text-white'
+                option.value === value ? 'bg-primary text-primary-foreground' : 'text-secondary hover:bg-white/5 hover:text-foreground'
               }`}
             >
               {prefix}{option.label}

@@ -143,7 +143,9 @@ export function useGlobalSearch(
       albumId: song.albumId,
       artistId: song.artistId,
       coverArt: getCoverArtUrl(song.coverArt || song.id, 300),
-      duration: song.duration
+      duration: song.duration,
+      bitRate: song.bitRate,
+      suffix: song.suffix
     }], 0);
     setSearchOpen(false);
   };

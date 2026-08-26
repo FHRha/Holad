@@ -48,18 +48,18 @@ function ScrollableSection({ title, children, onRefresh }: { title: string, chil
             <button onClick={() => {
               onRefresh();
               scrollRef.current?.scrollTo({ left: 0, behavior: 'smooth' });
-            }} className="hover:text-white transition-colors active:scale-95">
+            }} className="hover:text-foreground transition-colors active:scale-95">
               <RefreshCw size={20} />
             </button>
           )}
           {canScrollLeft && (
-            <button onClick={() => scroll('left')} className="hover:text-white transition-colors active:scale-95">
+            <button onClick={() => scroll('left')} className="hover:text-foreground transition-colors active:scale-95">
               <ChevronLeft size={24} />
             </button>
           )}
           <button 
             onClick={() => scroll('right')} 
-            className={`transition-colors active:scale-95 ${canScrollRight ? 'hover:text-white' : 'opacity-30 cursor-not-allowed'}`}
+            className={`transition-colors active:scale-95 ${canScrollRight ? 'hover:text-foreground' : 'opacity-30 cursor-not-allowed'}`}
             disabled={!canScrollRight}
           >
             <ChevronRight size={24} />
@@ -189,6 +189,8 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
       artistId: t.artistId,
       coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
       duration: t.duration,
+      bitRate: t.bitRate,
+      suffix: t.suffix,
       userRating: t.userRating
     }));
   };
@@ -282,7 +284,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
         <section onClick={() => navigate('/Holad/history')} className="cursor-pointer group">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-white tracking-tight group-hover:text-primary transition-colors">{t('views.listening_history')}</h2>
-            <ChevronRight size={24} className="text-[#b3b3b3] group-hover:text-white transition-colors" />
+            <ChevronRight size={24} className="text-[#b3b3b3] group-hover:text-foreground transition-colors" />
           </div>
           <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
             <StatCard icon={<Music size={18} className="text-primary" />} value={stats.totalPlays.toString()} label={t('views.tracks_count_label')} />
@@ -390,7 +392,9 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                               albumId: album.id,
                               artistId: t.artistId || album.artistId,
                               coverArt: getCoverArtUrl(album.coverArt || album.id, 300),
-                              duration: t.duration
+                              duration: t.duration,
+      bitRate: t.bitRate,
+      suffix: t.suffix
                             }));
                             usePlayerStore.getState().setQueueAndPlay(mappedTracks, 0);
                             usePlayerStore.getState().setIsProcessing(false);
@@ -434,7 +438,7 @@ function FilterChip({ icon, label, isActive, onClick, testId }: { icon: React.Re
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
         isActive 
           ? 'bg-primary text-white border-transparent shadow-md' 
-          : 'bg-white/5 text-[#b3b3b3] hover:bg-white/10 hover:text-white border-transparent'
+          : 'bg-white/5 text-[#b3b3b3] hover:bg-foreground/10 hover:text-foreground border-transparent'
       }`}
     >
       {icon}

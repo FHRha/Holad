@@ -70,7 +70,7 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
           <button 
             onClick={onClose}
             data-testid="offline-modal-close-btn"
-            className="p-2 rounded-full text-secondary hover:text-foreground hover:bg-white/10 transition-colors"
+            className="p-2 rounded-full text-secondary hover:text-foreground hover:bg-foreground/10 transition-colors"
             title={t('player.close')}
           >
             <X size={20} />
@@ -118,7 +118,7 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
           <button
             onClick={handleToggle}
             data-testid="offline-modal-toggle-btn"
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-secondary hover:text-foreground hover:bg-white/10 transition-colors"
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-secondary hover:text-foreground hover:bg-foreground/10 transition-colors"
           >
             {t('offline_modal.go_online')}
           </button>

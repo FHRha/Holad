@@ -47,7 +47,9 @@ export function useAutoDj() {
             albumId: t.albumId,
             artistId: t.artistId,
             coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
-            duration: t.duration
+            duration: t.duration,
+            bitRate: t.bitRate,
+            suffix: t.suffix
           }));
           addToQueue(mapped);
         } catch (error) {

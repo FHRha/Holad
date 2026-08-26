@@ -100,15 +100,15 @@ export default function AlbumView() {
                 <Play fill="currentColor" size={24} className="md:size-18 ml-1 md:ml-0" /> <span className="hidden md:inline">{t('views.play')}</span>
               </button>
               
-              <button onClick={handlePlayNext} className="hidden md:flex bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors items-center gap-2">
+              <button onClick={handlePlayNext} className="hidden md:flex bg-foreground/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors items-center gap-2">
                 <ListPlus size={18} /> {t('views.play_next')}
               </button>
               
-              <button onClick={handleAddToEnd} className="hidden md:block bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors">
+              <button onClick={handleAddToEnd} className="hidden md:block bg-foreground/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors">
                 {isAddedToQueue ? t('views.sent') : t('views.add_to_queue')}
               </button>
               
-              <button onClick={handleAlbumRadio} disabled={isRadioLoading} className="hidden md:flex bg-white/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors items-center gap-2">
+              <button onClick={handleAlbumRadio} disabled={isRadioLoading} className="hidden md:flex bg-foreground/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors items-center gap-2">
                 {isRadioLoading ? <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" /> : <Radio size={16} />}
                 {t('views.album_radio')}
               </button>
@@ -128,16 +128,16 @@ export default function AlbumView() {
               </div>
               
               <button onClick={handleLike} className="hover:scale-110 transition-transform ml-2">
-                <Heart size={28} className={isLiked ? "text-primary" : "text-white/70 hover:text-white"} fill={isLiked ? "currentColor" : "none"} />
+                <Heart size={28} className={isLiked ? "text-primary" : "text-white/70 hover:text-foreground"} fill={isLiked ? "currentColor" : "none"} />
               </button>
               
               <button onClick={() => toggleAlbumExclude(album.id)} className="hover:scale-110 transition-transform ml-2">
-                <Ban size={28} className={excludedAlbumIds.includes(album.id) ? "text-red-500" : "text-white/70 hover:text-white"} />
+                <Ban size={28} className={excludedAlbumIds.includes(album.id) ? "text-red-500" : "text-white/70 hover:text-foreground"} />
               </button>
               
               <button 
                 onClick={(e) => openMenu(e.clientX, e.clientY, album, 'album')}
-                className="text-white/70 hover:text-white transition-colors ml-2"
+                className="text-white/70 hover:text-foreground transition-colors ml-2"
               >
                 <MoreHorizontal size={28} />
               </button>
@@ -173,7 +173,7 @@ export default function AlbumView() {
                   onClick={() => {
                      handlePlaySong(index);
                   }}
-                  className={`flex items-center px-2 sm:px-4 py-2 sm:py-3 rounded-lg cursor-pointer group hover:bg-white/5 transition-colors ${currentPlaying ? 'bg-white/10' : ''}`}
+                  className={`flex items-center px-2 sm:px-4 py-2 sm:py-3 rounded-lg cursor-pointer group hover:bg-white/5 transition-colors ${currentPlaying ? 'bg-foreground/10' : ''}`}
                 >
                   <div className="w-8 sm:w-12 text-center text-xs sm:text-sm font-medium text-secondary">
                     {currentPlaying ? (
@@ -195,7 +195,7 @@ export default function AlbumView() {
                   <div className="hidden md:flex w-24 justify-center gap-4">
                     <Heart 
                       size={16} 
-                      className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3]/50 hover:text-white'}`}
+                      className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3]/50 hover:text-foreground'}`}
                       fill={isTrackLiked ? "currentColor" : "none"}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -246,8 +246,8 @@ export default function AlbumView() {
                 <div>
               <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">{t('views.tags')}</h3>
               <div className="flex flex-wrap gap-2">
-                <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-md text-xs font-semibold text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors">{t('views.album')}</span>
-                <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-md text-xs font-semibold text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors">official</span>
+                <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-md text-xs font-semibold text-white/80 hover:text-foreground hover:bg-foreground/10 cursor-pointer transition-colors">{t('views.album')}</span>
+                <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-md text-xs font-semibold text-white/80 hover:text-foreground hover:bg-foreground/10 cursor-pointer transition-colors">official</span>
               </div>
             </div>
             

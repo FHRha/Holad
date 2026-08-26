@@ -52,6 +52,8 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
       artistId: t.artistId,
       coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
       duration: t.duration,
+      bitRate: t.bitRate,
+      suffix: t.suffix,
       userRating: t.userRating
     }));
   };
@@ -114,14 +116,14 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
         <div className="flex gap-2">
           <button 
             onClick={() => scroll('left')} 
-            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors ${!canScrollLeft ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-foreground/10 transition-colors ${!canScrollLeft ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollLeft}
           >
             <ChevronLeft size={20} />
           </button>
           <button 
             onClick={() => scroll('right')} 
-            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors ${!canScrollRight ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-foreground/10 transition-colors ${!canScrollRight ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollRight}
           >
             <ChevronRight size={20} />

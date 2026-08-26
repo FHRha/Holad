@@ -224,7 +224,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       <div className="relative z-10 flex items-center justify-between px-4 py-4 w-full">
         <button 
           onClick={onClose}
-          className="p-2 text-secondary hover:bg-white/10 rounded-full transition-colors active:scale-95"
+          className="p-2 text-secondary hover:bg-foreground/10 rounded-full transition-colors active:scale-95"
         >
           <ChevronDown size={28} />
         </button>
@@ -235,7 +235,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
           <HoladConnectMenu />
           <button 
             onClick={(e) => openMenu(e.clientX, e.clientY, currentTrack, 'track')}
-            className="p-2 text-secondary hover:bg-white/10 rounded-full transition-colors active:scale-95"
+            className="p-2 text-secondary hover:bg-foreground/10 rounded-full transition-colors active:scale-95"
           >
             <MoreHorizontal size={24} />
           </button>
@@ -276,7 +276,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             <div className="flex items-center gap-1">
               <button 
                 onClick={handleLike}
-                className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${isLiked ? 'text-primary' : 'text-secondary hover:text-white'}`}
+                className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${isLiked ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
               >
                 <Heart size={24} fill={isLiked ? 'currentColor' : 'none'} />
               </button>
@@ -311,14 +311,14 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             <button 
               onClick={toggleShuffle} 
               disabled={role === 'listener'}
-              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${isShuffle ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-secondary hover:bg-white/10'}`}
+              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${isShuffle ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-secondary hover:bg-foreground/10'}`}
             >
               <Shuffle size={20} />
             </button>
             <button 
               onClick={prevTrack} 
               disabled={role === 'listener'} 
-              className="text-secondary hover:text-white active:scale-95 transition-colors disabled:opacity-50 p-2"
+              className="text-secondary hover:text-foreground active:scale-95 transition-colors disabled:opacity-50 p-2"
             >
               <SkipBack size={32} fill="currentColor" />
             </button>
@@ -336,14 +336,14 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             <button 
               onClick={nextTrack} 
               disabled={role === 'listener'} 
-              className="text-secondary hover:text-white active:scale-95 transition-colors disabled:opacity-50 p-2"
+              className="text-secondary hover:text-foreground active:scale-95 transition-colors disabled:opacity-50 p-2"
             >
               <SkipForward size={32} fill="currentColor" />
             </button>
             <button 
               onClick={cycleRepeatMode} 
               disabled={role === 'listener'}
-              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${repeatMode !== 'none' ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-secondary hover:bg-white/10'}`}
+              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${repeatMode !== 'none' ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-secondary hover:bg-foreground/10'}`}
             >
               {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
             </button>
@@ -351,21 +351,21 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
           {/* Secondary Controls Row */}
           <div className="flex items-center justify-between w-full px-4 pt-2 text-secondary">
-            <button onClick={() => setShowSleepTimerMenu(true)} className={`hover:text-white transition-colors active:scale-95 ${sleepTimer.type ? 'text-primary' : ''}`}>
+            <button onClick={() => setShowSleepTimerMenu(true)} className={`hover:text-foreground transition-colors active:scale-95 ${sleepTimer.type ? 'text-primary' : ''}`}>
               <Moon size={20} />
             </button>
-            <button onClick={handleRewind} className="hover:text-white transition-colors active:scale-95 relative flex items-center justify-center">
+            <button onClick={handleRewind} className="hover:text-foreground transition-colors active:scale-95 relative flex items-center justify-center">
               <RotateCcw size={20} />
               <span className="absolute text-[8px] font-bold mt-0.5">15</span>
             </button>
-            <button onClick={cyclePlaybackRate} className={`hover:text-white transition-colors active:scale-95 font-bold text-sm tracking-wider ${playbackRate !== 1 ? 'text-primary' : ''}`}>
+            <button onClick={cyclePlaybackRate} className={`hover:text-foreground transition-colors active:scale-95 font-bold text-sm tracking-wider ${playbackRate !== 1 ? 'text-primary' : ''}`}>
               {playbackRate}x
             </button>
-            <button onClick={handleFastForward} className="hover:text-white transition-colors active:scale-95 relative flex items-center justify-center">
+            <button onClick={handleFastForward} className="hover:text-foreground transition-colors active:scale-95 relative flex items-center justify-center">
               <RotateCw size={20} />
               <span className="absolute text-[8px] font-bold mt-0.5">30</span>
             </button>
-            <button onClick={handleBookmark} className={`hover:text-white transition-colors active:scale-95 ${isBookmarked ? 'text-primary' : ''}`}>
+            <button onClick={handleBookmark} className={`hover:text-foreground transition-colors active:scale-95 ${isBookmarked ? 'text-primary' : ''}`}>
               <Bookmark size={20} fill={isBookmarked ? 'currentColor' : 'none'} />
             </button>
           </div>
@@ -405,29 +405,29 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                 <Moon size={24} className="text-primary" />
                 {t('player.sleepTimer')}
               </h3>
-              <button onClick={() => setShowSleepTimerMenu(false)} className="p-2 text-secondary hover:text-white transition-colors rounded-full active:scale-95">
+              <button onClick={() => setShowSleepTimerMenu(false)} className="p-2 text-secondary hover:text-foreground transition-colors rounded-full active:scale-95">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
             
-            <button onClick={() => handleSetSleepTimer(15)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-white">
+            <button onClick={() => handleSetSleepTimer(15)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-white">
               <span>{t('player.timer.15m')}</span>
               {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) <= 15 && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 0 && <span className="w-2 h-2 rounded-full bg-primary" />}
             </button>
-            <button onClick={() => handleSetSleepTimer(30)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-white">
+            <button onClick={() => handleSetSleepTimer(30)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-white">
               <span>{t('player.timer.30m')}</span>
               {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 15 && Math.round((sleepTimer.endTime - Date.now()) / 60000) <= 30 && <span className="w-2 h-2 rounded-full bg-primary" />}
             </button>
-            <button onClick={() => handleSetSleepTimer(60)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-white">
+            <button onClick={() => handleSetSleepTimer(60)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-white">
               <span>{t('player.timer.60m')}</span>
               {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 30 && <span className="w-2 h-2 rounded-full bg-primary" />}
             </button>
-            <button onClick={() => handleSetSleepTimer('track_end')} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-white">
+            <button onClick={() => handleSetSleepTimer('track_end')} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-white">
               <span>{t('player.timer.trackEnd')}</span>
               {sleepTimer.type === 'track_end' && <span className="w-2 h-2 rounded-full bg-primary" />}
             </button>
-            <div className="w-full h-px bg-white/10 my-2" />
-            <button onClick={() => handleSetSleepTimer(null)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-colors flex justify-between items-center text-red-400">
+            <div className="w-full h-px bg-foreground/10 my-2" />
+            <button onClick={() => handleSetSleepTimer(null)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-red-400">
               <span>{t('player.timer.off')}</span>
             </button>
           </div>
