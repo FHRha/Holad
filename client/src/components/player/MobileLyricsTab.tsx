@@ -77,7 +77,7 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
                     key={idx} 
                     className={`text-xl md:text-2xl font-bold tracking-tight transition-all duration-500 px-2 ${
                       isLyricActive 
-                        ? 'text-primary scale-110 drop-shadow-[0_0_15px_rgba(29,185,84,0.5)]' 
+                        ? 'text-primary scale-110 drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
                         : isPast 
                           ? (isSectionHeader ? 'text-primary/40' : 'text-white/40')
                           : (isSectionHeader ? 'text-primary/70' : 'text-white/30 hover:text-white/50')

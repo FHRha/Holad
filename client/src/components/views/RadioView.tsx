@@ -71,9 +71,21 @@ export default function RadioView() {
   const visibleGenres = useMemo(() => {
     if (isOffline || activeFilter === 'Downloaded' || activeFilter === 'Offline') {
       const offline = getOfflineTracks();
-      return genres.filter(g => 
-        offline.some(t => t.genre?.toLowerCase() === g.value.toLowerCase())
-      );
+      const genreCounts = new Map<string, number>();
+      
+      offline.forEach(t => {
+        if (t.genre) {
+          const g = t.genre.trim();
+          if (g) {
+            genreCounts.set(g, (genreCounts.get(g) || 0) + 1);
+          }
+        }
+      });
+      
+      return Array.from(genreCounts.entries())
+        .map(([value, songCount]) => ({ value, songCount }))
+        .sort((a, b) => b.songCount - a.songCount)
+        .slice(0, 12);
     }
     return genres;
   }, [genres, isOffline, activeFilter]);

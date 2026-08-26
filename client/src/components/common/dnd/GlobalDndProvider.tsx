@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   DndContext, 
-  DragOverlay, 
+  DragOverlay,
   closestCenter,
   KeyboardSensor,
-  MouseSensor,
+  PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -35,7 +35,7 @@ export function GlobalDndProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const sensors = useSensors(
-    useSensor(MouseSensor, {
+    useSensor(PointerSensor, {
       activationConstraint: {
         distance: 5,
       },

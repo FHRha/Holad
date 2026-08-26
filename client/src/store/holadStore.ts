@@ -312,7 +312,9 @@ export const useHoladStore = create<HoladState>((set, get) => {
                 isPlaying: store.isPlaying,
                 currentIndex: store.currentIndex,
                 queue: store.queue,
-                currentTime: currentTime
+                currentTime: currentTime,
+                accentColor: useSettingsStore.getState().accentColor,
+                customColors: useSettingsStore.getState().customColors
               };
               socket?.emit('holad_updateState', { roomId: get().roomId, deviceId, ...stateToSync });
               // Then hand over control
@@ -366,7 +368,9 @@ export const useHoladStore = create<HoladState>((set, get) => {
             isPlaying: state.isPlaying,
             currentIndex: state.currentIndex,
             queue: state.queue,
-            currentTime: currentTime
+            currentTime: currentTime,
+            accentColor: useSettingsStore.getState().accentColor,
+            customColors: useSettingsStore.getState().customColors
           };
           
           if (state.isPlaying !== prevState?.isPlaying || state.currentIndex !== prevState?.currentIndex || state.queue?.length !== prevState?.queue?.length) {

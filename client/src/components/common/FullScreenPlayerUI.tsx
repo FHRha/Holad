@@ -131,8 +131,14 @@ export default function FullScreenPlayerUI({
           <p className="text-base text-white/40 mb-8 text-center drop-shadow">{displayTrack.album || 'Unknown Album'}</p>
           
           <div className="flex gap-4">
-            <span className="px-4 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest border border-primary/30 backdrop-blur-md shadow-lg">MP3</span>
-            <span className="px-4 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest border border-primary/30 backdrop-blur-md shadow-lg">320kbps</span>
+            <span className="px-4 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest border border-primary/30 backdrop-blur-md shadow-lg">
+              {((displayTrack as any).suffix || 'MP3').toUpperCase()}
+            </span>
+            <span className="px-4 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest border border-primary/30 backdrop-blur-md shadow-lg">
+              {((displayTrack as any).bitRate || (displayTrack as any).bitrate) 
+                ? `${((displayTrack as any).bitRate || (displayTrack as any).bitrate)}kbps` 
+                : 'UNKNOWN'}
+            </span>
           </div>
         </div>
 
@@ -230,7 +236,7 @@ export default function FullScreenPlayerUI({
                           key={idx} 
                           className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight transition-all duration-500 cursor-pointer px-4 ${
                             isActive 
-                              ? 'text-primary scale-110 drop-shadow-[0_0_15px_rgba(29,185,84,0.5)]' 
+                              ? 'text-primary scale-110 drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
                               : isPast 
                                 ? 'text-white/40' 
                                 : 'text-white/30 hover:text-white/50'

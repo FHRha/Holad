@@ -32,6 +32,7 @@ export default function LoginView() {
 
     try {
       setLoading(true);
+      const cleanUsername = username.trim();
       const salt = Math.random().toString(36).substring(2, 15);
       const token = md5(password + salt);
 
@@ -39,7 +40,7 @@ export default function LoginView() {
       const response = await fetch(`${proxyUrl}/api/save-credentials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, username, token, salt })
+        body: JSON.stringify({ url, username: cleanUsername, token, salt })
       });
       
       if (!response.ok) {
@@ -60,7 +61,7 @@ export default function LoginView() {
       }
 
       // If valid, save locally to Zustand store
-      setCredentials(url, username, token, salt);
+      setCredentials(url, cleanUsername, token, salt);
       
       setAuthenticated(true);
       navigate('/Holad', { replace: true });

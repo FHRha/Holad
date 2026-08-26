@@ -74,7 +74,11 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
         
         <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center justify-center">
           <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.bitrate')}</span>
-          <span className="font-bold text-sm text-white">{(currentTrack as any).bitRate ? `${(currentTrack as any).bitRate} kbps` : '320 kbps'}</span>
+          <span className="font-bold text-sm text-white">
+            {((currentTrack as any).bitRate || (currentTrack as any).bitrate) 
+              ? `${(currentTrack as any).bitRate || (currentTrack as any).bitrate} kbps` 
+              : 'Unknown'}
+          </span>
         </div>
       </div>
 
