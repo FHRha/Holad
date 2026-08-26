@@ -181,7 +181,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             if (trackDuration) {
                 try {
                     (incomingDeck.element as any).duration = trackDuration;
-                } catch {}
+                } catch { /* Browser restriction fallback: property is read-only or locked */ }
             }
 
             if (this.pipeline) {
@@ -224,7 +224,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             if (trackDuration) {
                 try {
                     (incomingDeck.element as any).duration = trackDuration;
-                } catch {}
+                } catch { /* Browser restriction fallback: property is read-only or locked */ }
             }
 
             if (this.pipeline) {
@@ -254,7 +254,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             if (trackDuration) {
                 try {
                     (activeDeck.element as any).duration = trackDuration;
-                } catch {}
+                } catch { /* Browser restriction fallback: property is read-only or locked */ }
             }
             
             this.deckTrackIds[this.activeIndex] = track?.id || null;
@@ -301,7 +301,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         if (curTrackDur > 0 && activeDeck.getDuration() < curTrackDur) {
             try {
                 (activeDeck.element as any).duration = curTrackDur;
-            } catch {}
+            } catch { /* Browser restriction fallback: property is read-only or locked */ }
         }
         activeDeck.seek(positionSeconds);
         this.emit('timeupdate', activeDeck.getCurrentTime());
@@ -459,7 +459,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                     deck.element.src = '';
                     deck.element.removeAttribute('src');
                     Object.defineProperty(deck.element, 'src', { value: '', writable: true, configurable: true });
-                } catch {}
+                } catch { /* Browser restriction fallback: property is read-only or locked */ }
             }
         });
         this.pipeline?.destroy();

@@ -302,7 +302,7 @@ function App() {
 
   return (
     <Router>
-      <Toaster theme={theme === 'dark' ? 'dark' : 'light'} position="bottom-center" />
+      <Toaster theme={theme === 'dark' ? 'dark' : 'light'} position="bottom-center" richColors />
       <Routes>
         <Route path="/*" element={<AppContent />} />
       </Routes>

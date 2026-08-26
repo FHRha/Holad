@@ -6,6 +6,7 @@ import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager
 import { useDownloadStore } from '../../store/downloadStore';
 import { cancelActiveDownload } from '../../utils/downloadHelper';
 import { clearImageCache } from '../../utils/imageCache';
+import { toast } from 'sonner';
 
 interface StorageDangerZoneProps {
   isMobile?: boolean;
@@ -57,7 +58,11 @@ export default function StorageDangerZone({
             const { Filesystem, Directory } = await import('@capacitor/filesystem');
             try {
               await Filesystem.rmdir({ path: 'Holad/covers', directory: Directory.Data, recursive: true });
-            } catch {}
+            } catch (e: any) {
+              if (e.message && !e.message.includes('does not exist')) {
+                toast.error(t('settings.storage_error', { defaultValue: 'Storage Error' }) + ': ' + e.message);
+              }
+            }
           } catch (e) {
             console.warn('Capacitor covers folder cleanup error:', e);
           }
@@ -158,8 +163,12 @@ export default function StorageDangerZone({
         } else if (isCapacitor()) {
           try {
             const { Filesystem, Directory } = await import('@capacitor/filesystem');
-            try { await Filesystem.rmdir({ path: 'Holad/tracks', directory: Directory.Data, recursive: true }); } catch {}
-            try { await Filesystem.rmdir({ path: 'Holad/albums', directory: Directory.Data, recursive: true }); } catch {}
+            try { await Filesystem.rmdir({ path: 'Holad/tracks', directory: Directory.Data, recursive: true }); } catch (e: any) {
+              if (e.message && !e.message.includes('does not exist')) toast.error(t('settings.storage_error', { defaultValue: 'Storage Error' }) + ': ' + e.message);
+            }
+            try { await Filesystem.rmdir({ path: 'Holad/albums', directory: Directory.Data, recursive: true }); } catch (e: any) {
+              if (e.message && !e.message.includes('does not exist')) toast.error(t('settings.storage_error', { defaultValue: 'Storage Error' }) + ': ' + e.message);
+            }
           } catch (e) {
             console.warn('Capacitor root folder cleanup error:', e);
           }

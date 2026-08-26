@@ -2,6 +2,7 @@ import { writeFile, mkdir, exists, remove, copyFile, readDir } from '@tauri-apps
 import { join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useDownloadStore } from '../store/downloadStore';
+import { toast } from 'sonner';
 
 // Check if we are running inside Tauri
 export const isTauri = () => {
@@ -229,7 +230,12 @@ export class StorageManager {
             const uri = await Filesystem.getUri({ path: coverPathOrId, directory: Directory.Data });
             return Capacitor.convertFileSrc(uri.uri);
           }
-        } catch {}
+        } catch (e: any) {
+          if (e.message && !e.message.includes('does not exist')) {
+            console.error('Storage Error (Cover Check):', e);
+            toast.error(`Storage Error: ${e.message}`);
+          }
+        }
 
         const extensions = ['', '.jpg', '.jpeg', '.png', '.webp'];
         for (const ext of extensions) {
@@ -240,7 +246,12 @@ export class StorageManager {
               const uri = await Filesystem.getUri({ path: testPath, directory: Directory.Data });
               return Capacitor.convertFileSrc(uri.uri);
             }
-          } catch {}
+          } catch (e: any) {
+            if (e.message && !e.message.includes('does not exist')) {
+              console.error('Storage Error (Cover Check Extensions):', e);
+              toast.error(`Storage Error: ${e.message}`);
+            }
+          }
         }
       } catch (e) {
         console.error('Error resolving local cover URI via Capacitor:', e);
@@ -356,7 +367,12 @@ export class StorageManager {
              const uri = await Filesystem.getUri({ path: trackDownload.path, directory: Directory.Data });
              return Capacitor.convertFileSrc(uri.uri);
           }
-        } catch {}
+        } catch (e: any) {
+          if (e.message && !e.message.includes('does not exist')) {
+            console.error('Storage Error (Track URI):', e);
+            toast.error(`Storage Error: ${e.message}`);
+          }
+        }
       }
     }
 
@@ -394,7 +410,12 @@ export class StorageManager {
                 const uri = await Filesystem.getUri({ path: fullPath, directory: Directory.Data });
                 return Capacitor.convertFileSrc(uri.uri);
              }
-          } catch {}
+          } catch (e: any) {
+            if (e.message && !e.message.includes('does not exist')) {
+              console.error('Storage Error (Track Check):', e);
+              toast.error(`Storage Error: ${e.message}`);
+            }
+          }
         }
       }
     }

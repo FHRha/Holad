@@ -3,6 +3,7 @@ import { X, Trash2, CheckSquare, Square, Music, Disc3, Search } from 'lucide-rea
 import { useDownloadStore } from '../../store/downloadStore';
 import { StorageManager } from '../../utils/StorageManager';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 interface Props {
   onClose: () => void;
@@ -81,7 +82,9 @@ export default function DeleteDownloadsModal({ onClose }: Props) {
         for (const childId in downloads) {
           if (downloads[childId].albumId === item.id) {
             if (downloads[childId].path && downloads[childId].path !== item.path) {
-              try { await StorageManager.removeTrack(downloads[childId].path); } catch {}
+              try { await StorageManager.removeTrack(downloads[childId].path); } catch (e: any) {
+                if (e.message && !e.message.includes('does not exist')) toast.error(t('settings.storage_error', { defaultValue: 'Failed to delete file' }) + ': ' + e.message);
+              }
             }
             removeDownload(childId);
           }
