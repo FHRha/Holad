@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Palette, Settings2, MonitorPlay, Pencil, Check, HardDrive, FolderSearch } from 'lucide-react';
+import { X, Palette, Settings2, MonitorPlay, Pencil, Check, HardDrive, FolderSearch, Speaker } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { AppTheme, AccentColor, StartPage } from '../../store/settingsStore';
@@ -63,7 +63,7 @@ export default function SettingsModal({
 }: {
   isOpen?: boolean;
   onClose?: () => void;
-  initialTab?: 'general' | 'appearance' | 'player' | 'storage';
+  initialTab?: 'general' | 'appearance' | 'player' | 'audio' | 'storage';
 } = {}) {
   const { t } = useTranslation();
   const { isSettingsOpen, setSettingsOpen } = useUIStore();
@@ -78,7 +78,7 @@ export default function SettingsModal({
   const volumeMultiplier = usePlayerStore(state => state.volumeMultiplier || 1.0);
   const setVolumeMultiplier = usePlayerStore(state => state.setVolumeMultiplier);
   
-  const [activeTab, setActiveTab] = useState<'general' | 'appearance' | 'player' | 'storage'>(
+  const [activeTab, setActiveTab] = useState<'general' | 'appearance' | 'player' | 'audio' | 'storage'>(
     initialTab || (typeof isOpen === 'boolean' ? 'player' : 'general')
   );
   const [resetState, setResetState] = useState<'idle' | 'confirm' | 'done'>('idle');
@@ -169,7 +169,15 @@ export default function SettingsModal({
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'player' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
             >
               <MonitorPlay size={20} className={activeTab === 'player' ? 'animate-pulse-slow' : ''} />
-              <span>{t('settings.player')}</span>
+              <span>{t('settings.player') || 'Плеер'}</span>
+            </button>
+
+            <button 
+              onClick={() => { setActiveTab('audio'); setEditingColorIndex(null); }}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'audio' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+            >
+              <Speaker size={20} className={activeTab === 'audio' ? 'animate-pulse-slow' : ''} />
+              <span>{t('settings.audio') || 'Звук'}</span>
             </button>
 
             <button 
@@ -209,7 +217,8 @@ export default function SettingsModal({
               {activeTab === 'general' && (t('settings.general') || 'Общие')}
               {activeTab === 'appearance' && (t('settings.appearance') || 'Внешний вид')}
               {activeTab === 'player' && (t('settings.player') || 'Плеер')}
-              {activeTab === 'storage' && (t('settings.storage'))}
+              {activeTab === 'audio' && (t('settings.audio') || 'Звук')}
+              {activeTab === 'storage' && (t('settings.storage') || 'Хранилище')}
             </h3>
             <button 
               onClick={handleClose}
@@ -514,91 +523,7 @@ export default function SettingsModal({
                   </label>
                 </SettingSection>
 
-                <SettingSection title={t('settings.crossfade')}>
-                  <div className="flex flex-col gap-4">
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.isCrossfadeEnabled} 
-                        onChange={(e) => settings.setIsCrossfadeEnabled(e.target.checked)}
-                        className="accent-primary w-4 h-4 rounded cursor-pointer"
-                      />
-                      <span className="group-hover:text-primary transition-colors text-sm">
-                        {t('settings.crossfade_desc')}
-                      </span>
-                    </label>
-                    {settings.isCrossfadeEnabled && (
-                      <div className="pt-2 pb-1 space-y-4 opacity-100 transition-opacity">
-                        <div>
-                          <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>{t('settings.crossfade_duration')}</span>
-                            <span>{settings.crossfadeDuration} сек</span>
-                          </div>
-                          <input 
-                            type="range" 
-                            min="1" 
-                            max="12" 
-                            value={settings.crossfadeDuration} 
-                            onChange={(e) => settings.setCrossfadeDuration(parseInt(e.target.value))}
-                            className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                          <div className="flex justify-between text-xs text-secondary mt-2">
-                            <span>1s</span>
-                            <span>12s</span>
-                          </div>
-                        </div>
 
-                        <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
-                          <span className="text-xs text-secondary font-medium">{t('settings.crossfade_curve')}</span>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => settings.setCrossfadeCurve('equalPower')}
-                              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${settings.crossfadeCurve === 'equalPower' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-secondary hover:border-white/20'}`}
-                            >
-                              {t('settings.curve_equal_power')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => settings.setCrossfadeCurve('linear')}
-                              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${settings.crossfadeCurve === 'linear' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-secondary hover:border-white/20'}`}
-                            >
-                              {t('settings.curve_linear')}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </SettingSection>
-
-                <SettingSection title={t('settings.gapless')}>
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      checked={settings.isGaplessEnabled} 
-                      onChange={(e) => settings.setIsGaplessEnabled(e.target.checked)}
-                      className="accent-primary w-4 h-4 rounded cursor-pointer"
-                    />
-                    <span className="group-hover:text-primary transition-colors text-sm">
-                      {t('settings.gapless_desc')}
-                    </span>
-                  </label>
-                </SettingSection>
-
-                <SettingSection title={t('settings.normalization')}>
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      checked={settings.isLoudnessNormalizationEnabled} 
-                      onChange={(e) => settings.setIsLoudnessNormalizationEnabled(e.target.checked)}
-                      className="accent-primary w-4 h-4 rounded cursor-pointer"
-                    />
-                    <span className="group-hover:text-primary transition-colors text-sm">
-                      {t('settings.normalization_desc')}
-                    </span>
-                  </label>
-                </SettingSection>
 
                 <SettingSection title={t('settings.prebuffering')}>
                   <label className="flex items-center gap-3 cursor-pointer group">
@@ -642,6 +567,187 @@ export default function SettingsModal({
                       className="bg-black/20 border border-white/10 rounded-lg py-2 px-3 w-24 text-center outline-none focus:border-primary transition-colors text-foreground font-mono"
                     />
                     <span className="text-sm text-secondary font-medium">%</span>
+                  </div>
+                </SettingSection>
+              </div>
+            )}
+
+            {activeTab === 'audio' && (
+              <div className="space-y-8">
+                <SettingSection title={t('settings.crossfade') || 'Плавный переход (Кроссфейд)'}>
+                  <div className="flex flex-col gap-4">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.isCrossfadeEnabled} 
+                        onChange={(e) => settings.setIsCrossfadeEnabled(e.target.checked)}
+                        className="accent-primary w-4 h-4 rounded cursor-pointer"
+                      />
+                      <span className="group-hover:text-primary transition-colors text-sm">
+                        {t('settings.crossfade_desc') || 'Плавное перетекание одного трека в другой'}
+                      </span>
+                    </label>
+                    {settings.isCrossfadeEnabled && (
+                      <div className="pt-2 pb-1 space-y-4 opacity-100 transition-opacity">
+                        <div>
+                          <div className="flex justify-between text-xs text-secondary mb-2">
+                            <span>{t('settings.crossfade_duration') || 'Длительность кроссфейда'}</span>
+                            <span>{settings.crossfadeDuration} сек</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="1" 
+                            max="12" 
+                            value={settings.crossfadeDuration} 
+                            onChange={(e) => settings.setCrossfadeDuration(parseInt(e.target.value))}
+                            className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                          <div className="flex justify-between text-xs text-secondary mt-2">
+                            <span>1s</span>
+                            <span>12s</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
+                          <span className="text-xs text-secondary font-medium">{t('settings.crossfade_curve') || 'Кривая кроссфейда'}</span>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => settings.setCrossfadeCurve('equalPower')}
+                              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${settings.crossfadeCurve === 'equalPower' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-secondary hover:border-white/20'}`}
+                            >
+                              {t('settings.curve_equal_power') || 'Равная мощность'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => settings.setCrossfadeCurve('linear')}
+                              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${settings.crossfadeCurve === 'linear' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-secondary hover:border-white/20'}`}
+                            >
+                              {t('settings.curve_linear') || 'Линейная'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </SettingSection>
+
+                <SettingSection title={t('settings.gapless') || 'Без пауз (Gapless)'}>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      checked={settings.isGaplessEnabled} 
+                      onChange={(e) => settings.setIsGaplessEnabled(e.target.checked)}
+                      className="accent-primary w-4 h-4 rounded cursor-pointer"
+                    />
+                    <span className="group-hover:text-primary transition-colors text-sm">
+                      {t('settings.gapless_desc') || 'Убирать тишину между треками (отключает кроссфейд)'}
+                    </span>
+                  </label>
+                </SettingSection>
+
+                <SettingSection title={t('settings.normalization') || 'Нормализация громкости'}>
+                  <div className="flex flex-col gap-4">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.isLoudnessNormalizationEnabled} 
+                        onChange={(e) => settings.setIsLoudnessNormalizationEnabled(e.target.checked)}
+                        className="accent-primary w-4 h-4 rounded cursor-pointer"
+                      />
+                      <span className="group-hover:text-primary transition-colors text-sm">
+                        {t('settings.normalization_desc') || 'Автоматически выравнивать громкость треков (Компрессор)'}
+                      </span>
+                    </label>
+
+                    {settings.isLoudnessNormalizationEnabled && (
+                      <div className="pt-2 pb-1 space-y-6 opacity-100 transition-opacity border-t border-white/5 mt-2">
+                        
+                        {/* Threshold */}
+                        <div>
+                          <div className="flex justify-between text-xs text-secondary mb-2">
+                            <span>Порог срабатывания (Threshold)</span>
+                            <span>{settings.compressorThreshold} dB</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="-100" 
+                            max="0" 
+                            value={settings.compressorThreshold} 
+                            onChange={(e) => settings.setCompressorThreshold(parseFloat(e.target.value))}
+                            className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                          <div className="flex justify-between text-xs text-secondary mt-2">
+                            <span>-100 dB</span>
+                            <span>0 dB</span>
+                          </div>
+                        </div>
+
+                        {/* Ratio */}
+                        <div>
+                          <div className="flex justify-between text-xs text-secondary mb-2">
+                            <span>Степень сжатия (Ratio)</span>
+                            <span>{settings.compressorRatio}:1</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="1" 
+                            max="20" 
+                            step="0.5"
+                            value={settings.compressorRatio} 
+                            onChange={(e) => settings.setCompressorRatio(parseFloat(e.target.value))}
+                            className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                          <div className="flex justify-between text-xs text-secondary mt-2">
+                            <span>1:1</span>
+                            <span>20:1</span>
+                          </div>
+                        </div>
+
+                        {/* Attack */}
+                        <div>
+                          <div className="flex justify-between text-xs text-secondary mb-2">
+                            <span>Атака (Attack)</span>
+                            <span>{settings.compressorAttack} s</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="1" 
+                            step="0.001"
+                            value={settings.compressorAttack} 
+                            onChange={(e) => settings.setCompressorAttack(parseFloat(e.target.value))}
+                            className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                          <div className="flex justify-between text-xs text-secondary mt-2">
+                            <span>0 s</span>
+                            <span>1 s</span>
+                          </div>
+                        </div>
+
+                        {/* Release */}
+                        <div>
+                          <div className="flex justify-between text-xs text-secondary mb-2">
+                            <span>Восстановление (Release)</span>
+                            <span>{settings.compressorRelease} s</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="1" 
+                            step="0.01"
+                            value={settings.compressorRelease} 
+                            onChange={(e) => settings.setCompressorRelease(parseFloat(e.target.value))}
+                            className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                          <div className="flex justify-between text-xs text-secondary mt-2">
+                            <span>0 s</span>
+                            <span>1 s</span>
+                          </div>
+                        </div>
+
+                      </div>
+                    )}
                   </div>
                 </SettingSection>
               </div>

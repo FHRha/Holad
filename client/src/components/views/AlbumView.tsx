@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Play, Pause, Heart, Star, MoreHorizontal, Clock, Radio, Music, ListPlus, ArrowLeft, Download } from 'lucide-react';
+import { Play, Pause, Heart, Star, MoreHorizontal, Clock, Radio, Music, ListPlus, ArrowLeft, Download, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
@@ -16,7 +16,7 @@ export default function AlbumView() {
   const navigate = useNavigate();
   const observerTarget = useRef<HTMLDivElement>(null);
   
-  const { queue, currentIndex, likedTrackIds, toggleTrackLike, isPlaying } = usePlayerStore();
+  const { queue, currentIndex, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, toggleTrackExclude, toggleAlbumExclude, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const downloads = useDownloadStore(state => state.downloads);
 
@@ -131,6 +131,10 @@ export default function AlbumView() {
                 <Heart size={28} className={isLiked ? "text-primary" : "text-white/70 hover:text-white"} fill={isLiked ? "currentColor" : "none"} />
               </button>
               
+              <button onClick={() => toggleAlbumExclude(album.id)} className="hover:scale-110 transition-transform ml-2">
+                <Ban size={28} className={excludedAlbumIds.includes(album.id) ? "text-red-500" : "text-white/70 hover:text-white"} />
+              </button>
+              
               <button 
                 onClick={(e) => openMenu(e.clientX, e.clientY, album, 'album')}
                 className="text-white/70 hover:text-white transition-colors ml-2"
@@ -150,7 +154,7 @@ export default function AlbumView() {
             <div className="hidden md:flex px-4 py-2 text-xs font-semibold tracking-widest text-secondary border-b border-white/10 uppercase mb-2">
               <div className="w-12 text-center">#</div>
               <div className="flex-1">{t('views.title')}</div>
-              <div className="w-16 flex justify-center"><Heart size={14} /></div>
+              <div className="w-24 flex justify-center gap-4"><Heart size={14} /><Ban size={14} /></div>
               <div className="w-16 text-right"><Clock size={14} className="inline-block" /></div>
             </div>
             
@@ -188,7 +192,7 @@ export default function AlbumView() {
                     </span>
                     <ArtistLinks artistString={track.artist || album.artist} artistId={track.artistId || album.artistId} className="text-xs text-secondary truncate" />
                   </div>
-                  <div className="hidden md:flex w-16 justify-center">
+                  <div className="hidden md:flex w-24 justify-center gap-4">
                     <Heart 
                       size={16} 
                       className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3]/50 hover:text-white'}`}
@@ -198,6 +202,14 @@ export default function AlbumView() {
                         toggleTrackLike(track.id);
                         if (isTrackLiked) unstarItem(track.id);
                         else starItem(track.id);
+                      }}
+                    />
+                    <Ban
+                      size={16}
+                      className={`opacity-0 group-hover:opacity-100 transition-opacity ${excludedTrackIds.includes(track.id) ? 'opacity-100 text-red-500' : 'text-[#b3b3b3]/50 hover:text-red-400'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleTrackExclude(track.id);
                       }}
                     />
                   </div>

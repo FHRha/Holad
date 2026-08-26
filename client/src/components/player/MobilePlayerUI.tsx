@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   ChevronDown, MoreHorizontal, Heart, Shuffle, SkipBack, 
   Play, Pause, SkipForward, Repeat, Repeat1, Moon, 
-  Bookmark, Music, Info, MessageSquareQuote, RotateCcw, RotateCw 
+  Bookmark, Music, Info, MessageSquareQuote, RotateCcw, RotateCw, Ban
 } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
@@ -24,7 +24,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const { 
     queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, 
-    role, likedTrackIds, toggleTrackLike, isShuffle, toggleShuffle, 
+    role, likedTrackIds, toggleTrackLike, excludedTrackIds, toggleTrackExclude, isShuffle, toggleShuffle, 
     repeatMode, cycleRepeatMode, playbackRate, cyclePlaybackRate, 
     sleepTimer, setSleepTimer
   } = usePlayerStore();
@@ -271,12 +271,20 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               <h1 className="text-2xl font-bold text-white truncate drop-shadow-md">{currentTrack.title}</h1>
               <h2 className="text-base text-white/70 truncate drop-shadow-md">{formatArtistName(currentTrack.artist)}</h2>
             </div>
-            <button 
-              onClick={handleLike}
-              className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${isLiked ? 'text-primary' : 'text-white/70 hover:text-white'}`}
-            >
-              <Heart size={24} fill={isLiked ? 'currentColor' : 'none'} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={handleLike}
+                className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${isLiked ? 'text-primary' : 'text-white/70 hover:text-white'}`}
+              >
+                <Heart size={24} fill={isLiked ? 'currentColor' : 'none'} />
+              </button>
+              <button 
+                onClick={() => toggleTrackExclude(currentTrack.id)}
+                className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${excludedTrackIds.includes(currentTrack.id) ? 'text-red-500' : 'text-white/70 hover:text-red-400'}`}
+              >
+                <Ban size={24} />
+              </button>
+            </div>
           </div>
 
           {/* Progress Bar */}

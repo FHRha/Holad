@@ -40,6 +40,8 @@ export const usePlayerStore = create<PlayerState>()(
             mobileVolume: state.mobileVolume,
             volumeMultiplier: state.volumeMultiplier,
             userName: state.userName,
+            excludedTrackIds: state.excludedTrackIds,
+            excludedAlbumIds: state.excludedAlbumIds,
           };
         }
 
@@ -54,6 +56,8 @@ export const usePlayerStore = create<PlayerState>()(
           repeatMode: state.repeatMode,
           isAutoDjEnabled: state.isAutoDjEnabled,
           userName: state.userName,
+          excludedTrackIds: state.excludedTrackIds,
+          excludedAlbumIds: state.excludedAlbumIds,
         };
       },
       version: 1,

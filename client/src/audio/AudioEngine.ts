@@ -169,12 +169,6 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             // This prevents old audio's timeupdate events from leaking into the new track while loading
             this.transitionManager.abortActiveTransition(outgoingDeck, incomingDeck, this.pipeline || undefined, outgoingIndex, this.volume * this.volumeMultiplier);
 
-            // R7: Immediately switch activeIndex to incoming track at crossfade start,
-            // emitting timeupdate and durationchange immediately so progress slider and lyrics jump to track 2's timing
-            this.activeIndex = incomingIndex;
-            this.emit('timeupdate', position);
-            this.emit('durationchange', trackDuration || incomingDeck.getDuration() || 0);
-
             if (trackDuration) {
                 try {
                     (incomingDeck.element as any).duration = trackDuration;
@@ -186,6 +180,12 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             }
 
             await incomingDeck.load(streamUrl, position);
+
+            // R7: Switch activeIndex to incoming track at crossfade start,
+            // emitting timeupdate and durationchange immediately so progress slider and lyrics jump to track 2's timing
+            this.activeIndex = incomingIndex;
+            this.emit('timeupdate', position);
+            this.emit('durationchange', trackDuration || incomingDeck.getDuration() || 0);
 
             const rawDuration = options.transitionDuration !== undefined ? options.transitionDuration : this.settings.crossfadeDuration;
             const effectiveDuration = trackDuration !== undefined && trackDuration < 1
@@ -209,10 +209,6 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
             this.transitionManager.abortActiveTransition(outgoingDeck, incomingDeck, this.pipeline || undefined, outgoingIndex, this.volume * this.volumeMultiplier);
 
-            this.activeIndex = incomingIndex;
-            this.emit('timeupdate', position);
-            this.emit('durationchange', trackDuration || incomingDeck.getDuration() || 0);
-
             if (trackDuration) {
                 try {
                     (incomingDeck.element as any).duration = trackDuration;
@@ -222,6 +218,10 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             if (this.pipeline) {
                 await this.pipeline.unlockContext();
             }
+
+            this.activeIndex = incomingIndex;
+            this.emit('timeupdate', position);
+            this.emit('durationchange', trackDuration || incomingDeck.getDuration() || 0);
 
             await this.transitionManager.performGaplessHandover(
                 outgoingDeck,
@@ -347,6 +347,14 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         }
         if (newSettings.isLoudnessNormalizationEnabled !== undefined && this.pipeline) {
             this.pipeline.setNormalizationEnabled(newSettings.isLoudnessNormalizationEnabled);
+        }
+        if (this.pipeline) {
+            this.pipeline.setCompressorSettings({
+                threshold: newSettings.compressorThreshold,
+                ratio: newSettings.compressorRatio,
+                attack: newSettings.compressorAttack,
+                release: newSettings.compressorRelease
+            });
         }
     }
 

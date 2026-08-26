@@ -43,6 +43,8 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
           } catch {
             // ignore
           }
+        } else {
+          set({ buffered: 0 });
         }
       };
 

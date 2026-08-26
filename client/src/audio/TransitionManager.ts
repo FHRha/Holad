@@ -80,13 +80,10 @@ export class TransitionManager {
         // oxlint-disable-next-line
         incomingDeck.setVolume(0.0 * masterVolume);
 
-        // Start playing the incoming deck but do NOT await it.
-        // This ensures the crossfade transition starts immediately without waiting for buffering,
-        // eliminating the sluggishness on manual skip and automatic transitions.
-        incomingDeck.play().catch((e) => {
-            console.warn('Crossfade incoming deck play warning:', e);
-            // On mobile/browsers with strict autoplay policies, if the incoming deck fails to play,
-            // we abort the crossfade transition immediately.
+        try {
+            await incomingDeck.play();
+        } catch (e) {
+            console.warn('Crossfade incoming deck play error:', e);
             
             if (pipeline) {
                 pipeline.setDeckGain(outgoingIndex, 0.0, 0);
@@ -102,84 +99,47 @@ export class TransitionManager {
             if (this.abortController) {
                 this.abortController.abort();
             }
-        });
+        }
 
         if (signal.aborted) {
             this.isTransitioning = false;
             return;
         }
 
-        return new Promise<void>((resolve) => {
-            const stepDurationMs = 50;
-            const durationMs = durationSeconds * 1000;
-            const startTime = Date.now();
+        if (pipeline) {
+            const startTime = pipeline.context.currentTime + 0.02;
+            pipeline.scheduleCrossfade(outgoingIndex, incomingIndex, durationSeconds, curve, startTime);
+        }
 
-            const cleanup = () => {
-                if (this.transitionInterval) {
-                    clearInterval(this.transitionInterval);
-                    this.transitionInterval = null;
-                }
+        return new Promise<void>((resolve) => {
+            const onAbort = () => {
+                if (timeoutId) clearTimeout(timeoutId);
                 this.isTransitioning = false;
                 signal.removeEventListener('abort', onAbort);
-            };
-
-            const onAbort = () => {
-                cleanup();
                 resolve();
             };
 
             signal.addEventListener('abort', onAbort, { once: true });
 
-            this.transitionInterval = setInterval(() => {
-                if (signal.aborted) {
-                    cleanup();
-                    resolve();
-                    return;
-                }
+            const timeoutId = setTimeout(() => {
+                if (signal.aborted) return;
+                
+                this.isTransitioning = false;
+                signal.removeEventListener('abort', onAbort);
 
-                const elapsed = Date.now() - startTime;
-                const progress = Math.min(1.0, elapsed / durationMs);
-
-                let fadeOutGain: number;
-                let fadeInGain: number;
-
-                if (curve === 'equalPower') {
-                    // Equal power: cos(t * PI / 2) and sin(t * PI / 2)
-                    // Note: cos^2 + sin^2 = 1.0 (constant acoustic power)
-                    const angle = progress * (Math.PI / 2);
-                    fadeOutGain = Math.cos(angle);
-                    fadeInGain = Math.sin(angle);
-                } else {
-                    // Linear: (1 - t) and t
-                    fadeOutGain = 1.0 - progress;
-                    fadeInGain = progress;
-                }
-
-                // Apply gains
+                // Ensure final state
                 if (pipeline) {
-                    pipeline.setDeckGain(outgoingIndex, fadeOutGain, 0.02);
-                    pipeline.setDeckGain(incomingIndex, fadeInGain, 0.02);
+                    pipeline.setDeckGain(outgoingIndex, 0.0, 0);
+                    pipeline.setDeckGain(incomingIndex, 1.0, 0);
                 }
-                outgoingDeck.setVolume(fadeOutGain * masterVolume);
-                incomingDeck.setVolume(fadeInGain * masterVolume);
+                // oxlint-disable-next-line
+                outgoingDeck.setVolume(0.0 * masterVolume);
+                incomingDeck.setVolume(1.0 * masterVolume);
 
-                if (progress >= 1.0) {
-                    cleanup();
-
-                    // Ensure final state
-                    if (pipeline) {
-                        pipeline.setDeckGain(outgoingIndex, 0.0, 0);
-                        pipeline.setDeckGain(incomingIndex, 1.0, 0);
-                    }
-                    // oxlint-disable-next-line
-                    outgoingDeck.setVolume(0.0 * masterVolume);
-                    incomingDeck.setVolume(1.0 * masterVolume);
-
-                    outgoingDeck.pause();
-                    outgoingDeck.seek(0);
-                    resolve();
-                }
-            }, stepDurationMs);
+                outgoingDeck.pause();
+                outgoingDeck.seek(0);
+                resolve();
+            }, durationSeconds * 1000);
         });
     }
 

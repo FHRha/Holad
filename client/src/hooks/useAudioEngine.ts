@@ -78,6 +78,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     isGaplessEnabled: role === 'listener' && hostSettings ? (hostSettings.isGaplessEnabled ?? settings.isGaplessEnabled) : settings.isGaplessEnabled,
     isLoudnessNormalizationEnabled: settings.isLoudnessNormalizationEnabled,
     preloadNextTrack: settings.preloadNextTrack,
+    compressorThreshold: settings.compressorThreshold,
+    compressorRatio: settings.compressorRatio,
+    compressorAttack: settings.compressorAttack,
+    compressorRelease: settings.compressorRelease,
   };
 
   useEffect(() => {
@@ -88,6 +92,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       isGaplessEnabled: effectiveSettings.isGaplessEnabled,
       isLoudnessNormalizationEnabled: effectiveSettings.isLoudnessNormalizationEnabled,
       preloadNextTrack: effectiveSettings.preloadNextTrack,
+      compressorThreshold: effectiveSettings.compressorThreshold,
+      compressorRatio: effectiveSettings.compressorRatio,
+      compressorAttack: effectiveSettings.compressorAttack,
+      compressorRelease: effectiveSettings.compressorRelease,
     });
   }, [
     effectiveSettings.isCrossfadeEnabled,
@@ -96,6 +104,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     effectiveSettings.isGaplessEnabled,
     effectiveSettings.isLoudnessNormalizationEnabled,
     effectiveSettings.preloadNextTrack,
+    effectiveSettings.compressorThreshold,
+    effectiveSettings.compressorRatio,
+    effectiveSettings.compressorAttack,
+    effectiveSettings.compressorRelease,
   ]);
 
   // Volume calculations and updates

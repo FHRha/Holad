@@ -6,10 +6,14 @@ import type { Track } from '../../types';
 export interface SocialSlice {
   likedTrackIds: string[];
   likedAlbumIds: string[];
+  excludedTrackIds: string[];
+  excludedAlbumIds: string[];
 
   setLikedItems: (tracks: string[], albums: string[]) => void;
   toggleTrackLike: (id: string) => void;
   toggleAlbumLike: (id: string) => void;
+  toggleTrackExclude: (id: string) => void;
+  toggleAlbumExclude: (id: string) => void;
   setTrackRating: (id: string, rating: number) => void;
 }
 
@@ -21,6 +25,8 @@ export const createSocialSlice: StateCreator<
 > = (set) => ({
   likedTrackIds: [],
   likedAlbumIds: [],
+  excludedTrackIds: [],
+  excludedAlbumIds: [],
 
   setLikedItems: (tracks, albums) => set({ likedTrackIds: tracks, likedAlbumIds: albums }),
   
@@ -39,6 +45,24 @@ export const createSocialSlice: StateCreator<
       likedAlbumIds: isLiked 
         ? state.likedAlbumIds.filter(a => a !== id)
         : [...state.likedAlbumIds, id]
+    };
+  }),
+
+  toggleTrackExclude: (id) => set((state) => {
+    const isExcluded = state.excludedTrackIds.includes(id);
+    return {
+      excludedTrackIds: isExcluded
+        ? state.excludedTrackIds.filter(t => t !== id)
+        : [...state.excludedTrackIds, id]
+    };
+  }),
+
+  toggleAlbumExclude: (id) => set((state) => {
+    const isExcluded = state.excludedAlbumIds.includes(id);
+    return {
+      excludedAlbumIds: isExcluded
+        ? state.excludedAlbumIds.filter(a => a !== id)
+        : [...state.excludedAlbumIds, id]
     };
   }),
 

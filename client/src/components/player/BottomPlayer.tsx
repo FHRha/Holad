@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Star, Maximize2, Monitor, Smartphone, Tv2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Star, Maximize2, Monitor, Smartphone, Tv2, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
@@ -24,7 +24,7 @@ export default function BottomPlayer() {
   const navigate = useNavigate();
   const { openMenu } = useContextMenuStore();
   const { t } = useTranslation();
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, excludedTrackIds, toggleTrackExclude, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized } = usePlayerStore();
   const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
   const audioRef0 = useRef<HTMLAudioElement>(null);
   const audioRef1 = useRef<HTMLAudioElement>(null);
@@ -187,6 +187,13 @@ export default function BottomPlayer() {
                   className="hover:text-primary transition-colors flex items-center justify-center w-5 disabled:opacity-50"
                 >
                   <Heart size={18} fill={likedTrackIds.includes(currentTrack.id) ? "currentColor" : "none"} className={likedTrackIds.includes(currentTrack.id) ? "text-primary" : ""} />
+                </button>
+                <button 
+                  onClick={() => toggleTrackExclude(currentTrack.id)} 
+                  disabled={role === 'listener'}
+                  className="hover:text-red-500 transition-colors flex items-center justify-center w-5 disabled:opacity-50"
+                >
+                  <Ban size={18} className={excludedTrackIds.includes(currentTrack.id) ? "text-red-500" : ""} />
                 </button>
                 
                 {/* Star Rating */}

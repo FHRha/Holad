@@ -414,14 +414,22 @@ app.get('/api/stream/:id', async (req, res) => {
       if (response.body) {
         const reader = response.body.getReader();
         const pump = async () => {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            res.write(value);
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const canWrite = res.write(value);
+              if (!canWrite) {
+                await new Promise<void>(resolve => res.once('drain', resolve));
+              }
+            }
+            res.end();
+          } catch (err) {
+            console.error('Stream error:', err);
+            res.end();
           }
-          res.end();
         };
-        pump().catch(err => { console.error('Stream error:', err); res.end(); });
+        pump();
       } else {
         res.status(500).send('No response body');
       }
@@ -452,14 +460,22 @@ app.get('/api/stream/:id', async (req, res) => {
       if (response.body) {
         const reader = response.body.getReader();
         const pump = async () => {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            res.write(value);
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const canWrite = res.write(value);
+              if (!canWrite) {
+                await new Promise<void>(resolve => res.once('drain', resolve));
+              }
+            }
+            res.end();
+          } catch (err) {
+            console.error('Stream error:', err);
+            res.end();
           }
-          res.end();
         };
-        pump().catch(err => { console.error('Stream error:', err); res.end(); });
+        pump();
       } else {
         res.status(500).send('No response body');
       }

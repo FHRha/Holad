@@ -5,7 +5,7 @@ import { isOffline } from '../utils/networkStatus';
 import { getOfflineTracks } from '../store/downloadStore';
 
 export function useAutoDj() {
-  const { queue, currentIndex, isAutoDjEnabled, addToQueue } = usePlayerStore();
+  const { queue, currentIndex, isAutoDjEnabled, addToQueue, excludedTrackIds, excludedAlbumIds } = usePlayerStore();
 
   useEffect(() => {
     const checkAutoDj = async () => {
@@ -19,8 +19,27 @@ export function useAutoDj() {
             return;
           }
 
-          const newTracks = await fetchRandomTracks(10);
-          const mapped = newTracks.map((t: any) => ({
+          const validTracks: any[] = [];
+          let retries = 0;
+          const maxRetries = 5;
+          
+          while (validTracks.length < 10 && retries < maxRetries) {
+            const needed = 10 - validTracks.length;
+            const newTracks = await fetchRandomTracks(needed);
+            if (!newTracks || newTracks.length === 0) break;
+            
+            const filtered = newTracks.filter((t: any) => !excludedTrackIds.includes(t.id) && !excludedAlbumIds.includes(t.albumId));
+            
+            // ensure no duplicates in validTracks
+            for (const t of filtered) {
+              if (!validTracks.find(v => v.id === t.id)) {
+                validTracks.push(t);
+              }
+            }
+            retries++;
+          }
+
+          const mapped = validTracks.slice(0, 10).map((t: any) => ({
             id: t.id,
             title: t.title,
             artist: t.artist,

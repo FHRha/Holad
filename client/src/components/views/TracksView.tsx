@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { formatArtistName } from '../../utils/formatters';
-import { Play, Pause, Heart, Clock, Search, FilterX, Download } from 'lucide-react';
+import { Play, Pause, Heart, Clock, Search, FilterX, Download, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { searchTracks, getCoverArtUrl, getArtists, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
@@ -28,7 +28,7 @@ export default function TracksView() {
 
   const activeFilter = useUIStore(s => s.activeFilter);
 
-  const { setQueueAndPlay, queue, currentIndex, likedTrackIds, toggleTrackLike, isPlaying } = usePlayerStore();
+  const { setQueueAndPlay, queue, currentIndex, likedTrackIds, toggleTrackLike, excludedTrackIds, toggleTrackExclude, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const downloads = useDownloadStore(state => state.downloads);
 
@@ -276,7 +276,7 @@ export default function TracksView() {
             <div className="flex-1 min-w-[150px]">{t('views.album')}</div>
             <div className="w-32 hidden md:block">{t('views.genre')}</div>
             <div className="w-16 text-right hidden lg:block">{t('views.year')}</div>
-            <div className="w-16 flex justify-center ml-4"><Heart size={14} /></div>
+            <div className="w-24 flex justify-center gap-4 ml-4"><Heart size={14} /><Ban size={14} /></div>
           </div>
 
           {/* Table Body */}
@@ -351,7 +351,7 @@ export default function TracksView() {
                         {track.year || '-'}
                       </div>
 
-                      <div className="w-10 md:w-16 flex items-center justify-end md:justify-center md:ml-4">
+                      <div className="w-16 md:w-24 flex items-center justify-end md:justify-center gap-2 md:gap-4 md:ml-4">
                         <Heart 
                           size={18} 
                           className={`md:opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3] md:text-[#b3b3b3]/30 hover:text-white'}`}
@@ -361,6 +361,14 @@ export default function TracksView() {
                             toggleTrackLike(track.id);
                             if (isTrackLiked) unstarItem(track.id);
                             else starItem(track.id);
+                          }}
+                        />
+                        <Ban
+                          size={18}
+                          className={`md:opacity-0 group-hover:opacity-100 transition-opacity ${excludedTrackIds.includes(track.id) ? 'opacity-100 text-red-500' : 'text-[#b3b3b3] md:text-[#b3b3b3]/30 hover:text-red-400'}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleTrackExclude(track.id);
                           }}
                         />
                       </div>

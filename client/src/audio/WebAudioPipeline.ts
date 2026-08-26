@@ -150,6 +150,60 @@ export class WebAudioPipeline implements IWebAudioPipeline {
         }
     }
 
+    public setCompressorSettings(settings: { threshold?: number; ratio?: number; attack?: number; release?: number }): void {
+        const now = this.context.currentTime;
+        if (settings.threshold !== undefined) {
+            this.compressorNode.threshold.setTargetAtTime(settings.threshold, now, 0.015);
+        }
+        if (settings.ratio !== undefined) {
+            this.compressorNode.ratio.setTargetAtTime(settings.ratio, now, 0.015);
+        }
+        if (settings.attack !== undefined) {
+            this.compressorNode.attack.setTargetAtTime(settings.attack, now, 0.015);
+        }
+        if (settings.release !== undefined) {
+            this.compressorNode.release.setTargetAtTime(settings.release, now, 0.015);
+        }
+    }
+
+    public scheduleCrossfade(outgoingDeckIndex: 0 | 1, incomingDeckIndex: 0 | 1, duration: number, curve: 'equalPower' | 'linear', startTime: number): void {
+        const outGainParam = this.deckGains[outgoingDeckIndex].gain;
+        const inGainParam = this.deckGains[incomingDeckIndex].gain;
+        
+        const safeOutGain = outGainParam.value;
+        const safeInGain = inGainParam.value;
+
+        // Cancel previous automation
+        if (typeof (outGainParam as any).cancelAndHoldAtTime === 'function') {
+            (outGainParam as any).cancelAndHoldAtTime(startTime);
+            (inGainParam as any).cancelAndHoldAtTime(startTime);
+        } else {
+            outGainParam.cancelScheduledValues(startTime);
+            outGainParam.setValueAtTime(safeOutGain, startTime);
+            inGainParam.cancelScheduledValues(startTime);
+            inGainParam.setValueAtTime(safeInGain, startTime);
+        }
+
+        if (curve === 'linear') {
+            outGainParam.linearRampToValueAtTime(0, startTime + duration);
+            inGainParam.linearRampToValueAtTime(1, startTime + duration);
+        } else {
+            // equalPower
+            const steps = 30;
+            const outCurve = new Float32Array(steps);
+            const inCurve = new Float32Array(steps);
+            
+            for (let i = 0; i < steps; i++) {
+                const t = i / (steps - 1);
+                outCurve[i] = Math.cos(t * 0.5 * Math.PI);
+                inCurve[i] = Math.cos((1 - t) * 0.5 * Math.PI);
+            }
+            
+            outGainParam.setValueCurveAtTime(outCurve, startTime, duration);
+            inGainParam.setValueCurveAtTime(inCurve, startTime, duration);
+        }
+    }
+
     public async unlockContext(): Promise<void> {
         if (this.context.state === 'suspended') {
             await this.context.resume().catch((e) => console.warn('AudioContext unlock failed:', e));

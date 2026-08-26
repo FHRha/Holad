@@ -29,6 +29,10 @@ export interface SettingsState {
   totalStorageLimitGb: number;
   maxDownloadConcurrency: number;
   hideOfflineExplanationModal: boolean;
+  compressorThreshold: number;
+  compressorRatio: number;
+  compressorAttack: number;
+  compressorRelease: number;
   
   setTheme: (theme: AppTheme) => void;
   setAccentColor: (color: AccentColor) => void;
@@ -49,6 +53,10 @@ export interface SettingsState {
   setTotalStorageLimitGb: (limitGb: number) => void;
   setMaxDownloadConcurrency: (concurrency: number) => void;
   setHideOfflineExplanationModal: (hide: boolean) => void;
+  setCompressorThreshold: (threshold: number) => void;
+  setCompressorRatio: (ratio: number) => void;
+  setCompressorAttack: (attack: number) => void;
+  setCompressorRelease: (release: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -64,7 +72,7 @@ export const useSettingsStore = create<SettingsState>()(
       crossfadeDuration: 3,
       crossfadeCurve: 'equalPower',
       isGaplessEnabled: false,
-      isLoudnessNormalizationEnabled: true,
+      isLoudnessNormalizationEnabled: false,
       preloadNextTrack: true,
       runOnStartup: true,
       startMinimized: true,
@@ -73,6 +81,10 @@ export const useSettingsStore = create<SettingsState>()(
       totalStorageLimitGb: 10,
       maxDownloadConcurrency: 3,
       hideOfflineExplanationModal: false,
+      compressorThreshold: -24,
+      compressorRatio: 12,
+      compressorAttack: 0.01,
+      compressorRelease: 0.25,
 
       setTheme: (theme) => set({ theme }),
       setAccentColor: (accentColor) => set({ accentColor }),
@@ -110,6 +122,10 @@ export const useSettingsStore = create<SettingsState>()(
       setTotalStorageLimitGb: (limitGb) => set({ totalStorageLimitGb: Math.max(0, limitGb) }),
       setMaxDownloadConcurrency: (concurrency) => set({ maxDownloadConcurrency: Math.max(1, Math.min(10, concurrency)) }),
       setHideOfflineExplanationModal: (hide) => set({ hideOfflineExplanationModal: hide }),
+      setCompressorThreshold: (compressorThreshold) => set({ compressorThreshold }),
+      setCompressorRatio: (compressorRatio) => set({ compressorRatio }),
+      setCompressorAttack: (compressorAttack) => set({ compressorAttack }),
+      setCompressorRelease: (compressorRelease) => set({ compressorRelease }),
     }),
     {
       name: 'streamnavi-settings',

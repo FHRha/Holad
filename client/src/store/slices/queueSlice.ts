@@ -56,18 +56,28 @@ export const createQueueSlice: StateCreator<
   isAutoDjEnabled: true,
   isProcessing: false,
 
-  setQueue: (tracks) => set({ queue: tracks, originalQueue: tracks, currentIndex: tracks.length > 0 ? 0 : -1, isShuffle: false }),
-  setQueueAndPlay: (tracks, startIndex = 0) => {
+  setQueue: (tracks) => set((state) => {
+    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !state.excludedAlbumIds.includes(t.albumId));
+    return { queue: filtered, originalQueue: filtered, currentIndex: filtered.length > 0 ? 0 : -1, isShuffle: false };
+  }),
+  setQueueAndPlay: (tracks, startIndex = 0) => set((state) => {
     triggerPlay();
-    set({ queue: tracks, originalQueue: tracks, currentIndex: startIndex, isPlaying: true, isShuffle: false });
-  },
+    const targetTrackId = tracks[startIndex]?.id;
+    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !state.excludedAlbumIds.includes(t.albumId));
+    let newIndex = filtered.findIndex(t => t.id === targetTrackId);
+    if (newIndex === -1) newIndex = 0;
+    return { queue: filtered, originalQueue: filtered, currentIndex: newIndex, isPlaying: true, isShuffle: false };
+  }),
   playNext: (tracks) => set((state) => {
     triggerPlay();
+    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !state.excludedAlbumIds.includes(t.albumId));
+    if (filtered.length === 0) return state;
+
     let newQueue = [...state.queue];
     let newCurrentIndex = state.currentIndex === -1 ? 0 : state.currentIndex;
     
     // Remove tracks if they already exist to avoid duplicates
-    const trackIds = tracks.map(t => t.id);
+    const trackIds = filtered.map(t => t.id);
     for (const id of trackIds) {
       const idx = newQueue.findIndex(t => t.id === id);
       if (idx !== -1) {
@@ -76,7 +86,7 @@ export const createQueueSlice: StateCreator<
       }
     }
     
-    newQueue.splice(newCurrentIndex + 1, 0, ...tracks);
+    newQueue.splice(newCurrentIndex + 1, 0, ...filtered);
     
     let newOriginalQueue = state.originalQueue;
     if (state.isShuffle) {
@@ -86,19 +96,23 @@ export const createQueueSlice: StateCreator<
         if (idx !== -1) newOriginalQueue.splice(idx, 1);
       }
       const origIdx = newOriginalQueue.findIndex(t => t.id === state.queue[state.currentIndex]?.id);
-      newOriginalQueue.splice(origIdx !== -1 ? origIdx + 1 : newOriginalQueue.length, 0, ...tracks);
+      newOriginalQueue.splice(origIdx !== -1 ? origIdx + 1 : newOriginalQueue.length, 0, ...filtered);
     } else {
       newOriginalQueue = newQueue;
     }
 
     return { queue: newQueue, originalQueue: newOriginalQueue, currentIndex: newCurrentIndex, isPlaying: true };
   }),
-  addToQueue: (tracks) => set((state) => ({ 
-    queue: [...state.queue, ...tracks],
-    originalQueue: [...(state.originalQueue.length > 0 ? state.originalQueue : state.queue), ...tracks],
-    currentIndex: state.currentIndex === -1 ? 0 : state.currentIndex,
-    isPlaying: state.isPlaying
-  })),
+  addToQueue: (tracks) => set((state) => {
+    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !state.excludedAlbumIds.includes(t.albumId));
+    if (filtered.length === 0) return state;
+    return { 
+      queue: [...state.queue, ...filtered],
+      originalQueue: [...(state.originalQueue.length > 0 ? state.originalQueue : state.queue), ...filtered],
+      currentIndex: state.currentIndex === -1 ? 0 : state.currentIndex,
+      isPlaying: state.isPlaying
+    };
+  }),
   clearQueue: () => set({ queue: [], originalQueue: [], currentIndex: -1, isPlaying: false, isShuffle: false }),
   removeFromQueue: (index) => set((state) => {
     const newQueue = [...state.queue];

@@ -15,6 +15,10 @@ export interface AudioEngineSettings {
     isGaplessEnabled: boolean;
     isLoudnessNormalizationEnabled: boolean;
     preloadNextTrack: boolean;
+    compressorThreshold: number;
+    compressorRatio: number;
+    compressorAttack: number;
+    compressorRelease: number;
 }
 
 export interface TransitionOptions {
@@ -69,6 +73,8 @@ export interface IWebAudioPipeline {
     setDeckGain(deckIndex: 0 | 1, gain: number, rampDuration?: number): void;
     setMasterVolume(volume: number, multiplier?: number, rampDuration?: number): void;
     setNormalizationEnabled(enabled: boolean): void;
+    setCompressorSettings(settings: { threshold?: number; ratio?: number; attack?: number; release?: number }): void;
+    scheduleCrossfade(outgoingDeckIndex: 0 | 1, incomingDeckIndex: 0 | 1, duration: number, curve: CrossfadeCurve, startTime: number): void;
     unlockContext(): Promise<void>;
     getFrequencyData(array: Uint8Array): void;
     getDeckGain(deckIndex: 0 | 1): number;

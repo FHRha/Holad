@@ -1,4 +1,5 @@
 import type { IAudioDeck } from './types';
+import { resolveTrackAudioSource } from '../hooks/useTrackSource';
 
 export class PreloadManager {
     private lookaheadSeconds: number = 15;
@@ -28,7 +29,15 @@ export class PreloadManager {
         if (!track || !track.id) return;
         if (this.preloadedTrackId === track.id) return;
 
-        const streamUrl = track.streamUrl || (track.src ? track.src : null);
+        let streamUrl = track.streamUrl || (track.src ? track.src : null);
+        if (!streamUrl) {
+            try {
+                const resolved = await resolveTrackAudioSource(track);
+                streamUrl = resolved.src;
+            } catch (e) {
+                console.warn(`PreloadManager: Failed to resolve track URL for ${track.id}:`, e);
+            }
+        }
         if (!streamUrl) return;
 
         this.isPreloading = true;

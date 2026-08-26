@@ -23,7 +23,7 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({ 
   const [isDragging, setIsDragging] = useState(false);
   const lastUpdate = useRef(0);
 
-  const normalizedBuffered = buffered > 1 ? Math.min(1, buffered / 100) : Math.max(0, buffered);
+  const normalizedBuffered = Math.max(0, Math.min(1, buffered));
 
   React.useImperativeHandle(ref, () => ({
     setValue: (val: number) => {

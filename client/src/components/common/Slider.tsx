@@ -17,7 +17,7 @@ export default function Slider({ value, buffered = 0, onChange, onDrag, onDragEn
   const thumbRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   
-  const normalizedBuffered = buffered > 1 ? Math.min(1, buffered / 100) : Math.max(0, buffered);
+  const normalizedBuffered = Math.max(0, Math.min(1, buffered));
   
   // Throttle onChange to avoid React state clogging the main thread
   const lastUpdate = useRef(0);
