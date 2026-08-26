@@ -140,10 +140,9 @@ export default function MobileSettingsView() {
   };
 
   const handleOfflineToggle = () => {
-    if (!settings.hideOfflineExplanationModal) {
+    toggleOfflineMode();
+    if (!isOffline && !settings.hideOfflineExplanationModal) {
       setOfflineModalOpen(true);
-    } else {
-      toggleOfflineMode();
     }
   };
 

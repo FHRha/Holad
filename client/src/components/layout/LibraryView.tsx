@@ -39,15 +39,14 @@ export default function LibraryView() {
 
   const handleOfflineFilterClick = () => {
     if (activeFilter === 'Offline' || isOffline) {
-      if (!hideOfflineExplanationModal) {
-        setOfflineModalOpen(true);
-      } else {
-        toggleOfflineMode();
-        setActiveFilter(null);
-      }
+      toggleOfflineMode();
+      setActiveFilter(null);
     } else {
       toggleOfflineMode();
       setActiveFilter('Downloaded');
+      if (!hideOfflineExplanationModal) {
+        setOfflineModalOpen(true);
+      }
     }
   };
 

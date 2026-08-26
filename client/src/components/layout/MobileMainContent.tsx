@@ -167,15 +167,14 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
 
   const handleOfflineFilterClick = () => {
     if (activeFilter === 'Offline' || isOffline) {
-      if (!hideOfflineExplanationModal) {
-        setOfflineModalOpen(true);
-      } else {
-        toggleOfflineMode();
-        setActiveFilter(null);
-      }
+      toggleOfflineMode();
+      setActiveFilter(null);
     } else {
       toggleOfflineMode();
       setActiveFilter('Downloaded'); // Auto-switch to Downloaded filter
+      if (!hideOfflineExplanationModal) {
+        setOfflineModalOpen(true);
+      }
     }
   };
 

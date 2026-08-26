@@ -49,10 +49,9 @@ export default function TopBar() {
   } = useUIStore();
 
   const handleOfflineChipClick = () => {
-    if (!hideOfflineExplanationModal) {
+    toggleOfflineMode();
+    if (!isOffline && !hideOfflineExplanationModal) {
       setOfflineModalOpen(true);
-    } else {
-      toggleOfflineMode();
     }
   };
 

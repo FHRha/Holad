@@ -120,7 +120,6 @@ export const useHoladStore = create<HoladState>((set, get) => {
 
       socket.on('holad_devices', (data: { devices: HoladDevice[], activeDeviceId: string | null }) => {
         const wasNotActive = get().activeDeviceId !== deviceId;
-        set({ devices: data.devices, activeDeviceId: data.activeDeviceId });
         
         // Request history if we just joined and there's another device to ask
         if (!hasRequestedHistory && data.devices.length > 1) {
@@ -157,6 +156,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
                }
             }
         }
+        set({ devices: data.devices, activeDeviceId: data.activeDeviceId });
       });
 
       socket.on('holad_syncState', (state: any) => {
@@ -319,7 +319,6 @@ export const useHoladStore = create<HoladState>((set, get) => {
                 const engine = getAudioEngine();
                 if (engine) engine.seek(command.payload / 1000);
               });
-              store.setInitialPosition(command.payload);
               break;
             case 'setQueue':
               usePlayerStore.setState({ queue: command.payload.queue, currentIndex: command.payload.currentIndex });
