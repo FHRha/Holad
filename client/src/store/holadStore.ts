@@ -150,13 +150,10 @@ export const useHoladStore = create<HoladState>((set, get) => {
             // Resume playback from the currently synced progress
             if (playerStore.queue.length > 0 && playerStore.currentIndex >= 0) {
                const track = playerStore.queue[playerStore.currentIndex];
-               if (track && track.duration) {
-                  const targetTime = (audioStore.progress / 100) * track.duration;
+               const duration = audioStore.duration || track?.duration;
+               if (duration) {
+                  const targetTime = (audioStore.progress / 100) * duration;
                   playerStore.setInitialPosition(targetTime * 1000);
-                  
-                  if (audioStore.audioElement && playerStore.isPlaying) {
-                     audioStore.audioElement.play().catch(() => {});
-                  }
                }
             }
         }
@@ -308,9 +305,8 @@ export const useHoladStore = create<HoladState>((set, get) => {
                  currentTime = useAudioStore.getState().audioElement!.currentTime;
               } else {
                  const track = store.queue[store.currentIndex];
-                 if (track && track.duration) {
-                    currentTime = (useAudioStore.getState().progress / 100) * track.duration;
-                 }
+                 const duration = useAudioStore.getState().duration || track?.duration || 1;
+                 currentTime = (useAudioStore.getState().progress / 100) * duration;
               }
               const stateToSync = {
                 isPlaying: store.isPlaying,
@@ -338,6 +334,10 @@ export const useHoladStore = create<HoladState>((set, get) => {
               store.prevTrack();
               break;
             case 'seek':
+              import('../audio/AudioEngine').then(({ getAudioEngine }) => {
+                const engine = getAudioEngine();
+                if (engine) engine.seek(command.payload / 1000);
+              });
               store.setInitialPosition(command.payload);
               break;
             case 'setQueue':
@@ -358,9 +358,8 @@ export const useHoladStore = create<HoladState>((set, get) => {
              currentTime = useAudioStore.getState().audioElement!.currentTime;
           } else {
              const track = state.queue[state.currentIndex];
-             if (track && track.duration) {
-                currentTime = (useAudioStore.getState().progress / 100) * track.duration;
-             }
+             const duration = useAudioStore.getState().duration || track?.duration || 1;
+             currentTime = (useAudioStore.getState().progress / 100) * duration;
           }
 
           const stateToSync = {
