@@ -50,8 +50,8 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
               albumId: id,
               coverArt: t.localCoverArtUri || downloadedAlbum.localCoverArtUri || t.coverArt,
               duration: t.duration || 0,
-              bitRate: t.bitRate,
-              suffix: t.suffix
+              bitRate: (t as any).bitRate,
+              suffix: (t as any).suffix
             }))
           };
           setAlbum(fallbackAlbum);

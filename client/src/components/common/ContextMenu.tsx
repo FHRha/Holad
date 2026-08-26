@@ -136,14 +136,14 @@ export default function ContextMenu() {
       const state = usePlayerStore.getState();
       const currentTrack = state.queue[state.currentIndex];
       if (!isExcluded && currentTrack?.albumId === item.id) {
-        state.playNext();
+        state.nextTrack();
       }
     } else {
       toggleTrackExclude(item.id);
       const state = usePlayerStore.getState();
       const currentTrack = state.queue[state.currentIndex];
       if (!isExcluded && currentTrack?.id === item.id) {
-        state.playNext();
+        state.nextTrack();
       }
     }
   };

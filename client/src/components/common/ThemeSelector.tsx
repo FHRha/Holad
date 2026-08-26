@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Moon, Sun, Monitor } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useSettingsStore, AppTheme } from '../../store/settingsStore';
+import { useSettingsStore, type AppTheme } from '../../store/settingsStore';
 
 export default function ThemeSelector({ align = 'right' }: { align?: 'left' | 'right' } = {}) {
   const { t } = useTranslation();
