@@ -44,7 +44,7 @@ export default function ThemeSelector({ align = 'right' }: { align?: 'left' | 'r
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-10 h-10 rounded-full bg-white/5 hover:bg-foreground/10 flex items-center justify-center text-secondary hover:text-foreground transition-colors"
+        className="w-10 h-10 rounded-full bg-foreground/5 hover:bg-foreground/10 flex items-center justify-center text-secondary hover:text-foreground transition-colors"
         title={t('settings.appearance.theme.title') || 'Theme'}
       >
         {getThemeIcon()}
@@ -53,25 +53,25 @@ export default function ThemeSelector({ align = 'right' }: { align?: 'left' | 'r
       {isOpen && (
         <div 
           ref={menuRef}
-          className={`absolute top-12 ${align === 'left' ? 'left-0' : 'right-0'} w-40 bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[70] flex flex-col py-1 animate-in fade-in zoom-in-95 duration-200`}
+          className={`absolute top-12 ${align === 'left' ? 'left-0' : 'right-0'} w-40 bg-background/95 backdrop-blur-xl border border-foreground/10 rounded-xl shadow-2xl overflow-hidden z-[70] flex flex-col py-1 animate-in fade-in zoom-in-95 duration-200`}
         >
           <button 
             onClick={() => changeTheme('light')}
-            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${theme === 'light' ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${theme === 'light' ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-foreground/5'}`}
           >
             <Sun size={16} />
             <span>{t('settings.appearance.theme.light') || 'Light'}</span>
           </button>
           <button 
             onClick={() => changeTheme('dark')}
-            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${theme === 'dark' ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${theme === 'dark' ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-foreground/5'}`}
           >
             <Moon size={16} />
             <span>{t('settings.appearance.theme.dark') || 'Dark'}</span>
           </button>
           <button 
             onClick={() => changeTheme('system')}
-            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${theme === 'system' ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${theme === 'system' ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-foreground/5'}`}
           >
             <Monitor size={16} />
             <span>{t('settings.appearance.theme.system') || 'System'}</span>

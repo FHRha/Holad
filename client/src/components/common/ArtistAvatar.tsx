@@ -37,10 +37,24 @@ export default function ArtistAvatar({ artistName, artistId, className = "w-6 h-
     const loadAvatar = async () => {
       setLoading(true);
       
-      // 1. First try our 3rd party API flow (Apple -> Deezer)
-      let url = await fetchArtistImage(artistName);
+      // 1. First try external APIs (Yandex/LastFM) via backend if enabled
+      let url = null;
+      try {
+        const { getExternalArtistStats } = await import('../../api/externalApi');
+        const stats = await getExternalArtistStats(artistName);
+        if (stats && stats.data && stats.data.image) {
+          url = stats.data.image;
+        }
+      } catch (e) {
+        console.error("Failed to get external artist stats for image", e);
+      }
 
-      // 2. If no image found, fallback to Navidrome getArtistInfo (Last.fm)
+      // 2. If no external image, fallback to 3rd party API flow (Apple -> Deezer)
+      if (!url) {
+        url = await fetchArtistImage(artistName);
+      }
+
+      // 3. If no image found, fallback to Navidrome getArtistInfo
       if (!url && artistId) {
         try {
           const info = await getArtistInfo(artistId);
@@ -54,7 +68,7 @@ export default function ArtistAvatar({ artistName, artistId, className = "w-6 h-
         }
       }
       
-      // 3. If still no image, fallback to Navidrome album cover art
+      // 4. If still no image, fallback to Navidrome album cover art
       if (!url && artistId) {
         url = getCoverArtUrl(artistId, 300);
       }

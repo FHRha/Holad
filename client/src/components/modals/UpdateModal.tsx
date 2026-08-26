@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface UpdateModalProps {
     isOpen: boolean;
@@ -9,18 +10,19 @@ interface UpdateModalProps {
 }
 
 export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onUpdate, onClose, version, notes }) => {
+    const { t } = useTranslation();
     if (!isOpen) return null;
 
     return (
         <div className="modal-overlay" style={overlayStyle}>
             <div className="modal-content update-modal" style={contentStyle}>
-                <h2>Доступно обновление</h2>
+                <h2>{t('update.available', 'Доступно обновление')}</h2>
                 {version && <p>Версия: {version}</p>}
                 {notes && <p className="update-notes">{notes}</p>}
                 
                 <div className="modal-actions" style={actionsStyle}>
-                    <button onClick={onUpdate} className="btn btn-primary" style={{ marginRight: '10px' }}>Обновить</button>
-                    <button onClick={onClose} className="btn btn-secondary">Позже</button>
+                    <button onClick={onUpdate} className="btn btn-primary" style={{ marginRight: '10px' }}>{t('update.update', 'Обновить')}</button>
+                    <button onClick={onClose} className="btn btn-secondary">{t('update.later', 'Позже')}</button>
                 </div>
             </div>
         </div>

@@ -111,55 +111,7 @@ function AppContent() {
     });
   }, []);
 
-  // oxlint-disable-next-line
-  useEffect(() => {
-    const root = document.documentElement;
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-    const applyTheme = () => {
-      if (theme === 'dark') {
-        root.classList.add('dark');
-        root.classList.remove('light');
-      } else if (theme === 'light') {
-        root.classList.remove('dark');
-        root.classList.add('light');
-      } else {
-        if (mediaQuery.matches) {
-          root.classList.add('dark');
-          root.classList.remove('light');
-        } else {
-          root.classList.remove('dark');
-          root.classList.add('light');
-        }
-      }
-    };
-
-    applyTheme();
-
-    if (theme === 'system' || !theme) {
-      const handleChange = () => applyTheme();
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    }
-
-    const colors: Record<string, string> = {
-      green: '#1db954',
-      blue: '#3b82f6',
-      purple: '#a855f7',
-      red: '#ef4444',
-      orange: '#f97316',
-      pink: '#ec4899',
-      yellow: '#eab308'
-    };
-    
-    const hexColor = colors[accentColor] || (accentColor.startsWith('#') ? accentColor : colors.green);
-    const rgbStr = hexToRgb(hexColor); // e.g. "29, 185, 84"
-    const rgbSpaceStr = rgbStr.replace(/,/g, ''); // "29 185 84"
-    
-    // Set all possible variations so it works regardless of which tailwind.config.js is currently cached in dev server
-    root.style.setProperty('--color-primary', rgbSpaceStr); 
-    root.style.setProperty('--color-primary-rgb', rgbStr);
-  }, [theme, accentColor]);
 
   // oxlint-disable-next-line
   useDocumentTitle();
@@ -294,7 +246,56 @@ function App() {
   const [serverUrlSet, setServerUrlSet] = useState(!!localStorage.getItem('holadServerUrl'));
   const isHostedOnBackend = window.location.pathname.toLowerCase().includes('/holad');
   const needsServerUrl = !serverUrlSet && !isHostedOnBackend;
-  const theme = useSettingsStore(state => state.theme);
+  const { theme, accentColor } = useSettingsStore(state => ({ theme: state.theme, accentColor: state.accentColor }));
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const applyTheme = () => {
+      if (theme === 'dark') {
+        root.classList.add('dark');
+        root.classList.remove('light');
+      } else if (theme === 'light') {
+        root.classList.remove('dark');
+        root.classList.add('light');
+      } else {
+        if (mediaQuery.matches) {
+          root.classList.add('dark');
+          root.classList.remove('light');
+        } else {
+          root.classList.remove('dark');
+          root.classList.add('light');
+        }
+      }
+    };
+
+    applyTheme();
+
+    if (theme === 'system' || !theme) {
+      const handleChange = () => applyTheme();
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+
+    const colors: Record<string, string> = {
+      green: '#1db954',
+      blue: '#3b82f6',
+      purple: '#a855f7',
+      red: '#ef4444',
+      orange: '#f97316',
+      pink: '#ec4899',
+      yellow: '#eab308'
+    };
+    
+    const hexColor = colors[accentColor] || (accentColor.startsWith('#') ? accentColor : colors.green);
+    const rgbStr = hexToRgb(hexColor); // e.g. "29, 185, 84"
+    const rgbSpaceStr = rgbStr.replace(/,/g, ''); // "29 185 84"
+    
+    // Set all possible variations so it works regardless of which tailwind.config.js is currently cached in dev server
+    root.style.setProperty('--color-primary', rgbSpaceStr); 
+    root.style.setProperty('--color-primary-rgb', rgbStr);
+  }, [theme, accentColor]);
   
   if (needsServerUrl) {
     return <ServerConnectionView onConnected={() => setServerUrlSet(true)} />;

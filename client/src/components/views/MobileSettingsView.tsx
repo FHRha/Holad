@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil, Info, DownloadCloud } from 'lucide-react';
+import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil, Info, DownloadCloud, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { UpdateService } from '../../services/UpdateService';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { AppTheme, AccentColor } from '../../store/settingsStore';
@@ -118,6 +118,9 @@ export default function MobileSettingsView() {
   const [sat, setSat] = useState(100);
   const [light, setLight] = useState(50);
   
+  const [showLastFmKey, setShowLastFmKey] = useState(false);
+  const [showYandexToken, setShowYandexToken] = useState(false);
+  
   const toggleSection = (id: string) => {
     setExpandedSection(prev => prev === id ? null : id);
   };
@@ -201,7 +204,16 @@ export default function MobileSettingsView() {
       icon: <Globe className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-6 mt-4">
-          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">
+          <div className="flex justify-end mb-[-1rem]">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="flex items-center gap-2 px-3 py-1.5 bg-black/20 hover:bg-black/40 rounded-lg text-secondary hover:text-white transition-colors"
+            >
+              <RefreshCw size={14} />
+              <span className="text-xs">{t('common.refresh') || 'Обновить'}</span>
+            </button>
+          </div>
+          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer mt-4">
             <div className="flex flex-col pr-4">
               <span className="text-[15px] font-medium text-white">{t('settings.navidrome') || 'Navidrome/Subsonic'}</span>
             </div>
@@ -224,13 +236,22 @@ export default function MobileSettingsView() {
             />
           </label>
           <div className="bg-black/20 p-4 rounded-xl">
-            <input 
-              type="text"
-              placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
-              value={settings.lastFmKey}
-              onChange={(e) => settings.setLastFmKey(e.target.value)}
-              className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white mb-2"
-            />
+            <div className="relative mb-2">
+              <input 
+                type={showLastFmKey ? "text" : "password"}
+                placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
+                value={settings.lastFmKey}
+                onChange={(e) => settings.setLastFmKey(e.target.value)}
+                className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
+              />
+              <button 
+                type="button"
+                onClick={() => setShowLastFmKey(!showLastFmKey)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
+              >
+                {showLastFmKey ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             <p className="text-xs text-secondary">
               {t('settings.lastfm_get_key_part1') || 'Регистрация новых API ключей '}<span className="text-red-400 font-medium">{t('settings.lastfm_get_key_link') || 'временно приостановлена Last.fm'}</span>{t('settings.lastfm_get_key_part2') || ' (Error 403). Существующие ключи работают.'}
             </p>
@@ -247,13 +268,22 @@ export default function MobileSettingsView() {
             />
           </label>
           <div className="bg-black/20 p-4 rounded-xl">
-            <input 
-              type="text"
-              placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
-              value={settings.yandexToken}
-              onChange={(e) => settings.setYandexToken(e.target.value)}
-              className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white mb-2"
-            />
+            <div className="relative mb-2">
+              <input 
+                type={showYandexToken ? "text" : "password"}
+                placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
+                value={settings.yandexToken}
+                onChange={(e) => settings.setYandexToken(e.target.value)}
+                className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
+              />
+              <button 
+                type="button"
+                onClick={() => setShowYandexToken(!showYandexToken)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
+              >
+                {showYandexToken ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             <p className="text-xs text-secondary">
               {t('settings.yandex_token_desc_part1') || 'Токен Яндекс.Музыки. Можно получить через расширение Яндекс.Музыка Token или '}<a href="https://github.com/MarshalX/yandex-music-api/discussions/513" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.yandex_token_desc_link') || 'инструкцию'}</a>{t('settings.yandex_token_desc_part2') || '.'}
             </p>
@@ -271,9 +301,9 @@ export default function MobileSettingsView() {
           <div className="flex flex-col gap-3">
             <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_theme')}</span>
             <div className="flex gap-2">
-              <ThemeOption label="Dark" value="dark" current={settings.theme} onSelect={settings.setTheme} />
-              <ThemeOption label="Light" value="light" current={settings.theme} onSelect={settings.setTheme} />
-              <ThemeOption label="System" value="system" current={settings.theme} onSelect={settings.setTheme} />
+              <ThemeOption label={t('settings.appearance.theme.dark', 'Dark')} value="dark" current={settings.theme} onSelect={settings.setTheme} />
+              <ThemeOption label={t('settings.appearance.theme.light', 'Light')} value="light" current={settings.theme} onSelect={settings.setTheme} />
+              <ThemeOption label={t('settings.appearance.theme.system', 'System')} value="system" current={settings.theme} onSelect={settings.setTheme} />
             </div>
           </div>
           

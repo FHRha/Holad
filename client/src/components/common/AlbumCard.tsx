@@ -106,13 +106,35 @@ export default function AlbumCard({ album }: { album: any }) {
   useEffect(() => {
     let isMounted = true;
     if (!isVisible) return;
-    getCachedImageUrl(coverUrl).then((url: string) => {
-      if (isMounted) setFinalCoverUrl(url);
-    }).catch(() => {
-      if (isMounted) setFinalCoverUrl(coverUrl);
-    });
+    
+    const loadCover = async () => {
+      let finalUrl = coverUrl;
+      try {
+        const { getExternalArtistStats } = await import('../../api/externalApi');
+        // Hack: We can use the same stats logic for albums if we update the backend, or we can just stick to getCoverArtUrl if not supported yet.
+        // Wait, Yandex has /search?type=album. Let's add getExternalAlbumStats to externalApi.ts.
+        const { getExternalAlbumStats } = await import('../../api/externalApi');
+        const stats = await getExternalAlbumStats(album.artist, album.name);
+        if (stats && stats.data && stats.data.image) {
+          finalUrl = stats.data.image;
+        }
+      } catch (e) {
+        console.warn("External album cover fetch failed, using navidrome cover", e);
+      }
+
+      if (!isMounted) return;
+
+      getCachedImageUrl(finalUrl).then((url: string) => {
+        if (isMounted) setFinalCoverUrl(url);
+      }).catch(() => {
+        if (isMounted) setFinalCoverUrl(finalUrl);
+      });
+    };
+
+    loadCover();
+
     return () => { isMounted = false; };
-  }, [coverUrl, isVisible]);
+  }, [coverUrl, isVisible, album.artist, album.name]);
 
   const mapTracks = (tracks: any[]): Track[] => {
     return tracks.map((t: any) => ({
@@ -165,7 +187,7 @@ export default function AlbumCard({ album }: { album: any }) {
   return (
     <div 
       ref={containerRef}
-      className="group relative bg-[#181818] hover:bg-[#282828] rounded-xl cursor-pointer flex flex-col p-4 flex-shrink-0 transition-colors duration-300 shadow-sm hover:shadow-lg h-full"
+      className="group relative bg-card hover:bg-accent rounded-xl cursor-pointer flex flex-col p-4 flex-shrink-0 transition-colors duration-300 shadow-sm hover:shadow-lg h-full"
       {...longPressProps}
     >
       <div className="relative aspect-square overflow-hidden rounded-t-lg bg-black/20">
@@ -220,7 +242,7 @@ export default function AlbumCard({ album }: { album: any }) {
         </div>
 
         {/* Hover Overlay Buttons on Image */}
-        <div className="absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 hidden md:flex [@media(hover:none)]:!hidden flex-col justify-between p-3 bg-black/50">
+        <div className="absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 flex [@media(hover:none)]:!hidden flex-col justify-between p-3 bg-background/50">
           <div className="flex justify-between items-start z-20">
             <Heart 
               size={20} 

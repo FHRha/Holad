@@ -404,7 +404,8 @@ app.get('/api/stats/artist/:name', async (req, res) => {
         listeners: briefData.result?.stats?.lastMonthListeners || 0,
         playcount: 0, // Yandex doesn't provide total playcount easily
         similar: briefData.result?.similar?.map((a: any) => ({ name: a.name })) || [],
-        tags: artist.genres || []
+        tags: artist.genres || [],
+        image: artist.cover?.uri ? `https://${artist.cover.uri.replace('%%', '600x600')}` : null
       }
     };
   };
@@ -423,7 +424,8 @@ app.get('/api/stats/artist/:name', async (req, res) => {
         playcount: data.artist.stats?.playcount || 0,
         similar: data.artist.similar?.artist?.map((a: any) => ({ name: a.name })) || [],
         tags: data.artist.tags?.tag?.map((t: any) => t.name) || [],
-        bio: data.artist.bio?.summary || ''
+        bio: data.artist.bio?.summary || '',
+        image: data.artist.image?.find((i: any) => i.size === 'mega')?.['#text'] || data.artist.image?.find((i: any) => i.size === 'extralarge')?.['#text'] || null
       }
     };
   };
@@ -456,6 +458,75 @@ app.get('/api/stats/artist/:name', async (req, res) => {
     }
   } catch (error: any) {
     console.error('Failed to get artist stats:', error.message);
+    return res.json({ source: 'local', error: error.message });
+  }
+});
+
+app.get('/api/stats/album/:artist/:album', async (req, res) => {
+  const { artist, album } = req.params;
+  const { useLastFm, useYandex, lastFmKey, yandexToken } = req.query;
+  
+  const yandexEnabled = useYandex === 'true' && !!yandexToken;
+  const lastFmEnabled = useLastFm === 'true' && !!lastFmKey;
+
+  const tryYandex = async () => {
+    const searchUrl = `https://api.music.yandex.net/search?text=${encodeURIComponent(artist + ' ' + album)}&type=album`;
+    const searchRes = await fetch(searchUrl, {
+      headers: { 'Authorization': `OAuth ${yandexToken}` },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!searchRes.ok) throw new Error('Yandex search failed');
+    const searchData = await searchRes.json();
+    const result = searchData.result?.albums?.results?.[0];
+    if (!result) throw new Error('Album not found in Yandex');
+
+    return {
+      source: 'yandex',
+      data: {
+        image: result.coverUri ? `https://${result.coverUri.replace('%%', '600x600')}` : null
+      }
+    };
+  };
+
+  const tryLastFm = async () => {
+    const url = `https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${lastFmKey}&format=json`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) throw new Error('Last.fm getinfo failed');
+    const data = await res.json();
+    if (!data.album) throw new Error('Album not found in Last.fm');
+
+    return {
+      source: 'lastfm',
+      data: {
+        image: data.album.image?.find((i: any) => i.size === 'mega')?.['#text'] || data.album.image?.find((i: any) => i.size === 'extralarge')?.['#text'] || null
+      }
+    };
+  };
+
+  try {
+    if (yandexEnabled) {
+      try {
+        const yData = await tryYandex();
+        return res.json(yData);
+      } catch (e) {
+        if (lastFmEnabled) {
+          const lData = await tryLastFm();
+          return res.json(lData);
+        }
+        throw e;
+      }
+    } else if (lastFmEnabled) {
+      try {
+        const lData = await tryLastFm();
+        return res.json(lData);
+      } catch (e) {
+        throw e;
+      }
+    } else {
+      throw new Error('No external APIs enabled');
+    }
+  } catch (error: any) {
+    console.error('Failed to get album stats:', error.message);
     return res.json({ source: 'local', error: error.message });
   }
 });

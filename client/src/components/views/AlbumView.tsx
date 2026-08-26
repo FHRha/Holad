@@ -71,17 +71,17 @@ export default function AlbumView() {
             <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-end text-center md:text-left relative">
               <button 
                 onClick={() => navigate(-1)}
-                className="md:hidden absolute -top-2 left-0 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors z-20"
+                className="md:hidden absolute -top-2 left-0 p-2 rounded-full bg-black/40 hover:bg-black/60 text-foreground transition-colors z-20"
               >
                 <ArrowLeft size={20} />
               </button>
               <img src={coverUrl} alt="Album Cover" className="w-48 h-48 md:w-64 md:h-64 rounded-xl shadow-2xl object-cover mx-auto md:mx-0" />
               
               <div className="flex flex-col gap-2 flex-1 w-full items-center md:items-start">
-                <span className="text-xs font-bold tracking-[0.2em] uppercase text-white/70">{t('views.album')}</span>
-                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight leading-tight pt-1 mb-2 line-clamp-2">{album.name}</h1>
+                <span className="text-xs font-bold tracking-[0.2em] uppercase text-foreground/70">{t('views.album')}</span>
+                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-foreground tracking-tight leading-tight pt-1 mb-2 line-clamp-2">{album.name}</h1>
                 
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-xs md:text-sm text-white/70 font-medium mb-1">
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-xs md:text-sm text-foreground/70 font-medium mb-1">
                   <Music size={14} className="mr-1 hidden md:block" />
                   <span>{displayYear}</span>
                   <span>•</span>
@@ -92,24 +92,24 @@ export default function AlbumView() {
               <span>{album.playCount || 0} {t('views.plays')}</span>
             </div>
             
-            <div className="text-lg md:text-xl font-bold text-white mb-4 w-max"><ArtistLinks artistString={album.artist} artistId={album.artistId} /></div>
+            <div className="text-lg md:text-xl font-bold text-foreground mb-4 w-max"><ArtistLinks artistString={album.artist} artistId={album.artistId} /></div>
             
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 w-full">
-              <button onClick={handlePlayAll} className="w-14 h-14 md:w-auto md:h-auto md:px-8 md:py-3 bg-primary md:bg-white text-black rounded-full font-bold text-sm flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-xl">
+              <button onClick={handlePlayAll} className="w-14 h-14 md:w-auto md:h-auto md:px-8 md:py-3 bg-primary md:bg-foreground text-background rounded-full font-bold text-sm flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-xl">
                 <Play fill="currentColor" size={24} className="md:size-18 ml-1 md:ml-0" /> <span className="hidden md:inline">{t('views.play')}</span>
               </button>
               
-              <button onClick={handlePlayNext} className="hidden md:flex bg-foreground/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors items-center gap-2">
+              <button onClick={handlePlayNext} className="hidden md:flex bg-foreground/10 text-foreground px-6 py-3 rounded-full font-bold text-sm hover:bg-foreground/20 transition-colors items-center gap-2">
                 <ListPlus size={18} /> {t('views.play_next')}
               </button>
               
-              <button onClick={handleAddToEnd} className="hidden md:block bg-foreground/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors">
+              <button onClick={handleAddToEnd} className="hidden md:block bg-foreground/10 text-foreground px-6 py-3 rounded-full font-bold text-sm hover:bg-foreground/20 transition-colors">
                 {isAddedToQueue ? t('views.sent') : t('views.add_to_queue')}
               </button>
               
-              <button onClick={handleAlbumRadio} disabled={isRadioLoading} className="hidden md:flex bg-foreground/10 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-colors items-center gap-2">
-                {isRadioLoading ? <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" /> : <Radio size={16} />}
+              <button onClick={handleAlbumRadio} disabled={isRadioLoading} className="hidden md:flex bg-foreground/10 text-foreground px-6 py-3 rounded-full font-bold text-sm hover:bg-foreground/20 transition-colors items-center gap-2">
+                {isRadioLoading ? <div className="w-4 h-4 border-2 border-foreground/50 border-t-foreground rounded-full animate-spin" /> : <Radio size={16} />}
                 {t('views.album_radio')}
               </button>
               
@@ -121,23 +121,23 @@ export default function AlbumView() {
                     key={v} 
                     size={24} 
                     fill={v <= (album.userRating || 0) ? 'currentColor' : 'transparent'} 
-                    className={`cursor-pointer md:w-5 md:h-5 hover:scale-125 transition-transform ${v > (album.userRating || 0) ? 'text-white/30' : ''}`}
+                    className={`cursor-pointer md:w-5 md:h-5 hover:scale-125 transition-transform ${v > (album.userRating || 0) ? 'text-foreground/30' : ''}`}
                     onClick={() => handleRate(v)}
                   />
                 ))}
               </div>
               
               <button onClick={handleLike} className="hover:scale-110 transition-transform ml-2">
-                <Heart size={28} className={isLiked ? "text-primary" : "text-white/70 hover:text-foreground"} fill={isLiked ? "currentColor" : "none"} />
+                <Heart size={28} className={isLiked ? "text-primary" : "text-foreground/70 hover:text-foreground"} fill={isLiked ? "currentColor" : "none"} />
               </button>
               
               <button onClick={() => toggleAlbumExclude(album.id)} className="hover:scale-110 transition-transform ml-2">
-                <Ban size={28} className={excludedAlbumIds.includes(album.id) ? "text-red-500" : "text-white/70 hover:text-foreground"} />
+                <Ban size={28} className={excludedAlbumIds.includes(album.id) ? "text-red-500" : "text-foreground/70 hover:text-foreground"} />
               </button>
               
               <button 
                 onClick={(e) => openMenu(e.clientX, e.clientY, album, 'album')}
-                className="text-white/70 hover:text-foreground transition-colors ml-2"
+                className="text-foreground/70 hover:text-foreground transition-colors ml-2"
               >
                 <MoreHorizontal size={28} />
               </button>
@@ -173,7 +173,7 @@ export default function AlbumView() {
                   onClick={() => {
                      handlePlaySong(index);
                   }}
-                  className={`flex items-center px-2 sm:px-4 py-2 sm:py-3 rounded-lg cursor-pointer group hover:bg-white/5 transition-colors ${currentPlaying ? 'bg-foreground/10' : ''}`}
+                  className={`flex items-center px-2 sm:px-4 py-2 sm:py-3 rounded-lg cursor-pointer group hover:bg-foreground/5 transition-colors ${currentPlaying ? 'bg-foreground/10' : ''}`}
                 >
                   <div className="w-8 sm:w-12 text-center text-xs sm:text-sm font-medium text-secondary">
                     {currentPlaying ? (
@@ -186,7 +186,7 @@ export default function AlbumView() {
                     )}
                   </div>
                   <div className="flex-1 flex flex-col min-w-0 pr-2 sm:pr-4">
-                    <span className={`flex items-center gap-2 text-sm sm:text-base font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-white'}`}>
+                    <span className={`flex items-center gap-2 text-sm sm:text-base font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-foreground'}`}>
                       <span className="truncate">{track.title}</span>
                       {isTrackDownloaded && <Download size={14} className="text-primary shrink-0" />}
                     </span>
@@ -237,7 +237,7 @@ export default function AlbumView() {
                 {displayGenre && (
                   <div>
                     <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">{t('views.genre')}</h3>
-                    <div className="inline-block bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-sm font-semibold text-white">
+                    <div className="inline-block bg-foreground/5 border border-foreground/10 px-4 py-1.5 rounded-full text-sm font-semibold text-foreground">
                       {displayGenre}
                     </div>
                   </div>
@@ -246,14 +246,14 @@ export default function AlbumView() {
                 <div>
               <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">{t('views.tags')}</h3>
               <div className="flex flex-wrap gap-2">
-                <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-md text-xs font-semibold text-white/80 hover:text-foreground hover:bg-foreground/10 cursor-pointer transition-colors">{t('views.album')}</span>
-                <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-md text-xs font-semibold text-white/80 hover:text-foreground hover:bg-foreground/10 cursor-pointer transition-colors">official</span>
+                <span className="bg-foreground/5 border border-foreground/10 px-3 py-1 rounded-md text-xs font-semibold text-foreground/80 hover:text-foreground hover:bg-foreground/10 cursor-pointer transition-colors">{t('views.album')}</span>
+                <span className="bg-foreground/5 border border-foreground/10 px-3 py-1 rounded-md text-xs font-semibold text-foreground/80 hover:text-foreground hover:bg-foreground/10 cursor-pointer transition-colors">official</span>
               </div>
             </div>
             
             <div>
               <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">{t('views.label')}</h3>
-              <div className="inline-block bg-white/5 border border-white/10 px-4 py-1.5 rounded text-sm font-semibold text-white">
+              <div className="inline-block bg-foreground/5 border border-foreground/10 px-4 py-1.5 rounded text-sm font-semibold text-foreground">
                 {t('views.unknown_label')}
               </div>
             </div>

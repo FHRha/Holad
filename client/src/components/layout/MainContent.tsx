@@ -85,8 +85,8 @@ export default function MainContent() {
             <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-secondary"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Здесь пока пусто</h2>
-            <p className="text-sm text-secondary">Добавьте музыку на сервер или загрузите для оффлайна</p>
+            <h2 className="text-xl font-bold text-white mb-2">{t('empty_state.title', 'Здесь пока пусто')}</h2>
+            <p className="text-sm text-secondary">{t('empty_state.description', 'Добавьте музыку на сервер или загрузите для оффлайна')}</p>
           </div>
         ) : (
           <>

@@ -71,7 +71,7 @@ export default function HistoryView() {
   };
 
   return (
-    <div className="flex flex-col p-6 overflow-y-auto w-full h-full text-white bg-background/50 pb-32">
+    <div className="flex flex-col p-6 overflow-y-auto overflow-x-hidden w-full h-full text-foreground bg-background/50 pb-32">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div className="flex items-center gap-3 relative">
           <button onClick={() => navigate(-1)} className="md:hidden p-2 -ml-2 text-secondary hover:text-foreground transition-colors">
@@ -86,7 +86,7 @@ export default function HistoryView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 lg:gap-3 w-full md:w-auto">
+        <div className="flex items-center flex-wrap gap-2 lg:gap-3 w-full md:w-auto">
           <button 
             onClick={handleManualSync}
             disabled={isSyncing}

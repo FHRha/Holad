@@ -16,7 +16,7 @@ import { toggleOfflineMode } from '../../utils/networkStatus';
 import MobileJamModal from '../modals/MobileJamModal';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
-
+import { formatGenre } from '../../utils/formatters';
 
 function ScrollableSection({ title, children, onRefresh }: { title: string, children: React.ReactNode, onRefresh?: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -320,7 +320,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                   className={`flex-shrink-0 flex items-center ${colorClass} text-white hover:brightness-110 border border-transparent rounded-full pl-4 pr-3 py-2 font-bold text-[15px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50`}
                 >
                   {loadingStation === g.value && <Loader2 size={14} className="animate-spin mr-2" />}
-                  {g.value}
+                  {formatGenre(g.value, t)}
                   <div className="w-0 h-0 border-t-4 border-t-transparent border-l-6 border-l-white border-b-4 border-b-transparent ml-2"></div>
                 </button>
               );
@@ -332,8 +332,8 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
             <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-secondary"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Здесь пока пусто</h2>
-            <p className="text-sm text-secondary">Добавьте музыку на сервер или загрузите для оффлайна</p>
+            <h2 className="text-xl font-bold text-white mb-2">{t('empty_state.title', 'Здесь пока пусто')}</h2>
+            <p className="text-sm text-secondary">{t('empty_state.description', 'Добавьте музыку на сервер или загрузите для оффлайна')}</p>
           </div>
         ) : (
           <>

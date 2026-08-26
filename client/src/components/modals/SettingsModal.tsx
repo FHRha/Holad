@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Palette, Settings2, MonitorPlay, Pencil, Check, HardDrive, FolderSearch, Speaker } from 'lucide-react';
+import { X, Palette, Settings2, MonitorPlay, Pencil, Check, HardDrive, FolderSearch, Speaker, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { AppTheme, AccentColor, StartPage } from '../../store/settingsStore';
@@ -89,6 +89,9 @@ export default function SettingsModal({
   const [hue, setHue] = useState(0);
   const [sat, setSat] = useState(100);
   const [light, setLight] = useState(50);
+
+  const [showLastFmKey, setShowLastFmKey] = useState(false);
+  const [showYandexToken, setShowYandexToken] = useState(false);
 
   const handleClose = () => {
     if (onClose) onClose();
@@ -256,7 +259,18 @@ export default function SettingsModal({
                   />
                 </SettingSection>
 
-                <SettingSection title={t('settings.data_sources') || "Источники информации (Data Sources)"}>
+                <SettingSection title={
+                  <div className="flex items-center gap-2">
+                    {t('settings.data_sources') || "Источники информации (Data Sources)"}
+                    <button 
+                      onClick={() => window.location.reload()} 
+                      className="p-1.5 rounded-full hover:bg-foreground/10 text-secondary hover:text-foreground transition-colors"
+                      title="Refresh"
+                    >
+                      <RefreshCw size={14} />
+                    </button>
+                  </div>
+                }>
                   <div className="flex flex-col gap-4">
                     <label className="flex items-center gap-3 cursor-pointer group">
                       <input 
@@ -281,14 +295,23 @@ export default function SettingsModal({
                         {t('settings.lastfm')}
                       </span>
                     </label>
-                    <div className="pl-7">
-                      <input 
-                        type="text"
-                        placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
-                        value={settings.lastFmKey}
-                        onChange={(e) => settings.setLastFmKey(e.target.value)}
-                        className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white"
-                      />
+                    <div className="pl-7 relative">
+                      <div className="relative">
+                        <input 
+                          type={showLastFmKey ? "text" : "password"}
+                          placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
+                          value={settings.lastFmKey}
+                          onChange={(e) => settings.setLastFmKey(e.target.value)}
+                          className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setShowLastFmKey(!showLastFmKey)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
+                        >
+                          {showLastFmKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
                       <p className="text-xs text-secondary mt-1">
                         {t('settings.lastfm_get_key_part1')}<span className="text-red-400 font-medium">{t('settings.lastfm_get_key_link')}</span>{t('settings.lastfm_get_key_part2')}
                       </p>
@@ -305,14 +328,23 @@ export default function SettingsModal({
                         {t('settings.yandex_music')}
                       </span>
                     </label>
-                    <div className="pl-7">
-                      <input 
-                        type="text"
-                        placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
-                        value={settings.yandexToken}
-                        onChange={(e) => settings.setYandexToken(e.target.value)}
-                        className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white"
-                      />
+                    <div className="pl-7 relative">
+                      <div className="relative">
+                        <input 
+                          type={showYandexToken ? "text" : "password"}
+                          placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
+                          value={settings.yandexToken}
+                          onChange={(e) => settings.setYandexToken(e.target.value)}
+                          className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setShowYandexToken(!showYandexToken)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
+                        >
+                          {showYandexToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
                       <p className="text-xs text-secondary mt-1">
                         {t('settings.yandex_token_desc_part1')}<a href="https://github.com/MarshalX/yandex-music-api/discussions/513" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.yandex_token_desc_link')}</a>{t('settings.yandex_token_desc_part2')}
                       </p>
@@ -389,9 +421,9 @@ export default function SettingsModal({
               <div className="space-y-6">
                 <SettingSection title={t('settings.theme') || 'Тема'}>
                   <div className="flex gap-2">
-                    <ThemeOption label="Dark" value="dark" current={settings.theme} onSelect={settings.setTheme} />
-                    <ThemeOption label="Light" value="light" current={settings.theme} onSelect={settings.setTheme} />
-                    <ThemeOption label="System" value="system" current={settings.theme} onSelect={settings.setTheme} />
+                    <ThemeOption label={t('settings.appearance.theme.dark', 'Dark')} value="dark" current={settings.theme} onSelect={settings.setTheme} />
+                    <ThemeOption label={t('settings.appearance.theme.light', 'Light')} value="light" current={settings.theme} onSelect={settings.setTheme} />
+                    <ThemeOption label={t('settings.appearance.theme.system', 'System')} value="system" current={settings.theme} onSelect={settings.setTheme} />
                   </div>
                 </SettingSection>
 
@@ -730,7 +762,7 @@ export default function SettingsModal({
                         {/* Threshold */}
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>Порог срабатывания (Threshold)</span>
+                            <span>{t('settings.audio.compressor_threshold', 'Порог срабатывания (Threshold)')}</span>
                             <span>{settings.compressorThreshold} dB</span>
                           </div>
                           <input 
@@ -750,7 +782,7 @@ export default function SettingsModal({
                         {/* Ratio */}
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>Степень сжатия (Ratio)</span>
+                            <span>{t('settings.audio.compressor_ratio', 'Степень сжатия (Ratio)')}</span>
                             <span>{settings.compressorRatio}:1</span>
                           </div>
                           <input 
@@ -771,7 +803,7 @@ export default function SettingsModal({
                         {/* Attack */}
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>Атака (Attack)</span>
+                            <span>{t('settings.audio.compressor_attack', 'Атака (Attack)')}</span>
                             <span>{settings.compressorAttack} s</span>
                           </div>
                           <input 
@@ -792,7 +824,7 @@ export default function SettingsModal({
                         {/* Release */}
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>Восстановление (Release)</span>
+                            <span>{t('settings.audio.compressor_release', 'Восстановление (Release)')}</span>
                             <span>{settings.compressorRelease} s</span>
                           </div>
                           <input 

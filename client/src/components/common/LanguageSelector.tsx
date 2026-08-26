@@ -34,7 +34,7 @@ export default function LanguageSelector({ align = 'right' }: { align?: 'left' |
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-10 h-10 ml-2 rounded-full bg-white/5 hover:bg-foreground/10 flex items-center justify-center text-secondary hover:text-foreground transition-colors"
+        className="w-10 h-10 ml-2 rounded-full bg-foreground/5 hover:bg-foreground/10 flex items-center justify-center text-secondary hover:text-foreground transition-colors"
         title={t('topbar.language')}
       >
         <Globe size={18} />
@@ -43,18 +43,18 @@ export default function LanguageSelector({ align = 'right' }: { align?: 'left' |
       {isOpen && (
         <div 
           ref={menuRef}
-          className={`absolute top-12 ${align === 'left' ? 'left-0' : 'right-0'} w-36 bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[70] flex flex-col py-1 animate-in fade-in zoom-in-95 duration-200`}
+          className={`absolute top-12 ${align === 'left' ? 'left-0' : 'right-0'} w-36 bg-background/95 backdrop-blur-xl border border-foreground/10 rounded-xl shadow-2xl overflow-hidden z-[70] flex flex-col py-1 animate-in fade-in zoom-in-95 duration-200`}
         >
           <button 
             onClick={() => changeLanguage('ru')}
-            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${i18n.language.startsWith('ru') ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${i18n.language.startsWith('ru') ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-foreground/5'}`}
           >
             <img src="https://flagcdn.com/ru.svg" alt="RU" className="w-5 h-auto rounded-sm object-cover" />
             <span>Русский</span>
           </button>
           <button 
             onClick={() => changeLanguage('en')}
-            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${i18n.language.startsWith('en') ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${i18n.language.startsWith('en') ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-foreground/5'}`}
           >
             <img src="https://flagcdn.com/us.svg" alt="US" className="w-5 h-auto rounded-sm object-cover" />
             <span>English</span>

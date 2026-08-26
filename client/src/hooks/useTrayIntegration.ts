@@ -54,6 +54,14 @@ export function useTrayIntegration() {
               }
               break;
             }
+            case 'ignore': {
+              const currentTrack = state.queue[state.currentIndex];
+              if (currentTrack) {
+                // Here we would call the ban API or ignore logic
+                state.nextTrack();
+              }
+              break;
+            }
           }
         });
 

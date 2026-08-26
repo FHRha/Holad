@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, Pause, SkipBack, SkipForward, Heart, Maximize2, X, Music } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Heart, Maximize2, X, Music, XCircle } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
 import { useSettingsStore } from '../../store/settingsStore';
 
@@ -224,6 +224,15 @@ export default function TrayMenu() {
             {currentTrack && isLiked 
               ? t('common.in_favorites')
               : t('common.add_favorite')}
+          </button>
+
+          <button 
+            onClick={() => handleAction('ignore')}
+            disabled={!currentTrack}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium w-full text-left hover:bg-red-500/10 text-red-400 hover:text-red-300 disabled:opacity-50 disabled:hover:bg-transparent"
+          >
+            <XCircle className="w-4 h-4" />
+            {t('common.ignore') || 'Игнорировать'}
           </button>
 
           <div className="h-px bg-white/5 my-2 mx-2"></div>

@@ -52,23 +52,23 @@ export default function ArtistView() {
         <div className="relative z-10 p-6 sm:p-10 h-full flex flex-col justify-end">
           <button 
             onClick={() => navigate(-1)}
-            className="absolute top-6 left-6 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors"
+            className="absolute top-6 left-6 p-2 rounded-full bg-black/40 hover:bg-black/60 text-foreground transition-colors"
           >
             <ArrowLeft size={20} />
           </button>
           
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-8 text-center sm:text-left mt-auto">
-            <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-full shadow-2xl overflow-hidden flex-shrink-0 bg-white/5 mx-auto sm:mx-0">
+            <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-full shadow-2xl overflow-hidden flex-shrink-0 bg-foreground/5 mx-auto sm:mx-0">
                <ArtistAvatar artistName={artist.name} artistId={artist.id} fallbackSize={60} className="w-full h-full object-cover" />
             </div>
             <div className="flex flex-col">
-              <span className="hidden sm:block text-xs sm:text-sm font-bold uppercase tracking-widest text-white/80 mb-1 sm:mb-2 drop-shadow-md">
+              <span className="hidden sm:block text-xs sm:text-sm font-bold uppercase tracking-widest text-foreground/80 mb-1 sm:mb-2 drop-shadow-md">
                 {t('views.artist')}
               </span>
-              <h1 className="text-3xl sm:text-6xl md:text-8xl font-black text-white drop-shadow-lg truncate pb-1">
+              <h1 className="text-3xl sm:text-6xl md:text-8xl font-black text-foreground drop-shadow-lg truncate pb-1">
                 {artist.name}
               </h1>
-              <p className="text-sm sm:text-base text-white/60 font-medium mt-2">
+              <p className="text-sm sm:text-base text-foreground/60 font-medium mt-2">
                 {t('views.albums_count')} {artist.albumCount || albums.length}
               </p>
             </div>
@@ -92,7 +92,7 @@ export default function ArtistView() {
         </button>
         <button
           onClick={handleShuffleArtist /* fallback, will be updated by other agents */}
-          className="bg-foreground/10 hover:bg-white/20 text-white font-medium py-3 px-6 rounded-full flex items-center gap-2 transition-colors ml-2"
+          className="bg-foreground/10 hover:bg-foreground/20 text-foreground font-medium py-3 px-6 rounded-full flex items-center gap-2 transition-colors ml-2"
         >
           <Radio size={20} />
           {t('views.artist_radio', 'Радио артиста')}
@@ -116,14 +116,14 @@ export default function ArtistView() {
                     e.preventDefault();
                     openMenu(e.clientX, e.clientY, track, 'track');
                   }}
-                  className="group flex items-center gap-4 p-2 sm:p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                  className="group flex items-center gap-4 p-2 sm:p-3 rounded-lg hover:bg-foreground/5 transition-colors cursor-pointer"
                 >
                   <div className="w-6 text-center text-sm font-medium text-secondary/70 group-hover:text-foreground">
                     {index + 1}
                   </div>
                   
                   {/* Track Cover */}
-                  <div className="relative w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-white/5">
+                  <div className="relative w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-foreground/5">
                     <TrackImage 
                       src={track.coverArt} 
                       className="w-full h-full object-cover" 
@@ -151,7 +151,7 @@ export default function ArtistView() {
         {/* Biography & Extra Info */}
         <div className="lg:col-span-1 flex flex-col gap-6">
           {artistInfo && artistInfo.biography && (
-            <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
+            <div className="bg-foreground/5 rounded-2xl p-6 border border-foreground/5">
               <h3 className="text-sm font-bold uppercase tracking-widest text-secondary mb-4">{t('views.about_artist')}</h3>
               <div 
                 className="text-sm text-foreground/80 leading-relaxed line-clamp-12"
