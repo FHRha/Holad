@@ -146,8 +146,9 @@ export default function TrayMenu() {
   const showApp = async () => {
     if ('__TAURI_INTERNALS__' in window) {
       try {
-        const { emit } = await import('@tauri-apps/api/event');
-        await emit('tray-control', 'show_app');
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('show_main_window');
+        
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         await getCurrentWindow().hide();
       } catch (err) {
@@ -158,7 +159,7 @@ export default function TrayMenu() {
 
   return (
     <div className="h-[100vh] w-[100vw] overflow-hidden p-2 bg-transparent">
-      <div id="tray-menu-content" className="w-full bg-background/90 backdrop-blur-2xl text-white rounded-xl border border-white/10 flex flex-col shadow-2xl p-2 select-none" data-tauri-drag-region>
+      <div id="tray-menu-content" className="w-full bg-zinc-900/95 backdrop-blur-2xl text-white rounded-xl border border-white/10 flex flex-col shadow-2xl p-2 select-none" data-tauri-drag-region>
         {/* Header */}
         <div className="flex items-center gap-3 p-3 mb-1 border-b border-white/5 pointer-events-none">
           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">

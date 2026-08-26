@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil, Info, Github, DownloadCloud } from 'lucide-react';
+import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil, Info, DownloadCloud } from 'lucide-react';
 import { UpdateService } from '../../services/UpdateService';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { AppTheme, AccentColor } from '../../store/settingsStore';
@@ -166,7 +166,7 @@ export default function MobileSettingsView() {
             onClick={() => window.open('https://github.com/FHRha/Holad', '_blank')} 
             className="flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl border border-white/10 transition-colors"
           >
-            <Github size={20} />
+            <img src="/icons/github.png" className="w-[20px] h-[20px] invert" alt="GitHub" />
             GitHub
           </button>
           <button 

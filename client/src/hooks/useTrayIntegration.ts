@@ -29,19 +29,7 @@ export function useTrayIntegration() {
           const action = event.payload;
           const state = usePlayerStore.getState();
 
-          if (action === 'show_app') {
-            import('@tauri-apps/api/window').then(async ({ getCurrentWindow }) => {
-              try {
-                const win = getCurrentWindow();
-                await win.show();
-                await win.unminimize();
-                await win.setFocus();
-              } catch (err) {
-                console.warn('show_app focus error:', err);
-              }
-            });
-            return;
-          }
+          // show_app is handled via direct invoke from TrayMenu to rust backend
 
           switch (action) {
             case 'play_pause':

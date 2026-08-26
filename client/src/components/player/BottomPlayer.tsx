@@ -109,7 +109,7 @@ export default function BottomPlayer() {
           </div>
           <ArtistLinks artistString={currentTrack.artist} artistId={currentTrack.artistId} className="text-sm font-medium text-secondary truncate mt-0.5" />
           {currentTrack.album && (
-            <span onClick={() => navigate(`/Holad/album/${currentTrack.albumId}`)} className="text-sm text-secondary/70 truncate hover:underline cursor-pointer">{currentTrack.album}</span>
+            <span onClick={() => navigate(`/Holad/album/${currentTrack.albumId}`)} className="text-sm text-secondary/70 truncate hover:underline cursor-pointer mt-0.5">{currentTrack.album}</span>
           )}
           {!isActiveDevice && activeDeviceObj && (
             <div className="relative shrink-0 mt-1 max-w-full w-fit">

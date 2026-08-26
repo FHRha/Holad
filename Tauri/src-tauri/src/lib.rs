@@ -23,6 +23,15 @@ fn quit_app() {
     std::process::exit(0);
 }
 
+#[tauri::command]
+fn show_main_window(app: tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -47,7 +56,8 @@ pub fn run() {
         taskbar::update_taskbar_state,
         is_autostart_launch,
         set_close_to_tray,
-        quit_app
+        quit_app,
+        show_main_window
     ])
     .setup(|app| {
       let is_autostart = std::env::args().any(|arg| arg == "--autostart");

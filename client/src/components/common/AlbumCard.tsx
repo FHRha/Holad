@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Heart, Star, MoreHorizontal, SkipForward, ListPlus, Download } from 'lucide-react';
+import { Play, Heart, Star, MoreHorizontal, SkipForward, ListPlus, Download, Ban } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { usePlayerStore } from '../../store/playerStore';
@@ -17,6 +17,8 @@ export default function AlbumCard({ album }: { album: any }) {
   const addToQueue = usePlayerStore(state => state.addToQueue);
   const likedAlbumIds = usePlayerStore(state => state.likedAlbumIds);
   const toggleAlbumLike = usePlayerStore(state => state.toggleAlbumLike);
+  const toggleAlbumExclude = usePlayerStore(state => state.toggleAlbumExclude);
+  const excludedAlbumIds = usePlayerStore(state => state.excludedAlbumIds);
   const setIsProcessing = usePlayerStore(state => state.setIsProcessing);
   const { openMenu } = useContextMenuStore();
   const downloadItem = useDownloadStore(state => state.downloads[album.id]);
@@ -24,6 +26,7 @@ export default function AlbumCard({ album }: { album: any }) {
   const isDownloading = downloadItem?.status === 'downloading';
 
   const isLiked = likedAlbumIds.includes(album.id);
+  const isExcluded = excludedAlbumIds.includes(album.id);
   const [rating, setRatingState] = useState(album.userRating || 0);
 
   useEffect(() => {
@@ -259,7 +262,8 @@ export default function AlbumCard({ album }: { album: any }) {
             </button>
           </div>
 
-          <div className="flex justify-end items-end z-20">
+          <div className="flex justify-between items-end z-20">
+            <Ban size={18} className={`cursor-pointer transition-colors hover:text-red-500 ${isExcluded ? 'text-red-500' : 'text-[#b3b3b3]'}`} onClick={(e) => { e.stopPropagation(); toggleAlbumExclude(album.id); }} />
             <MoreHorizontal size={20} className="text-[#b3b3b3] hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>

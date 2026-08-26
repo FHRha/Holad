@@ -276,7 +276,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
     public pause(): void {
         this.isPlaying = false;
-        const wasTransitioning = this.transitionManager.getIsTransitioning();
+        this.transitionManager.getIsTransitioning();
         const activeDeck = this.getActiveDeck();
         const standbyDeck = this.getStandbyDeck();
         const targetActiveIndex = this.activeIndex;
