@@ -368,6 +368,9 @@ app.get('/api/subsonic/:endpoint', async (req, res) => {
 
 // Proxy audio stream to protect Navidrome credentials
 app.get('/api/stream/:id', async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+  
   const { id } = req.params;
   if (!id) {
     return res.status(400).send('Missing track ID');

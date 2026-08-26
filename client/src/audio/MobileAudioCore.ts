@@ -49,6 +49,21 @@ export class MobileAudioCore implements IAudioCore {
         }
 
         // Events will be handled by UnifiedAudioEngine
+        
+        const handleError = (el: HTMLAudioElement) => {
+            if (el.getAttribute('crossorigin') === 'anonymous') {
+                console.warn('MobileAudioCore: Error with crossOrigin anonymous, falling back');
+                el.removeAttribute('crossorigin');
+                el.crossOrigin = null;
+                const currentTime = el.currentTime;
+                el.load();
+                el.currentTime = currentTime;
+                el.play().catch(() => {});
+            }
+        };
+
+        this.audioElement.addEventListener('error', () => handleError(this.audioElement));
+        this.secondaryElement.addEventListener('error', () => handleError(this.secondaryElement));
     }
 
     async play(url: string, position: number = 0): Promise<void> {
@@ -86,8 +101,23 @@ export class MobileAudioCore implements IAudioCore {
                 playPromise.then(() => {
                     this.currentState = 'playing';
                 }).catch(e => {
-                    console.error("Mobile play failed:", e);
-                    this.currentState = 'error';
+                    if (this.audioElement.getAttribute('crossorigin') === 'anonymous') {
+                        console.warn("Mobile play failed with crossOrigin, retrying without it", e);
+                        this.audioElement.removeAttribute('crossorigin');
+                        this.audioElement.crossOrigin = null;
+                        const currentTime = this.audioElement.currentTime;
+                        this.audioElement.load();
+                        this.audioElement.currentTime = currentTime;
+                        this.audioElement.play().then(() => {
+                            this.currentState = 'playing';
+                        }).catch(retryE => {
+                            console.error("Mobile retry play failed:", retryE);
+                            this.currentState = 'error';
+                        });
+                    } else {
+                        console.error("Mobile play failed:", e);
+                        this.currentState = 'error';
+                    }
                 });
             } else {
                 this.currentState = 'playing';
@@ -159,7 +189,19 @@ export class MobileAudioCore implements IAudioCore {
         try {
             const playPromise = this.audioElement.play();
             if (playPromise !== undefined) {
-                await playPromise.catch(e => console.warn("Crossfade play warning", e));
+                await playPromise.catch(async (e) => {
+                    if (this.audioElement.getAttribute('crossorigin') === 'anonymous') {
+                        console.warn("Crossfade play warning with crossOrigin, retrying", e);
+                        this.audioElement.removeAttribute('crossorigin');
+                        this.audioElement.crossOrigin = null;
+                        const currentTime = this.audioElement.currentTime;
+                        this.audioElement.load();
+                        this.audioElement.currentTime = currentTime;
+                        await this.audioElement.play().catch(retryE => console.warn("Crossfade retry play warning", retryE));
+                    } else {
+                        console.warn("Crossfade play warning", e);
+                    }
+                });
             }
             this.currentState = 'playing';
         } catch (e) {

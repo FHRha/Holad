@@ -54,15 +54,30 @@ export const buildUrl = (endpoint: string, params: Record<string, string> = {}) 
 
 export const fetchWithRetry = async (url: string, options?: RequestInit): Promise<Response> => {
   const delays = [1000, 1000, 1000, 5000];
+  const TIMEOUT_MS = 10000; // 10 seconds
+
   for (let i = 0; i <= delays.length; i++) {
     try {
-      const res = await fetch(url, options);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      
+      const res = await fetch(url, {
+        ...options,
+        signal: options?.signal || controller.signal
+      });
+      clearTimeout(timeoutId);
+      
       // We got a response, so we're online
       import('../utils/networkStatus').then(m => m.networkManager.setOnline(true)).catch(() => {});
       
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res;
     } catch (e: any) {
+      if (e.name === 'AbortError') {
+        import('../utils/networkStatus').then(m => m.networkManager.setOnline(false)).catch(() => {});
+        throw new Error('Network timeout');
+      }
+      
       if (i === delays.length) throw e;
       
       // If forced offline, fail fast instead of retrying forever

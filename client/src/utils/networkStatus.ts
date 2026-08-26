@@ -38,42 +38,42 @@ class NetworkStatusManager {
       }).catch(err => {
         console.error('Failed to initialize @capacitor/network', err);
       });
-    } else {
-      // Desktop / Web: Poll server lightly to detect true offline status
-      // because window 'offline' events can be unreliable on some desktop WebViews.
-      setInterval(async () => {
-        if (!this.isTesting) {
-          try {
-            const authStore = (await import('../store/authStore')).useAuthStore.getState();
-            if (authStore.isAuthenticated && authStore.url) {
-              const core = await import('../api/subsonic-core');
-              const pingUrl = core.buildUrl('ping');
-              
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 2000);
-              
-              try {
-                await fetch(pingUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                // If we get a response, even an HTTP error, we are technically online.
-                this.pingFailures = 0;
-                this.setOnline(true);
-              // oxlint-disable-next-line
-              } catch (e) {
-                clearTimeout(timeoutId);
-                this.pingFailures++;
-                if (this.pingFailures >= 2) {
-                  this.setOnline(false);
-                }
+    }
+
+    // All platforms: Poll server lightly to detect true offline status
+    // because window 'offline' events can be unreliable.
+    setInterval(async () => {
+      if (!this.isTesting) {
+        try {
+          const authStore = (await import('../store/authStore')).useAuthStore.getState();
+          if (authStore.isAuthenticated && authStore.url) {
+            const core = await import('../api/subsonic-core');
+            const pingUrl = core.buildUrl('ping');
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            
+            try {
+              await fetch(pingUrl, { signal: controller.signal });
+              clearTimeout(timeoutId);
+              // If we get a response, even an HTTP error, we are technically online.
+              this.pingFailures = 0;
+              this.setOnline(true);
+            // oxlint-disable-next-line
+            } catch (e) {
+              clearTimeout(timeoutId);
+              this.pingFailures++;
+              if (this.pingFailures >= 2) {
+                this.setOnline(false);
               }
             }
-          // oxlint-disable-next-line
-          } catch (e) {
-            // ignore
           }
+        // oxlint-disable-next-line
+        } catch (e) {
+          // ignore
         }
-      }, 5000); // Check every 5s
-    }
+      }
+    }, 5000); // Check every 5s
   }
 
   public isOnline(): boolean {

@@ -114,6 +114,16 @@ export class AudioDeck implements IAudioDeck {
         });
 
         register('error', (e: any) => {
+            if (this.element.getAttribute('crossorigin') === 'anonymous') {
+                console.warn('AudioDeck: Error with crossOrigin anonymous, falling back');
+                this.element.removeAttribute('crossorigin');
+                this.element.crossOrigin = null;
+                const currentTime = this.element.currentTime;
+                this.element.load();
+                this.element.currentTime = currentTime;
+                this.element.play().catch(() => {});
+                return;
+            }
             this.setState('error');
             const err = this.element.error || e;
             this.emit('error', err);
@@ -176,6 +186,23 @@ export class AudioDeck implements IAudioDeck {
             // Check if error is an intentional abort
             if (err?.name === 'AbortError') {
                 return;
+            }
+            if (this.element.getAttribute('crossorigin') === 'anonymous') {
+                console.warn('AudioDeck: Play error with crossOrigin, retrying without it');
+                this.element.removeAttribute('crossorigin');
+                this.element.crossOrigin = null;
+                const currentTime = this.element.currentTime;
+                this.element.load();
+                this.element.currentTime = currentTime;
+                try {
+                    await this.element.play();
+                    this.setState('playing');
+                    return;
+                } catch (retryErr: any) {
+                    this.setState('error');
+                    this.emit('error', retryErr);
+                    throw retryErr;
+                }
             }
             this.setState('error');
             this.emit('error', err);
