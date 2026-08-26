@@ -261,6 +261,24 @@ if (isTauri()) {
 }
 
 function App() {
+  useEffect(() => {
+    const handleTouchEnd = (e: TouchEvent) => {
+      const target = e.target as HTMLElement;
+      const buttonOrLink = target.closest('button') || target.closest('a');
+      if (buttonOrLink) {
+        setTimeout(() => {
+          if (document.activeElement === buttonOrLink) {
+            buttonOrLink.blur();
+          }
+        }, 150);
+      }
+    };
+    
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      document.addEventListener('touchend', handleTouchEnd, { passive: true });
+      return () => document.removeEventListener('touchend', handleTouchEnd);
+    }
+  }, []);
   const [serverUrlSet, setServerUrlSet] = useState(!!localStorage.getItem('holadServerUrl'));
   const isHostedOnBackend = window.location.pathname.toLowerCase().includes('/holad');
   const needsServerUrl = !serverUrlSet && !isHostedOnBackend;

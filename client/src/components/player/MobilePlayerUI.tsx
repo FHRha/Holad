@@ -222,7 +222,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       <div className="relative z-10 flex items-center justify-between px-4 py-4 w-full">
         <button 
           onClick={onClose}
-          className="p-2 text-white hover:bg-white/10 rounded-full transition-colors active:scale-95"
+          className="p-2 text-secondary hover:bg-white/10 rounded-full transition-colors active:scale-95"
         >
           <ChevronDown size={28} />
         </button>
@@ -233,7 +233,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
           <HoladConnectMenu />
           <button 
             onClick={(e) => openMenu(e.clientX, e.clientY, currentTrack, 'track')}
-            className="p-2 text-white hover:bg-white/10 rounded-full transition-colors active:scale-95"
+            className="p-2 text-secondary hover:bg-white/10 rounded-full transition-colors active:scale-95"
           >
             <MoreHorizontal size={24} />
           </button>
@@ -269,18 +269,18 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
           <div className="flex items-center justify-between">
             <div className="flex flex-col overflow-hidden mr-4">
               <h1 className="text-2xl font-bold text-white truncate drop-shadow-md">{currentTrack.title}</h1>
-              <h2 className="text-base text-white/70 truncate drop-shadow-md">{formatArtistName(currentTrack.artist)}</h2>
+              <h2 className="text-base text-secondary truncate drop-shadow-md">{formatArtistName(currentTrack.artist)}</h2>
             </div>
             <div className="flex items-center gap-1">
               <button 
                 onClick={handleLike}
-                className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${isLiked ? 'text-primary' : 'text-white/70 hover:text-white'}`}
+                className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${isLiked ? 'text-primary' : 'text-secondary hover:text-white'}`}
               >
                 <Heart size={24} fill={isLiked ? 'currentColor' : 'none'} />
               </button>
               <button 
                 onClick={() => toggleTrackExclude(currentTrack.id)}
-                className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${excludedTrackIds.includes(currentTrack.id) ? 'text-red-500' : 'text-white/70 hover:text-red-400'}`}
+                className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${excludedTrackIds.includes(currentTrack.id) ? 'text-red-500' : 'text-secondary hover:text-red-400'}`}
               >
                 <Ban size={24} />
               </button>
@@ -298,7 +298,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               className={`w-full ${role === 'listener' ? 'pointer-events-none' : ''}`}
               isAnimated={isPlaying && !isSeeking}
             />
-            <div className="flex justify-between text-xs font-medium text-white/50 px-1">
+            <div className="flex justify-between text-xs font-medium text-secondary px-1">
               <span ref={timeTextRef}>{formatTime(isSeeking ? (progress / 100) * (duration || 0) : ((progress / 100) * (duration || 0)))}</span>
               <span>{formatTime(duration)}</span>
             </div>
@@ -309,14 +309,14 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             <button 
               onClick={toggleShuffle} 
               disabled={role === 'listener'}
-              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${isShuffle ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-white/70 hover:bg-white/10'}`}
+              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${isShuffle ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-secondary hover:bg-white/10'}`}
             >
               <Shuffle size={20} />
             </button>
             <button 
               onClick={prevTrack} 
               disabled={role === 'listener'} 
-              className="text-white hover:text-white/80 active:scale-95 transition-colors disabled:opacity-50 p-2"
+              className="text-secondary hover:text-white active:scale-95 transition-colors disabled:opacity-50 p-2"
             >
               <SkipBack size={32} fill="currentColor" />
             </button>
@@ -334,21 +334,21 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             <button 
               onClick={nextTrack} 
               disabled={role === 'listener'} 
-              className="text-white hover:text-white/80 active:scale-95 transition-colors disabled:opacity-50 p-2"
+              className="text-secondary hover:text-white active:scale-95 transition-colors disabled:opacity-50 p-2"
             >
               <SkipForward size={32} fill="currentColor" />
             </button>
             <button 
               onClick={cycleRepeatMode} 
               disabled={role === 'listener'}
-              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${repeatMode !== 'none' ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-white/70 hover:bg-white/10'}`}
+              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${repeatMode !== 'none' ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-secondary hover:bg-white/10'}`}
             >
               {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
             </button>
           </div>
 
           {/* Secondary Controls Row */}
-          <div className="flex items-center justify-between w-full px-4 pt-2 text-white/60">
+          <div className="flex items-center justify-between w-full px-4 pt-2 text-secondary">
             <button onClick={() => setShowSleepTimerMenu(true)} className={`hover:text-white transition-colors active:scale-95 ${sleepTimer.type ? 'text-primary' : ''}`}>
               <Moon size={20} />
             </button>
@@ -372,10 +372,10 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
       {/* Very Bottom: Navigation Tabs */}
       <div className="relative z-10 w-full h-[72px] flex-shrink-0 bg-black/40 backdrop-blur-md transform-gpu will-change-transform border-t border-white/5 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
-        <button onClick={() => setActiveTab('player')} className={`p-3 rounded-full transition-colors ${activeTab === 'player' ? 'text-primary bg-primary/10' : 'text-white/50 hover:text-white/80'}`}>
+        <button onClick={() => setActiveTab('player')} className={`p-3 rounded-full transition-colors ${activeTab === 'player' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
           <Music size={24} />
         </button>
-        <button onClick={() => setActiveTab('queue')} className={`p-3 rounded-full transition-colors ${activeTab === 'queue' ? 'text-primary bg-primary/10' : 'text-white/50 hover:text-white/80'}`}>
+        <button onClick={() => setActiveTab('queue')} className={`p-3 rounded-full transition-colors ${activeTab === 'queue' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="6" x2="21" y2="6"></line>
             <line x1="12" y1="12" x2="21" y2="12"></line>
@@ -383,10 +383,10 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             <polygon points="3 5 9 8.5 3 12 3 5" fill="currentColor" stroke="none"></polygon>
           </svg>
         </button>
-        <button onClick={() => setActiveTab('info')} className={`p-3 rounded-full transition-colors ${activeTab === 'info' ? 'text-primary bg-primary/10' : 'text-white/50 hover:text-white/80'}`}>
+        <button onClick={() => setActiveTab('info')} className={`p-3 rounded-full transition-colors ${activeTab === 'info' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
           <Info size={24} />
         </button>
-        <button onClick={() => setActiveTab('lyrics')} className={`p-3 rounded-full transition-colors ${activeTab === 'lyrics' ? 'text-primary bg-primary/10' : 'text-white/50 hover:text-white/80'}`}>
+        <button onClick={() => setActiveTab('lyrics')} className={`p-3 rounded-full transition-colors ${activeTab === 'lyrics' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
           <MessageSquareQuote size={24} />
         </button>
       </div>
@@ -403,7 +403,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                 <Moon size={24} className="text-primary" />
                 {t('player.sleepTimer')}
               </h3>
-              <button onClick={() => setShowSleepTimerMenu(false)} className="p-2 text-white/50 hover:text-white transition-colors rounded-full active:scale-95">
+              <button onClick={() => setShowSleepTimerMenu(false)} className="p-2 text-secondary hover:text-white transition-colors rounded-full active:scale-95">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>

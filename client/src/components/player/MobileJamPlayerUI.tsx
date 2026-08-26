@@ -103,7 +103,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
         {showMinimizeButton ? (
           <button 
             onClick={onClose}
-            className="p-2 text-white hover:bg-white/10 rounded-full transition-colors active:scale-95"
+            className="p-2 text-secondary hover:bg-white/10 rounded-full transition-colors active:scale-95"
           >
             <ChevronDown size={28} />
           </button>
@@ -116,7 +116,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
         {showSessionButton ? (
           <button 
             onClick={() => setShowSessionMenu(true)}
-            className="p-2 text-white hover:bg-white/10 rounded-full transition-colors active:scale-95"
+            className="p-2 text-secondary hover:bg-white/10 rounded-full transition-colors active:scale-95"
           >
             <Users size={24} />
           </button>
@@ -151,12 +151,12 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
           <div className="flex items-center justify-between">
             <div className="flex flex-col overflow-hidden mr-4">
               <h1 className="text-2xl font-bold text-white truncate drop-shadow-md">{currentTrack.title}</h1>
-              <h2 className="text-base text-white/70 truncate drop-shadow-md">{formatArtistName(currentTrack.artist)}</h2>
+              <h2 className="text-base text-secondary truncate drop-shadow-md">{formatArtistName(currentTrack.artist)}</h2>
             </div>
           </div>
 
           {/* Progress Bar */}
-          <div className="w-full flex items-center gap-3 text-xs font-medium text-white/50">
+          <div className="w-full flex items-center gap-3 text-xs font-medium text-secondary">
             <span className="min-w-[40px] text-right font-medium">{formatTime((progress / 100) * (duration || 0))}</span>
             <LiquidSeekBar 
               value={progress / 100} 
@@ -166,7 +166,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
               className={`flex-1 ${role === 'listener' ? 'pointer-events-none' : ''}`}
               isAnimated={isPlaying && !isSeeking}
             />
-            <span className="min-w-[40px] text-left font-medium text-white/50">{formatTime(duration || 0)}</span>
+            <span className="min-w-[40px] text-left font-medium text-secondary">{formatTime(duration || 0)}</span>
           </div>
 
           {/* Main Playback Controls */}
@@ -174,14 +174,14 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             <button 
               onClick={toggleShuffle} 
               disabled={role === 'listener'}
-              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${isShuffle ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-white/70 hover:bg-white/10'}`}
+              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${isShuffle ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-secondary hover:bg-white/10'}`}
             >
               <Shuffle size={20} />
             </button>
             <button 
               onClick={prevTrack} 
               disabled={role === 'listener'} 
-              className="text-white hover:text-white/80 active:scale-95 transition-colors disabled:opacity-50 p-2"
+              className="text-secondary hover:text-white active:scale-95 transition-colors disabled:opacity-50 p-2"
             >
               <SkipBack size={32} fill="currentColor" />
             </button>
@@ -199,14 +199,14 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             <button 
               onClick={nextTrack} 
               disabled={role === 'listener'} 
-              className="text-white hover:text-white/80 active:scale-95 transition-colors disabled:opacity-50 p-2"
+              className="text-secondary hover:text-white active:scale-95 transition-colors disabled:opacity-50 p-2"
             >
               <SkipForward size={32} fill="currentColor" />
             </button>
             <button 
               onClick={cycleRepeatMode} 
               disabled={role === 'listener'}
-              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${repeatMode !== 'none' ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-white/70 hover:bg-white/10'}`}
+              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${repeatMode !== 'none' ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-secondary hover:bg-white/10'}`}
             >
               {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
             </button>
@@ -214,7 +214,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
 
           {/* Secondary Controls Row */}
           {role !== 'listener' && (
-            <div className="flex items-center justify-between w-full px-4 pt-2 text-white/60">
+            <div className="flex items-center justify-between w-full px-4 pt-2 text-secondary">
               <button onClick={() => setShowSleepTimerMenu(true)} className={`hover:text-white transition-colors active:scale-95 ${sleepTimer.type ? 'text-primary' : ''}`}>
                 <Moon size={20} />
               </button>
@@ -236,10 +236,10 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
 
       {/* Very Bottom: Navigation Tabs */}
       <div className="relative z-10 w-full h-[72px] flex-shrink-0 bg-black/40 backdrop-blur-md transform-gpu will-change-transform border-t border-white/5 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
-        <button onClick={() => setActiveTab('player')} className={`p-3 rounded-full transition-colors ${activeTab === 'player' ? 'text-primary bg-primary/10' : 'text-white/50 hover:text-white/80'}`}>
+        <button onClick={() => setActiveTab('player')} className={`p-3 rounded-full transition-colors ${activeTab === 'player' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
           <Music size={24} />
         </button>
-        <button onClick={() => setActiveTab('queue')} className={`p-3 rounded-full transition-colors ${activeTab === 'queue' ? 'text-primary bg-primary/10' : 'text-white/50 hover:text-white/80'}`}>
+        <button onClick={() => setActiveTab('queue')} className={`p-3 rounded-full transition-colors ${activeTab === 'queue' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="6" x2="21" y2="6"></line>
             <line x1="12" y1="12" x2="21" y2="12"></line>
@@ -247,7 +247,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             <polygon points="3 5 9 8.5 3 12 3 5" fill="currentColor" stroke="none"></polygon>
           </svg>
         </button>
-        <button onClick={() => setActiveTab('lyrics')} className={`p-3 rounded-full transition-colors ${activeTab === 'lyrics' ? 'text-primary bg-primary/10' : 'text-white/50 hover:text-white/80'}`}>
+        <button onClick={() => setActiveTab('lyrics')} className={`p-3 rounded-full transition-colors ${activeTab === 'lyrics' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
           <MessageSquareQuote size={24} />
         </button>
       </div>
@@ -264,7 +264,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
                 <Moon size={24} className="text-primary" />
                 {t('player.sleepTimer')}
               </h3>
-              <button onClick={() => setShowSleepTimerMenu(false)} className="p-2 text-white/50 hover:text-white transition-colors rounded-full active:scale-95">
+              <button onClick={() => setShowSleepTimerMenu(false)} className="p-2 text-secondary hover:text-white transition-colors rounded-full active:scale-95">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
@@ -306,7 +306,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
                 <Users size={24} className="text-primary" />
                 {t('jam.session')}
               </h3>
-              <button onClick={() => setShowSessionMenu(false)} className="p-2 text-white/50 hover:text-white transition-colors rounded-full active:scale-95">
+              <button onClick={() => setShowSessionMenu(false)} className="p-2 text-secondary hover:text-white transition-colors rounded-full active:scale-95">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
