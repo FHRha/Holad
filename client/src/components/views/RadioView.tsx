@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Play, Shuffle, Heart, Disc, Music, Loader2 } from 'lucide-react';
+import { Play, Shuffle, Heart, Disc, Music, Loader2, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { fetchRandomTracks, getStarred, getGenres, getSongsByGenre, getCoverArtUrl } from '../../api/subsonic';
+import { fetchRandomTracks, getStarred, getGenres, getSongsByGenre, getCoverArtUrl, getArtists, getTopSongs } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import { getOfflineTracks } from '../../store/downloadStore';
 import { toast } from 'sonner';
 import type { Track } from '../../store/playerStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useUIStore } from '../../store/uiStore';
+import { formatGenre } from '../../utils/formatters';
 
 const StationCard = ({ id, title, icon: Icon, description, onClick, colorClass, loadingStation }: any) => {
   const isThisLoading = loadingStation === id;
@@ -154,6 +155,22 @@ export default function RadioView() {
 
   const startGenreRadio = (genreName: string) => startStation(`genre-${genreName}`, () => getSongsByGenre(genreName, 50));
 
+  const startArtistMix = () => startStation('artist-mix', async () => {
+    const allArtists = await getArtists();
+    if (!allArtists || allArtists.length === 0) return [];
+    
+    // Pick 5 random artists
+    const shuffled = [...allArtists].sort(() => Math.random() - 0.5).slice(0, 5);
+    
+    // Fetch top tracks for each
+    const tracksPromises = shuffled.map(a => getTopSongs(a.name, 10).catch(() => []));
+    const nestedTracks = await Promise.all(tracksPromises);
+    
+    // Flatten and shuffle
+    const mixed = nestedTracks.flat().sort(() => Math.random() - 0.5);
+    return mixed.slice(0, 50);
+  });
+
   if (loading) {
     return <div className="flex-1 flex items-center justify-center text-secondary"><Loader2 className="animate-spin w-8 h-8" /></div>;
   }
@@ -165,7 +182,7 @@ export default function RadioView() {
         {/* Main Stations */}
         <section>
           <h2 className="text-2xl font-bold text-foreground mb-6">{t('views.radio_main')}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StationCard 
               id="random"
               title={t('views.radio_infinite')} 
@@ -193,6 +210,15 @@ export default function RadioView() {
               colorClass="bg-[#148A08]"
               loadingStation={loadingStation}
             />
+            <StationCard 
+              id="artist-mix"
+              title={t('views.radio_artist_mix', 'Artist Mix')} 
+              description={t('views.radio_artist_mix_desc', 'Random artists blend')}
+              icon={Users}
+              onClick={startArtistMix}
+              colorClass="bg-[#509BF5]"
+              loadingStation={loadingStation}
+            />
           </div>
         </section>
 
@@ -213,7 +239,7 @@ export default function RadioView() {
                   <StationCard 
                     key={genre.value}
                     id={`genre-${genre.value}`}
-                    title={genre.value} 
+                    title={formatGenre(genre.value, t)} 
                     description={`${genre.songCount} ${t('common.songs')}`}
                     icon={Music}
                     onClick={() => startGenreRadio(genre.value)}

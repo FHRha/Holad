@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getArtist, getTopSongs, getArtistInfo, getCoverArtUrl, searchAll } from '../api/subsonic';
+import { getArtist, getTopSongs, getArtistInfo, getCoverArtUrl, searchAll, getSimilarSongs2 } from '../api/subsonic';
+import { getExternalArtistStats } from '../api/externalApi';
 import { usePlayerStore } from '../store/playerStore';
 import type { Track } from '../store/playerStore';
 
@@ -8,6 +9,7 @@ export function useArtistData(id: string | undefined) {
   
   const [artist, setArtist] = useState<any>(null);
   const [artistInfo, setArtistInfo] = useState<any>(null);
+  const [externalStats, setExternalStats] = useState<any>(null);
   const [topSongs, setTopSongs] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,12 +23,15 @@ export function useArtistData(id: string | undefined) {
     Promise.all([
       getArtist(actualId),
       getArtistInfo(actualId).catch(() => null), // If fails, ignore
-    ]).then(([artistData, infoData]) => {
+    ]).then(async ([artistData, infoData]) => {
       setArtist(artistData);
       setArtistInfo(infoData);
+
       
-      // Fetch top songs only after we know the artist name
+      // Fetch top songs and external stats only after we know the artist name
       if (artistData?.name) {
+        getExternalArtistStats(artistData.name).then(stats => setExternalStats(stats)).catch(() => {});
+
         Promise.all([
           getTopSongs(artistData.name, 1000).catch(() => []),
           searchAll(artistData.name, 1000).catch(() => ({ song: [] }))
@@ -95,13 +100,48 @@ export function useArtistData(id: string | undefined) {
     setQueueAndPlay(topSongs, index);
   };
 
+  const handlePlayRadio = async () => {
+    if (!artist?.id) return;
+    try {
+      const similarSongs = await getSimilarSongs2(artist.id, 50).catch(() => []);
+      const combined = [...topSongs.slice(0, 10), ...similarSongs];
+      
+      const uniqueMap = new Map();
+      combined.forEach(s => {
+        if (!uniqueMap.has(s.id)) uniqueMap.set(s.id, s);
+      });
+      
+      const shuffledRadio = Array.from(uniqueMap.values()).sort(() => Math.random() - 0.5);
+      
+      const tracksForQueue: Track[] = shuffledRadio.map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        artist: s.artist,
+        album: s.album,
+        albumId: s.albumId,
+        artistId: s.artistId || artist.id,
+        coverArt: getCoverArtUrl(s.coverArt || s.albumId || s.id, 300),
+        duration: s.duration,
+        userRating: s.userRating
+      }));
+
+      if (tracksForQueue.length > 0) {
+        setQueueAndPlay(tracksForQueue, 0);
+      }
+    } catch (err) {
+      console.error('Radio error', err);
+    }
+  };
+
   return {
     artist,
     artistInfo,
+    externalStats,
     topSongs,
     loading,
     handlePlayArtist,
     handleShuffleArtist,
-    handlePlaySong
+    handlePlaySong,
+    handlePlayRadio
   };
 }

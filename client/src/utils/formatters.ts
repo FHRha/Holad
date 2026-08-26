@@ -13,3 +13,47 @@ export function formatArtistName(artistString: string | undefined | null): strin
   const last = parts.pop();
   return parts.join(', ') + ' & ' + last;
 }
+
+export function formatGenre(genre: string | undefined | null, t?: (key: string, options?: any) => string): string {
+  if (!genre) return '';
+  const lower = genre.toLowerCase().replace(/[^a-zа-яё]/g, '');
+  
+  if (t) {
+    const translated = t(`genres.${lower}`);
+    if (translated && translated !== `genres.${lower}`) return translated;
+  }
+
+  const prefixes = [
+    { key: 'rus', val: 'Русский', femVal: 'Русская' },
+    { key: 'ru', val: 'Русский', femVal: 'Русская' },
+    { key: 'russian', val: 'Русский', femVal: 'Русская' }
+  ];
+  
+  const bases = [
+    { key: 'pop', val: 'поп-музыка', isFem: true },
+    { key: 'rap', val: 'рэп', isFem: false },
+    { key: 'rock', val: 'рок', isFem: false },
+    { key: 'indie', val: 'инди', isFem: false },
+    { key: 'hiphop', val: 'хип-хоп', isFem: false }
+  ];
+
+  for (const pref of prefixes) {
+    if (lower.startsWith(pref.key)) {
+      const remaining = lower.substring(pref.key.length);
+      for (const base of bases) {
+        if (remaining === base.key) {
+          return `${base.isFem ? pref.femVal : pref.val} ${base.val}`;
+        }
+      }
+    }
+  }
+
+  for (const base of bases) {
+    if (lower === base.key) {
+      if (base.key === 'pop') return 'Поп-музыка';
+      return base.val.charAt(0).toUpperCase() + base.val.slice(1);
+    }
+  }
+
+  return genre.charAt(0).toUpperCase() + genre.slice(1).toLowerCase();
+}

@@ -34,6 +34,12 @@ export interface SettingsState {
   compressorAttack: number;
   compressorRelease: number;
   
+  useNavidrome: boolean;
+  useLastFm: boolean;
+  useYandex: boolean;
+  lastFmKey: string;
+  yandexToken: string;
+
   setTheme: (theme: AppTheme) => void;
   setAccentColor: (color: AccentColor) => void;
   setCustomColor: (index: number, color: string) => void;
@@ -57,6 +63,12 @@ export interface SettingsState {
   setCompressorRatio: (ratio: number) => void;
   setCompressorAttack: (attack: number) => void;
   setCompressorRelease: (release: number) => void;
+
+  setUseNavidrome: (enabled: boolean) => void;
+  setUseLastFm: (enabled: boolean) => void;
+  setUseYandex: (enabled: boolean) => void;
+  setLastFmKey: (key: string) => void;
+  setYandexToken: (token: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -85,6 +97,12 @@ export const useSettingsStore = create<SettingsState>()(
       compressorRatio: 12,
       compressorAttack: 0.01,
       compressorRelease: 0.25,
+      
+      useNavidrome: true,
+      useLastFm: false,
+      useYandex: false,
+      lastFmKey: '',
+      yandexToken: '',
 
       setTheme: (theme) => set({ theme }),
       setAccentColor: (accentColor) => set({ accentColor }),
@@ -126,6 +144,12 @@ export const useSettingsStore = create<SettingsState>()(
       setCompressorRatio: (compressorRatio) => set({ compressorRatio }),
       setCompressorAttack: (compressorAttack) => set({ compressorAttack }),
       setCompressorRelease: (compressorRelease) => set({ compressorRelease }),
+
+      setUseNavidrome: (useNavidrome) => set({ useNavidrome }),
+      setUseLastFm: (useLastFm) => set({ useLastFm }),
+      setUseYandex: (useYandex) => set({ useYandex }),
+      setLastFmKey: (lastFmKey) => set({ lastFmKey }),
+      setYandexToken: (yandexToken) => set({ yandexToken }),
     }),
     {
       name: 'streamnavi-settings',

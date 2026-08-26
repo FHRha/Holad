@@ -80,16 +80,28 @@ export default function MainContent() {
   return (
     <>
       <div className="hidden md:flex flex-1 flex-col bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar pt-10">
-        <AlbumCarousel 
-          title={isOfflineMode ? t('views.downloaded_albums') : t('common.discover_new')} 
-          albums={isOfflineMode ? displayAlbums : randomAlbums} 
-          variant="hero" 
-        />
-        <GenreCarousel title={t('views.radio_genres')} genres={displayGenres} />
-        {isOfflineMode ? (
-          <TrackCarousel title={t('views.downloaded_tracks')} tracks={offlineTracks} />
+        {(displayAlbums.length === 0 && offlineTracks.length === 0) ? (
+          <div className="flex flex-col items-center justify-center flex-1 h-full min-h-[50vh] text-center opacity-70">
+            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-secondary"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Здесь пока пусто</h2>
+            <p className="text-sm text-secondary">Добавьте музыку на сервер или загрузите для оффлайна</p>
+          </div>
         ) : (
-          <AlbumCarousel title={t('common.most_played')} albums={displayAlbums} variant="standard" />
+          <>
+            <AlbumCarousel 
+              title={isOfflineMode ? t('views.downloaded_albums') : t('common.discover_new')} 
+              albums={isOfflineMode ? displayAlbums : randomAlbums} 
+              variant="hero" 
+            />
+            <GenreCarousel title={t('views.radio_genres')} genres={displayGenres} />
+            {isOfflineMode ? (
+              <TrackCarousel title={t('views.downloaded_tracks')} tracks={offlineTracks} />
+            ) : (
+              <AlbumCarousel title={t('common.most_played')} albums={displayAlbums} variant="standard" />
+            )}
+          </>
         )}
       </div>
       <MobileMainContent albums={albums} recentTracks={recentTracks} frequentAlbums={frequentAlbums} genres={genres} />

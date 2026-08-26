@@ -256,6 +256,8 @@
     "radio_favs_desc": "Tracks that you have liked.",
     "radio_new": "Fresh Blood",
     "radio_new_desc": "Random tracks from recent additions.",
+    "radio_artist_mix": "Artist Mix",
+    "radio_artist_mix_desc": "Random artists blend",
     "radio_genres": "Genre Radio",
     "filters": "Filters",
     "reset": "Reset",

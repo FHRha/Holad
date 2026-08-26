@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { getOfflineTracks } from '../../store/downloadStore';
 import { useUIStore } from '../../store/uiStore';
+import { formatGenre } from '../../utils/formatters';
 
 interface GenreCarouselProps {
   title: string;
@@ -156,7 +157,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
                 
                 <div className="relative z-10 p-4 flex flex-col h-full justify-between">
                   <h3 className="text-xl font-black text-white drop-shadow-md line-clamp-2 leading-tight">
-                    {genre.value}
+                    {formatGenre(genre.value, t)}
                   </h3>
                   
                   <div className="flex justify-between items-end">

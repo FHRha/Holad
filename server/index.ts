@@ -345,6 +345,121 @@ app.get('/api/holad/history/:roomId', validateRestAuth, (req, res) => {
   }
 });
 
+app.get('/api/stats/artist/:name', async (req, res) => {
+  const { name } = req.params;
+  const { useLastFm, useYandex, lastFmKey, yandexToken } = req.query;
+  
+  const yandexEnabled = useYandex === 'true' && !!yandexToken;
+  const lastFmEnabled = useLastFm === 'true' && !!lastFmKey;
+
+  let yandexFirst = false;
+  if (yandexEnabled && lastFmEnabled) {
+    if (/[А-Яа-яЁё]/.test(name)) {
+      yandexFirst = true;
+    } else {
+      try {
+        const topTagsUrl = `https://ws.audioscrobbler.com/2.0/?method=artist.gettoptags&artist=${encodeURIComponent(name)}&api_key=${lastFmKey}&format=json`;
+        const tagsRes = await fetch(topTagsUrl, { signal: AbortSignal.timeout(3000) });
+        if (tagsRes.ok) {
+          const tagsData = await tagsRes.json();
+          const tags = tagsData.toptags?.tag?.slice(0, 10).map((t: any) => t.name.toLowerCase()) || [];
+          if (tags.some((t: string) => t.includes('russian') || t.includes('rusrap') || t.includes('rusrock'))) {
+            yandexFirst = true;
+          }
+        }
+      } catch (e) {
+        console.warn('Last.fm tag check failed:', e);
+      }
+    }
+  } else if (yandexEnabled) {
+    yandexFirst = true;
+  }
+
+  const tryYandex = async () => {
+    // Basic implementation of Yandex Music Search to get artist stats
+    // We mock actual parsing since yandex api can be complex without a library, but let's return some structure
+    // For a real robust proxy, we might need an actual yandex-music-api wrapper.
+    const searchUrl = `https://api.music.yandex.net/search?text=${encodeURIComponent(name)}&type=artist`;
+    const searchRes = await fetch(searchUrl, {
+      headers: { 'Authorization': `OAuth ${yandexToken}` },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!searchRes.ok) throw new Error('Yandex search failed');
+    const searchData = await searchRes.json();
+    const artist = searchData.result?.artists?.results?.[0];
+    if (!artist) throw new Error('Artist not found in Yandex');
+
+    // Get artist brief info
+    const briefUrl = `https://api.music.yandex.net/artists/${artist.id}/brief-info`;
+    const briefRes = await fetch(briefUrl, {
+      headers: { 'Authorization': `OAuth ${yandexToken}` },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!briefRes.ok) throw new Error('Yandex brief info failed');
+    const briefData = await briefRes.json();
+
+    return {
+      source: 'yandex',
+      data: {
+        listeners: briefData.result?.stats?.lastMonthListeners || 0,
+        playcount: 0, // Yandex doesn't provide total playcount easily
+        similar: briefData.result?.similar?.map((a: any) => ({ name: a.name })) || [],
+        tags: artist.genres || []
+      }
+    };
+  };
+
+  const tryLastFm = async () => {
+    const url = `https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(name)}&api_key=${lastFmKey}&format=json`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) throw new Error('Last.fm getinfo failed');
+    const data = await res.json();
+    if (!data.artist) throw new Error('Artist not found in Last.fm');
+
+    return {
+      source: 'lastfm',
+      data: {
+        listeners: data.artist.stats?.listeners || 0,
+        playcount: data.artist.stats?.playcount || 0,
+        similar: data.artist.similar?.artist?.map((a: any) => ({ name: a.name })) || [],
+        tags: data.artist.tags?.tag?.map((t: any) => t.name) || [],
+        bio: data.artist.bio?.summary || ''
+      }
+    };
+  };
+
+  try {
+    if (yandexFirst) {
+      try {
+        const yData = await tryYandex();
+        return res.json(yData);
+      } catch (e) {
+        if (lastFmEnabled) {
+          const lData = await tryLastFm();
+          return res.json(lData);
+        }
+        throw e;
+      }
+    } else if (lastFmEnabled) {
+      try {
+        const lData = await tryLastFm();
+        return res.json(lData);
+      } catch (e) {
+        if (yandexEnabled) {
+          const yData = await tryYandex();
+          return res.json(yData);
+        }
+        throw e;
+      }
+    } else {
+      throw new Error('No external APIs enabled');
+    }
+  } catch (error: any) {
+    console.error('Failed to get artist stats:', error.message);
+    return res.json({ source: 'local', error: error.message });
+  }
+});
+
 app.get('/api/subsonic/:endpoint', async (req, res) => {
   const { endpoint } = req.params;
   

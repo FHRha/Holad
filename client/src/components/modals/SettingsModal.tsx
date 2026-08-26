@@ -256,6 +256,70 @@ export default function SettingsModal({
                   />
                 </SettingSection>
 
+                <SettingSection title="Источники информации (Data Sources)">
+                  <div className="flex flex-col gap-4">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.useNavidrome} 
+                        onChange={(e) => settings.setUseNavidrome(e.target.checked)}
+                        className="accent-primary w-4 h-4 rounded cursor-pointer"
+                      />
+                      <span className="group-hover:text-primary transition-colors text-sm">
+                        Navidrome/Subsonic
+                      </span>
+                    </label>
+
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.useLastFm} 
+                        onChange={(e) => settings.setUseLastFm(e.target.checked)}
+                        className="accent-primary w-4 h-4 rounded cursor-pointer"
+                      />
+                      <span className="group-hover:text-primary transition-colors text-sm">
+                        Last.fm
+                      </span>
+                    </label>
+                    <div className="pl-7">
+                      <input 
+                        type="text"
+                        placeholder="Last.fm API Key"
+                        value={settings.lastFmKey}
+                        onChange={(e) => settings.setLastFmKey(e.target.value)}
+                        className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white"
+                      />
+                      <p className="text-xs text-secondary mt-1">
+                        Получите API ключ на <a href="https://www.last.fm/api/account/create" target="_blank" rel="noreferrer" className="text-primary hover:underline">сайте Last.fm</a>.
+                      </p>
+                    </div>
+
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.useYandex} 
+                        onChange={(e) => settings.setUseYandex(e.target.checked)}
+                        className="accent-primary w-4 h-4 rounded cursor-pointer"
+                      />
+                      <span className="group-hover:text-primary transition-colors text-sm">
+                        Яндекс.Музыка
+                      </span>
+                    </label>
+                    <div className="pl-7">
+                      <input 
+                        type="text"
+                        placeholder="Yandex Token"
+                        value={settings.yandexToken}
+                        onChange={(e) => settings.setYandexToken(e.target.value)}
+                        className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white"
+                      />
+                      <p className="text-xs text-secondary mt-1">
+                        Токен Яндекс.Музыки. Можно получить через расширение Яндекс.Музыка Token или <a href="https://github.com/MarshalX/yandex-music-api/discussions/513" target="_blank" rel="noreferrer" className="text-primary hover:underline">инструкцию</a>.
+                      </p>
+                    </div>
+                  </div>
+                </SettingSection>
+
                 {/* Tauri-only Settings */}
                 {('__TAURI_INTERNALS__' in window) && (
                   <SettingSection title={t('settings.desktop')}>

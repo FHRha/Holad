@@ -326,87 +326,99 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
             })}
         </ScrollableSection>
 
-        {/* Recently Played */}
-        <ScrollableSection title={isOffline || activeFilter === 'Downloaded' ? t('views.downloaded_tracks') : t('views.recently_played')} onRefresh={() => setRefreshRecentKey(k => k + 1)}>
-            {actualRecent.map(track => (
-              <LongPressWrapper 
-                key={track.id} 
-                className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start"
-                onClick={() => playRecentTrack(track)}
-                onLongPress={(e: any) => {
-                  e.preventDefault?.();
-                  openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
-                }}
-              >
-                <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828]">
-                  <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 300)} className="w-full h-full object-cover" alt={track.title || track.name} trackId={track.id} />
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center pl-1 text-black">
-                      <Play fill="currentColor" size={20} />
+        {actualRecent.length === 0 && actualFrequent.length === 0 ? (
+          <div className="flex flex-col items-center justify-center flex-1 py-16 text-center opacity-70">
+            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-secondary"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Здесь пока пусто</h2>
+            <p className="text-sm text-secondary">Добавьте музыку на сервер или загрузите для оффлайна</p>
+          </div>
+        ) : (
+          <>
+            {/* Recently Played */}
+            <ScrollableSection title={isOffline || activeFilter === 'Downloaded' ? t('views.downloaded_tracks') : t('views.recently_played')} onRefresh={() => setRefreshRecentKey(k => k + 1)}>
+                {actualRecent.map(track => (
+                  <LongPressWrapper 
+                    key={track.id} 
+                    className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start"
+                    onClick={() => playRecentTrack(track)}
+                    onLongPress={(e: any) => {
+                      e.preventDefault?.();
+                      openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
+                    }}
+                  >
+                    <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828]">
+                      <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 300)} className="w-full h-full object-cover" alt={track.title || track.name} trackId={track.id} />
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center pl-1 text-black">
+                          <Play fill="currentColor" size={20} />
+                        </div>
+                      </div>
+                      {(track.userRating > 0) && (
+                        <div className="absolute bottom-2 left-2 flex items-center gap-1 text-primary text-xs font-bold bg-black/40 px-1.5 py-0.5 rounded-full">
+                          <Star size={10} fill="currentColor" />
+                          {track.userRating}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  {(track.userRating > 0) && (
-                    <div className="absolute bottom-2 left-2 flex items-center gap-1 text-primary text-xs font-bold bg-black/40 px-1.5 py-0.5 rounded-full">
-                      <Star size={10} fill="currentColor" />
-                      {track.userRating}
+                    <div className="flex flex-col">
+                      <span className="flex items-center gap-1.5 text-[15px] font-bold text-white truncate">
+                        <span className="truncate">{track.title || track.name}</span>
+                        {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                      </span>
+                      <span className="text-[13px] text-[#b3b3b3] truncate">{track.artist}</span>
                     </div>
-                  )}
-                </div>
-                <div className="flex flex-col">
-                  <span className="flex items-center gap-1.5 text-[15px] font-bold text-white truncate">
-                    <span className="truncate">{track.title || track.name}</span>
-                    {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
-                  </span>
-                  <span className="text-[13px] text-[#b3b3b3] truncate">{track.artist}</span>
-                </div>
-              </LongPressWrapper>
-            ))}
-        </ScrollableSection>
+                  </LongPressWrapper>
+                ))}
+            </ScrollableSection>
 
-        {/* Frequently Listened */}
-        <ScrollableSection title={isOffline || activeFilter === 'Downloaded' ? t('views.downloaded_albums') : t('views.frequently_played')} onRefresh={() => setRefreshFrequentKey(k => k + 1)}>
-            {actualFrequent.map(album => (
-              <LongPressWrapper 
-                key={album.id} 
-                className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start"
-                onClick={() => {
-                  usePlayerStore.getState().setIsProcessing(true);
-                  subsonicApi.getAlbum(album.id).then(tracks => {
-                        const mappedTracks = tracks.map((t: any) => ({
-                          id: t.id,
-                          title: t.title,
-                          artist: t.artist,
-                          album: album.title || album.name,
-                          albumId: album.id,
-                          artistId: t.artistId || album.artistId,
-                          coverArt: getCoverArtUrl(album.coverArt || album.id, 300),
-                          duration: t.duration
-                        }));
-                        usePlayerStore.getState().setQueueAndPlay(mappedTracks, 0);
-                        usePlayerStore.getState().setIsProcessing(false);
-                      });
-                }}
-                onLongPress={(e: any) => {
-                  e.preventDefault?.();
-                  openMenu(e.clientX, e.clientY, album, 'album');
-                }}
-              >
-                <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828]">
-                  <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full object-cover" alt={album.name || album.title} trackId={album.id} />
-                  {(album.userRating > 0) && (
-                    <div className="absolute bottom-2 left-2 flex items-center gap-1 text-primary text-xs font-bold bg-black/40 px-1.5 py-0.5 rounded-full">
-                      <Star size={10} fill="currentColor" />
-                      {album.userRating}
+            {/* Frequently Listened */}
+            <ScrollableSection title={isOffline || activeFilter === 'Downloaded' ? t('views.downloaded_albums') : t('views.frequently_played')} onRefresh={() => setRefreshFrequentKey(k => k + 1)}>
+                {actualFrequent.map(album => (
+                  <LongPressWrapper 
+                    key={album.id} 
+                    className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start"
+                    onClick={() => {
+                      usePlayerStore.getState().setIsProcessing(true);
+                      subsonicApi.getAlbum(album.id).then(tracks => {
+                            const mappedTracks = tracks.map((t: any) => ({
+                              id: t.id,
+                              title: t.title,
+                              artist: t.artist,
+                              album: album.title || album.name,
+                              albumId: album.id,
+                              artistId: t.artistId || album.artistId,
+                              coverArt: getCoverArtUrl(album.coverArt || album.id, 300),
+                              duration: t.duration
+                            }));
+                            usePlayerStore.getState().setQueueAndPlay(mappedTracks, 0);
+                            usePlayerStore.getState().setIsProcessing(false);
+                          });
+                    }}
+                    onLongPress={(e: any) => {
+                      e.preventDefault?.();
+                      openMenu(e.clientX, e.clientY, album, 'album');
+                    }}
+                  >
+                    <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828]">
+                      <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full object-cover" alt={album.name || album.title} trackId={album.id} />
+                      {(album.userRating > 0) && (
+                        <div className="absolute bottom-2 left-2 flex items-center gap-1 text-primary text-xs font-bold bg-black/40 px-1.5 py-0.5 rounded-full">
+                          <Star size={10} fill="currentColor" />
+                          {album.userRating}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[15px] font-bold text-white truncate">{album.name || album.title}</span>
-                  <span className="text-[13px] text-[#b3b3b3] truncate">{album.artist}</span>
-                </div>
-              </LongPressWrapper>
-            ))}
-        </ScrollableSection>
+                    <div className="flex flex-col">
+                      <span className="text-[15px] font-bold text-white truncate">{album.name || album.title}</span>
+                      <span className="text-[13px] text-[#b3b3b3] truncate">{album.artist}</span>
+                    </div>
+                  </LongPressWrapper>
+                ))}
+            </ScrollableSection>
+          </>
+        )}
 
       </div>
       <MobileJamModal isOpen={isJamModalOpen} onClose={() => setIsJamModalOpen(false)} />

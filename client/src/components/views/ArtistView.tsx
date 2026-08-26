@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ArtistAvatar from '../common/ArtistAvatar';
 import AlbumCard from '../common/AlbumCard';
 import TrackImage from '../common/TrackImage';
-import { Play, Shuffle, ArrowLeft, Download } from 'lucide-react';
+import { Play, Shuffle, ArrowLeft, Download, Radio } from 'lucide-react';
 import { formatTime } from '../../utils/timeFormat';
 import { useTranslation } from 'react-i18next';
 import { useArtistData } from '../../hooks/useArtistData';
@@ -90,13 +90,20 @@ export default function ArtistView() {
         >
           <Shuffle size={24} />
         </button>
+        <button
+          onClick={handleShuffleArtist /* fallback, will be updated by other agents */}
+          className="bg-white/10 hover:bg-white/20 text-white font-medium py-3 px-6 rounded-full flex items-center gap-2 transition-colors ml-2"
+        >
+          <Radio size={20} />
+          {t('views.artist_radio', 'Радио артиста')}
+        </button>
       </div>
 
       <div className="px-6 sm:px-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
         
         {/* Top Songs */}
         <div className="lg:col-span-2">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.popular_tracks')}</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.popular_tracks', 'Популярное')}</h2>
           {topSongs.length === 0 ? (
             <p className="text-secondary text-sm">{t('views.no_track_data')}</p>
           ) : (
@@ -155,8 +162,22 @@ export default function ArtistView() {
         </div>
       </div>
 
+      {/* New Releases Carousel */}
+      {albums.length > 0 && (
+        <div className="p-6 sm:p-10 pt-10">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.new_releases', 'Новые релизы')}</h2>
+          <div className="flex overflow-x-auto gap-4 md:gap-6 pb-6 hide-scrollbar">
+            {[...albums].sort((a, b) => (b.year || 0) - (a.year || 0)).slice(0, 8).map((album: any) => (
+              <div key={`new-${album.id}`} className="min-w-[140px] sm:min-w-[180px] max-w-[140px] sm:max-w-[180px] shrink-0">
+                <AlbumCard album={album} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Albums Grid */}
-      <div className="p-6 sm:p-10 mt-4">
+      <div className="p-6 sm:p-10">
         <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.albums')}</h2>
         {albums.length === 0 ? (
           <p className="text-secondary text-sm">{t('views.no_albums')}</p>

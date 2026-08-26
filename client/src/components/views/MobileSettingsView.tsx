@@ -168,6 +168,73 @@ export default function MobileSettingsView() {
       )
     },
     {
+      id: 'datasources',
+      title: 'Источники информации',
+      subtitle: 'Настройки Data Sources',
+      icon: <Globe className="text-primary" size={24} />,
+      content: (
+        <div className="flex flex-col gap-6 mt-4">
+          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">
+            <div className="flex flex-col pr-4">
+              <span className="text-[15px] font-medium text-white">Navidrome/Subsonic</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={settings.useNavidrome} 
+              onChange={(e) => settings.setUseNavidrome(e.target.checked)}
+              className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
+            />
+          </label>
+          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">
+            <div className="flex flex-col pr-4">
+              <span className="text-[15px] font-medium text-white">Last.fm</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={settings.useLastFm} 
+              onChange={(e) => settings.setUseLastFm(e.target.checked)}
+              className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
+            />
+          </label>
+          <div className="bg-black/20 p-4 rounded-xl">
+            <input 
+              type="text"
+              placeholder="Last.fm API Key"
+              value={settings.lastFmKey}
+              onChange={(e) => settings.setLastFmKey(e.target.value)}
+              className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white mb-2"
+            />
+            <p className="text-xs text-secondary">
+              Получите API ключ на <a href="https://www.last.fm/api/account/create" target="_blank" rel="noreferrer" className="text-primary hover:underline">сайте Last.fm</a>.
+            </p>
+          </div>
+          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">
+            <div className="flex flex-col pr-4">
+              <span className="text-[15px] font-medium text-white">Яндекс.Музыка</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={settings.useYandex} 
+              onChange={(e) => settings.setUseYandex(e.target.checked)}
+              className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
+            />
+          </label>
+          <div className="bg-black/20 p-4 rounded-xl">
+            <input 
+              type="text"
+              placeholder="Yandex Token"
+              value={settings.yandexToken}
+              onChange={(e) => settings.setYandexToken(e.target.value)}
+              className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white mb-2"
+            />
+            <p className="text-xs text-secondary">
+              Токен Яндекс.Музыки. Можно получить через расширение Яндекс.Музыка Token.
+            </p>
+          </div>
+        </div>
+      )
+    },
+    {
       id: 'appearance',
       title: t('views.settings_appearance'),
       subtitle: t('views.settings_appearance_desc'),

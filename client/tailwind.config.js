@@ -8,13 +8,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#000000',
-        foreground: '#ffffff',
-        card: '#121212',
+        background: 'var(--background)',
+        foreground: 'var(--foreground)',
+        card: 'var(--card)',
         primary: 'rgba(var(--color-primary-rgb), <alpha-value>)',
-        secondary: '#b3b3b3', // light gray text
-        accent: '#282828', // hover background
-        muted: '#181818',
+        secondary: 'var(--secondary)', // light gray text
+        accent: 'var(--accent)', // hover background
+        muted: 'var(--muted)',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

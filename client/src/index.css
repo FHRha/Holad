@@ -3,6 +3,24 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: #f8f9fa;
+    --foreground: #1a1a1a;
+    --card: #ffffff;
+    --secondary: #6b7280;
+    --accent: #e5e7eb;
+    --muted: #f3f4f6;
+  }
+
+  .dark {
+    --background: #000000;
+    --foreground: #ffffff;
+    --card: #121212;
+    --secondary: #b3b3b3;
+    --accent: #282828;
+    --muted: #181818;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased font-medium tracking-wide;
     scrollbar-width: thin;
