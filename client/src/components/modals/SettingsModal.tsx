@@ -290,7 +290,7 @@ export default function SettingsModal({
                         className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white"
                       />
                       <p className="text-xs text-secondary mt-1">
-                        {t('settings.lastfm_get_key_part1')}<a href="https://www.last.fm/api/account/create" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.lastfm_get_key_link')}</a>{t('settings.lastfm_get_key_part2')}
+                        {t('settings.lastfm_get_key_part1')}<span className="text-red-400 font-medium">{t('settings.lastfm_get_key_link')}</span>{t('settings.lastfm_get_key_part2')}
                       </p>
                     </div>
 

@@ -16,7 +16,8 @@ export const isLocalMediaUrl = (url: string): boolean => {
 
 export class AudioDeck implements IAudioDeck {
     public readonly id: string;
-    public readonly element: HTMLAudioElement;
+    public element: HTMLAudioElement;
+    private primaryElement: HTMLAudioElement;
     public state: AudioState = 'idle';
     public targetPosition: number = 0;
 
@@ -35,6 +36,8 @@ export class AudioDeck implements IAudioDeck {
                 document.body.appendChild(this.element);
             }
         }
+        
+        this.primaryElement = this.element;
 
         this.element.crossOrigin = 'anonymous';
         (this.element as any).playsInline = true;
@@ -115,11 +118,31 @@ export class AudioDeck implements IAudioDeck {
         });
 
         register('error', (e: any) => {
-            if (this.element.getAttribute('crossorigin') === 'anonymous') {
-                console.warn('AudioDeck: Error with crossOrigin anonymous, falling back');
-                this.element.removeAttribute('crossorigin');
-                this.element.crossOrigin = null;
-                const currentTime = this.state === 'loading' ? this.targetPosition : this.element.currentTime;
+            if (this.element === this.primaryElement && this.element.getAttribute('crossorigin') === 'anonymous') {
+                console.warn('AudioDeck: Error with crossOrigin anonymous, falling back to secondary element');
+                
+                const oldElement = this.element;
+                const newElement = new Audio();
+                newElement.crossOrigin = null;
+                
+                newElement.src = oldElement.src;
+                newElement.volume = oldElement.volume;
+                newElement.playbackRate = oldElement.playbackRate;
+                
+                this.boundHandlers.forEach((handler, event) => {
+                    oldElement.removeEventListener(event, handler);
+                    newElement.addEventListener(event, handler);
+                });
+                
+                this.element = newElement;
+                (this as any).isTainted = true;
+                
+                const currentTime = this.state === 'loading' ? this.targetPosition : oldElement.currentTime;
+                
+                oldElement.pause();
+                oldElement.removeAttribute('src');
+                oldElement.load();
+                
                 this.element.load();
                 this.element.currentTime = currentTime;
                 this.element.play().catch(() => {});
@@ -143,12 +166,20 @@ export class AudioDeck implements IAudioDeck {
             this.targetPosition = position;
             this.setState('loading');
             
-            const isCapacitorLocal = src.includes('_capacitor_file_') || src.startsWith('capacitor://');
-            if (isCapacitorLocal) {
-                this.element.removeAttribute('crossorigin');
-            } else {
-                this.element.crossOrigin = 'anonymous';
+            if (this.element !== this.primaryElement) {
+                this.boundHandlers.forEach((handler, event) => {
+                    this.element.removeEventListener(event, handler);
+                    this.primaryElement.addEventListener(event, handler);
+                });
+                this.element.pause();
+                this.element.removeAttribute('src');
+                this.element.load();
+                
+                this.element = this.primaryElement;
+                (this as any).isTainted = false;
             }
+            
+            this.element.crossOrigin = 'anonymous';
 
             if (this.element.src !== src) {
                 this.element.src = src;

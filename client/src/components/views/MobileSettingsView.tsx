@@ -18,6 +18,7 @@ import StorageLimitControl from '../settings/StorageLimitControl';
 import ImageMemoryLimitControl from '../settings/ImageMemoryLimitControl';
 import StorageDangerZone from '../settings/StorageDangerZone';
 import DownloadedMusicGrid from '../settings/DownloadedMusicGrid';
+import { openExternalLink } from '../../utils/linkHelper';
 
 function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
   return (
@@ -162,7 +163,7 @@ export default function MobileSettingsView() {
       content: (
         <div className="flex flex-col gap-4 mt-4">
           <button 
-            onClick={() => window.open('https://github.com/FHRha/Holad', '_blank')} 
+            onClick={() => openExternalLink('https://github.com/FHRha/Holad')} 
             className="flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-foreground/10 text-white font-bold py-3 rounded-xl border border-white/10 transition-colors"
           >
             <img src="/icons/github.png" className="w-[20px] h-[20px] invert" alt="GitHub" />
@@ -170,8 +171,7 @@ export default function MobileSettingsView() {
           </button>
           <button 
             onClick={() => {
-              // @ts-ignore
-              UpdateService.checkUpdates?.(true) ?? UpdateService.checkForUpdates?.();
+              UpdateService.checkForUpdates(true);
             }} 
             className="flex items-center justify-center gap-2 w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold py-3 rounded-xl border border-primary/20 transition-colors"
           >
@@ -232,7 +232,7 @@ export default function MobileSettingsView() {
               className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white mb-2"
             />
             <p className="text-xs text-secondary">
-              {t('settings.lastfm_get_key_part1') || 'Получите API ключ на '}<a href="https://www.last.fm/api/account/create" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.lastfm_get_key_link') || 'сайте Last.fm'}</a>{t('settings.lastfm_get_key_part2') || '.'}
+              {t('settings.lastfm_get_key_part1') || 'Регистрация новых API ключей '}<span className="text-red-400 font-medium">{t('settings.lastfm_get_key_link') || 'временно приостановлена Last.fm'}</span>{t('settings.lastfm_get_key_part2') || ' (Error 403). Существующие ключи работают.'}
             </p>
           </div>
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">

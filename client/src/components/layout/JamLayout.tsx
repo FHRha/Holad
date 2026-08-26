@@ -118,7 +118,7 @@ export default function JamLayout() {
         </p>
         
         <div className="flex flex-col gap-4">
-          <a href="/" className="px-8 py-3 rounded-full bg-primary text-background font-bold hover:scale-105 transition-transform shadow-[0_0_20px_rgba(29,185,84,0.3)]">
+          <a href="/" className="px-8 py-3 rounded-full bg-primary text-background font-bold hover:scale-105 transition-transform shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.3)]">
             {t('jam.go_home')}
           </a>
           <a href="/login" className="px-8 py-3 rounded-full bg-white/5 text-foreground font-medium hover:bg-foreground/10 transition-colors border border-white/10">
@@ -229,7 +229,7 @@ export default function JamLayout() {
           {t('jam.left_session_desc')}
         </p>
         <div className="flex flex-col gap-4">
-          <a href="/login" className="px-8 py-3 rounded-full bg-primary text-background font-bold hover:scale-105 transition-transform shadow-[0_0_20px_rgba(29,185,84,0.3)]">
+          <a href="/login" className="px-8 py-3 rounded-full bg-primary text-background font-bold hover:scale-105 transition-transform shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.3)]">
             {t('jam.login_account')}
           </a>
           <button onClick={() => window.location.reload()} className="px-8 py-3 rounded-full bg-white/5 text-foreground font-medium hover:bg-foreground/10 transition-colors border border-white/10">

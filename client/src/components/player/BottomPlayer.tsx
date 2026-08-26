@@ -122,7 +122,7 @@ export default function BottomPlayer() {
                 </span>
                 <div className="relative flex items-center justify-center w-2.5 h-2.5 ml-1 z-10 flex-shrink-0">
                   {isPlaying && <div className="absolute inset-0 bg-primary/80 rounded-full animate-ping"></div>}
-                  <div className={`w-1.5 h-1.5 rounded-full ${isPlaying ? 'bg-primary shadow-[0_0_8px_rgba(var(--primary),0.8)]' : 'bg-primary/40'}`}></div>
+                  <div className={`w-1.5 h-1.5 rounded-full ${isPlaying ? 'bg-primary shadow-[0_0_8px_rgba(var(--color-primary-rgb),0.8)]' : 'bg-primary/40'}`}></div>
                 </div>
               </div>
             </div>

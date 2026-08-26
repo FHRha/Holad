@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 import { clearAppCache } from '../../utils/storage';
 import { useDownloadStore } from '../../store/downloadStore';
 import { isTauri, isCapacitor } from '../../utils/StorageManager';
+import { openExternalLink } from '../../utils/linkHelper';
 
 
 export default function Sidebar() {
@@ -153,7 +154,7 @@ export default function Sidebar() {
                 </button>
                 <button 
                   onClick={() => {
-                    window.open('https://github.com/FHRha/Holad', '_blank');
+                    openExternalLink('https://github.com/FHRha/Holad');
                     setIsProfileMenuOpen(false);
                   }}
                   className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
@@ -163,8 +164,7 @@ export default function Sidebar() {
                 </button>
                 <button 
                   onClick={() => {
-                    // @ts-ignore
-                    UpdateService.checkUpdates?.(true) ?? UpdateService.checkForUpdates?.();
+                    UpdateService.checkForUpdates(true);
                     setIsProfileMenuOpen(false);
                   }}
                   className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"

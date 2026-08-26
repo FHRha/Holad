@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Play, Shuffle, Heart, Disc, Music, Loader2, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { fetchRandomTracks, getStarred, getGenres, getSongsByGenre, getCoverArtUrl, getArtists, getTopSongs } from '../../api/subsonic';
+import { fetchRandomTracks, getStarred, getGenres, getSongsByGenre, getCoverArtUrl, getArtists, getTopSongs, getArtist, getAlbum } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import { getOfflineTracks } from '../../store/downloadStore';
 import { toast } from 'sonner';
@@ -165,7 +165,34 @@ export default function RadioView() {
     const shuffled = [...allArtists].sort(() => Math.random() - 0.5).slice(0, 5);
     
     // Fetch top tracks for each
-    const tracksPromises = shuffled.map(a => getTopSongs(a.name, 10).catch(() => []));
+    const tracksPromises = shuffled.map(async (a) => {
+      try {
+        const topSongs = await getTopSongs(a.name, 10);
+        if (topSongs && topSongs.length > 0) {
+          return topSongs;
+        }
+      } catch (e) {
+        // ignore and proceed to fallback
+      }
+      
+      // Fallback: fetch artist's albums and their songs
+      try {
+        const artistInfo = await getArtist(a.id);
+        const albums = artistInfo?.album || [];
+        if (albums.length > 0) {
+          // Pick up to 2 random albums
+          const randomAlbums = [...albums].sort(() => Math.random() - 0.5).slice(0, 2);
+          const albumPromises = randomAlbums.map((alb: any) => getAlbum(alb.id));
+          const albumsSongs = await Promise.all(albumPromises);
+          const flatSongs = albumsSongs.flat();
+          return flatSongs.sort(() => Math.random() - 0.5).slice(0, 10);
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback failed for artist', a.name, fallbackErr);
+      }
+      return [];
+    });
+    
     const nestedTracks = await Promise.all(tracksPromises);
     
     // Flatten and shuffle

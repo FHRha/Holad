@@ -1,6 +1,9 @@
+import { toast } from 'sonner';
+import { openExternalLink } from '../utils/linkHelper';
+
 export class UpdateService {
     private static readonly SNOOZE_KEY = 'update_snooze_until';
-    private static readonly GITHUB_RELEASES_API = 'https://api.github.com/repos/username/reponame/releases/latest'; // заглушка URL
+    private static readonly GITHUB_RELEASES_API = 'https://api.github.com/repos/FHRha/Holad/releases/latest';
 
     static isSnoozed(): boolean {
         const snoozeUntil = localStorage.getItem(this.SNOOZE_KEY);
@@ -16,25 +19,35 @@ export class UpdateService {
         localStorage.setItem(this.SNOOZE_KEY, snoozeDate.toISOString());
     }
 
-    static async checkForUpdates(): Promise<{ available: boolean, version?: string, notes?: string, downloadUrl?: string }> {
-        if (this.isSnoozed()) {
+    static async checkForUpdates(manualCheck = false): Promise<{ available: boolean, version?: string, notes?: string, downloadUrl?: string }> {
+        if (!manualCheck && this.isSnoozed()) {
             return { available: false };
         }
 
         try {
-            // Заглушка: запрос к GitHub Releases API
+            if (manualCheck) {
+                toast.info('Checking for updates...');
+            }
+
             const response = await fetch(this.GITHUB_RELEASES_API);
-            if (!response.ok) return { available: false };
+            if (!response.ok) {
+                if (manualCheck) toast.error('Failed to check for updates (API error).');
+                return { available: false };
+            }
             
             const data = await response.json();
             const latestVersion = data.tag_name;
             const notes = data.body;
             
-            // Заглушка: парсинг ассетов для получения downloadUrl
+            // Just a stub for comparing version. For manual check, let's open the release page.
+            if (manualCheck && data.html_url) {
+                toast.success(`Found version ${latestVersion}. Opening GitHub...`);
+                openExternalLink(data.html_url);
+                return { available: true, version: latestVersion, notes };
+            }
+            
             const downloadUrl = data.assets?.[0]?.browser_download_url;
-
-            // TODO: Сравнить latestVersion с текущей версией приложения
-            const isNewer = true; // Заглушка
+            const isNewer = false; // Stub until we parse version properly
             
             return {
                 available: isNewer,
@@ -44,6 +57,7 @@ export class UpdateService {
             };
         } catch (error) {
             console.error('Failed to check for updates', error);
+            if (manualCheck) toast.error('Failed to check for updates (Network error).');
             return { available: false };
         }
     }

@@ -352,10 +352,12 @@ export class StorageManager {
       if (isTauri()) {
         try {
           if (await exists(trackDownload.path)) {
-            return convertFileSrc(trackDownload.path);
+            const data = await readFile(trackDownload.path);
+            const blob = new Blob([data]);
+            return URL.createObjectURL(blob);
           }
         } catch (e) {
-          console.warn('Error checking track uri via Tauri, assuming it exists to prevent playback blocking:', e);
+          console.warn('Error reading track via Tauri, assuming it exists to prevent playback blocking:', e);
           return convertFileSrc(trackDownload.path);
         }
       } else if (isCapacitor()) {
@@ -364,8 +366,15 @@ export class StorageManager {
           const { Filesystem, Directory } = await import('@capacitor/filesystem');
           const stat = await Filesystem.stat({ path: trackDownload.path, directory: Directory.Data });
           if (stat) {
-             const uri = await Filesystem.getUri({ path: trackDownload.path, directory: Directory.Data });
-             return Capacitor.convertFileSrc(uri.uri);
+             const { data } = await Filesystem.readFile({ path: trackDownload.path, directory: Directory.Data });
+             const binaryString = atob(data as string);
+             const len = binaryString.length;
+             const bytes = new Uint8Array(len);
+             for (let i = 0; i < len; i++) {
+               bytes[i] = binaryString.charCodeAt(i);
+             }
+             const blob = new Blob([bytes]);
+             return URL.createObjectURL(blob);
           }
         } catch (e: any) {
           if (e.message && !e.message.includes('does not exist')) {
@@ -391,7 +400,9 @@ export class StorageManager {
                 : entries.find(e => e.isFile);
               if (matchedEntry) {
                 const fullPath = await join(albumDownload.path, matchedEntry.name);
-                return convertFileSrc(fullPath);
+                const data = await readFile(fullPath);
+                const blob = new Blob([data]);
+                return URL.createObjectURL(blob);
               }
             }
           } catch (e) {
@@ -407,8 +418,15 @@ export class StorageManager {
                : res.files[0];
              if (matchedFile) {
                 const fullPath = `${albumDownload.path}/${matchedFile.name}`;
-                const uri = await Filesystem.getUri({ path: fullPath, directory: Directory.Data });
-                return Capacitor.convertFileSrc(uri.uri);
+                const { data } = await Filesystem.readFile({ path: fullPath, directory: Directory.Data });
+                const binaryString = atob(data as string);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                  bytes[i] = binaryString.charCodeAt(i);
+                }
+                const blob = new Blob([bytes]);
+                return URL.createObjectURL(blob);
              }
           } catch (e: any) {
             if (e.message && !e.message.includes('does not exist')) {

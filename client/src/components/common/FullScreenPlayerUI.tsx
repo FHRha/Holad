@@ -154,7 +154,7 @@ export default function FullScreenPlayerUI({
           {activeTab === 'lyrics' && isUserScrolled && lrcLines.length > 0 && (
             <button 
               onClick={forceSync}
-              className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 px-8 py-3 bg-primary text-background rounded-full font-bold shadow-[0_10px_30px_rgba(29,185,84,0.4)] hover:scale-105 hover:bg-primary/90 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in flex items-center gap-2"
+              className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 px-8 py-3 bg-primary text-background rounded-full font-bold shadow-[0_10px_30px_rgba(var(--color-primary-rgb),0.4)] hover:scale-105 hover:bg-primary/90 transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in flex items-center gap-2"
             >
               {t('player.sync')}
             </button>

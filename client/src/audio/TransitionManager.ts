@@ -22,9 +22,11 @@ export class TransitionManager {
         const signal = this.abortController.signal;
 
         const incomingIndex: 0 | 1 = (1 - outgoingIndex) as 0 | 1;
+        
+        const usePipeline = pipeline && !(outgoingDeck as any).isTainted && !(incomingDeck as any).isTainted;
 
         // Set incoming deck gain to full immediately
-        if (pipeline) {
+        if (usePipeline) {
             pipeline.setDeckGain(incomingIndex, 1.0, 0);
             pipeline.setDeckGain(outgoingIndex, 0.0, 0);
         } else {
@@ -69,13 +71,15 @@ export class TransitionManager {
         const durationSeconds = Math.max(0.05, Math.min(12, rawDuration));
         const curve: CrossfadeCurve = options.curve || 'equalPower';
         const incomingIndex: 0 | 1 = (1 - outgoingIndex) as 0 | 1;
+        
+        const usePipeline = pipeline && !(outgoingDeck as any).isTainted && !(incomingDeck as any).isTainted;
 
         this.isTransitioning = true;
         this.abortController = new AbortController();
         const signal = this.abortController.signal;
 
         // Start incoming deck silent
-        if (pipeline) {
+        if (usePipeline) {
             pipeline.setDeckGain(incomingIndex, 0.0, 0);
         } else {
             // oxlint-disable-next-line
@@ -87,7 +91,7 @@ export class TransitionManager {
         } catch (e) {
             console.warn('Crossfade incoming deck play error:', e);
             
-            if (pipeline) {
+            if (usePipeline) {
                 pipeline.setDeckGain(outgoingIndex, 0.0, 0);
                 pipeline.setDeckGain(incomingIndex, 1.0, 0);
             } else {
@@ -109,13 +113,45 @@ export class TransitionManager {
             return;
         }
 
-        if (pipeline) {
+        const usePipeline = pipeline && !(outgoingDeck as any).isTainted && !(incomingDeck as any).isTainted;
+        
+        if (usePipeline) {
             const startTime = pipeline.context.currentTime + 0.02;
             pipeline.scheduleCrossfade(outgoingIndex, incomingIndex, durationSeconds, curve, startTime);
+        } else {
+            const steps = 30;
+            const stepTime = (durationSeconds * 1000) / steps;
+            let currentStep = 0;
+            
+            this.transitionInterval = setInterval(() => {
+                currentStep++;
+                const t = Math.min(1.0, currentStep / steps);
+                
+                let outVol, inVol;
+                if (curve === 'linear') {
+                    outVol = 1.0 - t;
+                    inVol = t;
+                } else {
+                    outVol = Math.cos(t * 0.5 * Math.PI);
+                    inVol = Math.cos((1 - t) * 0.5 * Math.PI);
+                }
+                
+                outgoingDeck.setVolume(outVol * masterVolume);
+                incomingDeck.setVolume(inVol * masterVolume);
+                
+                if (currentStep >= steps && this.transitionInterval) {
+                    clearInterval(this.transitionInterval);
+                    this.transitionInterval = null;
+                }
+            }, stepTime);
         }
 
         return new Promise<void>((resolve) => {
             const onAbort = () => {
+                if (this.transitionInterval) {
+                    clearInterval(this.transitionInterval);
+                    this.transitionInterval = null;
+                }
                 if (timeoutId) clearTimeout(timeoutId);
                 this.isTransitioning = false;
                 signal.removeEventListener('abort', onAbort);
@@ -125,13 +161,17 @@ export class TransitionManager {
             signal.addEventListener('abort', onAbort, { once: true });
 
             const timeoutId = setTimeout(() => {
+                if (this.transitionInterval) {
+                    clearInterval(this.transitionInterval);
+                    this.transitionInterval = null;
+                }
                 if (signal.aborted) return;
                 
                 this.isTransitioning = false;
                 signal.removeEventListener('abort', onAbort);
 
                 // Ensure final state
-                if (pipeline) {
+                if (usePipeline) {
                     pipeline.setDeckGain(outgoingIndex, 0.0, 0);
                     pipeline.setDeckGain(incomingIndex, 1.0, 0);
                 } else {
@@ -178,7 +218,8 @@ export class TransitionManager {
         if (activeDeck) {
             activeDeck.setVolume(1.0 * masterVolume);
             if (standbyDeck) {
-                if (!pipeline) {
+                const usePipeline = pipeline && !(activeDeck as any).isTainted && !(standbyDeck as any).isTainted;
+                if (!usePipeline) {
                     // oxlint-disable-next-line
                     standbyDeck.setVolume(0.0 * masterVolume);
                 }
