@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getArtist, getTopSongs, getArtistInfo, getCoverArtUrl, searchAll, getSimilarSongs2 } from '../api/subsonic';
+import { getArtist, getTopSongs, getArtistInfo, getCoverArtUrl, searchAll, getSimilarSongs } from '../api/subsonic';
 import { getExternalArtistStats } from '../api/externalApi';
 import { usePlayerStore } from '../store/playerStore';
 import type { Track } from '../store/playerStore';
@@ -103,7 +103,7 @@ export function useArtistData(id: string | undefined) {
   const handlePlayRadio = async () => {
     if (!artist?.id) return;
     try {
-      const similarSongs = await getSimilarSongs2(artist.id, 50).catch(() => []);
+      const similarSongs = await getSimilarSongs(artist.id, 50).catch(() => []);
       const combined = [...topSongs.slice(0, 10), ...similarSongs];
       
       const uniqueMap = new Map();
