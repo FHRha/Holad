@@ -26,6 +26,7 @@ export interface QueueSlice {
   isShuffle: boolean;
   isAutoDjEnabled: boolean;
   isProcessing: boolean;
+  playActionId: number;
 
   setQueue: (tracks: Track[]) => void;
   setQueueAndPlay: (tracks: Track[], index: number) => void;
@@ -55,6 +56,7 @@ export const createQueueSlice: StateCreator<
   isShuffle: false,
   isAutoDjEnabled: true,
   isProcessing: false,
+  playActionId: 0,
 
   setQueue: (tracks) => set((state) => {
     const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
@@ -66,7 +68,7 @@ export const createQueueSlice: StateCreator<
     const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
     let newIndex = filtered.findIndex(t => t.id === targetTrackId);
     if (newIndex === -1) newIndex = 0;
-    return { queue: filtered, originalQueue: filtered, currentIndex: newIndex, isPlaying: true, isShuffle: false };
+    return { queue: filtered, originalQueue: filtered, currentIndex: newIndex, isPlaying: true, isShuffle: false, playActionId: state.playActionId + 1 };
   }),
   playNext: (tracks) => set((state) => {
     triggerPlay();
@@ -128,10 +130,10 @@ export const createQueueSlice: StateCreator<
   }),
   setCurrentIndex: (index) => set({ currentIndex: index }),
   
-  playTrack: (index) => {
+  playTrack: (index) => set((state) => {
     triggerPlay();
-    set({ currentIndex: index, isPlaying: true });
-  },
+    return { currentIndex: index, isPlaying: true, playActionId: state.playActionId + 1 };
+  }),
   
   nextTrack: () => {
     triggerPlay();

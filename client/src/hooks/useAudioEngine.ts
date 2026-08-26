@@ -159,6 +159,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const crossfadeTriggeredRef = useRef<string | null>(null);
   const prevActiveDeviceRef = useRef<boolean>(isActiveDevice);
 
+  const playActionId = usePlayerStore(s => s.playActionId);
+  const prevPlayActionIdRef = useRef(playActionId);
+
   useEffect(() => {
     if (!currentTrack || srcLoading || srcTrackId !== currentTrack.id) return;
     
@@ -174,7 +177,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const didDeviceBecomeActive = isActiveDevice && !prevActiveDeviceRef.current;
     prevActiveDeviceRef.current = isActiveDevice;
     
-    if (prevTrackIdRef.current === currentTrack.id && !didDeviceBecomeActive) return;
+    const hasPlayActionChanged = playActionId !== prevPlayActionIdRef.current;
+    prevPlayActionIdRef.current = playActionId;
+    
+    if (prevTrackIdRef.current === currentTrack.id && !didDeviceBecomeActive && !hasPlayActionChanged) return;
 
     const isAutoSkip = crossfadeTriggeredRef.current === prevTrackIdRef.current;
     prevTrackIdRef.current = currentTrack.id;
@@ -310,7 +316,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   useEffect(() => {
     const engine = engineRef.current;
 
-    const handleTimeUpdate = (currentTime: number) => {
+    const handleTimeUpdate = (currentTime: number, emittedTrackId?: string) => {
+      if (emittedTrackId && currentTrack && emittedTrackId !== currentTrack.id) return;
       if (!isSeekingRef.current && currentTrack && isActiveDevice) {
         if (trackIdRef.current !== currentTrack.id) {
           trackIdRef.current = currentTrack.id;
@@ -352,7 +359,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
     };
 
-    const handleEnded = () => {
+    const handleEnded = (emittedTrackId?: string) => {
+      if (emittedTrackId && currentTrack && emittedTrackId !== currentTrack.id) return;
       if (role === 'listener') return;
       if (sleepTimer.type === 'track_end') {
         setIsPlaying(false);

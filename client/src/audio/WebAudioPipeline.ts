@@ -199,8 +199,8 @@ export class WebAudioPipeline implements IWebAudioPipeline {
                 inCurve[i] = Math.cos((1 - t) * 0.5 * Math.PI);
             }
             
-            outGainParam.setValueCurveAtTime(outCurve, startTime, duration);
-            inGainParam.setValueCurveAtTime(inCurve, startTime, duration);
+            outGainParam.setValueCurveAtTime(outCurve, startTime + 0.01, duration);
+            inGainParam.setValueCurveAtTime(inCurve, startTime + 0.01, duration);
         }
     }
 

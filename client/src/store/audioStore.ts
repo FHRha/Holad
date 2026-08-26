@@ -35,10 +35,11 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
 
     if (el) {
       const updateBuffer = () => {
-        if (el.buffered && el.buffered.length > 0 && el.duration > 0) {
+        const targetDuration = el.duration && !isNaN(el.duration) && el.duration !== Infinity ? el.duration : get().duration || 1;
+        if (el.buffered && el.buffered.length > 0 && targetDuration > 0) {
           try {
             const end = el.buffered.end(el.buffered.length - 1);
-            const pct = Math.min(100, Math.max(0, (end / el.duration) * 100));
+            const pct = Math.min(100, Math.max(0, (end / targetDuration) * 100));
             set({ buffered: pct });
           } catch {
             // ignore

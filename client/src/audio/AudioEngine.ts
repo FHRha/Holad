@@ -30,6 +30,9 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     private volumeMultiplier: number = 1.0;
     private currentTrack: any = null;
     private eventListeners: Map<string, Set<(...args: any[]) => void>> = new Map();
+    private deckTrackIds: [string | null, string | null] = [null, null];
+    private playToken: number = 0;
+    private isPlaying: boolean = false;
 
     constructor(elements?: [HTMLAudioElement, HTMLAudioElement]) {
         const deck0 = new AudioDeck('deck-0', elements?.[0]);
@@ -77,7 +80,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
         deck.on('timeupdate', (time: number) => {
             if (deckIndex === this.activeIndex) {
-                this.emit('timeupdate', time);
+                this.emit('timeupdate', time, this.deckTrackIds[deckIndex]);
                 this.checkPreloadThreshold(time, deck.getDuration());
             }
         });
@@ -102,7 +105,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
         deck.on('ended', () => {
             if (deckIndex === this.activeIndex) {
-                this.emit('ended');
+                this.emit('ended', this.deckTrackIds[deckIndex]);
             }
         });
 
@@ -156,6 +159,8 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
     public async playTrack(track: any, options: PlayTrackOptions = {}): Promise<void> {
         this.currentTrack = track;
+        const currentToken = ++this.playToken;
+        this.isPlaying = true;
         const streamUrl = track?.streamUrl || track?.src || (typeof track === 'string' ? track : '');
         const position = options.startTime || 0;
         const activeDeck = this.getActiveDeck();
@@ -181,14 +186,17 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
             if (this.pipeline) {
                 await this.pipeline.unlockContext();
+                if (this.playToken !== currentToken || !this.isPlaying) return;
             }
 
+            this.deckTrackIds[incomingIndex] = track?.id || null;
             await incomingDeck.load(streamUrl, position);
+            if (this.playToken !== currentToken || !this.isPlaying) return;
 
             // R7: Switch activeIndex to incoming track at crossfade start,
             // emitting timeupdate and durationchange immediately so progress slider and lyrics jump to track 2's timing
             this.activeIndex = incomingIndex;
-            this.emit('timeupdate', position);
+            this.emit('timeupdate', position, this.deckTrackIds[incomingIndex]);
             this.emit('durationchange', trackDuration || incomingDeck.getDuration() || 0);
 
             const rawDuration = options.transitionDuration !== undefined ? options.transitionDuration : this.settings.crossfadeDuration;
@@ -221,10 +229,12 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
             if (this.pipeline) {
                 await this.pipeline.unlockContext();
+                if (this.playToken !== currentToken || !this.isPlaying) return;
             }
 
+            this.deckTrackIds[incomingIndex] = track?.id || null;
             this.activeIndex = incomingIndex;
-            this.emit('timeupdate', position);
+            this.emit('timeupdate', position, this.deckTrackIds[incomingIndex]);
             this.emit('durationchange', trackDuration || incomingDeck.getDuration() || 0);
 
             await this.transitionManager.performGaplessHandover(
@@ -238,6 +248,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             // Standard direct play
             if (this.pipeline) {
                 await this.pipeline.unlockContext();
+                if (this.playToken !== currentToken || !this.isPlaying) return;
             }
 
             if (trackDuration) {
@@ -245,9 +256,12 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                     (activeDeck.element as any).duration = trackDuration;
                 } catch {}
             }
+            
+            this.deckTrackIds[this.activeIndex] = track?.id || null;
 
             this.transitionManager.abortActiveTransition(activeDeck, standbyDeck, this.pipeline || undefined, this.activeIndex, this.volume * this.volumeMultiplier);
             await activeDeck.load(streamUrl, position);
+            if (this.playToken !== currentToken || !this.isPlaying) return;
             await activeDeck.play();
             if (this.pipeline) {
                 this.pipeline.setDeckGain(this.activeIndex, 1.0, 0);
@@ -261,10 +275,11 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     public pause(): void {
+        this.isPlaying = false;
         const wasTransitioning = this.transitionManager.getIsTransitioning();
         const activeDeck = this.getActiveDeck();
         const standbyDeck = this.getStandbyDeck();
-        const targetActiveIndex = wasTransitioning ? ((1 - this.activeIndex) as 0 | 1) : this.activeIndex;
+        const targetActiveIndex = this.activeIndex;
         
         this.transitionManager.abortActiveTransition(activeDeck, standbyDeck, this.pipeline || undefined, targetActiveIndex, this.volume * this.volumeMultiplier);
         this.activeIndex = targetActiveIndex;

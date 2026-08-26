@@ -27,10 +27,11 @@ export class TransitionManager {
         if (pipeline) {
             pipeline.setDeckGain(incomingIndex, 1.0, 0);
             pipeline.setDeckGain(outgoingIndex, 0.0, 0);
+        } else {
+            // oxlint-disable-next-line
+            outgoingDeck.setVolume(0.0 * masterVolume);
         }
         incomingDeck.setVolume(1.0 * masterVolume);
-        // oxlint-disable-next-line
-        outgoingDeck.setVolume(0.0 * masterVolume);
 
         // Start incoming deck immediately
         try {
@@ -76,9 +77,10 @@ export class TransitionManager {
         // Start incoming deck silent
         if (pipeline) {
             pipeline.setDeckGain(incomingIndex, 0.0, 0);
+        } else {
+            // oxlint-disable-next-line
+            incomingDeck.setVolume(0.0 * masterVolume);
         }
-        // oxlint-disable-next-line
-        incomingDeck.setVolume(0.0 * masterVolume);
 
         try {
             await incomingDeck.play();
@@ -88,9 +90,10 @@ export class TransitionManager {
             if (pipeline) {
                 pipeline.setDeckGain(outgoingIndex, 0.0, 0);
                 pipeline.setDeckGain(incomingIndex, 1.0, 0);
+            } else {
+                // oxlint-disable-next-line
+                outgoingDeck.setVolume(0.0 * masterVolume);
             }
-            // oxlint-disable-next-line
-            outgoingDeck.setVolume(0.0 * masterVolume);
             incomingDeck.setVolume(1.0 * masterVolume);
             
             outgoingDeck.pause();
@@ -131,9 +134,10 @@ export class TransitionManager {
                 if (pipeline) {
                     pipeline.setDeckGain(outgoingIndex, 0.0, 0);
                     pipeline.setDeckGain(incomingIndex, 1.0, 0);
+                } else {
+                    // oxlint-disable-next-line
+                    outgoingDeck.setVolume(0.0 * masterVolume);
                 }
-                // oxlint-disable-next-line
-                outgoingDeck.setVolume(0.0 * masterVolume);
                 incomingDeck.setVolume(1.0 * masterVolume);
 
                 outgoingDeck.pause();
@@ -174,8 +178,10 @@ export class TransitionManager {
         if (activeDeck) {
             activeDeck.setVolume(1.0 * masterVolume);
             if (standbyDeck) {
-                // oxlint-disable-next-line
-                standbyDeck.setVolume(0.0 * masterVolume);
+                if (!pipeline) {
+                    // oxlint-disable-next-line
+                    standbyDeck.setVolume(0.0 * masterVolume);
+                }
                 standbyDeck.pause();
             }
         }

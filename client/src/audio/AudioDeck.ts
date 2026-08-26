@@ -18,6 +18,7 @@ export class AudioDeck implements IAudioDeck {
     public readonly id: string;
     public readonly element: HTMLAudioElement;
     public state: AudioState = 'idle';
+    public targetPosition: number = 0;
 
     private listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
     private boundHandlers: Map<string, (...args: any[]) => void> = new Map();
@@ -118,7 +119,7 @@ export class AudioDeck implements IAudioDeck {
                 console.warn('AudioDeck: Error with crossOrigin anonymous, falling back');
                 this.element.removeAttribute('crossorigin');
                 this.element.crossOrigin = null;
-                const currentTime = this.element.currentTime;
+                const currentTime = this.state === 'loading' ? this.targetPosition : this.element.currentTime;
                 this.element.load();
                 this.element.currentTime = currentTime;
                 this.element.play().catch(() => {});
@@ -139,6 +140,7 @@ export class AudioDeck implements IAudioDeck {
 
     public async load(src: string, position: number = 0): Promise<void> {
         try {
+            this.targetPosition = position;
             this.setState('loading');
             
             const isCapacitorLocal = src.includes('_capacitor_file_') || src.startsWith('capacitor://');
@@ -191,7 +193,7 @@ export class AudioDeck implements IAudioDeck {
                 console.warn('AudioDeck: Play error with crossOrigin, retrying without it');
                 this.element.removeAttribute('crossorigin');
                 this.element.crossOrigin = null;
-                const currentTime = this.element.currentTime;
+                const currentTime = this.state === 'loading' ? this.targetPosition : this.element.currentTime;
                 this.element.load();
                 this.element.currentTime = currentTime;
                 try {
