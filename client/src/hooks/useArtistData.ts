@@ -30,7 +30,12 @@ export function useArtistData(id: string | undefined) {
       
       // Fetch top songs and external stats only after we know the artist name
       if (artistData?.name) {
-        getExternalArtistStats(artistData.name).then(stats => setExternalStats(stats)).catch(() => {});
+        getExternalArtistStats(artistData.name).then(stats => {
+          if (stats && stats.data) {
+            stats.data.image = getCoverArtUrl(artistData.coverArt || artistData.id, 600);
+          }
+          setExternalStats(stats);
+        }).catch(() => {});
 
         Promise.all([
           getTopSongs(artistData.name, 1000).catch(() => []),

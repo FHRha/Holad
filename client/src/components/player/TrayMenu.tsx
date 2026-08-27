@@ -159,7 +159,7 @@ export default function TrayMenu() {
 
   return (
     <div className="h-[100vh] w-[100vw] overflow-hidden p-2 bg-transparent">
-      <div id="tray-menu-content" className="w-full bg-zinc-900/95 backdrop-blur-2xl text-white rounded-xl border border-white/10 flex flex-col shadow-2xl p-2 select-none" data-tauri-drag-region>
+      <div id="tray-menu-content" className="w-full bg-zinc-900 text-white rounded-xl border border-white/10 flex flex-col shadow-2xl p-2 select-none" data-tauri-drag-region>
         {/* Header */}
         <div className="flex items-center gap-3 p-3 mb-1 border-b border-white/5 pointer-events-none">
           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">

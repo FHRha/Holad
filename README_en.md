@@ -4,6 +4,7 @@
 </div>
 
 <div align="center">
+  <img src="client/public/icons/logo_cassette.png" alt="Holad Classic Logo" width="150" height="150" style="border-radius: 30px; margin-right: 15px;">
   <img src="client/public/icons/favicon_tab.png" alt="Holad Logo" width="150" height="150" style="border-radius: 30px;">
   
   # Holad

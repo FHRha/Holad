@@ -315,6 +315,8 @@ export default function SettingsModal({
                       </div>
                       <p className="text-xs text-secondary mt-1">
                         {t('settings.lastfm_get_key_part1')}<span className="text-red-400 font-medium">{t('settings.lastfm_get_key_link')}</span>{t('settings.lastfm_get_key_part2')}
+                        <br />
+                        <span className="text-red-400 font-medium block mt-1">Внимание: В РФ доступ к Last.fm заблокирован, для работы требуется VPN.</span>
                       </p>
                     </div>
 

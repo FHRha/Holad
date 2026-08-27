@@ -581,7 +581,7 @@ export default function ContextMenu() {
       />
       <div 
         ref={menuRef}
-        className="fixed z-[9999] bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl overflow-y-auto hide-scrollbar py-1 min-w-[220px] backdrop-blur-xl transform-gpu"
+        className="fixed z-[9999] bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl overflow-y-auto hide-scrollbar py-1 min-w-[220px] transform-gpu"
         style={{ 
           top, 
           left,

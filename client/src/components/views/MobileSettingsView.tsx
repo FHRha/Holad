@@ -25,7 +25,7 @@ function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode,
     <button 
       onClick={onClick}
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
-        isActive ? 'bg-primary text-white border-transparent shadow-md' : 'bg-white/5 text-[#b3b3b3] hover:bg-foreground/10 hover:text-foreground border-transparent'
+        isActive ? 'bg-primary text-white border-transparent shadow-md' : 'dark:bg-zinc-800 text-[#b3b3b3] hover:bg-foreground/10 hover:text-foreground border-transparent'
       }`}
     >
       {icon}
@@ -254,6 +254,8 @@ export default function MobileSettingsView() {
             </div>
             <p className="text-xs text-secondary">
               {t('settings.lastfm_get_key_part1') || 'Регистрация новых API ключей '}<span className="text-red-400 font-medium">{t('settings.lastfm_get_key_link') || 'временно приостановлена Last.fm'}</span>{t('settings.lastfm_get_key_part2') || ' (Error 403). Существующие ключи работают.'}
+              <br />
+              <span className="text-red-400 font-medium block mt-1">Внимание: В РФ доступ к Last.fm заблокирован, для работы требуется VPN.</span>
             </p>
           </div>
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">

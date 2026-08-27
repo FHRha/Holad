@@ -72,7 +72,7 @@ export default function TopBar() {
   };
 
   return (
-    <div className="sticky top-0 z-50 h-16 bg-background/95 backdrop-blur-md transform-gpu border-b border-white/5 flex items-center justify-between px-4 w-full">
+    <div className="sticky top-0 z-50 h-16 bg-background transform-gpu border-b border-white/5 flex items-center justify-between px-4 w-full">
       <div className="w-10 flex justify-center items-center">
         <button 
           onClick={toggleLeftSidebar} 
@@ -89,7 +89,7 @@ export default function TopBar() {
           className={`h-10 px-4 rounded-full flex items-center justify-center gap-2 transition-all shrink-0 cursor-pointer border ${
             isOffline 
               ? 'bg-primary text-white border-transparent shadow-md hover:scale-105 active:scale-95' 
-              : 'bg-foreground/5 text-secondary border-transparent hover:bg-foreground/10 hover:text-foreground'
+              : 'bg-zinc-200 dark:bg-zinc-800 text-secondary border-transparent hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-foreground'
           }`}
           title={isOffline ? t('common.offline') : t('common.go_offline')}
         >
@@ -120,7 +120,7 @@ export default function TopBar() {
 
         {/* Dropdown Results */}
         {isSearchOpen && (query.trim().length >= 2 || loading) && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-card backdrop-blur-xl transform-gpu border border-white/10 rounded-xl shadow-2xl max-h-[70vh] overflow-y-auto hide-scrollbar p-4 animate-in fade-in slide-in-from-top-2 duration-200 z-[60]">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-card transform-gpu border border-white/10 rounded-xl shadow-2xl max-h-[70vh] overflow-y-auto hide-scrollbar p-4 animate-in fade-in slide-in-from-top-2 duration-200 z-[60]">
             
             {loading && (
               <div className="flex justify-center items-center py-8">
@@ -244,7 +244,7 @@ export default function TopBar() {
           </button>
           
           {showSession && (
-            <div className="absolute top-full right-0 mt-2 p-4 bg-card backdrop-blur-xl transform-gpu border border-white/10 rounded-xl shadow-2xl w-80 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute top-full right-0 mt-2 p-4 bg-card transform-gpu border border-white/10 rounded-xl shadow-2xl w-80 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
               <h3 className="font-bold text-center mb-1">{t('common.jam_session_title')}</h3>
               <p className="text-xs text-secondary text-center mb-2">{t('common.jam_session_desc')}</p>
               <JamSessionControl />

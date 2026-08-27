@@ -72,7 +72,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://api.github.com/repos/username/reponame/releases/latest"
+        "https://api.github.com/repos/FHRha/Holad/releases/latest"
       ],
       "pubkey": "YOUR_PUBLIC_KEY_HERE"
     }

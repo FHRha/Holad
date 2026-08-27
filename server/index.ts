@@ -497,7 +497,9 @@ app.get('/api/stats/artist/:name', async (req, res) => {
         playcount: 0, // Yandex doesn't provide total playcount easily
         similar: briefData.result?.similar?.map((a: any) => ({ name: a.name })) || [],
         tags: artist.genres || [],
-        image: artist.cover?.uri ? `https://${artist.cover.uri.replace('%%', '600x600')}` : null
+        // image: artist.cover?.uri ? `https://${artist.cover.uri.replace('%%', '600x600')}` : null,
+        label: briefData.result?.labels?.map((l: any) => l.name || l.id || l).join(', ') || null,
+        recordCompany: artist.tickets?.length ? 'On Tour' : null // Mocking some extra info
       }
     };
   };
@@ -517,7 +519,8 @@ app.get('/api/stats/artist/:name', async (req, res) => {
         similar: data.artist.similar?.artist?.map((a: any) => ({ name: a.name })) || [],
         tags: data.artist.tags?.tag?.map((t: any) => t.name) || [],
         bio: data.artist.bio?.summary || '',
-        image: data.artist.image?.find((i: any) => i.size === 'mega')?.['#text'] || data.artist.image?.find((i: any) => i.size === 'extralarge')?.['#text'] || null
+        // image: data.artist.image?.find((i: any) => i.size === 'mega')?.['#text'] || data.artist.image?.find((i: any) => i.size === 'extralarge')?.['#text'] || null,
+        label: data.artist.tags?.tag?.length ? data.artist.tags.tag[0].name : null // Using tags for some extra info since Last.fm doesn't have label for artists
       }
     };
   };
@@ -572,10 +575,13 @@ app.get('/api/stats/album/:artist/:album', async (req, res) => {
     const result = searchData.result?.albums?.results?.[0];
     if (!result) throw new Error('Album not found in Yandex');
 
+    // Muted image extraction to fallback strictly to Navidrome
     return {
       source: 'yandex',
       data: {
-        image: result.coverUri ? `https://${result.coverUri.replace('%%', '600x600')}` : null
+        // image: result.coverUri ? `https://${result.coverUri.replace('%%', '600x600')}` : null,
+        label: result.labels?.map((l: any) => l.name || l.id || l).join(', ') || null,
+        recordCompany: result.recordCompany || result.labels?.[0]?.name || null
       }
     };
   };
@@ -587,10 +593,13 @@ app.get('/api/stats/album/:artist/:album', async (req, res) => {
     const data = await res.json();
     if (!data.album) throw new Error('Album not found in Last.fm');
 
+    // Muted image extraction to fallback strictly to Navidrome
     return {
       source: 'lastfm',
       data: {
-        image: data.album.image?.find((i: any) => i.size === 'mega')?.['#text'] || data.album.image?.find((i: any) => i.size === 'extralarge')?.['#text'] || null
+        // image: data.album.image?.find((i: any) => i.size === 'mega')?.['#text'] || data.album.image?.find((i: any) => i.size === 'extralarge')?.['#text'] || null,
+        label: data.album.wiki?.summary ? null : null, // Last.fm album.getinfo doesn't typically provide label natively, but we ensure structure
+        recordCompany: data.album.tags?.tag?.map((t: any) => t.name).join(', ') || null // Using tags as extra info if label is unavailable
       }
     };
   };

@@ -43,6 +43,7 @@ import { isTauri } from './utils/StorageManager';
 import ServerConnectionView from './components/views/ServerConnectionView';
 import { useDownloadStore } from './store/downloadStore';
 import { Toaster } from 'sonner';
+import UpdateModal from './components/modals/UpdateModal';
 
 // Helper to convert hex to rgb string for Tailwind's opacity to work
 function hexToRgb(hex: string) {
@@ -186,6 +187,7 @@ function AppContent() {
           <MobileSearchOverlay />
           {isSettingsOpen && <SettingsModal />}
           {isOfflineModalOpen && <OfflineModeModal isOpen={isOfflineModalOpen} onClose={() => setOfflineModalOpen(false)} />}
+          <UpdateModal />
         </div>
         
         {showBottomPlayer && <BottomPlayer />}

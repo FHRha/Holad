@@ -39,6 +39,11 @@ interface UIState {
   setPlaylistModalOpen: (open: boolean) => void;
   playlistTargetItem: any | null;
   setPlaylistTargetItem: (item: any | null) => void;
+  
+  isUpdateModalOpen: boolean;
+  setUpdateModalOpen: (open: boolean) => void;
+  updateInfo: { version?: string; notes?: string; downloadUrl?: string } | null;
+  setUpdateInfo: (info: { version?: string; notes?: string; downloadUrl?: string } | null) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -78,6 +83,11 @@ export const useUIStore = create<UIState>()(
       setPlaylistModalOpen: (open) => set({ isPlaylistModalOpen: open }),
       playlistTargetItem: null,
       setPlaylistTargetItem: (item) => set({ playlistTargetItem: item }),
+      
+      isUpdateModalOpen: false,
+      setUpdateModalOpen: (open) => set({ isUpdateModalOpen: open }),
+      updateInfo: null,
+      setUpdateInfo: (info) => set({ updateInfo: info }),
     }),
     {
       name: 'ui-storage',

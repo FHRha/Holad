@@ -23,6 +23,15 @@ export default function Sidebar() {
   const isResizing = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
+  const [appVersion, setAppVersion] = useState<string>('');
+
+  useEffect(() => {
+    if (isTauri()) {
+      import('@tauri-apps/api/app').then(m => m.getVersion().then(setAppVersion));
+    } else {
+      setAppVersion('0.1.0');
+    }
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     isResizing.current = true;
@@ -100,7 +109,7 @@ export default function Sidebar() {
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             className={`text-foreground flex items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 ${!isWide ? 'flex-col' : 'px-2'} w-full`}
           >
-            <img src={`${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/favicon_tab.png`} alt="Holad" className={`${isWide ? 'w-10 h-10' : 'w-14 h-14'} rounded-lg shadow-lg object-cover flex-shrink-0`} />
+            <img src={`${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/logo_cassette.png`} alt="Holad" className={`${isWide ? 'w-10 h-10' : 'w-14 h-14'} rounded-lg shadow-lg object-cover flex-shrink-0`} />
             {isWide && <span className="font-bold text-lg whitespace-nowrap overflow-hidden text-ellipsis">Holad</span>}
           </button>
 
@@ -160,7 +169,7 @@ export default function Sidebar() {
                   className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
                 >
                   <img src="/icons/github.png" className="w-[18px] h-[18px] dark:invert opacity-70 group-hover:opacity-100 transition-opacity" alt="GitHub" />
-                  <span>GitHub</span>
+                  <span>GitHub {appVersion && <span className="text-xs text-secondary/50 ml-1">v{appVersion}</span>}</span>
                 </button>
                 <button 
                   onClick={() => {

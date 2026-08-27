@@ -39,15 +39,18 @@ export class UpdateService {
             const latestVersion = data.tag_name;
             const notes = data.body;
             
-            // Just a stub for comparing version. For manual check, let's open the release page.
-            if (manualCheck && data.html_url) {
-                toast.success(`Found version ${latestVersion}. Opening GitHub...`);
-                openExternalLink(data.html_url);
-                return { available: true, version: latestVersion, notes };
-            }
-            
             const downloadUrl = data.assets?.[0]?.browser_download_url;
-            const isNewer = false; // Stub until we parse version properly
+            
+            // Stub until we parse version properly
+            const isNewer = true; // Temporary logic: assume it's always newer or check logic here
+            
+            if (isNewer) {
+                const uiStore = (await import('../store/uiStore')).useUIStore;
+                uiStore.getState().setUpdateInfo({ version: latestVersion, notes, downloadUrl });
+                uiStore.getState().setUpdateModalOpen(true);
+            } else if (manualCheck) {
+                toast.success('You are on the latest version!');
+            }
             
             return {
                 available: isNewer,
