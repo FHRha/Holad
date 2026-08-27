@@ -1,5 +1,5 @@
 import { toast } from 'sonner';
-import { openExternalLink } from '../utils/linkHelper';
+
 
 export class UpdateService {
     private static readonly SNOOZE_KEY = 'update_snooze_until';

@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
-
+import { formatDurationVerbose } from '../../utils/timeFormat';
 function formatDuration(seconds: number, t: any) {
   return formatDurationVerbose(seconds, t);
 }

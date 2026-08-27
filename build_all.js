@@ -148,6 +148,7 @@ function getEnv(envOverrides = {}) {
 
 function runCommand(taskName, command, cwd, envOverrides = {}) {
   return new Promise((resolve, reject) => {
+    const startTime = performance.now();
     if (!process.env.GITHUB_ACTIONS) {
       console.log(`[${taskName}] ⏳ Started: ${command}`);
     }
@@ -167,17 +168,20 @@ function runCommand(taskName, command, cwd, envOverrides = {}) {
     });
     
     child.on('close', code => {
+      const durationMs = performance.now() - startTime;
+      const durationSec = (durationMs / 1000).toFixed(2);
+      
       if (code === 0) {
         if (process.env.GITHUB_ACTIONS) {
-          console.log(`::group::${taskName}`);
+          console.log(`::group::${taskName} (Took ${durationSec}s)`);
           console.log(output);
           console.log(`::endgroup::`);
         } else {
-          console.log(`[${taskName}] ✔ Finished: ${command}`);
+          console.log(`[${taskName}] ✔ Finished in ${durationSec}s: ${command}`);
         }
         resolve();
       } else {
-        console.error(`\n[ERROR] Task "${taskName}" failed: ${command}`);
+        console.error(`\n[ERROR] Task "${taskName}" failed in ${durationSec}s: ${command}`);
         if (process.env.GITHUB_ACTIONS) {
           console.log(`::group::${taskName} (FAILED)`);
         }
@@ -248,7 +252,7 @@ async function main() {
   console.log("Cleaning up previous builds and artifacts...");
   try {
     if (fs.existsSync(ARTIFACTS_DIR)) {
-      fs.rmSync(ARTIFACTS_DIR, { recursive: true, force: true });
+      fs.rmSync(ARTIFACTS_DIR, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
     }
   } catch (e) {
     console.warn("Warning: Could not completely remove previous artifacts (they might be in use):", e.message);

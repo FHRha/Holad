@@ -1,4 +1,3 @@
-
 import { useTranslation } from 'react-i18next';
 import { HardDrive, AlertTriangle } from 'lucide-react';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -9,7 +8,7 @@ export const STORAGE_PRESETS = [
   { label: '5 GB', value: 5 },
   { label: '10 GB', value: 10 },
   { label: '50 GB', value: 50 },
-  { label: t('settings.storage_unlimited', 'Безлимитно'), value: 0 },
+  { label: 'Безлимитно', value: 0 },
 ];
 
 export interface StorageLimitControlProps {
@@ -21,6 +20,7 @@ export default function StorageLimitControl({ className = '', isMobile = false }
   const { t } = useTranslation();
   const { totalStorageLimitGb = 10, setTotalStorageLimitGb } = useSettingsStore();
   const { stats, refresh } = useStorageStats();
+
 
   const handleSelectPreset = (value: number) => {
     setTotalStorageLimitGb(value);

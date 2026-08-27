@@ -1,5 +1,4 @@
-import React from 'react';
-import { X, Download, Github, SkipForward } from 'lucide-react';
+import { X, Download, SkipForward } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { UpdateService } from '../../services/UpdateService';
@@ -67,7 +66,7 @@ export default function UpdateModal() {
               onClick={handleGitHub}
               className="flex items-center justify-center gap-3 w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl border border-white/10 transition-colors"
             >
-              <Github size={20} />
+              <img src="/icons/github.png" alt="GitHub" className="w-5 h-5 invert opacity-80" />
               {t('update.download_github', 'Download from GitHub')}
             </button>
 

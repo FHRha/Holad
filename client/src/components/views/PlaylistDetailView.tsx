@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Play, Pause, Heart, Clock, ArrowLeft, Download, Ban, Pencil, Check, X } from 'lucide-react';
 import { getPlaylist, updatePlaylist } from '../../api/subsonic/playlists';
 import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
-import { formatTime, formatDurationVerbose } from '../../utils/timeFormat';
+import { formatDurationVerbose } from '../../utils/timeFormat';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../store/downloadStore';

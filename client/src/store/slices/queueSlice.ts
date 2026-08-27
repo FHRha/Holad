@@ -67,7 +67,7 @@ export const createQueueSlice: StateCreator<
     const state = get();
     const targetTrack = tracks[startIndex];
     if (targetTrack && (state.excludedTrackIds.includes(targetTrack.id) || (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)))) {
-      if (window.confirm(i18n.t('common.unignore_and_play', 'Этот трек находится в игноре. Хотите убрать его из игнора и начать воспроизведение?'))) {
+      if (window.confirm(i18n.t('common.unignore_and_play', i18n.t('common.unignore_and_play', 'Этот трек находится в игноре. Хотите убрать его из игнора и начать воспроизведение?')))) {
         if (state.excludedTrackIds.includes(targetTrack.id)) state.toggleTrackExclude(targetTrack.id);
         if (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)) state.toggleAlbumExclude(targetTrack.albumId);
       } else {
@@ -89,7 +89,7 @@ export const createQueueSlice: StateCreator<
     // Assuming tracks[0] is the target since playNext often takes an array of 1
     const targetTrack = tracks[0];
     if (targetTrack && (state.excludedTrackIds.includes(targetTrack.id) || (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)))) {
-      if (window.confirm(i18n.t('common.unignore_and_queue', 'Этот трек находится в игноре. Хотите убрать его из игнора и добавить в очередь?'))) {
+      if (window.confirm(i18n.t('common.unignore_and_queue', i18n.t('common.unignore_and_queue', 'Этот трек находится в игноре. Хотите убрать его из игнора и добавить в очередь?')))) {
         if (state.excludedTrackIds.includes(targetTrack.id)) state.toggleTrackExclude(targetTrack.id);
         if (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)) state.toggleAlbumExclude(targetTrack.albumId);
       } else {
@@ -131,7 +131,8 @@ export const createQueueSlice: StateCreator<
     }
 
     return { queue: newQueue, originalQueue: newOriginalQueue, currentIndex: newCurrentIndex, isPlaying: true };
-  }),
+    });
+  },
   addToQueue: (tracks) => set((state) => {
     const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
     if (filtered.length === 0) return state;

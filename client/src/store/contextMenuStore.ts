@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ContextMenuType = 'track' | 'album';
+export type ContextMenuType = 'track' | 'album' | 'artist' | 'download' | 'playlist';
 
 interface ContextMenuState {
   isOpen: boolean;
