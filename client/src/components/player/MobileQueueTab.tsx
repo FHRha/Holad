@@ -4,7 +4,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { formatArtistName } from '../../utils/formatters';
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from '../common/TrackImage';
-import { Play, Download, MoreHorizontal } from 'lucide-react';
+import { Play, Download, MoreHorizontal, RefreshCw } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from '../common/dnd/SortableItem';
@@ -20,6 +20,37 @@ export default function MobileQueueTab() {
   const downloads = useDownloadStore(state => state.downloads);
   const listRef = useRef<HTMLDivElement>(null);
   const [visibleCount, setVisibleCount] = useState(50);
+  const { setQueue, setCurrentIndex } = usePlayerStore();
+
+  const handleRestoreQueue = async () => {
+    try {
+      const { getPlayQueue } = await import('../../api/subsonic');
+      const q = await getPlayQueue();
+      if (q && q.entry) {
+        const mapped = q.entry.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          album: t.album,
+          albumId: t.albumId,
+          artistId: t.artistId,
+          coverArt: t.coverArt,
+          duration: t.duration,
+          bitRate: t.bitRate,
+          suffix: t.suffix
+        }));
+        setQueue(mapped);
+        
+        const currentId = q.current;
+        if (currentId) {
+          const idx = mapped.findIndex((t: any) => t.id === currentId);
+          if (idx !== -1) setCurrentIndex(idx);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to restore queue', e);
+    }
+  };
 
   useEffect(() => {
     // Scroll to the active track when the tab opens
@@ -35,9 +66,16 @@ export default function MobileQueueTab() {
 
   return (
     <div className="w-full h-full flex flex-col pt-4 overflow-y-auto hide-scrollbar" ref={listRef}>
-      <h3 className="px-6 pb-2 text-lg font-bold text-white mb-2">
-        {t('player.next_in_queue')}
-      </h3>
+      <div className="flex items-center justify-between px-6 pb-2 mb-2">
+        <h3 className="text-lg font-bold text-white">
+          {t('player.next_in_queue')}
+        </h3>
+        {!readOnly && (
+          <button onClick={handleRestoreQueue} className="text-secondary hover:text-foreground transition-colors p-1" title={t('common.restore_queue_from_server', 'Восстановить очередь с сервера')}>
+            <RefreshCw size={20} />
+          </button>
+        )}
+      </div>
       
       <SortableContext 
         items={queue.slice(0, visibleCount).map((t, idx) => `${t.id}-${idx}`)}

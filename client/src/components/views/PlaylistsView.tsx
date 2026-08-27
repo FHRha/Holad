@@ -4,26 +4,51 @@ import { useNavigate } from 'react-router-dom';
 import { ListMusic, Play } from 'lucide-react';
 import { getPlaylists } from '../../api/subsonic/playlists';
 import { getCoverArtUrl } from '../../api/subsonic';
+import { usePlaylistStore } from '../../store/playlistStore';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { useContextMenuStore } from '../../store/contextMenuStore';
 
 export default function PlaylistsView() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { openMenu } = useContextMenuStore();
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const customPlaylists = usePlaylistStore(state => state.playlists);
+  const { isOffline } = useNetworkStatus();
 
   useEffect(() => {
     const fetchAllPlaylists = async () => {
       try {
-        const data = await getPlaylists();
-        setPlaylists(data || []);
+        let serverPlaylists: any[] = [];
+        if (!isOffline) {
+          try {
+            serverPlaylists = await getPlaylists();
+          } catch (e) {
+            console.error('Failed to fetch server playlists:', e);
+          }
+        }
+        
+        // Map custom playlists to match subsonic playlist structure
+        const mappedCustomPlaylists = customPlaylists.map(cp => ({
+          id: cp.id,
+          name: cp.name,
+          comment: cp.description,
+          songCount: cp.trackIds.length,
+          duration: 0,
+          coverArt: null, 
+          isCustom: true
+        }));
+
+        setPlaylists([...mappedCustomPlaylists, ...(serverPlaylists || [])]);
       } catch (err) {
-        console.error('Failed to fetch playlists:', err);
+        console.error('Failed to process playlists:', err);
       } finally {
         setLoading(false);
       }
     };
     fetchAllPlaylists();
-  }, []);
+  }, [isOffline, customPlaylists]);
 
   const handlePlaylistClick = (id: string) => {
     const isJam = window.location.pathname.startsWith('/jam');
@@ -61,6 +86,10 @@ export default function PlaylistsView() {
             <div
               key={playlist.id}
               onClick={() => handlePlaylistClick(playlist.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                openMenu(e.clientX, e.clientY, playlist, 'playlist');
+              }}
               className="group relative bg-card hover:bg-accent rounded-xl cursor-pointer flex flex-col p-4 flex-shrink-0 transition-colors duration-300 shadow-sm hover:shadow-lg h-full"
             >
               <div className="relative aspect-square overflow-hidden rounded-t-lg bg-black/20 flex items-center justify-center">

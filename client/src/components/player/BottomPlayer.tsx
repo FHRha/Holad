@@ -19,6 +19,8 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import HoladConnectMenu from './HoladConnectMenu';
 import { useHoladStore } from '../../store/holadStore';
 import { useAudioStore } from '../../store/audioStore';
+import { useBookmark } from '../../hooks/useBookmark';
+import { Bookmark } from 'lucide-react';
 
 export default function BottomPlayer() {
   const navigate = useNavigate();
@@ -54,6 +56,8 @@ export default function BottomPlayer() {
   const activeDeviceObj = devices.find(d => d.id === activeDeviceId);
 
   useAutoDj();
+
+  const { isBookmarked, toggleBookmark: handleBookmark } = useBookmark(currentTrack?.id);
 
   const handleVolumeDrag = (newVolume: number) => {
     // Volume logic is now handled in useAudioEngine, we just update the store
@@ -181,6 +185,14 @@ export default function BottomPlayer() {
           <div className="flex items-center gap-4 w-full justify-end">
             {!hideSocialActions && (
               <>
+                <button 
+                  onClick={handleBookmark} 
+                  disabled={role === 'listener'}
+                  className={`hover:text-primary transition-colors flex items-center justify-center w-5 disabled:opacity-50 ${isBookmarked ? 'text-primary' : ''}`}
+                  title={t('player.bookmarksPlaylist', 'Отложенное')}
+                >
+                  <Bookmark size={18} fill={isBookmarked ? "currentColor" : "none"} />
+                </button>
                 <button 
                   onClick={handleLike} 
                   disabled={role === 'listener'}

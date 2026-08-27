@@ -19,6 +19,7 @@ import MobileInfoTab from './MobileInfoTab';
 import MobileLyricsTab from './MobileLyricsTab';
 import HoladConnectMenu from './HoladConnectMenu';
 import { getAudioEngine } from '../../audio/AudioEngine';
+import { useBookmark } from '../../hooks/useBookmark';
 
 export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -38,70 +39,9 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const currentTrack = queue[currentIndex];
   
   const [activeTab, setActiveTab] = useState<'player' | 'queue' | 'info' | 'lyrics'>('player');
-  
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [bookmarkPlaylistId, setBookmarkPlaylistId] = useState<string | null>(null);
   const [showSleepTimerMenu, setShowSleepTimerMenu] = useState(false);
-
-  useEffect(() => {
-    if (!currentTrack) return;
-    const checkBookmark = async () => {
-      try {
-        const playlists = await getPlaylists();
-        const playlistName = t('player.bookmarksPlaylist');
-        const bookmarkPlaylist = playlists.find((p: any) => p.name === playlistName);
-        if (bookmarkPlaylist) {
-          setBookmarkPlaylistId(bookmarkPlaylist.id);
-          const fullPlaylist = await getPlaylist(bookmarkPlaylist.id);
-          const tracks = fullPlaylist?.entry || [];
-          setIsBookmarked(tracks.some((t: any) => t.id === currentTrack.id));
-        } else {
-          setIsBookmarked(false);
-          setBookmarkPlaylistId(null);
-        }
-      } catch (e) {
-        console.error("Failed to check bookmarks:", e);
-      }
-    };
-    checkBookmark();
-  }, [currentTrack, t]);
-
-  const handleBookmark = async () => {
-    if (!currentTrack) return;
-    const playlistName = t('player.bookmarksPlaylist');
-    try {
-      if (!bookmarkPlaylistId) {
-        const success = await createPlaylist(playlistName, currentTrack.id);
-        if (success) {
-          const playlists = await getPlaylists();
-          const p = playlists.find((x: any) => x.name === playlistName);
-          if (p) {
-            setBookmarkPlaylistId(p.id);
-            setIsBookmarked(true);
-          }
-        }
-      } else {
-        if (isBookmarked) {
-          const fullPlaylist = await getPlaylist(bookmarkPlaylistId);
-          const tracks = fullPlaylist?.entry || [];
-          const index = tracks.findIndex((t: any) => t.id === currentTrack.id);
-          if (index !== -1) {
-            await updatePlaylist(bookmarkPlaylistId, undefined, index);
-            setIsBookmarked(false);
-            if (tracks.length === 1) {
-              await deletePlaylist(bookmarkPlaylistId);
-              setBookmarkPlaylistId(null);
-            }
-          }
-        } else {
-          await updatePlaylist(bookmarkPlaylistId, currentTrack.id);
-          setIsBookmarked(true);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to toggle bookmark:", e);
-    }
-  };
+  
+  const { isBookmarked, toggleBookmark: handleBookmark } = useBookmark(currentTrack?.id);
 
   const handleRewind = () => {
     if (currentTrack) {

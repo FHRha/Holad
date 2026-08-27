@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Play, ListPlus, SkipForward, Trash2, Heart, Star, Download, Share2, User, Disc, Ban } from 'lucide-react';
+import { Play, ListPlus, ListMinus, SkipForward, Trash2, Heart, Star, Download, Share2, User, Disc, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { usePlayerStore } from '../../store/playerStore';
@@ -12,9 +12,11 @@ import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { StorageManager } from '../../utils/StorageManager';
 import type { Track } from '../../store/playerStore';
 import { getCoverArtUrl } from '../../api/subsonic';
-import { getPlaylists, createPlaylist, updatePlaylistTracks } from '../../api/subsonic/playlists';
+import { getPlaylists, createPlaylist, updatePlaylistTracks, updatePlaylist } from '../../api/subsonic/playlists';
+import { usePlaylistStore } from '../../store/playlistStore';
 import AddToPlaylistModal from './AddToPlaylistModal';
 import { ListMusic, Plus, ChevronRight } from 'lucide-react';
+import { networkManager } from '../../utils/networkStatus';
 
 export default function ContextMenu() {
   const { t } = useTranslation();
@@ -57,11 +59,25 @@ export default function ContextMenu() {
       e.stopPropagation();
     }
     setShowPlaylists(true);
+    const customPlaylists = usePlaylistStore.getState().playlists;
+    const mappedCustomPlaylists = customPlaylists.map(cp => ({
+      id: cp.id,
+      name: cp.name,
+      songCount: cp.trackIds.length,
+      coverArt: null,
+      isCustom: true
+    }));
+    
     try {
+      if (!networkManager.isOnline()) {
+         setPlaylists(mappedCustomPlaylists);
+         return;
+      }
       const list = await getPlaylists();
-      setPlaylists(list);
+      setPlaylists([...mappedCustomPlaylists, ...(list || [])]);
     } catch (err) {
       console.error(err);
+      setPlaylists(mappedCustomPlaylists);
     }
   };
 
@@ -69,23 +85,49 @@ export default function ContextMenu() {
     e.preventDefault();
     if (!newPlaylistName.trim()) return;
     try {
+      if (!networkManager.isOnline()) {
+        const newId = usePlaylistStore.getState().createPlaylist(newPlaylistName.trim());
+        await handleAddToPlaylist(newId, true);
+        return;
+      }
+      
       await createPlaylist(newPlaylistName.trim());
       const updated = await getPlaylists();
-      setPlaylists(updated);
+      
+      const customPlaylists = usePlaylistStore.getState().playlists;
+      const mappedCustomPlaylists = customPlaylists.map(cp => ({
+        id: cp.id,
+        name: cp.name,
+        songCount: cp.trackIds.length,
+        coverArt: null,
+        isCustom: true
+      }));
+      setPlaylists([...mappedCustomPlaylists, ...(updated || [])]);
+      
       const created = updated.find(p => p.name === newPlaylistName.trim());
       if (created) {
-        await handleAddToPlaylist(created.id);
+        await handleAddToPlaylist(created.id, false);
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleAddToPlaylist = async (playlistId: string) => {
+  const handleAddToPlaylist = async (playlistId: string, isCustomOverride?: boolean) => {
     try {
       const tracks = await getTracks();
       const ids = tracks.map(t => t.id);
-      await updatePlaylistTracks(playlistId, ids);
+      
+      const playlist = playlists.find(p => p.id === playlistId);
+      const isCustom = isCustomOverride ?? playlist?.isCustom;
+      
+      if (isCustom) {
+        ids.forEach(id => {
+          usePlaylistStore.getState().addTrack(playlistId, id);
+        });
+      } else {
+        await updatePlaylistTracks(playlistId, ids);
+      }
       window.dispatchEvent(new CustomEvent('playlists-updated'));
       closeMenu();
     } catch (err) {
@@ -93,6 +135,20 @@ export default function ContextMenu() {
     }
   };
 
+  const handleRemoveFromPlaylist = async () => {
+    try {
+      if (item.isCustomPlaylist) {
+        usePlaylistStore.getState().removeTrack(item.playlistId, item.id);
+      } else {
+        await updatePlaylist(item.playlistId, undefined, item.playlistIndex);
+      }
+      window.dispatchEvent(new CustomEvent('playlists-updated'));
+      setTimeout(() => window.location.reload(), 300);
+      closeMenu();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Handle clicking outside to close
   useEffect(() => {
@@ -424,14 +480,18 @@ export default function ContextMenu() {
                   </button>
                 )}
               </div>
-            ) : (
+            ) : type !== 'playlist' ? (
               <>
                 {/* Action Grid */}
                 <div className="grid grid-cols-4 gap-2">
                   <MobileIconBtn icon={Play} label={t('common.play_now')} onClick={() => handleAction(onPlayNow)} />
                   <MobileIconBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
                   {!isInQueue && <MobileIconBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
-                  <MobileIconBtn icon={ListMusic} label={t('common.add_to_playlist')} onClick={onShowPlaylists} />
+                  {item.playlistId ? (
+                    <MobileIconBtn icon={ListMinus} label={t('common.remove_from_playlist', 'Убрать из плейлиста')} onClick={handleRemoveFromPlaylist} color="text-red-500" />
+                  ) : (
+                    <MobileIconBtn icon={ListMusic} label={t('common.add_to_playlist')} onClick={onShowPlaylists} />
+                  )}
                   {!isGuest && <MobileIconBtn icon={Heart} label={t('common.favorite')} onClick={() => handleAction(onLike)} activeColor={isLiked ? "text-primary" : "text-white"} />}
                   {!isGuest && <MobileIconBtn icon={Ban} label={t('common.ignore', 'В игнор')} onClick={() => handleAction(onExclude)} activeColor={isExcluded ? "text-red-500" : "text-white"} />}
                   {!isGuest && (isDownloaded ? (
@@ -468,6 +528,33 @@ export default function ContextMenu() {
                   </div>
                 )}
               </>
+            ) : null}
+
+            {type === 'playlist' && (
+              <div className="grid grid-cols-3 gap-2">
+                <MobileIconBtn icon={Play} label={t('common.open', 'Открыть')} onClick={() => handleAction(() => { navigate(`/Holad/playlist/${item.id}`); })} />
+                <MobileIconBtn icon={Share2} label={isCopied ? t('common.copied') : t('common.share')} onClick={() => handleAction(() => {
+                  const shareUrl = `${getShareUrl()}/jam/?playlist=${item.id}`;
+                  navigator.clipboard.writeText(shareUrl);
+                  setIsCopied(true);
+                  setTimeout(() => setIsCopied(false), 2000);
+                }, false)} activeColor={isCopied ? "text-primary" : "text-white"} />
+                <MobileIconBtn icon={Trash2} color="text-red-500" label={t('common.delete', 'Удалить')} onClick={async () => {
+                  if (window.confirm(t('common.delete_playlist_confirm', 'Вы уверены, что хотите удалить плейлист?'))) {
+                    try {
+                      if (item.isCustom) {
+                        usePlaylistStore.getState().deletePlaylist(item.id);
+                      } else {
+                        const { deletePlaylist } = await import('../../api/subsonic/playlists');
+                        await deletePlaylist(item.id);
+                      }
+                      window.dispatchEvent(new CustomEvent('playlists-updated'));
+                      setTimeout(() => window.location.reload(), 300);
+                    } catch(e) { console.error(e); }
+                    closeMenu();
+                  }
+                }} />
+              </div>
             )}
 
           </div>
@@ -569,13 +656,17 @@ export default function ContextMenu() {
             </button>
           )}
         </div>
-      ) : (
+      ) : type !== 'playlist' ? (
         <>
           <div className="py-1">
             <ItemBtn icon={Play} label={t('common.play_now')} onClick={() => handleAction(onPlayNow)} />
             <ItemBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
             {!isInQueue && <ItemBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
-            <ItemBtn icon={ListMusic} label={t('common.add_to_playlist')} onClick={onShowPlaylists} />
+            {item.playlistId ? (
+              <ItemBtn icon={ListMinus} label={t('common.remove_from_playlist', 'Убрать из плейлиста')} onClick={handleRemoveFromPlaylist} color="text-red-500 hover:text-red-400" />
+            ) : (
+              <ItemBtn icon={ListMusic} label={t('common.add_to_playlist')} onClick={onShowPlaylists} />
+            )}
           </div>
 
           {item.queueIndex !== undefined && (
@@ -648,6 +739,35 @@ export default function ContextMenu() {
             </>
           )}
         </>
+      ) : null}
+
+      {type === 'playlist' && (
+        <div className="py-1">
+          <ItemBtn icon={Play} label={t('common.open', 'Открыть')} onClick={() => handleAction(() => { navigate(`/Holad/playlist/${item.id}`); })} />
+          <ItemBtn icon={Share2} label={isCopied ? t('common.copied') : t('common.share')} onClick={() => handleAction(() => {
+            const shareUrl = `${getShareUrl()}/jam/?playlist=${item.id}`;
+            navigator.clipboard.writeText(shareUrl);
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+          }, false)} color={isCopied ? "text-primary font-bold" : "text-white"} />
+          <div className="py-1 border-t border-white/10">
+            <ItemBtn icon={Trash2} label={t('common.delete', 'Удалить')} onClick={async () => {
+              if (window.confirm(t('common.delete_playlist_confirm', 'Вы уверены, что хотите удалить плейлист?'))) {
+                try {
+                  if (item.isCustom) {
+                    usePlaylistStore.getState().deletePlaylist(item.id);
+                  } else {
+                    const { deletePlaylist } = await import('../../api/subsonic/playlists');
+                    await deletePlaylist(item.id);
+                  }
+                  window.dispatchEvent(new CustomEvent('playlists-updated'));
+                  setTimeout(() => window.location.reload(), 300);
+                } catch(e) { console.error(e); }
+                closeMenu();
+              }
+            }} color="text-red-500 hover:text-red-400" />
+          </div>
+        </div>
       )}
     </div>
     </>,

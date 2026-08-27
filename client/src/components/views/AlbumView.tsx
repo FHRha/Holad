@@ -171,9 +171,16 @@ export default function AlbumView() {
                     openMenu(e.clientX, e.clientY, { ...track, artistId: track.artistId || album.artistId, coverArt: getCoverArtUrl(track.coverArt || album.id, 300), albumId: album.id }, 'track'); 
                   }}
                   onClick={() => {
-                     handlePlaySong(index);
+                    if (excludedTrackIds.includes(track.id)) {
+                      if (window.confirm(t('common.unignore_prompt', 'Убрать ли из игнора трек?'))) {
+                        toggleTrackExclude(track.id);
+                        handlePlaySong(index);
+                      }
+                    } else {
+                      handlePlaySong(index);
+                    }
                   }}
-                  className={`flex items-center px-2 sm:px-4 py-2 sm:py-3 rounded-lg cursor-pointer group hover:bg-foreground/5 transition-colors ${currentPlaying ? 'bg-foreground/10' : ''}`}
+                  className={`flex items-center px-2 sm:px-4 py-2 sm:py-3 rounded-lg cursor-pointer group hover:bg-foreground/5 transition-colors ${currentPlaying ? 'bg-foreground/10' : ''} ${excludedTrackIds.includes(track.id) ? 'opacity-50 grayscale' : ''}`}
                 >
                   <div className="w-8 sm:w-12 text-center text-xs sm:text-sm font-medium text-secondary">
                     {currentPlaying ? (

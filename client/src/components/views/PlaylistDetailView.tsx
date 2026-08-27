@@ -1,12 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Play, Pause, Heart, MoreHorizontal, Clock, ArrowLeft, Download, Ban, Pencil, Check, X } from 'lucide-react';
+import { Play, Pause, Heart, Clock, ArrowLeft, Download, Ban, Pencil, Check, X } from 'lucide-react';
 import { getPlaylist, updatePlaylist } from '../../api/subsonic/playlists';
 import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
-import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../store/downloadStore';
+import { usePlaylistStore } from '../../store/playlistStore';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import ArtistLinks from '../common/ArtistLinks';
 import LongPressWrapper from '../common/LongPressWrapper';
 
@@ -23,15 +25,64 @@ export default function PlaylistDetailView() {
   const { queue, currentIndex, likedTrackIds, toggleTrackLike, excludedTrackIds, toggleTrackExclude, isPlaying, setQueueAndPlay, setIsProcessing } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const downloads = useDownloadStore(state => state.downloads);
+  const { isOffline } = useNetworkStatus();
 
   useEffect(() => {
     const fetchPlaylistData = async () => {
       if (!id) return;
       try {
-        const data = await getPlaylist(id);
-        setPlaylist(data);
-        setEditName(data?.name || '');
-        setEditDesc(data?.comment || '');
+        const customPlaylists = usePlaylistStore.getState().playlists;
+        const customPlaylist = customPlaylists.find(p => p.id === id);
+        
+        if (customPlaylist) {
+           const offlineTracks = getOfflineTracks();
+           
+           // Resolve tracks
+           const resolvedEntries = [];
+           for (const trackId of customPlaylist.trackIds) {
+             let track = offlineTracks.find(t => t.id === trackId);
+             
+             // If online and not found in offline tracks, try to fetch from server
+             if (!track && !isOffline) {
+               try {
+                  const { getSong } = await import('../../api/subsonic/tracks');
+                  track = await getSong(trackId);
+               } catch (e) {
+                  console.error('Failed to fetch song info for custom playlist', e);
+               }
+             }
+             
+             if (track) {
+                // If offline, ensure it's downloaded
+                if (isOffline) {
+                   const { downloads } = useDownloadStore.getState();
+                   if (isItemDownloaded(downloads, track.id, track.albumId)) {
+                      resolvedEntries.push(track);
+                   }
+                } else {
+                   resolvedEntries.push(track);
+                }
+             }
+           }
+           
+           setPlaylist({
+             id: customPlaylist.id,
+             name: customPlaylist.name,
+             comment: customPlaylist.description,
+             songCount: resolvedEntries.length,
+             duration: resolvedEntries.reduce((acc, t) => acc + (t.duration || 0), 0),
+             coverArt: null,
+             entry: resolvedEntries,
+             isCustom: true
+           });
+           setEditName(customPlaylist.name || '');
+           setEditDesc(customPlaylist.description || '');
+        } else {
+           const data = await getPlaylist(id);
+           setPlaylist(data);
+           setEditName(data?.name || '');
+           setEditDesc(data?.comment || '');
+        }
       } catch (err) {
         console.error('Failed to fetch playlist:', err);
       } finally {
@@ -39,14 +90,20 @@ export default function PlaylistDetailView() {
       }
     };
     fetchPlaylistData();
-  }, [id]);
+  }, [id, isOffline]);
 
   const handleSave = async () => {
     if (!id || !playlist) return;
     try {
-      await updatePlaylist(id, undefined, undefined, editName, editDesc);
-      setPlaylist({ ...playlist, name: editName, comment: editDesc });
-      setIsEditing(false);
+      if (playlist.isCustom) {
+        usePlaylistStore.getState().updatePlaylist(id, editName, editDesc);
+        setPlaylist({ ...playlist, name: editName, comment: editDesc });
+        setIsEditing(false);
+      } else {
+        await updatePlaylist(id, undefined, undefined, editName, editDesc);
+        setPlaylist({ ...playlist, name: editName, comment: editDesc });
+        setIsEditing(false);
+      }
     } catch (err) {
       console.error('Failed to update playlist', err);
     }
@@ -211,7 +268,7 @@ export default function PlaylistDetailView() {
                   key={track.id + '-' + index}
                   onLongPress={(e: any) => { 
                     e.preventDefault(); 
-                    openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt, 300) }, 'track'); 
+                    openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt, 300), playlistId: playlist.id, isCustomPlaylist: playlist.isCustom, playlistIndex: index }, 'track'); 
                   }}
                   onClick={() => handlePlaySong(index)}
                   className={`flex items-center px-2 sm:px-4 py-2 sm:py-3 rounded-lg cursor-pointer group hover:bg-foreground/5 transition-colors ${currentPlaying ? 'bg-foreground/10' : ''}`}

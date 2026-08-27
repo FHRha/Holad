@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Clock, Download, Share, Shuffle, Trash2, Play } from 'lucide-react';
+import { Clock, Download, Share, Shuffle, Trash2, Play, RefreshCw } from 'lucide-react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from '../common/dnd/SortableItem';
 import { useTranslation } from 'react-i18next';
@@ -10,7 +10,7 @@ import { getShareUrl } from '../../utils/serverConfig';
 import { handleDownload } from '../../utils/downloadHelper';
 import { formatArtistName } from '../../utils/formatters';
 import TrackImage from '../common/TrackImage';
-import { getCoverArtUrl } from '../../api/subsonic';
+import { getCoverArtUrl, getPlayQueue } from '../../api/subsonic';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import AddToPlaylistModal from '../common/AddToPlaylistModal';
@@ -18,7 +18,7 @@ import { ListPlus } from 'lucide-react';
 
 export default function RightSidebar() {
   const { t } = useTranslation();
-  const { queue, currentIndex, playTrack, toggleShuffle, clearQueue, isProcessing } = usePlayerStore();
+  const { queue, currentIndex, playTrack, toggleShuffle, clearQueue, isProcessing, setQueue, setCurrentIndex } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const { rightSidebarWidth, setRightSidebarWidth } = useUIStore();
   const [visibleCount, setVisibleCount] = useState(50);
@@ -26,6 +26,37 @@ export default function RightSidebar() {
   const [isCopied, setIsCopied] = useState(false);
   const shareRef = useRef<HTMLDivElement>(null);
   const downloads = useDownloadStore(state => state.downloads);
+
+  const handleRestoreQueue = async () => {
+    try {
+      const q = await getPlayQueue();
+      if (q && q.entry) {
+        // Map to track format if needed, though subsonic returns similar structure
+        const mapped = q.entry.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          album: t.album,
+          albumId: t.albumId,
+          artistId: t.artistId,
+          coverArt: t.coverArt,
+          duration: t.duration,
+          bitRate: t.bitRate,
+          suffix: t.suffix
+        }));
+        setQueue(mapped);
+        
+        // Find current track index by current id if available, or keep 0
+        const currentId = q.current;
+        if (currentId) {
+          const idx = mapped.findIndex((t: any) => t.id === currentId);
+          if (idx !== -1) setCurrentIndex(idx);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to restore queue', e);
+    }
+  };
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -172,6 +203,7 @@ export default function RightSidebar() {
                 </div>
                 <button className="hover:text-foreground" title={t('common.shuffle')} onClick={toggleShuffle}><Shuffle size={18} /></button>
                 <button className="hover:text-foreground" title={t('common.save_queue_to_playlist')} onClick={() => setIsPlaylistModalOpen(true)}><ListPlus size={18} /></button>
+                <button className="hover:text-foreground" title={t('common.restore_queue_from_server', 'Восстановить очередь с сервера')} onClick={handleRestoreQueue}><RefreshCw size={18} /></button>
                 <button className="hover:text-foreground" title={t('common.clear_queue')} onClick={clearQueue}><Trash2 size={18} /></button>
               </div>
             </div>
