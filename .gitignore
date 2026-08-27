@@ -40,3 +40,8 @@ remaining-lint.json
 # Force pnpm usage
 package-lock.json
 yarn.lock
+
+# SQLite Database
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

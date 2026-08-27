@@ -64,7 +64,7 @@ export const useHistoryStore = create<HistoryState>()(
       clearHistory: () => set({ history: [] }),
     }),
     {
-      name: 'streamnavi-history',
+      name: 'holad-history',
       storage: createJSONStorage(() => localStorage),
     }
   )

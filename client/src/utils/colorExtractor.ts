@@ -1,4 +1,4 @@
-const COLOR_CACHE_KEY = 'streamnavi_color_cache';
+const COLOR_CACHE_KEY = 'holad_color_cache';
 
 const getCache = (): Record<string, string> => {
   try {

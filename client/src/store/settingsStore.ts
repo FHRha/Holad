@@ -152,7 +152,7 @@ export const useSettingsStore = create<SettingsState>()(
       setYandexToken: (yandexToken) => set({ yandexToken }),
     }),
     {
-      name: 'streamnavi-settings',
+      name: 'holad-settings',
       onRehydrateStorage: () => (state) => {
         if (state && typeof state.imageCacheLimitMb === 'number') {
           setImageCacheLimit(state.imageCacheLimitMb);

@@ -272,7 +272,7 @@ export const getOfflineTracks = (): any[] => {
   const downloads = useDownloadStore.getState().downloads;
   let historyTracks: any[] = [];
   try {
-    const raw = localStorage.getItem('streamnavi-history');
+    const raw = localStorage.getItem('holad-history');
     if (raw) {
       historyTracks = JSON.parse(raw).state?.history || [];
     }

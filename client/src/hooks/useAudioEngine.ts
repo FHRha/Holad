@@ -337,8 +337,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
         const pct = (currentTime / dur) * 100;
         setProgress(pct);
-        localStorage.setItem('streamnavi_time', currentTime.toString());
-        localStorage.setItem('streamnavi_track', currentTrack.id);
+        localStorage.setItem('holad_time', currentTime.toString());
+        localStorage.setItem('holad_track', currentTrack.id);
 
         if (!syncedRef.current && (accumulatedTimeRef.current >= 30 || accumulatedTimeRef.current / currentTrack.duration >= 0.5)) {
           syncedRef.current = true;

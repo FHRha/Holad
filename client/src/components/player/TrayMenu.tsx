@@ -45,7 +45,7 @@ export default function TrayMenu() {
 
     // Sync Zustand across windows
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'streamnavi-settings') {
+      if (e.key === 'holad-settings') {
         useSettingsStore.persist.rehydrate();
       }
       if (e.key === 'i18nextLng' && e.newValue) {

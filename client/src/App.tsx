@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useAppLifecycle } from './hooks/useAppLifecycle';
 import Sidebar from './components/layout/Sidebar';
 import MainContent from './components/layout/MainContent';
 import MobileBottomNav from './components/layout/MobileBottomNav';
@@ -55,6 +56,8 @@ function AppContent() {
   if (isTrayMenu) {
     return <TrayMenu />;
   }
+
+  useAppLifecycle();
 
   // oxlint-disable-next-line
   const location = useLocation();

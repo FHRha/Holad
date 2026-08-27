@@ -72,8 +72,8 @@ export function useAppInitialization() {
 
           let pos = queueData.position || 0;
           if (pos === 0) {
-            const savedTrack = localStorage.getItem('streamnavi_track');
-            const savedTime = localStorage.getItem('streamnavi_time');
+            const savedTrack = localStorage.getItem('holad_track');
+            const savedTime = localStorage.getItem('holad_time');
             if (savedTrack === queueData.current && savedTime) {
               pos = parseFloat(savedTime) * 1000;
             }

@@ -44,6 +44,7 @@
 - **Subsonic / Navidrome Integration**: Holad securely proxies requests to your server, hiding credentials while providing seamless playback.
 - **Modern UI/UX**: A visually stunning interface with smooth animations, light/dark themes, and customizable drag-and-drop elements.
 - **HoladConnect**: Instant synchronization of player state across all your devices. Start listening on your PC and continue seamlessly on your phone!
+- **Local SQLite Database**: Automatic synchronization of settings, listening history, playlists, and integration data between your devices, securely encrypted and stored locally on your server (in `holad.sqlite`).
 - **Jam Sessions**: Listen to music together with friends in real-time. Create rooms and manage the playback queue collaboratively.
 - **Localization**: Built-in multi-language support (currently **Russian** and **English** are available).
 - **Self-Hosted**: Full control over your data. Deploy it easily on your own Linux or Windows server.

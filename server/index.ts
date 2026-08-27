@@ -5,8 +5,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import md5 from 'md5';
 import fs from 'fs';
-
 import path from 'path';
+import * as database from './src/database';
 
 dotenv.config();
 // Fallback to root .env if running from server directory
@@ -144,6 +144,33 @@ console.log("======================");
 
 app.get('/api/ping', (req, res) => {
   res.json({ ok: true, server: 'holad' });
+});
+
+// Sync endpoints
+app.post('/api/sync/push', express.json({ limit: '10mb' }), (req, res) => {
+  const { login, password, data } = req.body;
+  if (!login || !password || !data) return res.status(400).json({ error: 'Missing credentials or data' });
+  try {
+    const userId = database.generateUserId(login, password);
+    database.saveSyncData(userId, data);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error saving sync data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/sync/pull', express.json(), (req, res) => {
+  const { login, password } = req.body;
+  if (!login || !password) return res.status(400).json({ error: 'Missing credentials' });
+  try {
+    const userId = database.generateUserId(login, password);
+    const data = database.getSyncData(userId);
+    res.json({ ok: true, data });
+  } catch (error) {
+    console.error('Error fetching sync data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, res) => {

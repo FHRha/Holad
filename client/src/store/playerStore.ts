@@ -26,7 +26,7 @@ export const usePlayerStore = create<PlayerState>()(
       ...createPlaylistSlice(...a),
     }),
     {
-      name: 'streamnavi-storage',
+      name: 'holad-storage',
       partialize: (state) => {
         // Isolate Jam environment for listeners and standalone links
         // If we are in /jam/ and not a host, DO NOT save queue/currentIndex to localStorage

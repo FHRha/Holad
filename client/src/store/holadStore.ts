@@ -8,6 +8,7 @@ import { useHistoryStore } from './historyStore';
 import { useAuthStore } from './authStore';
 import { getSocketUrl } from '../utils/serverConfig';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
+import { getAudioEngine } from '../audio/AudioEngine';
 
 const isMobileClient = () => {
   if (typeof window === 'undefined') return false;
@@ -280,8 +281,9 @@ export const useHoladStore = create<HoladState>((set, get) => {
             case 'requestTransfer':
               // We are active. Someone wants to take over. Send our exact state first, then transfer.
               let currentTime = 0;
-              if (useAudioStore.getState().audioElement) {
-                 currentTime = useAudioStore.getState().audioElement!.currentTime;
+              const engine = getAudioEngine();
+              if (engine) {
+                 currentTime = engine.getCurrentTime();
               } else {
                  const track = store.queue[store.currentIndex];
                  const duration = useAudioStore.getState().duration || track?.duration || 1;
@@ -334,8 +336,9 @@ export const useHoladStore = create<HoladState>((set, get) => {
         
         if (currentActive === deviceId) {
           let currentTime = 0;
-          if (useAudioStore.getState().audioElement) {
-             currentTime = useAudioStore.getState().audioElement!.currentTime;
+          const engine = getAudioEngine();
+          if (engine) {
+             currentTime = engine.getCurrentTime();
           } else {
              const track = state.queue[state.currentIndex];
              const duration = useAudioStore.getState().duration || track?.duration || 1;

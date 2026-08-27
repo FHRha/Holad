@@ -82,10 +82,13 @@ while true; do
             echo "Updating Holad from latest GitHub release..."
             sudo systemctl stop holad
             
-            # Backup .env
-            echo "Backing up configuration..."
+            # Backup .env and Database
+            echo "Backing up configuration and database..."
             if [ -f "$INSTALL_DIR/server/.env" ]; then
                 sudo cp $INSTALL_DIR/server/.env /tmp/holad_env_backup
+            fi
+            if [ -f "$INSTALL_DIR/server/holad.sqlite" ]; then
+                sudo cp $INSTALL_DIR/server/holad.sqlite /tmp/holad_sqlite_backup
             fi
             
             # Download new release
@@ -106,11 +109,16 @@ while true; do
                 sudo rm -rf /tmp/holad-release
                 sudo rm /tmp/holad-update.tar.gz
                 
-                # Restore .env
+                # Restore .env and DB
                 if [ -f "/tmp/holad_env_backup" ]; then
                     echo "Restoring configuration..."
                     sudo cp /tmp/holad_env_backup $INSTALL_DIR/server/.env
                     sudo rm /tmp/holad_env_backup
+                fi
+                if [ -f "/tmp/holad_sqlite_backup" ]; then
+                    echo "Restoring database..."
+                    sudo cp /tmp/holad_sqlite_backup $INSTALL_DIR/server/holad.sqlite
+                    sudo rm /tmp/holad_sqlite_backup
                 fi
                 
                 if [ "$LATEST_VERSION" != "Unknown" ]; then
