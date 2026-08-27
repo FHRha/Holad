@@ -13,6 +13,8 @@ import TrackImage from '../common/TrackImage';
 import { getCoverArtUrl } from '../../api/subsonic';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import AddToPlaylistModal from '../common/AddToPlaylistModal';
+import { ListPlus } from 'lucide-react';
 
 export default function RightSidebar() {
   const { t } = useTranslation();
@@ -126,120 +128,130 @@ export default function RightSidebar() {
     openMenu(e.clientX, e.clientY, { ...track, queueIndex: idx }, 'track');
   };
 
+  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+
   if (rightSidebarWidth === 0) return null;
 
   const isSmall = rightSidebarWidth <= 100;
 
   return (
-    <div 
-      className={`hidden md:flex flex-col h-full text-sm relative z-[60] flex-shrink-0 transition-[max-width,background-color] ${isSmall ? 'bg-gradient-to-r from-transparent to-background/90 border-l border-transparent' : 'bg-background border-l border-white/5'}`}
-      style={{ width: rightSidebarWidth, maxWidth: '35vw' }}
-    >
-      {/* Resizer */}
-      <div 
-        className="absolute top-0 left-0 w-2 h-full cursor-col-resize hover:bg-foreground/10 active:bg-white/20 transition-colors z-20"
-        onMouseDown={handleMouseDown}
+    <>
+      <AddToPlaylistModal 
+        isOpen={isPlaylistModalOpen} 
+        onClose={() => setIsPlaylistModalOpen(false)} 
+        trackIds={queue.map((t: any) => t.id)} 
       />
+      <div 
+        className={`hidden md:flex flex-col h-full text-sm relative z-[60] flex-shrink-0 transition-[max-width,background-color] ${isSmall ? 'bg-gradient-to-r from-transparent to-background/90 border-l border-transparent' : 'bg-background border-l border-white/5'}`}
+        style={{ width: rightSidebarWidth, maxWidth: '35vw' }}
+      >
+        {/* Resizer */}
+        <div 
+          className="absolute top-0 left-0 w-2 h-full cursor-col-resize hover:bg-foreground/10 active:bg-white/20 transition-colors z-20"
+          onMouseDown={handleMouseDown}
+        />
 
-      {!isSmall && (
-        <>
-          <div className="p-4 flex items-center text-secondary">
-            <div className="flex gap-4">
-              <div className="relative flex" ref={shareRef}>
-                <button className="hover:text-foreground" title={t('common.album_actions')} onClick={() => setShowShareMenu(!showShareMenu)}>
-                  <Share size={16} />
-                </button>
-                {showShareMenu && (
-                  <div className="absolute top-full right-0 mt-2 py-1 bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl z-[60] flex flex-col min-w-[180px]">
-                    <button onClick={handleDownloadAlbum} className="text-left px-4 py-2 hover:bg-foreground/10 text-sm text-white font-medium transition-colors flex items-center gap-3 whitespace-nowrap">
-                      <Download size={18} className="shrink-0" /> {t('common.download_album')}
-                    </button>
-                    <button onClick={handleShareItem} className={`text-left px-4 py-2 hover:bg-foreground/10 text-sm font-medium transition-colors border-t border-white/5 flex items-center gap-3 whitespace-nowrap ${isCopied ? 'text-primary' : 'text-white'}`}>
-                      <Share size={18} className="shrink-0" /> {isCopied ? t('common.copied') : t('common.share_album')}
-                    </button>
-                  </div>
-                )}
+        {!isSmall && (
+          <>
+            <div className="p-4 flex items-center text-secondary">
+              <div className="flex gap-4">
+                <div className="relative flex" ref={shareRef}>
+                  <button className="hover:text-foreground" title={t('common.album_actions')} onClick={() => setShowShareMenu(!showShareMenu)}>
+                    <Share size={16} />
+                  </button>
+                  {showShareMenu && (
+                    <div className="absolute top-full right-0 mt-2 py-1 bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl z-[60] flex flex-col min-w-[180px]">
+                      <button onClick={handleDownloadAlbum} className="text-left px-4 py-2 hover:bg-foreground/10 text-sm text-white font-medium transition-colors flex items-center gap-3 whitespace-nowrap">
+                        <Download size={18} className="shrink-0" /> {t('common.download_album')}
+                      </button>
+                      <button onClick={handleShareItem} className={`text-left px-4 py-2 hover:bg-foreground/10 text-sm font-medium transition-colors border-t border-white/5 flex items-center gap-3 whitespace-nowrap ${isCopied ? 'text-primary' : 'text-white'}`}>
+                        <Share size={18} className="shrink-0" /> {isCopied ? t('common.copied') : t('common.share_album')}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <button className="hover:text-foreground" title={t('common.shuffle')} onClick={toggleShuffle}><Shuffle size={18} /></button>
+                <button className="hover:text-foreground" title={t('common.save_queue_to_playlist')} onClick={() => setIsPlaylistModalOpen(true)}><ListPlus size={18} /></button>
+                <button className="hover:text-foreground" title={t('common.clear_queue')} onClick={clearQueue}><Trash2 size={18} /></button>
               </div>
-              <button className="hover:text-foreground" title={t('common.shuffle')} onClick={toggleShuffle}><Shuffle size={18} /></button>
-              <button className="hover:text-foreground" title={t('common.clear_queue')} onClick={clearQueue}><Trash2 size={18} /></button>
             </div>
-          </div>
 
-          <div className="flex pl-4 pr-8 py-2 text-xs font-semibold tracking-wider text-secondary border-b border-white/5 uppercase">
-            <div className="w-8">#</div>
-            <div className="flex-1">{t('player.title')}</div>
-            <div className="w-10 text-right"><Clock size={14} className="inline-block" /></div>
-          </div>
-        </>
-      )}
-
-
-
-      <div className={`flex-1 overflow-y-auto overflow-x-hidden ${isSmall ? 'p-1' : 'p-2'} space-y-1 relative`} onScroll={handleScroll}>
-        {isProcessing && (
-          <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          </div>
+            <div className="flex pl-4 pr-8 py-2 text-xs font-semibold tracking-wider text-secondary border-b border-white/5 uppercase">
+              <div className="w-8">#</div>
+              <div className="flex-1">{t('player.title')}</div>
+              <div className="w-10 text-right"><Clock size={14} className="inline-block" /></div>
+            </div>
+          </>
         )}
-        <SortableContext 
-          items={queue.slice(0, visibleCount).map((t, idx) => `${t.id}-${idx}`)}
-          strategy={verticalListSortingStrategy}
-        >
-          {queue.slice(0, visibleCount).map((track, idx) => {
-            const isPlaying = idx === currentIndex;
-            const sortableId = `${track.id}-${idx}`;
-            return (
-              <SortableItem key={sortableId} id={sortableId}>
-                {({ setNodeRef, attributes, listeners, style, isDragging }) => (
-                  <LongPressWrapper 
-                    ref={setNodeRef}
-                    style={style}
-                    id={`queue-item-${idx}`}
-                    {...attributes}
-                    {...listeners}
-                    onClick={() => playTrack(idx)}
-                    onLongPress={(e: any) => handleContextMenu(e, track, idx)}
-                    className={`flex items-center ${isSmall ? 'justify-center p-1 hover:scale-105 transition-transform' : `px-2 py-2 rounded-md ${isPlaying ? 'bg-foreground/10' : 'hover:bg-white/5'}`} cursor-grab active:cursor-grabbing group ${isDragging ? 'opacity-30' : ''}`}
-                    title={isSmall ? `${track.title} • ${formatArtistName(track.artist)}` : undefined}
-                  >
-                    {!isSmall && (
-                      <div className="w-6 flex justify-center text-secondary text-xs select-none pointer-events-none">
-                        {isPlaying ? <Play size={12} className="text-primary stroke-none" fill="currentColor" /> : idx + 1}
-                      </div>
-                    )}
-                    <div className={`relative group rounded overflow-hidden shadow-sm flex-shrink-0 ${isSmall ? 'w-14 h-14' : 'w-10 h-10 mx-2'}`}>
-                      <TrackImage src={track.coverArt || getCoverArtUrl(track.id, 100)} className="w-full h-full rounded object-cover pointer-events-none" alt="" trackId={track.id} />
-                      {isSmall && (
-                        <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} pointer-events-none`}>
-                          <Play size={16} className={isPlaying ? "text-primary stroke-none" : "text-white stroke-none"} fill="currentColor" />
+
+
+
+        <div className={`flex-1 overflow-y-auto overflow-x-hidden ${isSmall ? 'p-1' : 'p-2'} space-y-1 relative`} onScroll={handleScroll}>
+          {isProcessing && (
+            <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
+          <SortableContext 
+            items={queue.slice(0, visibleCount).map((t: any, idx: number) => `${t.id}-${idx}`)}
+            strategy={verticalListSortingStrategy}
+          >
+            {queue.slice(0, visibleCount).map((track: any, idx: number) => {
+              const isPlaying = idx === currentIndex;
+              const sortableId = `${track.id}-${idx}`;
+              return (
+                <SortableItem key={sortableId} id={sortableId}>
+                  {({ setNodeRef, attributes, listeners, style, isDragging }: any) => (
+                    <LongPressWrapper 
+                      ref={setNodeRef}
+                      style={style}
+                      id={`queue-item-${idx}`}
+                      {...attributes}
+                      {...listeners}
+                      onClick={() => playTrack(idx)}
+                      onLongPress={(e: any) => handleContextMenu(e, track, idx)}
+                      className={`flex items-center ${isSmall ? 'justify-center p-1 hover:scale-105 transition-transform' : `px-2 py-2 rounded-md ${isPlaying ? 'bg-foreground/10' : 'hover:bg-white/5'}`} cursor-grab active:cursor-grabbing group ${isDragging ? 'opacity-30' : ''}`}
+                      title={isSmall ? `${track.title} • ${formatArtistName(track.artist)}` : undefined}
+                    >
+                      {!isSmall && (
+                        <div className="w-6 flex justify-center text-secondary text-xs select-none pointer-events-none">
+                          {isPlaying ? <Play size={12} className="text-primary stroke-none" fill="currentColor" /> : idx + 1}
                         </div>
                       )}
-                    </div>
-                    {!isSmall && (
-                      <>
-                        <div className="flex-1 min-w-0 flex flex-col justify-center select-none pointer-events-none">
-                          <p className={`flex items-center gap-2 truncate text-sm font-medium ${isPlaying ? 'text-primary' : 'text-foreground'}`}>
-                            <span className="truncate">{track.title}</span>
-                            {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
-                          </p>
-                          <p className="truncate text-xs text-secondary">{formatArtistName(track.artist)}</p>
-                        </div>
-                        <div className="w-10 text-right text-xs text-secondary select-none pointer-events-none">
-                          {formatTime(track.duration)}
-                        </div>
-                      </>
-                    )}
-                  </LongPressWrapper>
-                )}
-              </SortableItem>
-            );
-          })}
-        </SortableContext>
-        {queue.length === 0 && !isSmall && (
-          <div className="text-center mt-10 text-secondary text-sm">{t('player.queue_is_empty')}</div>
-        )}
+                      <div className={`relative group rounded overflow-hidden shadow-sm flex-shrink-0 ${isSmall ? 'w-14 h-14' : 'w-10 h-10 mx-2'}`}>
+                        <TrackImage src={track.coverArt || getCoverArtUrl(track.id, 100)} className="w-full h-full rounded object-cover pointer-events-none" alt="" trackId={track.id} />
+                        {isSmall && (
+                          <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} pointer-events-none`}>
+                            <Play size={16} className={isPlaying ? "text-primary stroke-none" : "text-white stroke-none"} fill="currentColor" />
+                          </div>
+                        )}
+                      </div>
+                      {!isSmall && (
+                        <>
+                          <div className="flex-1 min-w-0 flex flex-col justify-center select-none pointer-events-none">
+                            <p className={`flex items-center gap-2 truncate text-sm font-medium ${isPlaying ? 'text-primary' : 'text-foreground'}`}>
+                              <span className="truncate">{track.title}</span>
+                              {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                            </p>
+                            <p className="truncate text-xs text-secondary">{formatArtistName(track.artist)}</p>
+                          </div>
+                          <div className="w-10 text-right text-xs text-secondary select-none pointer-events-none">
+                            {formatTime(track.duration)}
+                          </div>
+                        </>
+                      )}
+                    </LongPressWrapper>
+                  )}
+                </SortableItem>
+              );
+            })}
+          </SortableContext>
+          {queue.length === 0 && !isSmall && (
+            <div className="text-center mt-10 text-secondary text-sm">{t('player.queue_is_empty')}</div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

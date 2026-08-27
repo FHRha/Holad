@@ -14,6 +14,7 @@ import ArtistsView from '../views/ArtistsView';
 import TracksView from '../views/TracksView';
 import AlbumView from '../views/AlbumView';
 import ArtistView from '../views/ArtistView';
+import PlaylistDetailView from '../views/PlaylistDetailView';
 import RightSidebar from './RightSidebar';
 import { Disc, Music, Users, LogOut, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -297,6 +298,7 @@ export default function JamLayout() {
                 <Route path="/tracks" element={role === 'cohost' || role === 'host' ? <TracksView /> : <Navigate to={`/jam/albums?room=${roomToJoin}`} replace />} />
                 <Route path="/library/album/:id" element={<AlbumView />} />
                 <Route path="/library/artist/:id" element={<ArtistView />} />
+                <Route path="/library/playlist/:id" element={<PlaylistDetailView />} />
                 <Route path="*" element={<Navigate to={`/jam/albums?room=${roomToJoin}`} replace />} />
               </Routes>
             </div>

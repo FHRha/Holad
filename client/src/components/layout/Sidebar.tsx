@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Home, Heart, Disc, Music, Radio, Users, Settings, LogOut, User, Clock, Download, DownloadCloud } from 'lucide-react';
+import { Home, Heart, Disc, Music, Radio, Users, Settings, LogOut, User, Clock, Download, DownloadCloud, ListMusic } from 'lucide-react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { UpdateService } from '../../services/UpdateService';
 import { useTranslation } from 'react-i18next';
@@ -193,6 +193,7 @@ export default function Sidebar() {
           <SidebarItem to="/Holad/albums" icon={<Disc size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.albums')} isWide={isWide} />
           <SidebarItem to="/Holad/tracks" icon={<Music size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.tracks')} isWide={isWide} />
           <SidebarItem to="/Holad/artists" icon={<Users size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.artists')} isWide={isWide} />
+          <SidebarItem to="/Holad/playlists" icon={<ListMusic size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.playlists')} isWide={isWide} />
           <SidebarItem to="/Holad/radio" icon={<Radio size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.radio')} isWide={isWide} />
           {isNative && (
             <SidebarDownloadsItem isWide={isWide} />

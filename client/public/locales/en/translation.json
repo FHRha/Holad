@@ -414,7 +414,16 @@
     "downloaded_tracks": "Downloaded Tracks",
     "rescan": "Rescan",
     "delete_all": "Delete All",
-    "paused": "Paused"
+    "paused": "Paused",
+    "my_playlists": "My Playlists",
+    "edit_playlist": "Edit Playlist",
+    "playlist_name": "Playlist Name",
+    "playlist_desc": "Description",
+    "save": "Save",
+    "cancel": "Cancel",
+    "unknown_playlist": "Unknown Playlist",
+    "playlist_empty": "Playlist is empty",
+    "playlist": "Playlist"
   },
   "common": {
     "toggle_menu": "Toggle menu",
@@ -472,7 +481,15 @@
     "music": "MUSIC",
     "go_offline": "Go Offline",
     "resume": "Resume",
-    "pause": "Pause"
+    "pause": "Pause",
+    "add_to_playlist": "Add to playlist",
+    "save_queue_to_playlist": "Save queue to playlist",
+    "create_playlist": "Create playlist",
+    "show_all_playlists": "Show all",
+    "create": "Create",
+    "new_playlist": "New playlist",
+    "search_playlists": "Search playlists...",
+    "no_playlists_found": "No playlists found"
   },
   "jam": {
     "jam_error": "Session error",
@@ -537,5 +554,24 @@
     "alternative": "Alternative",
     "ost": "Soundtrack",
     "podcast": "Podcast"
+  },
+  "playlist_modal": {
+    "title": "Add to Playlist",
+    "create_new": "Create New",
+    "name_placeholder": "Playlist name",
+    "desc_placeholder": "Description (optional)",
+    "cancel": "Cancel",
+    "create": "Create",
+    "save": "Save",
+    "empty": "You have no playlists yet",
+    "track_added": "Track added to playlist",
+    "track_removed": "Track removed from playlist",
+    "playlist_created": "Playlist created",
+    "playlist_deleted": "Playlist deleted",
+    "playlist_updated": "Playlist updated",
+    "delete_confirm": "Are you sure you want to delete this playlist?",
+    "error_create": "Error creating playlist",
+    "error_update": "Error updating playlist",
+    "error_delete": "Error deleting playlist"
   }
 }

@@ -372,6 +372,71 @@ app.get('/api/holad/history/:roomId', validateRestAuth, (req, res) => {
   }
 });
 
+app.post('/api/holad/playlists/:roomId', validateRestAuth, express.json(), (req, res) => {
+  const roomId = req.params.roomId as string;
+  const { id, name, description } = req.body;
+  if (!id || !name) return res.status(400).send('Missing id or name');
+  try {
+    database.createPlaylist(roomId, id, name, description);
+    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'playlistCreated', payload: { id, name, description } });
+    res.status(200).send('OK');
+  } catch (error) {
+    res.status(500).send('Error creating playlist');
+  }
+});
+
+app.put('/api/holad/playlists/:roomId/:playlistId', validateRestAuth, express.json(), (req, res) => {
+  const roomId = req.params.roomId as string;
+  const playlistId = req.params.playlistId as string;
+  const { name, description } = req.body;
+  try {
+    database.updatePlaylist(roomId, playlistId, name, description);
+    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'playlistUpdated', payload: { id: playlistId, name, description } });
+    res.status(200).send('OK');
+  } catch (error) {
+    res.status(500).send('Error updating playlist');
+  }
+});
+
+app.delete('/api/holad/playlists/:roomId/:playlistId', validateRestAuth, (req, res) => {
+  const roomId = req.params.roomId as string;
+  const playlistId = req.params.playlistId as string;
+  try {
+    database.deletePlaylist(roomId, playlistId);
+    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'playlistDeleted', payload: { id: playlistId } });
+    res.status(200).send('OK');
+  } catch (error) {
+    res.status(500).send('Error deleting playlist');
+  }
+});
+
+app.post('/api/holad/playlists/:roomId/:playlistId/tracks', validateRestAuth, express.json(), (req, res) => {
+  const roomId = req.params.roomId as string;
+  const playlistId = req.params.playlistId as string;
+  const { trackId } = req.body;
+  if (!trackId) return res.status(400).send('Missing trackId');
+  try {
+    database.addTrackToPlaylist(roomId, playlistId, trackId);
+    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'playlistTrackAdded', payload: { playlistId, trackId } });
+    res.status(200).send('OK');
+  } catch (error) {
+    res.status(500).send('Error adding track');
+  }
+});
+
+app.delete('/api/holad/playlists/:roomId/:playlistId/tracks/:trackId', validateRestAuth, (req, res) => {
+  const roomId = req.params.roomId as string;
+  const playlistId = req.params.playlistId as string;
+  const trackId = req.params.trackId as string;
+  try {
+    database.removeTrackFromPlaylist(roomId, playlistId, trackId);
+    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'playlistTrackRemoved', payload: { playlistId, trackId } });
+    res.status(200).send('OK');
+  } catch (error) {
+    res.status(500).send('Error removing track');
+  }
+});
+
 app.get('/api/stats/artist/:name', async (req, res) => {
   const { name } = req.params;
   const { useLastFm, useYandex, lastFmKey, yandexToken } = req.query;

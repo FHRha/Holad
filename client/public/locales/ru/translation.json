@@ -414,7 +414,16 @@
     "downloaded_tracks": "Скачанные треки",
     "rescan": "Обновить",
     "delete_all": "Удалить всё",
-    "paused": "на паузе"
+    "paused": "на паузе",
+    "my_playlists": "Мои плейлисты",
+    "edit_playlist": "Редактировать плейлист",
+    "playlist_name": "Название плейлиста",
+    "playlist_desc": "Описание",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "unknown_playlist": "Неизвестный плейлист",
+    "playlist_empty": "Плейлист пуст",
+    "playlist": "Плейлист"
   },
   "common": {
     "toggle_menu": "Переключить меню",
@@ -472,7 +481,15 @@
     "music": "МУЗЫКА",
     "go_offline": "Перейти в офлайн",
     "resume": "Продолжить",
-    "pause": "Пауза"
+    "pause": "Пауза",
+    "add_to_playlist": "Добавить в плейлист",
+    "save_queue_to_playlist": "Сохранить очередь в плейлист",
+    "create_playlist": "Создать плейлист",
+    "show_all_playlists": "Показать все",
+    "create": "Создать",
+    "new_playlist": "Новый плейлист",
+    "search_playlists": "Поиск плейлистов...",
+    "no_playlists_found": "Плейлисты не найдены"
   },
   "jam": {
     "jam_error": "Ошибка сессии",
@@ -537,5 +554,24 @@
     "alternative": "Альтернатива",
     "ost": "Саундтрек",
     "podcast": "Подкаст"
+  },
+  "playlist_modal": {
+    "title": "Добавить в плейлист",
+    "create_new": "Создать новый",
+    "name_placeholder": "Название плейлиста",
+    "desc_placeholder": "Описание (необязательно)",
+    "cancel": "Отмена",
+    "create": "Создать",
+    "save": "Сохранить",
+    "empty": "У вас пока нет плейлистов",
+    "track_added": "Трек добавлен в плейлист",
+    "track_removed": "Трек удален из плейлиста",
+    "playlist_created": "Плейлист создан",
+    "playlist_deleted": "Плейлист удален",
+    "playlist_updated": "Плейлист обновлен",
+    "delete_confirm": "Вы уверены, что хотите удалить плейлист?",
+    "error_create": "Ошибка создания плейлиста",
+    "error_update": "Ошибка обновления плейлиста",
+    "error_delete": "Ошибка удаления плейлиста"
   }
 }

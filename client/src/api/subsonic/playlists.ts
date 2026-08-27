@@ -28,11 +28,23 @@ export const createPlaylist = async (name: string, songId?: string) => {
   return data['subsonic-response']?.status === 'ok';
 };
 
-export const updatePlaylist = async (playlistId: string, songIdToAdd?: string, songIndexToRemove?: number) => {
+export const updatePlaylist = async (playlistId: string, songIdToAdd?: string, songIndexToRemove?: number, name?: string, comment?: string) => {
   const params: Record<string, string> = { playlistId };
   if (songIdToAdd) params.songIdToAdd = songIdToAdd;
   if (songIndexToRemove !== undefined) params.songIndexToRemove = songIndexToRemove.toString();
+  if (name) params.name = name;
+  if (comment !== undefined) params.comment = comment; // comment can be empty string
   const url = buildUrl('updatePlaylist', params);
+  const res = await fetchWithRetry(url);
+  const data = await res.json();
+  return data['subsonic-response']?.status === 'ok';
+};
+
+export const updatePlaylistTracks = async (playlistId: string, songIdsToAdd: string[]) => {
+  let url = buildUrl('updatePlaylist', { playlistId });
+  songIdsToAdd.forEach(id => {
+    url += `&songIdToAdd=${encodeURIComponent(id)}`;
+  });
   const res = await fetchWithRetry(url);
   const data = await res.json();
   return data['subsonic-response']?.status === 'ok';

@@ -34,6 +34,11 @@ interface UIState {
   
   pendingHistorySync: any[] | null;
   setPendingHistorySync: (sync: any[] | null) => void;
+  
+  isPlaylistModalOpen: boolean;
+  setPlaylistModalOpen: (open: boolean) => void;
+  playlistTargetItem: any | null;
+  setPlaylistTargetItem: (item: any | null) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -68,6 +73,11 @@ export const useUIStore = create<UIState>()(
       
       pendingHistorySync: null,
       setPendingHistorySync: (sync) => set({ pendingHistorySync: sync }),
+      
+      isPlaylistModalOpen: false,
+      setPlaylistModalOpen: (open) => set({ isPlaylistModalOpen: open }),
+      playlistTargetItem: null,
+      setPlaylistTargetItem: (item) => set({ playlistTargetItem: item }),
     }),
     {
       name: 'ui-storage',

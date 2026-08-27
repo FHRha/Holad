@@ -12,6 +12,9 @@ import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { StorageManager } from '../../utils/StorageManager';
 import type { Track } from '../../store/playerStore';
 import { getCoverArtUrl } from '../../api/subsonic';
+import { getPlaylists, createPlaylist, updatePlaylistTracks } from '../../api/subsonic/playlists';
+import AddToPlaylistModal from './AddToPlaylistModal';
+import { ListMusic, Plus, ChevronRight } from 'lucide-react';
 
 export default function ContextMenu() {
   const { t } = useTranslation();
@@ -26,6 +29,12 @@ export default function ContextMenu() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const touchStartY = useRef<number | null>(null);
   
+  const [showPlaylists, setShowPlaylists] = useState(false);
+  const [playlists, setPlaylists] = useState<any[]>([]);
+  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [modalTrackIds, setModalTrackIds] = useState<string[]>([]);
+  
   const { downloads, removeDownload } = useDownloadStore();
 
   useEffect(() => {
@@ -37,8 +46,53 @@ export default function ContextMenu() {
   useEffect(() => {
     if (isOpen && item) {
       setRating(item.userRating || 0);
+      setShowPlaylists(false);
+      setNewPlaylistName('');
     }
   }, [isOpen, item]);
+
+  const onShowPlaylists = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setShowPlaylists(true);
+    try {
+      const list = await getPlaylists();
+      setPlaylists(list);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCreatePlaylistInline = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPlaylistName.trim()) return;
+    try {
+      await createPlaylist(newPlaylistName.trim());
+      const updated = await getPlaylists();
+      setPlaylists(updated);
+      const created = updated.find(p => p.name === newPlaylistName.trim());
+      if (created) {
+        await handleAddToPlaylist(created.id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddToPlaylist = async (playlistId: string) => {
+    try {
+      const tracks = await getTracks();
+      const ids = tracks.map(t => t.id);
+      await updatePlaylistTracks(playlistId, ids);
+      window.dispatchEvent(new CustomEvent('playlists-updated'));
+      closeMenu();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
 
   // Handle clicking outside to close
   useEffect(() => {
@@ -236,9 +290,33 @@ export default function ContextMenu() {
 
   if (typeof document === 'undefined') return null;
 
+  // Wait, I can't do async synchronously for rendering. Let's pass a function or just fetch it in the modal if needed, OR just pass `[item.id]` and if it's an album... Actually, I wrote handleAddToPlaylist which gets tracks. 
+  // Wait, I can pass `[item.id]` if it's a track. But for Album?
+  // Let's modify AddToPlaylistModal to accept an async function `getTrackIds: () => Promise<string[]>` instead of `trackIds: string[]`.
+  // Wait, I already created `AddToPlaylistModal.tsx` and used it in `RightSidebar.tsx`. `RightSidebar` uses `trackIds`. Let's keep `trackIds` but for Album in ContextMenu, I can fetch them when opening the modal!
+  
+  const handleOpenPlaylistModal = async () => {
+    try {
+      if (isAlbum) {
+        const tracks = await getTracks();
+        setModalTrackIds(tracks.map(t => t.id));
+      } else {
+        setModalTrackIds([item.id]);
+      }
+      setIsPlaylistModalOpen(true);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   if (isMobile) {
     return createPortal(
       <>
+        <AddToPlaylistModal 
+          isOpen={isPlaylistModalOpen} 
+          onClose={() => { setIsPlaylistModalOpen(false); closeMenu(); }}
+          trackIds={modalTrackIds}
+        />
         {/* Backdrop */}
         <div 
           className="fixed inset-0 bg-black/60 z-[9998] animate-in fade-in duration-200"
@@ -297,47 +375,100 @@ export default function ContextMenu() {
 
           <div className="overflow-y-auto hide-scrollbar max-h-[60vh] px-2 py-4 space-y-4">
             
-            {/* Action Grid */}
-            <div className="grid grid-cols-4 gap-2">
-              <MobileIconBtn icon={Play} label={t('common.play_now')} onClick={() => handleAction(onPlayNow)} />
-              <MobileIconBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
-              {!isInQueue && <MobileIconBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
-              {!isGuest && <MobileIconBtn icon={Heart} label={t('common.favorite')} onClick={() => handleAction(onLike)} activeColor={isLiked ? "text-primary" : "text-white"} />}
-              {!isGuest && <MobileIconBtn icon={Ban} label={t('common.ignore', 'В игнор')} onClick={() => handleAction(onExclude)} activeColor={isExcluded ? "text-red-500" : "text-white"} />}
-              {!isGuest && (isDownloaded ? (
-                <MobileIconBtn icon={Trash2} color="text-primary" label={t('common.remove_download')} onClick={() => handleAction(onRemoveDownload)} />
-              ) : (
-                <MobileIconBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />
-              ))}
-              {!isGuest && <MobileIconBtn icon={Share2} label={t('common.share')} onClick={() => handleAction(onShare, false)} activeColor={isCopied ? "text-primary" : "text-white"} />}
-              {!isGuest && item.artistId && <MobileIconBtn icon={User} label={t('common.go_to_artist')} onClick={() => handleAction(() => navigate(`/Holad/artist/${item.artistId}`))} />}
-              {!isGuest && (isAlbum || item.albumId) && <MobileIconBtn icon={Disc} label={t('common.go_to_album')} onClick={() => handleAction(() => {
-                if (isAlbum) navigate(`/Holad/album/${item.id}`);
-                else if (item.albumId) navigate(`/Holad/album/${item.albumId}`);
-              })} />}
-              {item.queueIndex !== undefined && (
-                <MobileIconBtn icon={Trash2} label={t('common.remove_from_queue')} onClick={() => handleAction(onRemoveFromQueue)} color="text-red-400" />
-              )}
-            </div>
+            {showPlaylists ? (
+              <div className="flex flex-col gap-2">
+                <button onClick={() => setShowPlaylists(false)} className="text-secondary text-sm font-semibold mb-2 self-start flex items-center">
+                  <ChevronRight size={16} className="rotate-180 mr-1" />
+                  {t('common.add_to_playlist')}
+                </button>
+                {playlists.slice(0, 5).map(p => (
+                  <button 
+                    key={p.id}
+                    onClick={() => handleAddToPlaylist(p.id)}
+                    className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl transition-colors text-left"
+                  >
+                    {p.coverArt ? (
+                      <img src={getCoverArtUrl(p.coverArt, 100)} alt="" className="w-10 h-10 rounded object-cover shadow-sm" />
+                    ) : (
+                      <div className="w-10 h-10 rounded bg-white/5 flex items-center justify-center text-secondary">
+                        <ListMusic size={18} />
+                      </div>
+                    )}
+                    <span className="text-sm font-semibold text-white truncate flex-1">{p.name}</span>
+                  </button>
+                ))}
+                {playlists.length === 0 && (
+                  <div className="text-secondary text-sm text-center py-4">{t('common.no_playlists_found')}</div>
+                )}
+                
+                <form onSubmit={handleCreatePlaylistInline} className="flex gap-2 mt-2">
+                  <input 
+                    type="text" 
+                    placeholder={t('common.new_playlist')} 
+                    value={newPlaylistName}
+                    onChange={(e) => setNewPlaylistName(e.target.value)}
+                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={!newPlaylistName.trim()}
+                    className="px-4 py-2.5 bg-white/10 text-white font-semibold rounded-xl disabled:opacity-50 hover:bg-white/20 transition-colors"
+                  >
+                    <Plus size={18} />
+                  </button>
+                </form>
 
-            {/* Rating */}
-            {!isGuest && (
-              <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center gap-2">
-                <span className="text-xs text-secondary font-medium">{t('common.rate')}</span>
-                <div className="flex gap-2 text-yellow-400">
-                  {[1, 2, 3, 4, 5].map(v => (
-                    <Star 
-                      key={v} 
-                      size={24} 
-                      fill={v <= rating ? 'currentColor' : 'transparent'} 
-                      className={`active:scale-125 transition-transform ${v > rating ? 'text-white/30' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); onRate(v); }}
-                    />
-                  ))}
-                </div>
+                {playlists.length > 0 && (
+                  <button onClick={handleOpenPlaylistModal} className="w-full py-3 mt-2 bg-white/5 hover:bg-white/10 text-white text-sm font-semibold rounded-xl transition-colors">
+                    {t('common.show_all_playlists')}
+                  </button>
+                )}
               </div>
-            )}
+            ) : (
+              <>
+                {/* Action Grid */}
+                <div className="grid grid-cols-4 gap-2">
+                  <MobileIconBtn icon={Play} label={t('common.play_now')} onClick={() => handleAction(onPlayNow)} />
+                  <MobileIconBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
+                  {!isInQueue && <MobileIconBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
+                  <MobileIconBtn icon={ListMusic} label={t('common.add_to_playlist')} onClick={onShowPlaylists} />
+                  {!isGuest && <MobileIconBtn icon={Heart} label={t('common.favorite')} onClick={() => handleAction(onLike)} activeColor={isLiked ? "text-primary" : "text-white"} />}
+                  {!isGuest && <MobileIconBtn icon={Ban} label={t('common.ignore', 'В игнор')} onClick={() => handleAction(onExclude)} activeColor={isExcluded ? "text-red-500" : "text-white"} />}
+                  {!isGuest && (isDownloaded ? (
+                    <MobileIconBtn icon={Trash2} color="text-primary" label={t('common.remove_download')} onClick={() => handleAction(onRemoveDownload)} />
+                  ) : (
+                    <MobileIconBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />
+                  ))}
+                  {!isGuest && <MobileIconBtn icon={Share2} label={t('common.share')} onClick={() => handleAction(onShare, false)} activeColor={isCopied ? "text-primary" : "text-white"} />}
+                  {!isGuest && item.artistId && <MobileIconBtn icon={User} label={t('common.go_to_artist')} onClick={() => handleAction(() => navigate(`/Holad/artist/${item.artistId}`))} />}
+                  {!isGuest && (isAlbum || item.albumId) && <MobileIconBtn icon={Disc} label={t('common.go_to_album')} onClick={() => handleAction(() => {
+                    if (isAlbum) navigate(`/Holad/album/${item.id}`);
+                    else if (item.albumId) navigate(`/Holad/album/${item.albumId}`);
+                  })} />}
+                  {item.queueIndex !== undefined && (
+                    <MobileIconBtn icon={Trash2} label={t('common.remove_from_queue')} onClick={() => handleAction(onRemoveFromQueue)} color="text-red-400" />
+                  )}
+                </div>
 
+                {/* Rating */}
+                {!isGuest && (
+                  <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center gap-2">
+                    <span className="text-xs text-secondary font-medium">{t('common.rate')}</span>
+                    <div className="flex gap-2 text-yellow-400">
+                      {[1, 2, 3, 4, 5].map(v => (
+                        <Star 
+                          key={v} 
+                          size={24} 
+                          fill={v <= rating ? 'currentColor' : 'transparent'} 
+                          className={`active:scale-125 transition-transform ${v > rating ? 'text-white/30' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); onRate(v); }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
 
           </div>
         </div>
@@ -355,17 +486,23 @@ export default function ContextMenu() {
   const transform = safeY > winHeight / 2 ? 'translateY(-100%)' : 'none';
 
   return createPortal(
-    <div 
-      ref={menuRef}
-      className="fixed z-[9999] bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl overflow-y-auto hide-scrollbar py-1 min-w-[220px] backdrop-blur-xl transform-gpu"
-      style={{ 
-        top, 
-        left,
-        transform,
-        maxHeight: '85vh'
-      }}
-      onContextMenu={(e) => e.preventDefault()} // prevent native menu on the custom menu
-    >
+    <>
+      <AddToPlaylistModal 
+        isOpen={isPlaylistModalOpen} 
+        onClose={() => { setIsPlaylistModalOpen(false); closeMenu(); }}
+        trackIds={modalTrackIds}
+      />
+      <div 
+        ref={menuRef}
+        className="fixed z-[9999] bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl overflow-y-auto hide-scrollbar py-1 min-w-[220px] backdrop-blur-xl transform-gpu"
+        style={{ 
+          top, 
+          left,
+          transform,
+          maxHeight: '85vh'
+        }}
+        onContextMenu={(e) => e.preventDefault()} // prevent native menu on the custom menu
+      >
       {/* Header */}
       <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
         <img 
@@ -379,82 +516,141 @@ export default function ContextMenu() {
         </div>
       </div>
 
-      <div className="py-1">
-        <ItemBtn icon={Play} label={t('common.play_now')} onClick={() => handleAction(onPlayNow)} />
-        <ItemBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
-        {!isInQueue && <ItemBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
-      </div>
+      {showPlaylists ? (
+        <div className="py-2 px-1 flex flex-col w-[240px]">
+          <button 
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowPlaylists(false); }} 
+            className="text-secondary text-xs font-semibold mb-2 px-3 flex items-center hover:text-white"
+          >
+            <ChevronRight size={14} className="rotate-180 mr-1" />
+            {t('common.add_to_playlist')}
+          </button>
+          
+          {playlists.slice(0, 5).map(p => (
+            <button 
+              key={p.id}
+              onClick={() => handleAddToPlaylist(p.id)}
+              className="flex items-center gap-3 p-2 mx-1 hover:bg-white/5 rounded-lg transition-colors text-left"
+            >
+              {p.coverArt ? (
+                <img src={getCoverArtUrl(p.coverArt, 100)} alt="" className="w-8 h-8 rounded object-cover shadow-sm" />
+              ) : (
+                <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-secondary">
+                  <ListMusic size={14} />
+                </div>
+              )}
+              <span className="text-sm font-semibold text-white truncate flex-1">{p.name}</span>
+            </button>
+          ))}
+          {playlists.length === 0 && (
+            <div className="text-secondary text-xs text-center py-4">{t('common.no_playlists_found')}</div>
+          )}
+          
+          <form onSubmit={handleCreatePlaylistInline} className="flex gap-2 mt-2 px-2">
+            <input 
+              type="text" 
+              placeholder={t('common.new_playlist')} 
+              value={newPlaylistName}
+              onChange={(e) => setNewPlaylistName(e.target.value)}
+              className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors min-w-0"
+            />
+            <button 
+              type="submit"
+              disabled={!newPlaylistName.trim()}
+              className="px-3 py-1.5 bg-white/10 text-white font-semibold rounded-lg disabled:opacity-50 hover:bg-white/20 transition-colors"
+            >
+              <Plus size={14} />
+            </button>
+          </form>
 
-      {item.queueIndex !== undefined && (
-        <div className="py-1 border-t border-white/10">
-          <ItemBtn icon={Trash2} label={t('common.remove_from_queue')} onClick={() => handleAction(onRemoveFromQueue)} color="text-red-400 hover:text-red-300" />
+          {playlists.length > 0 && (
+            <button onClick={handleOpenPlaylistModal} className="w-[calc(100%-16px)] mx-2 py-2 mt-2 bg-white/5 hover:bg-white/10 text-white text-xs font-semibold rounded-lg transition-colors">
+              {t('common.show_all_playlists')}
+            </button>
+          )}
         </div>
-      )}
-
-      {!isGuest && (
+      ) : (
         <>
-          <div className="py-1 border-t border-white/10">
-            <ItemBtn 
-              icon={Heart} 
-              label={isLiked ? t('common.remove_from_favs') : t('common.favorite')} 
-              onClick={() => handleAction(onLike)} 
-              color={isLiked ? "text-primary" : "text-white"} 
-            />
-            <ItemBtn 
-              icon={Ban} 
-              label={isExcluded ? t('common.unignore', 'Убрать из игнора') : t('common.ignore', 'В игнор')} 
-              onClick={() => handleAction(onExclude)} 
-              color={isExcluded ? "text-red-500" : "text-white"} 
-            />
-            
-            {/* Rating inline */}
-            <div className="flex items-center justify-between px-4 py-2 hover:bg-foreground/10 transition-colors cursor-default">
-              <div className="flex items-center gap-3 text-sm font-semibold text-white">
-                <Star size={16} />
-                <span>{t('common.rate')}</span>
-              </div>
-              <div className="flex gap-1 text-yellow-400">
-                {[1, 2, 3, 4, 5].map(v => (
-                  <Star 
-                    key={v} 
-                    size={14} 
-                    fill={v <= rating ? 'currentColor' : 'transparent'} 
-                    className={`cursor-pointer hover:scale-125 transition-transform ${v > rating ? 'text-white/30' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); onRate(v); }}
-                  />
-                ))}
-              </div>
+          <div className="py-1">
+            <ItemBtn icon={Play} label={t('common.play_now')} onClick={() => handleAction(onPlayNow)} />
+            <ItemBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
+            {!isInQueue && <ItemBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
+            <ItemBtn icon={ListMusic} label={t('common.add_to_playlist')} onClick={onShowPlaylists} />
+          </div>
+
+          {item.queueIndex !== undefined && (
+            <div className="py-1 border-t border-white/10">
+              <ItemBtn icon={Trash2} label={t('common.remove_from_queue')} onClick={() => handleAction(onRemoveFromQueue)} color="text-red-400 hover:text-red-300" />
             </div>
-          </div>
+          )}
 
-          <div className="py-1 border-t border-white/10">
-            {isDownloaded ? (
-              <ItemBtn icon={Trash2} color="text-primary font-bold" label={t('common.remove_download')} onClick={() => handleAction(onRemoveDownload)} />
-            ) : (
-              <ItemBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />
-            )}
-            <ItemBtn 
-              icon={Share2} 
-              label={isCopied ? t('common.copied') : t('common.share')} 
-              onClick={() => handleAction(onShare, false)} 
-              color={isCopied ? "text-primary font-bold" : "text-white"}
-            />
-          </div>
+          {!isGuest && (
+            <>
+              <div className="py-1 border-t border-white/10">
+                <ItemBtn 
+                  icon={Heart} 
+                  label={isLiked ? t('common.remove_from_favs') : t('common.favorite')} 
+                  onClick={() => handleAction(onLike)} 
+                  color={isLiked ? "text-primary" : "text-white"} 
+                />
+                <ItemBtn 
+                  icon={Ban} 
+                  label={isExcluded ? t('common.unignore', 'Убрать из игнора') : t('common.ignore', 'В игнор')} 
+                  onClick={() => handleAction(onExclude)} 
+                  color={isExcluded ? "text-red-500" : "text-white"} 
+                />
+                
+                {/* Rating inline */}
+                <div className="flex items-center justify-between px-4 py-2 hover:bg-foreground/10 transition-colors cursor-default">
+                  <div className="flex items-center gap-3 text-sm font-semibold text-white">
+                    <Star size={16} />
+                    <span>{t('common.rate')}</span>
+                  </div>
+                  <div className="flex gap-1 text-yellow-400">
+                    {[1, 2, 3, 4, 5].map(v => (
+                      <Star 
+                        key={v} 
+                        size={14} 
+                        fill={v <= rating ? 'currentColor' : 'transparent'} 
+                        className={`cursor-pointer hover:scale-125 transition-transform ${v > rating ? 'text-white/30' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); onRate(v); }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
 
-          <div className="py-1 border-t border-white/10">
-            {item.artistId && (
-              <ItemBtn icon={User} label={t('common.go_to_artist')} onClick={() => handleAction(() => {
-                navigate(`/Holad/artist/${item.artistId}`);
-              })} />
-            )}
-            <ItemBtn icon={Disc} label={t('common.go_to_album')} onClick={() => handleAction(() => {
-              if (isAlbum) navigate(`/Holad/album/${item.id}`);
-              else if (item.albumId) navigate(`/Holad/album/${item.albumId}`);
-            })} />
-          </div>
+              <div className="py-1 border-t border-white/10">
+                {isDownloaded ? (
+                  <ItemBtn icon={Trash2} color="text-primary font-bold" label={t('common.remove_download')} onClick={() => handleAction(onRemoveDownload)} />
+                ) : (
+                  <ItemBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />
+                )}
+                <ItemBtn 
+                  icon={Share2} 
+                  label={isCopied ? t('common.copied') : t('common.share')} 
+                  onClick={() => handleAction(onShare, false)} 
+                  color={isCopied ? "text-primary font-bold" : "text-white"}
+                />
+              </div>
+
+              <div className="py-1 border-t border-white/10">
+                {item.artistId && (
+                  <ItemBtn icon={User} label={t('common.go_to_artist')} onClick={() => handleAction(() => {
+                    navigate(`/Holad/artist/${item.artistId}`);
+                  })} />
+                )}
+                <ItemBtn icon={Disc} label={t('common.go_to_album')} onClick={() => handleAction(() => {
+                  if (isAlbum) navigate(`/Holad/album/${item.id}`);
+                  else if (item.albumId) navigate(`/Holad/album/${item.albumId}`);
+                })} />
+              </div>
+            </>
+          )}
         </>
       )}
-    </div>,
+    </div>
+    </>,
     document.body
   );
 }

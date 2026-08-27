@@ -51,8 +51,16 @@ db.exec(`
     id TEXT PRIMARY KEY,
     user_id TEXT,
     name TEXT,
-    songs TEXT,
+    description TEXT,
     FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS playlist_tracks (
+    playlist_id TEXT,
+    track_id TEXT,
+    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(playlist_id, track_id),
+    FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS integrations (
@@ -112,7 +120,11 @@ export function getSyncData(userId: string) {
   const playbackState = db.prepare('SELECT current_song_id, position, volume FROM playback_state WHERE user_id = ?').get(userId) || {};
   const exclusions = db.prepare('SELECT entity_id, entity_type FROM exclusions WHERE user_id = ?').all(userId) || [];
   const history = db.prepare('SELECT song_id, played_at FROM history WHERE user_id = ? ORDER BY played_at DESC LIMIT 100').all(userId) || [];
-  const playlists = db.prepare('SELECT id, name, songs FROM playlists WHERE user_id = ?').all(userId) || [];
+  const playlistsRaw = db.prepare('SELECT id, name, description FROM playlists WHERE user_id = ?').all(userId) as any[];
+  const playlists = playlistsRaw.map(pl => {
+    const tracks = db.prepare('SELECT track_id FROM playlist_tracks WHERE playlist_id = ? ORDER BY added_at ASC').all(pl.id) as any[];
+    return { ...pl, trackIds: tracks.map(t => t.track_id) };
+  });
   
   const integrationsRaw = db.prepare('SELECT integration_name, encrypted_token FROM integrations WHERE user_id = ?').all(userId) as any[];
   const integrations = integrationsRaw.map(i => ({
@@ -166,14 +178,21 @@ export function saveSyncData(userId: string, data: any) {
 
     if (data.playlists) {
       const stmt = db.prepare(`
-        INSERT INTO playlists (id, user_id, name, songs) 
+        INSERT INTO playlists (id, user_id, name, description) 
         VALUES (?, ?, ?, ?) 
         ON CONFLICT(id) DO UPDATE SET 
           name = excluded.name, 
-          songs = excluded.songs
+          description = excluded.description
       `);
+      const trackStmt = db.prepare('INSERT OR IGNORE INTO playlist_tracks (playlist_id, track_id) VALUES (?, ?)');
       for (const pl of data.playlists) {
-        stmt.run(pl.id, userId, pl.name, typeof pl.songs === 'string' ? pl.songs : JSON.stringify(pl.songs));
+        stmt.run(pl.id, userId, pl.name, pl.description || '');
+        if (pl.trackIds && Array.isArray(pl.trackIds)) {
+          db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(pl.id);
+          for (const trackId of pl.trackIds) {
+            trackStmt.run(pl.id, trackId);
+          }
+        }
       }
     }
 
@@ -193,4 +212,37 @@ export function saveSyncData(userId: string, data: any) {
   });
 
   transaction();
+}
+
+export function createPlaylist(userId: string, id: string, name: string, description: string) {
+  ensureUserExists(userId);
+  db.prepare('INSERT INTO playlists (id, user_id, name, description) VALUES (?, ?, ?, ?)').run(id, userId, name, description || '');
+}
+
+export function updatePlaylist(userId: string, id: string, name?: string, description?: string) {
+  if (name !== undefined && description !== undefined) {
+    db.prepare('UPDATE playlists SET name = ?, description = ? WHERE id = ? AND user_id = ?').run(name, description, id, userId);
+  } else if (name !== undefined) {
+    db.prepare('UPDATE playlists SET name = ? WHERE id = ? AND user_id = ?').run(name, id, userId);
+  } else if (description !== undefined) {
+    db.prepare('UPDATE playlists SET description = ? WHERE id = ? AND user_id = ?').run(description, id, userId);
+  }
+}
+
+export function deletePlaylist(userId: string, id: string) {
+  db.prepare('DELETE FROM playlists WHERE id = ? AND user_id = ?').run(id, userId);
+}
+
+export function addTrackToPlaylist(userId: string, playlistId: string, trackId: string) {
+  const pl = db.prepare('SELECT id FROM playlists WHERE id = ? AND user_id = ?').get(playlistId, userId);
+  if (pl) {
+    db.prepare('INSERT OR IGNORE INTO playlist_tracks (playlist_id, track_id) VALUES (?, ?)').run(playlistId, trackId);
+  }
+}
+
+export function removeTrackFromPlaylist(userId: string, playlistId: string, trackId: string) {
+  const pl = db.prepare('SELECT id FROM playlists WHERE id = ? AND user_id = ?').get(playlistId, userId);
+  if (pl) {
+    db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?').run(playlistId, trackId);
+  }
 }
