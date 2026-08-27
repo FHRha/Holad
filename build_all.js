@@ -412,7 +412,7 @@ node dist/index.js
               }
             } else if (entry.isFile()) {
               const ext = path.extname(entry.name).toLowerCase();
-              if (['.msi', '.exe', '.deb', '.appimage', '.rpm', '.dmg', '.pkg', '.zip'].includes(ext)) {
+              if (['.msi', '.exe', '.deb', '.appimage', '.rpm', '.dmg', '.pkg', '.zip', '.sig', '.gz'].includes(ext)) {
                 console.log(`Copying bundle installer ${entry.name} to artifacts...`);
                 fs.copyFileSync(fullPath, path.join(ARTIFACTS_DIR, entry.name));
 

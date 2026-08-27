@@ -82,13 +82,19 @@ jobs:
         run: chmod +x build_release.sh
 
       - name: Run Linux build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: ./build_release.sh --skip-android --skip-client --skip-server --skip-archive
 
-      - name: Upload Linux AppImage
+      - name: Upload Linux AppImage and Update Bundles
         uses: actions/upload-artifact@v4
         with:
           name: holad-linux-appimage
-          path: artifacts/*.AppImage
+          path: |
+            artifacts/*.AppImage
+            artifacts/*.tar.gz
+            artifacts/*.sig
           if-no-files-found: ignore
 
       - name: Upload Linux Deb
@@ -128,6 +134,9 @@ jobs:
           workspaces: Tauri/src-tauri
 
       - name: Run Windows build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: .\build_release.bat --skip-android --skip-client --skip-server --skip-archive
 
 
@@ -139,11 +148,14 @@ jobs:
           path: artifacts/*setup.exe
           if-no-files-found: ignore
 
-      - name: Upload Windows MSI
+      - name: Upload Windows MSI and Update Bundles
         uses: actions/upload-artifact@v4
         with:
           name: holad-windows-msi
-          path: artifacts/*.msi
+          path: |
+            artifacts/*.msi
+            artifacts/*.zip
+            artifacts/*.sig
           if-no-files-found: ignore
 
   build-android:
@@ -265,11 +277,14 @@ jobs:
         with:
           files: |
             holad-web-release.tar.gz
+            *.tar.gz
             *.apk
             *.exe
             *.msi
             *.AppImage
             *.deb
+            *.zip
+            *.sig
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -280,11 +295,13 @@ jobs:
           vt_api_key: ${{ secrets.VT_API_KEY }}
           files: |
             holad-web-release.tar.gz
+            *.tar.gz
             *.apk
             *.exe
             *.msi
             *.AppImage
             *.deb
+            *.zip
 
       - name: Update Release Body
         if: ${{ steps.vt.outputs.analysis != '' }}
