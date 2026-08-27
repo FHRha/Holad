@@ -1,4 +1,4 @@
-import { writeFile, mkdir, exists, remove, copyFile, readDir } from '@tauri-apps/plugin-fs';
+import { writeFile, mkdir, exists, remove, copyFile, readDir, readFile } from '@tauri-apps/plugin-fs';
 import { join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useDownloadStore } from '../store/downloadStore';
@@ -362,7 +362,7 @@ export class StorageManager {
         }
       } else if (isCapacitor()) {
         try {
-          const { Capacitor } = await import('@capacitor/core');
+
           const { Filesystem, Directory } = await import('@capacitor/filesystem');
           const stat = await Filesystem.stat({ path: trackDownload.path, directory: Directory.Data });
           if (stat) {
@@ -410,7 +410,7 @@ export class StorageManager {
           }
         } else if (isCapacitor()) {
           try {
-             const { Capacitor } = await import('@capacitor/core');
+
              const { Filesystem, Directory } = await import('@capacitor/filesystem');
              const res = await Filesystem.readdir({ path: albumDownload.path, directory: Directory.Data });
              const matchedFile = safeTitle

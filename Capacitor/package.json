@@ -12,6 +12,7 @@
   "packageManager": "pnpm@10.28.2",
   "dependencies": {
     "@capacitor/android": "^8.4.2",
+    "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.4.2",
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/network": "^8.0.1",

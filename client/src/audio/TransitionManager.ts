@@ -113,8 +113,7 @@ export class TransitionManager {
             return;
         }
 
-        const usePipeline = pipeline && !(outgoingDeck as any).isTainted && !(incomingDeck as any).isTainted;
-        
+
         if (usePipeline) {
             const startTime = pipeline.context.currentTime + 0.02;
             pipeline.scheduleCrossfade(outgoingIndex, incomingIndex, durationSeconds, curve, startTime);

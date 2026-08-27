@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import md5 from 'md5';
 import fs from 'fs';
 import path from 'path';
-import * as database from './src/database';
+import * as database from './src/database.js';
 
 dotenv.config();
 // Fallback to root .env if running from server directory

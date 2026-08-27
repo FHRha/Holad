@@ -259,6 +259,7 @@ export default function SettingsModal({
                   />
                 </SettingSection>
 
+                {/* @ts-ignore */}
                 <SettingSection title={
                   <div className="flex items-center gap-2">
                     {t('settings.data_sources') || "Источники информации (Data Sources)"}

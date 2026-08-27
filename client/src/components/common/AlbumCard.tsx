@@ -110,7 +110,7 @@ export default function AlbumCard({ album }: { album: any }) {
     const loadCover = async () => {
       let finalUrl = coverUrl;
       try {
-        const { getExternalArtistStats } = await import('../../api/externalApi');
+
         // Hack: We can use the same stats logic for albums if we update the backend, or we can just stick to getCoverArtUrl if not supported yet.
         // Wait, Yandex has /search?type=album. Let's add getExternalAlbumStats to externalApi.ts.
         const { getExternalAlbumStats } = await import('../../api/externalApi');

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { X, Plus, Search, Check, ListMusic } from 'lucide-react';
 import { getPlaylists, createPlaylist, updatePlaylistTracks } from '../../api/subsonic/playlists';
 import { getCoverArtUrl } from '../../api/subsonic';
+import { usePlaylistStore } from '../../store/playlistStore';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
 interface Props {
   isOpen: boolean;
@@ -19,14 +21,47 @@ export default function AddToPlaylistModal({ isOpen, onClose, trackIds }: Props)
   const [isCreating, setIsCreating] = useState(false);
   const [addingTo, setAddingTo] = useState<string | null>(null);
 
+  const customPlaylists = usePlaylistStore(state => state.playlists);
+  const { isOffline } = useNetworkStatus();
+
   useEffect(() => {
     if (isOpen) {
-      getPlaylists().then(setPlaylists).catch(console.error);
+      if (!isOffline) {
+        getPlaylists().then(serverPlaylists => {
+          const mappedCustomPlaylists = customPlaylists.map(cp => ({
+            id: cp.id,
+            name: cp.name,
+            songCount: cp.trackIds.length,
+            coverArt: null,
+            isCustom: true
+          }));
+          setPlaylists([...mappedCustomPlaylists, ...(serverPlaylists || [])]);
+        }).catch(err => {
+          console.error(err);
+          const mappedCustomPlaylists = customPlaylists.map(cp => ({
+            id: cp.id,
+            name: cp.name,
+            songCount: cp.trackIds.length,
+            coverArt: null,
+            isCustom: true
+          }));
+          setPlaylists(mappedCustomPlaylists);
+        });
+      } else {
+        const mappedCustomPlaylists = customPlaylists.map(cp => ({
+          id: cp.id,
+          name: cp.name,
+          songCount: cp.trackIds.length,
+          coverArt: null,
+          isCustom: true
+        }));
+        setPlaylists(mappedCustomPlaylists);
+      }
     } else {
       setSearch('');
       setNewPlaylistName('');
     }
-  }, [isOpen]);
+  }, [isOpen, isOffline, customPlaylists]);
 
   if (!isOpen) return null;
 
@@ -37,15 +72,19 @@ export default function AddToPlaylistModal({ isOpen, onClose, trackIds }: Props)
     if (!newPlaylistName.trim()) return;
     setIsCreating(true);
     try {
-      await createPlaylist(newPlaylistName.trim());
-      const updated = await getPlaylists();
-      setPlaylists(updated);
-      
-      const created = updated.find(p => p.name === newPlaylistName.trim());
-      if (created) {
-         await handleAdd(created.id);
+      if (isOffline) {
+        const newId = usePlaylistStore.getState().createPlaylist(newPlaylistName.trim());
+        await handleAdd(newId, true);
+        setNewPlaylistName('');
       } else {
-         setNewPlaylistName('');
+        await createPlaylist(newPlaylistName.trim());
+        const updated = await getPlaylists();
+        const created = updated.find(p => p.name === newPlaylistName.trim());
+        if (created) {
+           await handleAdd(created.id, false);
+        } else {
+           setNewPlaylistName('');
+        }
       }
     } catch (e) {
       console.error(e);
@@ -54,10 +93,19 @@ export default function AddToPlaylistModal({ isOpen, onClose, trackIds }: Props)
     }
   };
 
-  const handleAdd = async (playlistId: string) => {
+  const handleAdd = async (playlistId: string, isCustomOverride?: boolean) => {
     setAddingTo(playlistId);
     try {
-      await updatePlaylistTracks(playlistId, trackIds);
+      const playlist = playlists.find(p => p.id === playlistId);
+      const isCustom = isCustomOverride ?? playlist?.isCustom;
+      
+      if (isCustom) {
+        trackIds.forEach(id => {
+          usePlaylistStore.getState().addTrack(playlistId, id);
+        });
+      } else {
+        await updatePlaylistTracks(playlistId, trackIds);
+      }
       window.dispatchEvent(new CustomEvent('playlists-updated'));
       onClose();
     } catch (e) {

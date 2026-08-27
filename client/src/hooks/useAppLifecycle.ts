@@ -50,11 +50,11 @@ export function useAppLifecycle() {
 
     let capacitorListener: any = null;
     if (isCapacitor()) {
-      App.addListener('appStateChange', ({ isActive }) => {
+      App.addListener('appStateChange', ({ isActive }: any) => {
         if (!isActive) {
           handleExit();
         }
-      }).then(listener => {
+      }).then((listener: any) => {
         capacitorListener = listener;
       });
     }

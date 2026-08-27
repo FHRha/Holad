@@ -85,7 +85,7 @@ export default function ServerConnectionView({ onConnected }: Props) {
           <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-[#4ade80] to-[#22c55e] rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-[#4ade80]/20">
             <Server className="text-black w-6 h-6 md:w-8 md:h-8" />
           </div>
-          <h1 className="text-2xl md:text-3xl font-display font-bold text-white mb-2">{t('views.holad_connection_title')}</h1>
+          <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-2">{t('views.holad_connection_title')}</h1>
           <p className="text-sm text-secondary">
             {t('views.holad_connection_desc')}
           </p>

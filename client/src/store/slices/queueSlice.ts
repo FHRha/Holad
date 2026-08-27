@@ -49,7 +49,7 @@ export const createQueueSlice: StateCreator<
   [],
   [],
   QueueSlice
-> = (set) => ({
+> = (set, get) => ({
   queue: [],
   originalQueue: [],
   currentIndex: -1,
@@ -62,23 +62,49 @@ export const createQueueSlice: StateCreator<
     const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
     return { queue: filtered, originalQueue: filtered, currentIndex: filtered.length > 0 ? 0 : -1, isShuffle: false };
   }),
-  setQueueAndPlay: (tracks, startIndex = 0) => set((state) => {
-    triggerPlay();
-    const targetTrackId = tracks[startIndex]?.id;
-    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
-    let newIndex = filtered.findIndex(t => t.id === targetTrackId);
-    if (newIndex === -1) newIndex = 0;
-    return { queue: filtered, originalQueue: filtered, currentIndex: newIndex, isPlaying: true, isShuffle: false, playActionId: state.playActionId + 1 };
-  }),
-  playNext: (tracks) => set((state) => {
-    triggerPlay();
-    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
-    if (filtered.length === 0) return state;
-
-    let newQueue = [...state.queue];
-    let newCurrentIndex = state.currentIndex === -1 ? 0 : state.currentIndex;
+  setQueueAndPlay: (tracks, startIndex = 0) => {
+    const state = get();
+    const targetTrack = tracks[startIndex];
+    if (targetTrack && (state.excludedTrackIds.includes(targetTrack.id) || (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)))) {
+      if (window.confirm('Этот трек находится в игноре. Хотите убрать его из игнора и начать воспроизведение?')) {
+        if (state.excludedTrackIds.includes(targetTrack.id)) state.toggleTrackExclude(targetTrack.id);
+        if (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)) state.toggleAlbumExclude(targetTrack.albumId);
+      } else {
+        return;
+      }
+    }
     
-    // Remove tracks if they already exist to avoid duplicates
+    set((state) => {
+      triggerPlay();
+      const targetTrackId = tracks[startIndex]?.id;
+      const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+      let newIndex = filtered.findIndex(t => t.id === targetTrackId);
+      if (newIndex === -1) newIndex = 0;
+      return { queue: filtered, originalQueue: filtered, currentIndex: newIndex, isPlaying: true, isShuffle: false, playActionId: state.playActionId + 1 };
+    });
+  },
+  playNext: (tracks) => {
+    let state = get();
+    // Assuming tracks[0] is the target since playNext often takes an array of 1
+    const targetTrack = tracks[0];
+    if (targetTrack && (state.excludedTrackIds.includes(targetTrack.id) || (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)))) {
+      if (window.confirm('Этот трек находится в игноре. Хотите убрать его из игнора и добавить в очередь?')) {
+        if (state.excludedTrackIds.includes(targetTrack.id)) state.toggleTrackExclude(targetTrack.id);
+        if (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)) state.toggleAlbumExclude(targetTrack.albumId);
+      } else {
+        return;
+      }
+    }
+    
+    set((state) => {
+      triggerPlay();
+      const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+      if (filtered.length === 0) return state;
+
+      let newQueue = [...state.queue];
+      let newCurrentIndex = state.currentIndex === -1 ? 0 : state.currentIndex;
+      
+      // Remove tracks if they already exist to avoid duplicates
     const trackIds = filtered.map(t => t.id);
     for (const id of trackIds) {
       const idx = newQueue.findIndex(t => t.id === id);

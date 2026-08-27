@@ -158,7 +158,7 @@ export default function TracksView() {
   return (
     <div className="flex h-full bg-transparent md:bg-background text-foreground md:pb-0 relative">
       {/* LEFT SIDEBAR: FILTERS */}
-      <div className="hidden md:flex w-64 border-r border-foreground/5 bg-card flex-col p-4 overflow-y-auto custom-scrollbar">
+      <div className="hidden md:flex w-64 border-r border-foreground/5 dark:border-transparent bg-card flex-col p-4 overflow-y-auto custom-scrollbar">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold">{t('views.filters')}</h2>
           <button 
@@ -269,7 +269,7 @@ export default function TracksView() {
           </h1>
         </div>
 
-        <div className="flex flex-col flex-1 bg-transparent md:bg-card md:rounded-xl md:border border-foreground/5 overflow-hidden">
+        <div className="flex flex-col flex-1 bg-transparent md:bg-card md:rounded-xl md:border border-foreground/5 dark:border-transparent overflow-hidden">
           {/* Table Header */}
           <div className="hidden md:flex items-center px-6 py-3 border-b border-foreground/5 text-[11px] font-bold tracking-widest text-secondary uppercase bg-background">
             <div className="w-10 text-center">#</div>

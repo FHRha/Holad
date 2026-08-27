@@ -68,7 +68,7 @@ function AppContent() {
   // oxlint-disable-next-line
   const roomId = usePlayerStore(state => state.roomId);
   // oxlint-disable-next-line
-  const { theme, accentColor, startPage } = useSettingsStore();
+  const { startPage } = useSettingsStore();
   // oxlint-disable-next-line
   const { isSettingsOpen, isOfflineModalOpen, setOfflineModalOpen } = useUIStore();
   
@@ -253,7 +253,8 @@ function App() {
   const [serverUrlSet, setServerUrlSet] = useState(!!localStorage.getItem('holadServerUrl'));
   const isHostedOnBackend = window.location.pathname.toLowerCase().includes('/holad');
   const needsServerUrl = !serverUrlSet && !isHostedOnBackend;
-  const { theme, accentColor } = useSettingsStore(state => ({ theme: state.theme, accentColor: state.accentColor }));
+  const theme = useSettingsStore(state => state.theme);
+  const accentColor = useSettingsStore(state => state.accentColor);
 
   useEffect(() => {
     const root = document.documentElement;
