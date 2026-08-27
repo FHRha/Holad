@@ -424,9 +424,9 @@ export default function SettingsModal({
               <div className="space-y-6">
                 <SettingSection title={t('settings.theme') || 'Тема'}>
                   <div className="flex gap-2">
-                    <ThemeOption label={t('settings.appearance.theme.dark', 'Dark')} value="dark" current={settings.theme} onSelect={settings.setTheme} />
-                    <ThemeOption label={t('settings.appearance.theme.light', 'Light')} value="light" current={settings.theme} onSelect={settings.setTheme} />
-                    <ThemeOption label={t('settings.appearance.theme.system', 'System')} value="system" current={settings.theme} onSelect={settings.setTheme} />
+                    <ThemeOption label={t('settings.theme_dark', 'Dark')} value="dark" current={settings.theme} onSelect={settings.setTheme} />
+                    <ThemeOption label={t('settings.theme_light', 'Light')} value="light" current={settings.theme} onSelect={settings.setTheme} />
+                    <ThemeOption label={t('settings.theme_system', 'System')} value="system" current={settings.theme} onSelect={settings.setTheme} />
                   </div>
                 </SettingSection>
 
@@ -827,7 +827,7 @@ export default function SettingsModal({
                         {/* Release */}
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>{t('settings.audio.compressor_release', 'Восстановление (Release)')}</span>
+                            <span>{t('settings.audio_compressor_release', 'Восстановление (Release)')}</span>
                             <span>{settings.compressorRelease} s</span>
                           </div>
                           <input 
@@ -899,7 +899,7 @@ function ColorOption({ color, hex, current, onSelect }: { color: AccentColor, he
 
 function StorageSettingsTab({ t }: { t: any }) {
   const { downloadDirectory, setDownloadDirectory } = useDownloadStore();
-  const [actualDir, setActualDir] = useState<string>('Загрузка...');
+  const [actualDir, setActualDir] = useState<string>(t('sidebar.downloading', 'Загрузка...'));
   const [isMoving, setIsMoving] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [statsKey, setStatsKey] = useState(0);
@@ -912,7 +912,7 @@ function StorageSettingsTab({ t }: { t: any }) {
     if (downloadDirectory) {
       setActualDir(downloadDirectory);
     } else {
-      StorageManager.getDefaultDownloadDir().then(setActualDir).catch(() => setActualDir('Ошибка получения пути'));
+      StorageManager.getDefaultDownloadDir().then(setActualDir).catch(() => setActualDir(t('settings.error_get_path', 'Ошибка получения пути')));
     }
   }, [downloadDirectory]);
 

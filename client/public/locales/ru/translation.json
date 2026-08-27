@@ -168,7 +168,14 @@
     "yandex_token_placeholder": "Yandex Token",
     "yandex_token_desc_part1": "Токен Яндекс.Музыки. Можно получить через расширение Яндекс.Музыка Token или ",
     "yandex_token_desc_link": "инструкцию",
-    "yandex_token_desc_part2": "."
+    "yandex_token_desc_part2": ".",
+    "theme_title": "Тема оформления",
+    "theme_dark": "Темная",
+    "theme_light": "Светлая",
+    "theme_system": "Системная",
+    "audio_compressor_release": "Восстановление (Release)",
+    "error_open": "Ошибка открытия",
+    "lastfm_vpn_warning": "Внимание: В РФ доступ к Last.fm заблокирован, для работы требуется VPN."
   },
   "topbar": {
     "search": "Поиск...",
@@ -423,7 +430,13 @@
     "cancel": "Отмена",
     "unknown_playlist": "Неизвестный плейлист",
     "playlist_empty": "Плейлист пуст",
-    "playlist": "Плейлист"
+    "playlist": "Плейлист",
+    "hour_1": "час",
+    "hour_2": "часа",
+    "hour_5": "часов",
+    "min_1": "минута",
+    "min_2": "минуты",
+    "min_5": "минут"
   },
   "common": {
     "toggle_menu": "Переключить меню",
@@ -489,7 +502,13 @@
     "create": "Создать",
     "new_playlist": "Новый плейлист",
     "search_playlists": "Поиск плейлистов...",
-    "no_playlists_found": "Плейлисты не найдены"
+    "no_playlists_found": "Плейлисты не найдены",
+    "ignore": "В игнор",
+    "unignore": "Убрать из игнора",
+    "unignore_prompt": "Убрать ли из игнора трек?",
+    "restore_queue_from_server": "Восстановить очередь с сервера",
+    "unignore_and_play": "Этот трек находится в игноре. Хотите убрать его из игнора и начать воспроизведение?",
+    "unignore_and_queue": "Этот трек находится в игноре. Хотите убрать его из игнора и добавить в очередь?"
   },
   "jam": {
     "jam_error": "Ошибка сессии",

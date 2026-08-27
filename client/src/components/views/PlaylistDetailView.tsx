@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Play, Pause, Heart, Clock, ArrowLeft, Download, Ban, Pencil, Check, X } from 'lucide-react';
 import { getPlaylist, updatePlaylist } from '../../api/subsonic/playlists';
 import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
+import { formatTime, formatDurationVerbose } from '../../utils/timeFormat';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../store/downloadStore';
@@ -236,7 +237,7 @@ export default function PlaylistDetailView() {
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-xs md:text-sm text-foreground/70 font-medium mb-1 mt-2">
               <span>{playlist.songCount || 0} {t('views.tracks', 'tracks')}</span>
               <span>•</span>
-              <span>{Math.floor((playlist.duration || 0) / 60)} {t('views.mins_abbr', 'm')}</span>
+              <span>{formatDurationVerbose(playlist.duration || 0, t)}</span>
             </div>
             
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 w-full mt-4">

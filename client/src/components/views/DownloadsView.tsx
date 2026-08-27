@@ -28,7 +28,7 @@ export default function DownloadsView() {
       } catch (e: any) {
         console.error('Failed to open downloads folder:', e);
         const { toast } = await import('sonner');
-        toast.error(`Ошибка открытия: ${e.message || e}`);
+        toast.error(`${t('settings.error_open', 'Ошибка открытия')}: ${e.message || e}`);
       }
     }
   };

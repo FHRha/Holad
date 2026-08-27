@@ -255,7 +255,7 @@ export default function MobileSettingsView() {
             <p className="text-xs text-secondary">
               {t('settings.lastfm_get_key_part1') || 'Регистрация новых API ключей '}<span className="text-red-400 font-medium">{t('settings.lastfm_get_key_link') || 'временно приостановлена Last.fm'}</span>{t('settings.lastfm_get_key_part2') || ' (Error 403). Существующие ключи работают.'}
               <br />
-              <span className="text-red-400 font-medium block mt-1">Внимание: В РФ доступ к Last.fm заблокирован, для работы требуется VPN.</span>
+              <span className="text-red-400 font-medium block mt-1">{t('settings.lastfm_vpn_warning', 'Внимание: В РФ доступ к Last.fm заблокирован, для работы требуется VPN.')}</span>
             </p>
           </div>
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">
@@ -303,9 +303,9 @@ export default function MobileSettingsView() {
           <div className="flex flex-col gap-3">
             <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_theme')}</span>
             <div className="flex gap-2">
-              <ThemeOption label={t('settings.appearance.theme.dark', 'Dark')} value="dark" current={settings.theme} onSelect={settings.setTheme} />
-              <ThemeOption label={t('settings.appearance.theme.light', 'Light')} value="light" current={settings.theme} onSelect={settings.setTheme} />
-              <ThemeOption label={t('settings.appearance.theme.system', 'System')} value="system" current={settings.theme} onSelect={settings.setTheme} />
+              <ThemeOption label={t('settings.theme_dark', 'Dark')} value="dark" current={settings.theme} onSelect={settings.setTheme} />
+              <ThemeOption label={t('settings.theme_light', 'Light')} value="light" current={settings.theme} onSelect={settings.setTheme} />
+              <ThemeOption label={t('settings.theme_system', 'System')} value="system" current={settings.theme} onSelect={settings.setTheme} />
             </div>
           </div>
           
@@ -464,7 +464,7 @@ export default function MobileSettingsView() {
                 <div>
                   <div className="flex justify-between text-xs text-[#b3b3b3] mb-2 mt-2">
                     <span>{t('settings.crossfade_duration')}</span>
-                    <span>{settings.crossfadeDuration} сек</span>
+                    <span>{settings.crossfadeDuration} {t('common.seconds_short', 'сек')}</span>
                   </div>
                   <input 
                     type="range" 

@@ -168,7 +168,14 @@
     "yandex_token_placeholder": "Yandex Token",
     "yandex_token_desc_part1": "Yandex Music token. Can be obtained via the Yandex.Music Token extension or ",
     "yandex_token_desc_link": "instructions",
-    "yandex_token_desc_part2": "."
+    "yandex_token_desc_part2": ".",
+    "theme_title": "Theme",
+    "theme_dark": "Dark",
+    "theme_light": "Light",
+    "theme_system": "System",
+    "audio_compressor_release": "Release",
+    "error_open": "Error opening",
+    "lastfm_vpn_warning": "Note: Access to Last.fm is blocked in your region, a VPN is required."
   },
   "topbar": {
     "search": "Search...",
@@ -423,7 +430,13 @@
     "cancel": "Cancel",
     "unknown_playlist": "Unknown Playlist",
     "playlist_empty": "Playlist is empty",
-    "playlist": "Playlist"
+    "playlist": "Playlist",
+    "hour_1": "hour",
+    "hour_2": "hours",
+    "hour_5": "hours",
+    "min_1": "minute",
+    "min_2": "minutes",
+    "min_5": "minutes"
   },
   "common": {
     "toggle_menu": "Toggle menu",
@@ -489,7 +502,13 @@
     "create": "Create",
     "new_playlist": "New playlist",
     "search_playlists": "Search playlists...",
-    "no_playlists_found": "No playlists found"
+    "no_playlists_found": "No playlists found",
+    "ignore": "Ignore",
+    "unignore": "Unignore",
+    "unignore_prompt": "Remove track from ignore?",
+    "restore_queue_from_server": "Restore queue from server",
+    "unignore_and_play": "This track is ignored. Do you want to unignore it and start playing?",
+    "unignore_and_queue": "This track is ignored. Do you want to unignore it and add to queue?"
   },
   "jam": {
     "jam_error": "Session error",

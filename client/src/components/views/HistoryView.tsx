@@ -15,11 +15,7 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
 
 function formatDuration(seconds: number, t: any) {
-  if (!seconds) return '0' + t('views.mins_abbr');
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}${t('views.mins_abbr')}`;
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return `${h}${t('views.hours_abbr')} ${m}${t('views.mins_abbr')}`;
+  return formatDurationVerbose(seconds, t);
 }
 
 function timeAgo(timestamp: number, t: any) {

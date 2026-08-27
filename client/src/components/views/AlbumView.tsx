@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Play, Pause, Heart, Star, MoreHorizontal, Clock, Radio, Music, ListPlus, ArrowLeft, Download, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
+import { formatDurationVerbose } from '../../utils/timeFormat';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useAlbumData } from '../../hooks/useAlbumData';
@@ -39,12 +40,7 @@ export default function AlbumView() {
   if (!album) return <div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
 
   const coverUrl = getCoverArtUrl(album.coverArt || album.id, 600);
-  const formatDuration = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h} ${t('views.hours_abbr')} ${m} ${t('views.mins_abbr')}`;
-    return `${m} ${t('views.mins_abbr')}`;
-  };
+  const formatDuration = (seconds: number) => formatDurationVerbose(seconds, t);
 
   const formatTime = (seconds: number) => {
     if (!seconds) return '0:00';

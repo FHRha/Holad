@@ -45,7 +45,7 @@ export default function ThemeSelector({ align = 'right' }: { align?: 'left' | 'r
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className="w-10 h-10 rounded-full bg-foreground/5 hover:bg-foreground/10 flex items-center justify-center text-secondary hover:text-foreground transition-colors"
-        title={t('settings.appearance.theme.title') || 'Theme'}
+        title={t('settings.theme_title') || 'Theme'}
       >
         {getThemeIcon()}
       </button>
@@ -60,21 +60,21 @@ export default function ThemeSelector({ align = 'right' }: { align?: 'left' | 'r
             className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${theme === 'light' ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-foreground/5'}`}
           >
             <Sun size={16} />
-            <span>{t('settings.appearance.theme.light') || 'Light'}</span>
+            <span>{t('settings.theme_light') || 'Light'}</span>
           </button>
           <button 
             onClick={() => changeTheme('dark')}
             className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${theme === 'dark' ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-foreground/5'}`}
           >
             <Moon size={16} />
-            <span>{t('settings.appearance.theme.dark') || 'Dark'}</span>
+            <span>{t('settings.theme_dark') || 'Dark'}</span>
           </button>
           <button 
             onClick={() => changeTheme('system')}
             className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors text-left w-full ${theme === 'system' ? 'bg-primary/20 text-primary' : 'text-secondary hover:text-foreground hover:bg-foreground/5'}`}
           >
             <Monitor size={16} />
-            <span>{t('settings.appearance.theme.system') || 'System'}</span>
+            <span>{t('settings.theme_system') || 'System'}</span>
           </button>
         </div>
       )}

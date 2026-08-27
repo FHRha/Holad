@@ -12,8 +12,9 @@ export function useBookmark(trackId: string | undefined) {
     const checkBookmark = async () => {
       try {
         const playlists = await getPlaylists();
-        const playlistName = t('player.bookmarksPlaylist', 'Отложенное');
-        const bookmarkPlaylist = playlists?.find((p: any) => p.name === playlistName);
+        const playlistName = t('player.bookmarksPlaylist', 'РћС‚Р»РѕР¶РµРЅРЅРѕРµ');
+        const bookmarkNames = ['РћС‚Р»РѕР¶РµРЅРЅРѕРµ', 'Bookmarks', playlistName];
+        const bookmarkPlaylist = playlists?.find((p: any) => bookmarkNames.includes(p.name));
         if (bookmarkPlaylist) {
           setBookmarkPlaylistId(bookmarkPlaylist.id);
           const fullPlaylist = await getPlaylist(bookmarkPlaylist.id);
@@ -32,7 +33,7 @@ export function useBookmark(trackId: string | undefined) {
 
   const toggleBookmark = async () => {
     if (!trackId) return;
-    const playlistName = t('player.bookmarksPlaylist', 'Отложенное');
+    const playlistName = t('player.bookmarksPlaylist', 'РћС‚Р»РѕР¶РµРЅРЅРѕРµ');
     try {
       if (!bookmarkPlaylistId) {
         const success = await createPlaylist(playlistName, trackId);
