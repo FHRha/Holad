@@ -132,7 +132,7 @@ export default function Sidebar() {
                       onError={(e) => {
                         const target = e.currentTarget as HTMLImageElement;
                         target.onerror = null;
-                        target.src = `${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/favicon_tab.png`;
+                        target.src = `${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/favicon_dark.png`;
                       }}
                     />
                     <span className="text-xs text-secondary truncate">{url ? new URL(url).hostname : t('sidebar.local_server')}</span>
