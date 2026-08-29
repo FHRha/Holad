@@ -155,7 +155,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
       id: t.id,
       title: t.title || t.name,
       artist: t.artist,
-      album: album.title,
+      album: album.name || album.title,
       albumId: album.id,
       artistId: t.artistId || album.artistId,
       coverArt: getCoverArtUrl(album.coverArt || album.id, 300),
