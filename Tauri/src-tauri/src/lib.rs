@@ -92,7 +92,20 @@ pub fn run() {
                       } else {
                           let _ = window.set_shadow(false);
                           let size = window.outer_size().unwrap();
+                          
+                          #[cfg(target_os = "windows")]
+                          let cursor_pos = {
+                              use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+                              use windows::Win32::Foundation::POINT;
+                              let mut point = POINT::default();
+                              unsafe {
+                                  let _ = GetCursorPos(&mut point);
+                              }
+                              tauri::PhysicalPosition::new(point.x as f64, point.y as f64)
+                          };
+                          #[cfg(not(target_os = "windows"))]
                           let cursor_pos = window.cursor_position().unwrap_or(position);
+                          
                           let scale_factor = window.scale_factor().unwrap_or(1.0);
                           let logical_pos = cursor_pos.to_logical::<f64>(scale_factor);
                           let logical_size = size.to_logical::<f64>(scale_factor);
@@ -100,9 +113,9 @@ pub fn run() {
                           let logical_x = logical_pos.x;
                           let logical_y = logical_pos.y;
                           
-                          // Position above tray icon if it's at the bottom of the screen
-                          let win_x = if logical_x > 1000.0 { logical_x - logical_size.width } else { logical_x };
-                          let win_y = if logical_y > 500.0 { logical_y - logical_size.height } else { logical_y + 10.0 };
+                          // Position menu such that it stays on screen relative to cursor
+                          let win_x = if logical_x > logical_size.width { logical_x - logical_size.width } else { logical_x };
+                          let win_y = if logical_y > logical_size.height { logical_y - logical_size.height } else { logical_y + 10.0 };
                           
                           window.set_position(tauri::LogicalPosition::new(win_x, win_y)).unwrap();
                           window.show().unwrap();
