@@ -203,15 +203,15 @@ export default function HeroAlbumCard({ album }: { album: any }) {
       ref={containerRef}
       className="group relative rounded-xl cursor-pointer flex flex-col p-6 flex-shrink-0 h-full"
       style={{
-        backgroundColor: dominantColor ? dominantColor : '#181818'
+        backgroundColor: dominantColor ? dominantColor : 'var(--card)'
       }}
       {...longPressProps}
     >
       <div className="text-center mb-4">
-        <h3 className={`font-bold text-lg truncate drop-shadow-md leading-normal ${isLight ? 'text-black' : 'text-foreground'}`}>{album.name}</h3>
+        <h3 className={`font-bold text-lg truncate drop-shadow-md leading-normal ${isLight ? 'text-black' : 'text-white'}`}>{album.name}</h3>
       </div>
 
-      <div className="relative aspect-square overflow-hidden rounded-lg shadow-2xl mb-5 mx-2 bg-background/20">
+      <div className="relative aspect-square overflow-hidden rounded-lg shadow-2xl mb-5 mx-2 bg-black/20">
         <img 
           src={finalCoverUrl} 
           alt={album.name} 
@@ -262,7 +262,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
                   key={starValue} 
                   size={14} 
                   fill={starValue <= rating ? 'currentColor' : 'transparent'} 
-                  className={`hover:scale-125 transition-transform ${starValue > rating ? 'text-foreground/30' : ''}`} 
+                  className={`hover:scale-125 transition-transform ${starValue > rating ? 'text-white/30' : ''}`} 
                   onClick={(e) => handleRate(e, starValue)}
                 />
               ))}
@@ -272,7 +272,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
           <div className="flex items-center justify-center gap-3 lg:gap-5">
             <button 
               onClick={handlePlayNext}
-              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-background/40 hover:bg-black/60 text-foreground flex items-center justify-center transition-colors"
+              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
             >
               <ListPlus size={20} strokeWidth={1.5} />
             </button>
@@ -286,7 +286,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
             <button 
               onClick={handleAddToQueue}
-              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-background/40 hover:bg-black/60 text-foreground flex items-center justify-center transition-colors"
+              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
             >
               <SkipForward size={20} strokeWidth={1.5} />
             </button>
@@ -294,14 +294,14 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
           <div className="flex justify-between items-end">
             <Ban size={22} className={`cursor-pointer transition-colors hover:text-red-500 ${isExcluded ? 'text-red-500' : 'text-[#b3b3b3]'}`} onClick={(e) => { e.stopPropagation(); toggleAlbumExclude(album.id); }} />
-            <MoreHorizontal size={24} className="text-[#b3b3b3] hover:text-foreground cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
+            <MoreHorizontal size={24} className="text-[#b3b3b3] hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>
       </div>
 
       <div className="text-center mt-auto">
-        <ArtistLinks artistString={album.artist} artistId={album.artistId} className={`text-sm font-semibold truncate drop-shadow-md ${isLight ? 'text-black' : 'text-foreground'}`} />
-        <p className={`text-xs truncate mt-1 font-medium tracking-widest uppercase drop-shadow-md ${isLight ? 'text-black/70' : 'text-foreground/70'}`}>
+        <ArtistLinks artistString={album.artist} artistId={album.artistId} className={`text-sm font-semibold truncate drop-shadow-md ${isLight ? 'text-black' : 'text-white'}`} />
+        <p className={`text-xs truncate mt-1 font-medium tracking-widest uppercase drop-shadow-md ${isLight ? 'text-black/70' : 'text-white/70'}`}>
           {album.genre || 'MP3'} &nbsp;&nbsp; {album.year || ''}
         </p>
       </div>

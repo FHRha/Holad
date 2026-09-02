@@ -10,6 +10,7 @@
     --secondary: #1a1a1a;
     --accent: #e5e7eb;
     --muted: #f3f4f6;
+    --border: rgba(0, 0, 0, 0.1);
     --scrollbar-thumb: rgba(0, 0, 0, 0.15);
     --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
   }
@@ -21,6 +22,7 @@
     --secondary: #b3b3b3;
     --accent: #282828;
     --muted: #181818;
+    --border: transparent;
     --scrollbar-thumb: rgba(255, 255, 255, 0.15);
     --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
   }

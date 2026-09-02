@@ -15,6 +15,7 @@ export default {
         secondary: 'var(--secondary)', // light gray text
         accent: 'var(--accent)', // hover background
         muted: 'var(--muted)',
+        border: 'var(--border)',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
