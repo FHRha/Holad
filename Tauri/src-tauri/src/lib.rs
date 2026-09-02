@@ -91,9 +91,10 @@ pub fn run() {
                           window.hide().unwrap();
                       } else {
                           let _ = window.set_shadow(false);
-                          let x = position.x;
-                          let y = position.y;
                           let size = window.outer_size().unwrap();
+                          let cursor_pos = window.cursor_position().unwrap_or(position);
+                          let x = cursor_pos.x;
+                          let y = cursor_pos.y;
                           
                           // Position above tray icon if it's at the bottom of the screen
                           let win_x = if x > 1000.0 { x - size.width as f64 } else { x };
