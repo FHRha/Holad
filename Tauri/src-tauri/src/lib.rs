@@ -35,24 +35,23 @@ fn show_main_window(app: tauri::AppHandle) {
 #[tauri::command]
 fn set_tray_menu_size(window: tauri::Window, width: f64, height: f64) {
     let scale_factor = window.scale_factor().unwrap_or(1.0);
+    
+    // Get current logical size and position
+    let current_size = window.outer_size().unwrap().to_logical::<f64>(scale_factor);
+    let current_pos = window.outer_position().unwrap().to_logical::<f64>(scale_factor);
+    
+    // Calculate the current bottom-right corner coordinate
+    let bottom_right_x = current_pos.x + current_size.width;
+    let bottom_right_y = current_pos.y + current_size.height;
+    
+    // Set the new size
     let _ = window.set_size(tauri::LogicalSize::new(width, height));
     
-    #[cfg(target_os = "windows")]
-    let cursor_pos = {
-        use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
-        use windows::Win32::Foundation::POINT;
-        let mut point = POINT::default();
-        unsafe { let _ = GetCursorPos(&mut point); }
-        tauri::LogicalPosition::new(point.x as f64 / scale_factor, point.y as f64 / scale_factor)
-    };
+    // Set the new position such that the bottom-right corner remains in the same spot
+    let new_x = bottom_right_x - width;
+    let new_y = bottom_right_y - height;
     
-    #[cfg(not(target_os = "windows"))]
-    let cursor_pos = window.cursor_position().unwrap_or(tauri::PhysicalPosition::new(0.0, 0.0)).to_logical::<f64>(scale_factor);
-    
-    let win_x = if cursor_pos.x > width { cursor_pos.x - width } else { cursor_pos.x };
-    let win_y = if cursor_pos.y > height { cursor_pos.y - height } else { cursor_pos.y + 10.0 };
-    
-    let _ = window.set_position(tauri::LogicalPosition::new(win_x, win_y));
+    let _ = window.set_position(tauri::LogicalPosition::new(new_x, new_y));
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -105,7 +104,7 @@ pub fn run() {
               TrayIconEvent::Click {
                   button: MouseButton::Right,
                   button_state: MouseButtonState::Up,
-                  position,
+                  position: _,
                   ..
               } => {
                   let app = tray.app_handle();
