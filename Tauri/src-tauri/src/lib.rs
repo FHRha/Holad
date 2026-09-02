@@ -96,8 +96,8 @@ pub fn run() {
                           let size = window.outer_size().unwrap();
                           
                           // Position above tray icon if it's at the bottom of the screen
-                          let win_x = if x > 1000.0 { x - (size.width as f64 / 2.0) } else { x };
-                          let win_y = if y > 500.0 { y - size.height as f64 - 4.0 } else { y + 40.0 };
+                          let win_x = if x > 1000.0 { x - size.width as f64 } else { x };
+                          let win_y = if y > 500.0 { y - size.height as f64 } else { y + 10.0 };
                           
                           window.set_position(tauri::PhysicalPosition::new(win_x, win_y)).unwrap();
                           window.show().unwrap();

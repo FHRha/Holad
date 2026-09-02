@@ -6,6 +6,7 @@
   :root {
     --background: #f8f9fa;
     --foreground: #1a1a1a;
+    --foreground-rgb: 26, 26, 26;
     --card: #ffffff;
     --secondary: #1a1a1a;
     --accent: #e5e7eb;
@@ -18,6 +19,7 @@
   .dark {
     --background: #000000;
     --foreground: #ffffff;
+    --foreground-rgb: 255, 255, 255;
     --card: #121212;
     --secondary: #b3b3b3;
     --accent: #282828;

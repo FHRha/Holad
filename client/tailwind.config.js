@@ -9,7 +9,7 @@ export default {
     extend: {
       colors: {
         background: 'var(--background)',
-        foreground: 'var(--foreground)',
+        foreground: 'rgb(var(--foreground-rgb) / <alpha-value>)',
         card: 'var(--card)',
         primary: 'rgba(var(--color-primary-rgb), <alpha-value>)',
         secondary: 'var(--secondary)', // light gray text
