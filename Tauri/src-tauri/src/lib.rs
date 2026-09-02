@@ -93,14 +93,18 @@ pub fn run() {
                           let _ = window.set_shadow(false);
                           let size = window.outer_size().unwrap();
                           let cursor_pos = window.cursor_position().unwrap_or(position);
-                          let x = cursor_pos.x;
-                          let y = cursor_pos.y;
+                          let scale_factor = window.scale_factor().unwrap_or(1.0);
+                          let logical_pos = cursor_pos.to_logical::<f64>(scale_factor);
+                          let logical_size = size.to_logical::<f64>(scale_factor);
+                          
+                          let logical_x = logical_pos.x;
+                          let logical_y = logical_pos.y;
                           
                           // Position above tray icon if it's at the bottom of the screen
-                          let win_x = if x > 1000.0 { x - size.width as f64 } else { x };
-                          let win_y = if y > 500.0 { y - size.height as f64 } else { y + 10.0 };
+                          let win_x = if logical_x > 1000.0 { logical_x - logical_size.width } else { logical_x };
+                          let win_y = if logical_y > 500.0 { logical_y - logical_size.height } else { logical_y + 10.0 };
                           
-                          window.set_position(tauri::PhysicalPosition::new(win_x, win_y)).unwrap();
+                          window.set_position(tauri::LogicalPosition::new(win_x, win_y)).unwrap();
                           window.show().unwrap();
                           window.set_focus().unwrap();
                       }
