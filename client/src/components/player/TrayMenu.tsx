@@ -172,21 +172,21 @@ export default function TrayMenu() {
         </div>
 
         {/* Track Info */}
-        <div className="px-2 py-1.5 flex items-center gap-2 pointer-events-none">
+        <div className="px-2 py-2 mb-1 border-b border-white/5 pb-3 flex items-center gap-3 pointer-events-none">
           {currentTrack ? (
             <>
               <img 
                 src={currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 100)} 
-                className="w-9 h-9 rounded-md object-cover shadow-sm"
+                className="w-14 h-14 rounded-md object-cover shadow-sm"
                 alt="Cover"
               />
-              <div className="flex-1 min-w-0">
-                <div className={`text-xs font-semibold truncate ${isPlaying ? 'text-primary' : 'text-white'}`}>{currentTrack.title}</div>
-                <div className="text-[11px] truncate text-white/50">{currentTrack.artist}</div>
+              <div className="flex-1 min-w-[120px] max-w-[200px]">
+                <div className={`text-sm font-bold truncate ${isPlaying ? 'text-primary' : 'text-white'}`}>{currentTrack.title}</div>
+                <div className="text-xs mt-0.5 truncate text-white/60">{currentTrack.artist}</div>
               </div>
             </>
           ) : (
-            <div className="text-xs text-white/50 italic py-1.5">
+            <div className="text-sm text-white/50 italic py-3">
               {t('common.no_track')}
             </div>
           )}

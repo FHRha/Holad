@@ -18,6 +18,7 @@
   "settings": {
     "general": "General",
     "appearance": "Appearance",
+    "appIcon": "App Icon",
     "player": "Player",
     "reset": "Reset settings",
     "reset_done": "✅ Settings reset!",
