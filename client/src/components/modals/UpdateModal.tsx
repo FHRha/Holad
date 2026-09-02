@@ -4,9 +4,11 @@ import { useUIStore } from '../../store/uiStore';
 import { UpdateService } from '../../services/UpdateService';
 import { isTauri } from '../../utils/StorageManager';
 import { openExternalLink } from '../../utils/linkHelper';
+import { useSettingsStore } from '../../store/settingsStore';
 
 export default function UpdateModal() {
   const { t } = useTranslation();
+  const appIcon = useSettingsStore(state => state.appIcon);
   const { isUpdateModalOpen, setUpdateModalOpen, updateInfo } = useUIStore();
 
   if (!isUpdateModalOpen || !updateInfo) return null;
@@ -42,12 +44,13 @@ export default function UpdateModal() {
         </div>
 
         <div className="p-6 flex flex-col gap-4">
-          <div className="text-center">
+          <div className="text-center flex flex-col items-center">
+            <img src={`/icons/${appIcon === 'cassette' ? 'logo_cassette.png' : appIcon === 'wave_light' ? 'favicon_light.png' : 'favicon_dark.png'}`} alt="Holad" className="w-24 h-24 mb-4 object-contain drop-shadow-xl" />
             <span className="inline-block px-3 py-1 bg-primary/20 text-primary rounded-full text-sm font-bold mb-4">
-              v{updateInfo.version}
+              {updateInfo.version ? (updateInfo.version.startsWith('v') ? updateInfo.version : 'v' + updateInfo.version) : 'v??'}
             </span>
-            <p className="text-secondary text-sm mb-4 line-clamp-4">
-              {updateInfo.notes || t('update.new_version_desc', 'A new version of Holad is available.')}
+            <p className="text-secondary text-sm mb-4">
+              {t('update.new_version_desc', 'A new version of Holad is available.')}
             </p>
           </div>
 

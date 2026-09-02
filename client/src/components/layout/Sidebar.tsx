@@ -9,6 +9,7 @@ import { clearAppCache } from '../../utils/storage';
 import { useDownloadStore } from '../../store/downloadStore';
 import { isTauri, isCapacitor } from '../../utils/StorageManager';
 import { openExternalLink } from '../../utils/linkHelper';
+import { useSettingsStore } from '../../store/settingsStore';
 
 
 export default function Sidebar() {
@@ -16,6 +17,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { leftSidebarWidth, setLeftSidebarWidth } = useUIStore();
   const { user, url, setAuthenticated, setCredentials } = useAuthStore();
+  const appIcon = useSettingsStore(state => state.appIcon);
   const isNative = isTauri() || isCapacitor();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -99,7 +101,7 @@ export default function Sidebar() {
 
   return (
     <div 
-      className="hidden md:flex bg-background flex-col py-4 border-r border-white/5 relative z-40 flex-shrink-0"
+      className="hidden md:flex bg-background flex-col py-4 border-r border-border relative z-40 flex-shrink-0"
       style={{ width: leftSidebarWidth }}
     >
       <div className={`flex flex-col flex-1 ${isWide ? 'px-4' : 'items-center'} space-y-6 overflow-visible`}>
@@ -109,16 +111,16 @@ export default function Sidebar() {
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             className={`text-foreground flex items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 ${!isWide ? 'flex-col' : 'px-2'} w-full`}
           >
-            <img src={`${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/logo_cassette.png`} alt="Holad" className={`${isWide ? 'w-10 h-10' : 'w-14 h-14'} rounded-lg shadow-lg object-cover flex-shrink-0`} />
+            <img src={`${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/${appIcon === 'cassette' ? 'logo_cassette.png' : appIcon === 'wave_light' ? 'favicon_light.png' : 'favicon_dark.png'}`} alt="Holad" className={`${isWide ? 'w-10 h-10' : 'w-14 h-14'} rounded-lg shadow-lg object-cover flex-shrink-0`} />
             {isWide && <span className="font-bold text-lg whitespace-nowrap overflow-hidden text-ellipsis">Holad</span>}
           </button>
 
           {isProfileMenuOpen && (
             <div 
               ref={menuRef}
-              className="absolute top-12 left-full ml-4 w-64 bg-background/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col py-2 animate-in fade-in zoom-in-95 duration-200"
+              className="absolute top-12 left-full ml-4 w-64 bg-background/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col py-2 animate-in fade-in zoom-in-95 duration-200"
             >
-              <div className="px-4 py-3 flex items-center gap-3 border-b border-white/5">
+              <div className="px-4 py-3 flex items-center gap-3 border-b border-border">
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                   <User className="text-primary" size={20} />
                 </div>
@@ -129,11 +131,6 @@ export default function Sidebar() {
                       src={`${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/navidrome.png`} 
                       alt="Navidrome" 
                       className="w-3.5 h-3.5 object-contain opacity-80 shrink-0" 
-                      onError={(e) => {
-                        const target = e.currentTarget as HTMLImageElement;
-                        target.onerror = null;
-                        target.src = `${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/favicon_dark.png`;
-                      }}
                     />
                     <span className="text-xs text-secondary truncate">{url ? new URL(url).hostname : t('sidebar.local_server')}</span>
                   </div>
@@ -146,7 +143,7 @@ export default function Sidebar() {
                     useUIStore.getState().setSettingsOpen(true);
                     setIsProfileMenuOpen(false);
                   }}
-                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
+                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-foreground/5 transition-colors text-left w-full"
                 >
                   <Settings size={18} />
                   <span>{t('sidebar.settings')}</span>
@@ -156,7 +153,7 @@ export default function Sidebar() {
                     navigate('/Holad/history');
                     setIsProfileMenuOpen(false);
                   }}
-                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
+                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-foreground/5 transition-colors text-left w-full"
                 >
                   <Clock size={18} />
                   <span>{t('views.listening_history')}</span>
@@ -166,7 +163,7 @@ export default function Sidebar() {
                     openExternalLink('https://github.com/FHRha/Holad');
                     setIsProfileMenuOpen(false);
                   }}
-                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
+                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-foreground/5 transition-colors text-left w-full"
                 >
                   <img src="/icons/github.png" className="w-[18px] h-[18px] dark:invert opacity-70 group-hover:opacity-100 transition-opacity" alt="GitHub" />
                   <span>GitHub {appVersion && <span className="text-xs text-secondary/50 ml-1">v{appVersion}</span>}</span>
@@ -176,14 +173,14 @@ export default function Sidebar() {
                     UpdateService.checkForUpdates(true);
                     setIsProfileMenuOpen(false);
                   }}
-                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-white/5 transition-colors text-left w-full"
+                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-foreground/5 transition-colors text-left w-full"
                 >
                   <DownloadCloud size={18} />
                   <span>{t('sidebar.check_updates', 'Проверить обновления')}</span>
                 </button>
               </div>
 
-              <div className="px-2 pt-2 border-t border-white/5">
+              <div className="px-2 pt-2 border-t border-border">
                 <button 
                   onClick={handleLogout}
                   className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors text-left w-full"
@@ -255,7 +252,7 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
       className={`w-full flex ${
         isWide ? 'flex-row items-center px-3 py-2.5 gap-3 rounded-lg' : 'flex-col items-center gap-1'
       } transition-colors group ${
-        isActive ? (isWide ? 'bg-foreground/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-white/5'
+        isActive ? (isWide ? 'bg-foreground/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-foreground/5'
       }`}
       title={tooltip}
     >
@@ -370,7 +367,7 @@ function SidebarItem({ to, icon, label, end, isWide, disabled }: { to: string, i
           e.preventDefault();
         }
       }}
-      className={`w-full flex ${isWide ? 'flex-row items-center px-3 py-2.5 gap-3 rounded-lg' : 'flex-col items-center gap-1'} transition-colors group ${disabled ? 'opacity-50 cursor-not-allowed text-secondary' : isActive ? (isWide ? 'bg-foreground/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+      className={`w-full flex ${isWide ? 'flex-row items-center px-3 py-2.5 gap-3 rounded-lg' : 'flex-col items-center gap-1'} transition-colors group ${disabled ? 'opacity-50 cursor-not-allowed text-secondary' : isActive ? (isWide ? 'bg-foreground/10 text-primary' : 'text-primary') : 'text-secondary hover:text-foreground hover:bg-foreground/5'}`}
       title={disabled ? `${label} (Offline)` : label}
     >
       <div className={`relative flex justify-center ${!isWide ? 'w-full' : ''} ${isActive && !disabled ? 'text-primary' : ''}`}>

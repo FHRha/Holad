@@ -114,12 +114,12 @@ export default function FavoritesView() {
       {/* DESKTOP UI */}
       <div className="hidden md:block flex-1 bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar">
         <div className="flex items-center gap-6 text-xl font-bold mb-10 text-foreground border-b border-white/5 pb-4">
-          <h1 className="text-2xl text-white">{t('views.favorites')}</h1>
+          <h1 className="text-2xl text-foreground">{t('views.favorites')}</h1>
         </div>
 
         {albums.length > 0 && (
           <div className="mb-12">
-            <h2 className="text-xl font-bold text-white mb-6">{t('views.favorite_albums')}</h2>
+            <h2 className="text-xl font-bold text-foreground mb-6">{t('views.favorite_albums')}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {albums.map((album) => (
                 <AlbumCard key={album.id} album={album} />
@@ -130,7 +130,7 @@ export default function FavoritesView() {
 
         {tracks.length > 0 && (
           <div className="mb-10">
-            <h2 className="text-xl font-bold text-white mb-6">{t('views.favorite_tracks')}</h2>
+            <h2 className="text-xl font-bold text-foreground mb-6">{t('views.favorite_tracks')}</h2>
             <div className="flex flex-col gap-1">
               {tracks.map((track, index) => {
                 const isLiked = likedTrackIds.includes(track.id);
@@ -159,7 +159,7 @@ export default function FavoritesView() {
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <p className="flex items-center gap-2 text-sm font-medium text-white truncate group-hover:text-primary transition-colors">
+                      <p className="flex items-center gap-2 text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
                         <span className="truncate">{track.title}</span>
                         {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0 group-hover:text-primary" />}
                       </p>
@@ -238,7 +238,7 @@ export default function FavoritesView() {
             searchedTracks.length === 0 ? (
               <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
                 <Heart size={64} className="mb-6 text-primary" strokeWidth={1.5} />
-                <h2 className="text-2xl font-bold text-white mb-4">{t('views.no_favorite_tracks')}</h2>
+                <h2 className="text-2xl font-bold text-foreground mb-4">{t('views.no_favorite_tracks')}</h2>
                 <p className="text-[#b3b3b3] text-[15px] leading-relaxed max-w-[280px]">
                   {t('views.no_favorite_tracks_desc')}
                 </p>
@@ -262,7 +262,7 @@ export default function FavoritesView() {
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <p className="flex items-center gap-2 text-[15px] font-bold text-white truncate">
+                        <p className="flex items-center gap-2 text-[15px] font-bold text-foreground truncate">
                           <span className="truncate">{track.title}</span>
                           {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
                         </p>
@@ -287,7 +287,7 @@ export default function FavoritesView() {
             searchedAlbums.length === 0 ? (
               <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
                 <Heart size={64} className="mb-6 text-primary" strokeWidth={1.5} />
-                <h2 className="text-2xl font-bold text-white mb-4">{t('views.no_favorite_albums')}</h2>
+                <h2 className="text-2xl font-bold text-foreground mb-4">{t('views.no_favorite_albums')}</h2>
                 <p className="text-[#b3b3b3] text-[15px] leading-relaxed max-w-[280px]">
                   {t('views.no_favorite_albums_desc')}
                 </p>
@@ -329,7 +329,7 @@ export default function FavoritesView() {
                         <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full rounded-md object-cover" alt={album.name} />
                       </div>
                       <div className="flex flex-col flex-1 overflow-hidden">
-                        <span className="text-[15px] text-white font-bold truncate">{album.name || album.title}</span>
+                        <span className="text-[15px] text-foreground font-bold truncate">{album.name || album.title}</span>
                         <span className="text-[#b3b3b3] text-[13px] truncate">{album.artist}</span>
                       </div>
                     </LongPressWrapper>
@@ -344,7 +344,7 @@ export default function FavoritesView() {
           {mobileTab === 'artists' && (
             <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
               <Heart size={64} className="mb-6 text-primary" strokeWidth={1.5} />
-              <h2 className="text-2xl font-bold text-white mb-4">{t('views.no_favorite_artists')}</h2>
+              <h2 className="text-2xl font-bold text-foreground mb-4">{t('views.no_favorite_artists')}</h2>
               <p className="text-[#b3b3b3] text-[15px] leading-relaxed max-w-[280px]">
                 {t('views.no_favorite_artists_desc')}
               </p>

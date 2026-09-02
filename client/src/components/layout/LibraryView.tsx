@@ -61,13 +61,13 @@ export default function LibraryView() {
       </div>
 
       {/* Mobile Top Section */}
-      <div className="md:hidden px-4 pt-4 pb-2 shrink-0 bg-black/40 backdrop-blur-xl z-10 relative">
+      <div className="md:hidden px-4 pt-4 pb-2 shrink-0 bg-background/80 backdrop-blur-xl z-10 relative">
         <div 
-          className="flex items-center bg-[#282828] rounded-xl px-3 py-2.5 mb-4 border border-white/5 cursor-text"
+          className="flex items-center bg-card rounded-xl px-3 py-2.5 mb-4 border border-border cursor-text"
           onClick={() => setSearchOpen(true)}
         >
-          <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
-          <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
+          <Search size={20} className="text-secondary mr-2 pointer-events-none" />
+          <div className="bg-transparent text-secondary outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
             {t('views.search_tracks')}
           </div>
         </div>
@@ -97,14 +97,14 @@ export default function LibraryView() {
 
           <button 
             onClick={() => setViewMode(prev => prev === 'grid' ? 'list' : 'grid')}
-            className="absolute right-0 text-[#b3b3b3] hover:text-foreground transition-colors bg-[#282828] p-2 rounded-full z-10"
+            className="absolute right-0 text-secondary hover:text-foreground transition-colors bg-card p-2 rounded-full z-10"
           >
             {viewMode === 'grid' ? <List size={20} /> : <LayoutGrid size={20} />}
           </button>
         </div>
         
         {/* Mobile Tabs */}
-        <div className="flex bg-[#282828] rounded-2xl p-1 gap-1 overflow-x-auto hide-scrollbar">
+        <div className="flex bg-card rounded-2xl p-1 gap-1 overflow-x-auto hide-scrollbar">
           <MobileNavTab to="/Holad/library/tracks" label={t('sidebar.tracks')} />
           <MobileNavTab to="/Holad/library/albums" label={t('sidebar.albums')} />
           <MobileNavTab to="/Holad/library/artists" label={t('views.artists_short_tab')} />
@@ -142,7 +142,7 @@ function MobileNavTab({ to, label }: { to: string, label: string }) {
   return (
     <NavLink 
       to={to}
-      className={({ isActive }) => `flex-1 px-3 py-2.5 rounded-xl whitespace-nowrap text-[14px] font-bold transition-colors text-center ${isActive ? 'bg-[#181818] text-white shadow-sm' : 'text-[#b3b3b3] hover:text-foreground'}`}
+      className={({ isActive }) => `flex-1 px-3 py-2.5 rounded-xl whitespace-nowrap text-[14px] font-bold transition-colors text-center ${isActive ? 'bg-background text-foreground shadow-sm' : 'text-secondary hover:text-foreground'}`}
     >
       {label}
     </NavLink>
@@ -156,8 +156,8 @@ function FilterChip({ icon, label, isActive, onClick, testId }: { icon: React.Re
       data-testid={testId}
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
         isActive 
-          ? 'bg-primary text-white border-transparent shadow-md' 
-          : 'bg-zinc-200 dark:bg-zinc-800 text-[#b3b3b3] hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-foreground border-transparent'
+          ? 'bg-primary text-primary-foreground border-transparent shadow-md' 
+          : 'bg-foreground/5 border-transparent text-secondary hover:text-foreground hover:bg-foreground/10'
       }`}
     >
       {icon}

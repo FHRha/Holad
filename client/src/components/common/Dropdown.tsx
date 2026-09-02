@@ -37,14 +37,14 @@ export default function Dropdown({ options, value, onChange, className = '', pre
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between gap-2 bg-[#1a1a1a] border border-white/5 hover:border-white/10 rounded-lg px-4 py-2 text-sm font-bold text-white transition-colors w-full focus:outline-none"
+        className="flex items-center justify-between gap-2 bg-card border border-border hover:border-border rounded-lg px-4 py-2 text-sm font-bold text-foreground transition-colors w-full focus:outline-none"
       >
         <span className="truncate">{prefix}{selectedOption.label}</span>
         <ChevronDown size={16} className={`text-secondary transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 top-full mt-2 w-full min-w-[120px] bg-[#222] border border-white/10 rounded-xl shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
+        <div className="absolute z-50 top-full mt-2 w-full min-w-[120px] bg-card border border-border rounded-xl shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
           {options.map(option => (
             <button
               key={option.label}
@@ -53,7 +53,7 @@ export default function Dropdown({ options, value, onChange, className = '', pre
                 setIsOpen(false);
               }}
               className={`w-full text-left px-4 py-2 text-sm font-bold transition-colors ${
-                option.value === value ? 'bg-primary text-primary-foreground' : 'text-secondary hover:bg-white/5 hover:text-foreground'
+                option.value === value ? 'bg-primary text-primary-foreground' : 'text-secondary hover:bg-foreground/5 hover:text-foreground'
               }`}
             >
               {prefix}{option.label}

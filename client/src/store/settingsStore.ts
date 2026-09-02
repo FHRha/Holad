@@ -5,12 +5,14 @@ import type { CrossfadeCurve } from '../audio/types';
 import { setImageCacheLimit } from '../utils/imageCache';
 
 export type AppTheme = 'dark' | 'light' | 'system';
+export type AppIcon = 'wave_dark' | 'wave_light' | 'cassette';
 export type AccentColor = string;
 export type ClickAction = 'play_now' | 'play_next';
 export type StartPage = '/Holad' | '/Holad/albums' | '/Holad/radio' | '/Holad/favorites';
 
 export interface SettingsState {
   theme: AppTheme;
+  appIcon: AppIcon;
   accentColor: AccentColor;
   customColors: [string, string, string];
   language: string;
@@ -41,6 +43,7 @@ export interface SettingsState {
   yandexToken: string;
 
   setTheme: (theme: AppTheme) => void;
+  setAppIcon: (appIcon: AppIcon) => void;
   setAccentColor: (color: AccentColor) => void;
   setCustomColor: (index: number, color: string) => void;
   setLanguage: (lang: string) => void;
@@ -75,6 +78,7 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       theme: 'dark',
+      appIcon: 'wave_dark',
       accentColor: 'green',
       customColors: ['', '', ''],
       language: i18n.language || 'ru',
@@ -104,7 +108,15 @@ export const useSettingsStore = create<SettingsState>()(
       lastFmKey: '',
       yandexToken: '',
 
-      setTheme: (theme) => set({ theme }),
+      setTheme: (theme) => set((state) => {
+        let nextAppIcon = state.appIcon;
+        if (state.appIcon !== 'cassette') {
+          if (theme === 'dark') nextAppIcon = 'wave_dark';
+          else if (theme === 'light') nextAppIcon = 'wave_light';
+        }
+        return { theme, appIcon: nextAppIcon };
+      }),
+      setAppIcon: (appIcon) => set({ appIcon }),
       setAccentColor: (accentColor) => set({ accentColor }),
       setCustomColor: (index, color) => set((state) => {
         const newColors = [...state.customColors] as [string, string, string];

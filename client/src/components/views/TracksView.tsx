@@ -158,7 +158,7 @@ export default function TracksView() {
   return (
     <div className="flex h-full bg-transparent md:bg-background text-foreground md:pb-0 relative">
       {/* LEFT SIDEBAR: FILTERS */}
-      <div className="hidden md:flex w-64 border-r border-foreground/5 dark:border-transparent bg-card flex-col p-4 overflow-y-auto custom-scrollbar">
+      <div className="hidden md:flex w-64 border-r border-foreground/5 dark:border-0 bg-card flex-col p-4 overflow-y-auto custom-scrollbar">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold">{t('views.filters')}</h2>
           <button 
@@ -177,7 +177,7 @@ export default function TracksView() {
         {/* Liked Filter */}
         <div className="mb-6">
           <h3 className="text-xs font-semibold text-secondary uppercase mb-3">{t('views.liked')}</h3>
-          <div className="flex bg-background rounded-lg border border-foreground/10 overflow-hidden">
+          <div className="flex bg-foreground/5 rounded-lg overflow-hidden">
             <button onClick={() => setFilterLiked('all')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterLiked === 'all' ? 'bg-foreground/20 text-foreground' : 'text-secondary hover:bg-foreground/5'}`}>{t('views.all')}</button>
             <button onClick={() => setFilterLiked('yes')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterLiked === 'yes' ? 'bg-foreground/20 text-foreground' : 'text-secondary hover:bg-foreground/5'}`}>{t('views.yes')}</button>
             <button onClick={() => setFilterLiked('no')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterLiked === 'no' ? 'bg-foreground/20 text-foreground' : 'text-secondary hover:bg-foreground/5'}`}>{t('views.no')}</button>
@@ -187,7 +187,7 @@ export default function TracksView() {
         {/* Rated Filter */}
         <div className="mb-6">
           <h3 className="text-xs font-semibold text-secondary uppercase mb-3">{t('views.rated')}</h3>
-          <div className="flex bg-background rounded-lg border border-foreground/10 overflow-hidden">
+          <div className="flex bg-foreground/5 rounded-lg overflow-hidden">
             <button onClick={() => setFilterRated('all')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterRated === 'all' ? 'bg-foreground/20 text-foreground' : 'text-secondary hover:bg-foreground/5'}`}>{t('views.all')}</button>
             <button onClick={() => setFilterRated('yes')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterRated === 'yes' ? 'bg-foreground/20 text-foreground' : 'text-secondary hover:bg-foreground/5'}`}>{t('views.yes')}</button>
             <button onClick={() => setFilterRated('no')} className={`flex-1 py-1.5 text-xs font-bold transition-colors ${filterRated === 'no' ? 'bg-foreground/20 text-foreground' : 'text-secondary hover:bg-foreground/5'}`}>{t('views.no')}</button>
@@ -204,7 +204,7 @@ export default function TracksView() {
               placeholder={t('views.search_tracks')} 
               value={artistSearch}
               onChange={e => setArtistSearch(e.target.value)}
-              className="w-full bg-background border border-foreground/10 rounded-md py-1.5 pl-9 pr-3 text-xs text-foreground focus:outline-none focus:border-foreground/30 transition-colors"
+              className="w-full bg-foreground/5 rounded-md py-1.5 pl-9 pr-3 text-xs text-foreground focus:outline-none transition-colors"
             />
           </div>
           <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
@@ -238,7 +238,7 @@ export default function TracksView() {
               placeholder={t('views.search_albums')} 
               value={albumSearch}
               onChange={e => setAlbumSearch(e.target.value)}
-              className="w-full bg-background border border-foreground/10 rounded-md py-1.5 pl-9 pr-3 text-xs text-foreground focus:outline-none focus:border-foreground/30 transition-colors"
+              className="w-full bg-foreground/5 rounded-md py-1.5 pl-9 pr-3 text-xs text-foreground focus:outline-none transition-colors"
             />
           </div>
           <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
@@ -269,7 +269,7 @@ export default function TracksView() {
           </h1>
         </div>
 
-        <div className="flex flex-col flex-1 bg-transparent md:bg-card md:rounded-xl md:border border-foreground/5 dark:border-transparent overflow-hidden">
+        <div className="flex flex-col flex-1 bg-transparent md:bg-card md:rounded-xl md:border border-foreground/5 dark:border-0 overflow-hidden">
           {/* Table Header */}
           <div className="hidden md:flex items-center px-6 py-3 border-b border-foreground/5 text-[11px] font-bold tracking-widest text-secondary uppercase bg-background">
             <div className="w-10 text-center">#</div>

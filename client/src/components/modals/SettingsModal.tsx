@@ -128,6 +128,7 @@ export default function SettingsModal({
       }, 3000);
     } else if (resetState === 'confirm') {
       settings.setTheme('dark');
+      settings.setAppIcon('wave_dark');
       settings.setAccentColor('green');
       settings.setCustomColor(0, '');
       settings.setCustomColor(1, '');
@@ -296,29 +297,31 @@ export default function SettingsModal({
                         {t('settings.lastfm')}
                       </span>
                     </label>
-                    <div className="pl-7 relative">
-                      <div className="relative">
-                        <input 
-                          type={showLastFmKey ? "text" : "password"}
-                          placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
-                          value={settings.lastFmKey}
-                          onChange={(e) => settings.setLastFmKey(e.target.value)}
-                          className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
-                        />
-                        <button 
-                          type="button"
-                          onClick={() => setShowLastFmKey(!showLastFmKey)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
-                        >
-                          {showLastFmKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
+                    {settings.useLastFm && (
+                      <div className="pl-7 relative">
+                        <div className="relative">
+                          <input 
+                            type={showLastFmKey ? "text" : "password"}
+                            placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
+                            value={settings.lastFmKey}
+                            onChange={(e) => settings.setLastFmKey(e.target.value)}
+                            className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => setShowLastFmKey(!showLastFmKey)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
+                          >
+                            {showLastFmKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                        <p className="text-xs text-secondary mt-1">
+                          {t('settings.lastfm_get_key_part1')}<a href="https://www.last.fm/api/authentication" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.lastfm_get_key_link')}</a>{t('settings.lastfm_get_key_part2')}
+                          <br />
+                          <span className="text-red-400 font-medium block mt-1">{t('settings.lastfm_vpn_warning')}</span>
+                        </p>
                       </div>
-                      <p className="text-xs text-secondary mt-1">
-                        {t('settings.lastfm_get_key_part1')}<span className="text-red-400 font-medium">{t('settings.lastfm_get_key_link')}</span>{t('settings.lastfm_get_key_part2')}
-                        <br />
-                        <span className="text-red-400 font-medium block mt-1">Внимание: В РФ доступ к Last.fm заблокирован, для работы требуется VPN.</span>
-                      </p>
-                    </div>
+                    )}
 
                     <label className="flex items-center gap-3 cursor-pointer group">
                       <input 
@@ -331,27 +334,30 @@ export default function SettingsModal({
                         {t('settings.yandex_music')}
                       </span>
                     </label>
-                    <div className="pl-7 relative">
-                      <div className="relative">
-                        <input 
-                          type={showYandexToken ? "text" : "password"}
-                          placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
-                          value={settings.yandexToken}
-                          onChange={(e) => settings.setYandexToken(e.target.value)}
-                          className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
-                        />
-                        <button 
-                          type="button"
-                          onClick={() => setShowYandexToken(!showYandexToken)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
-                        >
-                          {showYandexToken ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
+                    
+                    {settings.useYandex && (
+                      <div className="pl-7 relative">
+                        <div className="relative">
+                          <input 
+                            type={showYandexToken ? "text" : "password"}
+                            placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
+                            value={settings.yandexToken}
+                            onChange={(e) => settings.setYandexToken(e.target.value)}
+                            className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => setShowYandexToken(!showYandexToken)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
+                          >
+                            {showYandexToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                        <p className="text-xs text-secondary mt-1">
+                          {t('settings.yandex_token_desc_part1')}<a href="https://github.com/MarshalX/yandex-music-api/discussions/513" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.yandex_token_desc_link')}</a>{t('settings.yandex_token_desc_part2')}
+                        </p>
                       </div>
-                      <p className="text-xs text-secondary mt-1">
-                        {t('settings.yandex_token_desc_part1')}<a href="https://github.com/MarshalX/yandex-music-api/discussions/513" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.yandex_token_desc_link')}</a>{t('settings.yandex_token_desc_part2')}
-                      </p>
-                    </div>
+                    )}
                   </div>
                 </SettingSection>
 
@@ -430,6 +436,14 @@ export default function SettingsModal({
                   </div>
                 </SettingSection>
 
+                <SettingSection title={t('settings.appIcon') || 'App Icon'}>
+                  <div className="flex gap-2">
+                    <AppIconOption label="Wave Dark" value="wave_dark" current={settings.appIcon} onSelect={settings.setAppIcon} />
+                    <AppIconOption label="Wave Light" value="wave_light" current={settings.appIcon} onSelect={settings.setAppIcon} />
+                    <AppIconOption label="Cassette" value="cassette" current={settings.appIcon} onSelect={settings.setAppIcon} />
+                  </div>
+                </SettingSection>
+
                 <SettingSection title={t('settings.accentColor') || 'Цвет'}>
                   <div className="flex flex-col gap-3">
                     <div className="flex gap-2">
@@ -459,13 +473,13 @@ export default function SettingsModal({
                               isSelected 
                                 ? 'border-primary ring-2 ring-primary' 
                                 : isEmpty 
-                                  ? 'border-dashed border-white/20 hover:bg-foreground/10'
+                                  ? 'border-dashed border-foreground/20 hover:bg-foreground/10'
                                   : 'border-white/10 hover:border-white/30 hover:scale-110'
                             }`}
                             style={color ? { backgroundColor: color } : {}}
                             title={isEmpty ? t('settings.add_color') : isSelected ? t('settings.edit_color') : t('settings.custom_color_select')}
                           >
-                            {isEmpty && <span className="text-white/40 text-lg font-light">+</span>}
+                            {isEmpty && <span className="text-foreground/40 text-lg font-light">+</span>}
                             {isSelected && (
                               <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity rounded-full">
                                 <Pencil size={12} className="text-[#b3b3b3]" />
@@ -880,7 +894,18 @@ function ThemeOption({ label, value, current, onSelect }: { label: string, value
   return (
     <button 
       onClick={() => onSelect(value)}
-      className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium transition-colors ${current === value ? 'border-primary text-primary bg-primary/5' : 'border-white/10 text-secondary hover:border-white/30 hover:text-foreground'}`}
+      className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium shadow-sm transition-colors ${current === value ? 'border-primary text-primary bg-primary/5' : 'border-foreground/10 text-secondary hover:border-foreground/30 hover:text-foreground'}`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function AppIconOption({ label, value, current, onSelect }: { label: string, value: 'wave_dark' | 'wave_light' | 'cassette', current: string, onSelect: (v: any) => void }) {
+  return (
+    <button 
+      onClick={() => onSelect(value)}
+      className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium shadow-sm transition-colors ${current === value ? 'border-primary text-primary bg-primary/5' : 'border-foreground/10 text-secondary hover:border-foreground/30 hover:text-foreground'}`}
     >
       {label}
     </button>

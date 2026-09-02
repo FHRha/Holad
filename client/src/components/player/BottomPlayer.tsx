@@ -178,10 +178,9 @@ export default function BottomPlayer() {
         </div>
       </div>
 
-      {/* Right Controls */}
-      <div className="flex flex-col justify-center items-end flex-1 min-w-0 max-w-[30%] md:min-w-[150px] lg:min-w-[250px] text-secondary pr-2">
-        <div className="flex flex-col gap-3 w-full max-w-[240px]">
-          {/* Top row: Favorite, Stars, Auto DJ */}
+      <div className="flex flex-col justify-center items-end flex-1 min-w-0 max-w-[30%] md:min-w-[150px] lg:min-w-[300px] text-secondary pr-2">
+        <div className="flex flex-col gap-3 w-full max-w-[320px]">
+          {/* Top row: Favorite, Stars */}
           <div className="flex items-center gap-4 w-full justify-end">
             {!hideSocialActions && (
               <>
@@ -209,14 +208,14 @@ export default function BottomPlayer() {
                 </button>
                 
                 {/* Star Rating */}
-                <div className={`flex items-center justify-center gap-0.5 flex-1 ${role === 'listener' ? 'pointer-events-none opacity-50' : ''}`} onMouseLeave={() => {}}>
+                <div className={`flex items-center justify-end gap-0.5 flex-1 max-w-[100px] ${role === 'listener' ? 'pointer-events-none opacity-50' : ''}`} onMouseLeave={() => {}}>
                   {[1, 2, 3, 4, 5].map(star => {
                     const currentRating = currentTrack.userRating || 0;
                     const isFilled = star <= currentRating;
                     return (
                       <button 
                         key={star} 
-                        className={`transition-colors ${isFilled ? 'text-primary' : 'text-white/20 hover:text-foreground/60'}`}
+                        className={`transition-colors ${isFilled ? 'text-primary' : 'text-foreground/30 hover:text-foreground/60'}`}
                         onClick={() => {
                           const newRating = currentRating === star ? 0 : star;
                           setTrackRating(currentTrack.id, newRating);
@@ -229,44 +228,32 @@ export default function BottomPlayer() {
                 </div>
               </>
             )}
-
-            {!hideAutoDJ && (
-              <button 
-                onClick={toggleAutoDj}
-                disabled={role === 'listener'}
-                className={`text-[10px] font-bold tracking-widest transition-colors w-16 text-right disabled:opacity-50 ${isAutoDjEnabled ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
-              >
-                {t('player.auto_dj')}
-              </button>
-            )}
           </div>
 
           {/* Bottom row: Expand & Volume */}
-          <div className="flex items-center gap-4 w-full">
+          <div className="flex items-center gap-4 w-full justify-end">
             {/* Expand Now Playing View or Maximize Jam */}
             {role === 'listener' ? (
               <div className="w-5" /> // Placeholder for alignment
             ) : (isJamRoute && role !== 'host') ? (
               <button 
                 onClick={() => setIsMinimized(!isMinimized)}
-                className={`transition-colors flex items-center justify-center w-5 ${!isMinimized ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+                className={`transition-colors flex items-center justify-center w-5 mr-auto ${!isMinimized ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
                 title={isMinimized ? t('player.expand') : t('player.minimize_session')}
               >
                 <Maximize2 size={16} />
               </button>
             ) : (
-              <>
-                <div className="flex items-center gap-4 mr-auto">
-                  <HoladConnectMenu />
-                  <button 
-                    onClick={toggleNowPlaying}
-                    className={`transition-colors flex items-center justify-center w-5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
-                    title={t('player.now_playing')}
-                  >
-                    <Maximize2 size={16} />
-                  </button>
-                </div>
-              </>
+              <div className="flex items-center gap-4 mr-auto">
+                <HoladConnectMenu />
+                <button 
+                  onClick={toggleNowPlaying}
+                  className={`transition-colors flex items-center justify-center w-5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+                  title={t('player.now_playing')}
+                >
+                  <Maximize2 size={16} />
+                </button>
+              </div>
             )}
             
             <div className="flex items-center gap-3 flex-1 min-w-0 justify-end">
@@ -290,6 +277,16 @@ export default function BottomPlayer() {
               </div>
               <span className="hidden md:block text-xs font-bold w-9 text-right flex-shrink-0">{Math.round((dragVolume !== null ? dragVolume : volume) * 100)}%</span>
             </div>
+
+            {!hideAutoDJ && (
+              <button 
+                onClick={toggleAutoDj}
+                disabled={role === 'listener'}
+                className={`text-[10px] font-bold tracking-widest transition-colors w-16 text-right disabled:opacity-50 flex-shrink-0 ${isAutoDjEnabled ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+              >
+                {t('player.auto_dj')}
+              </button>
+            )}
           </div>
         </div>
       </div>

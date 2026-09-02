@@ -38,7 +38,18 @@ function ThemeOption({ label, value, current, onSelect }: { label: string, value
   return (
     <button 
       onClick={() => onSelect(value)}
-      className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium transition-colors ${current === value ? 'border-primary text-primary bg-primary/5' : 'border-white/10 text-secondary hover:border-white/30 hover:text-foreground'}`}
+      className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium shadow-sm transition-colors ${current === value ? 'border-primary text-primary bg-primary/5' : 'border-foreground/10 text-secondary hover:border-foreground/30 hover:text-foreground'}`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function AppIconOption({ label, value, current, onSelect }: { label: string, value: 'wave_dark' | 'wave_light' | 'cassette', current: string, onSelect: (v: any) => void }) {
+  return (
+    <button 
+      onClick={() => onSelect(value)}
+      className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium shadow-sm transition-colors ${current === value ? 'border-primary text-primary bg-primary/5' : 'border-foreground/10 text-secondary hover:border-foreground/30 hover:text-foreground'}`}
     >
       {label}
     </button>
@@ -235,29 +246,31 @@ export default function MobileSettingsView() {
               className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
             />
           </label>
-          <div className="bg-black/20 p-4 rounded-xl">
-            <div className="relative mb-2">
-              <input 
-                type={showLastFmKey ? "text" : "password"}
-                placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
-                value={settings.lastFmKey}
-                onChange={(e) => settings.setLastFmKey(e.target.value)}
-                className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
-              />
-              <button 
-                type="button"
-                onClick={() => setShowLastFmKey(!showLastFmKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
-              >
-                {showLastFmKey ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+          {settings.useLastFm && (
+            <div className="bg-black/20 p-4 rounded-xl">
+              <div className="relative mb-2">
+                <input 
+                  type={showLastFmKey ? "text" : "password"}
+                  placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
+                  value={settings.lastFmKey}
+                  onChange={(e) => settings.setLastFmKey(e.target.value)}
+                  className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowLastFmKey(!showLastFmKey)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
+                >
+                  {showLastFmKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <p className="text-xs text-secondary">
+                {t('settings.lastfm_get_key_part1')}<a href="https://www.last.fm/api/authentication" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.lastfm_get_key_link')}</a>{t('settings.lastfm_get_key_part2')}
+                <br />
+                <span className="text-red-400 font-medium block mt-1">{t('settings.lastfm_vpn_warning')}</span>
+              </p>
             </div>
-            <p className="text-xs text-secondary">
-              {t('settings.lastfm_get_key_part1') || 'Регистрация новых API ключей '}<span className="text-red-400 font-medium">{t('settings.lastfm_get_key_link') || 'временно приостановлена Last.fm'}</span>{t('settings.lastfm_get_key_part2') || ' (Error 403). Существующие ключи работают.'}
-              <br />
-              <span className="text-red-400 font-medium block mt-1">{t('settings.lastfm_vpn_warning', 'Внимание: В РФ доступ к Last.fm заблокирован, для работы требуется VPN.')}</span>
-            </p>
-          </div>
+          )}
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">
             <div className="flex flex-col pr-4">
               <span className="text-[15px] font-medium text-white">{t('settings.yandex_music') || 'Яндекс.Музыка'}</span>
@@ -269,27 +282,29 @@ export default function MobileSettingsView() {
               className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
             />
           </label>
-          <div className="bg-black/20 p-4 rounded-xl">
-            <div className="relative mb-2">
-              <input 
-                type={showYandexToken ? "text" : "password"}
-                placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
-                value={settings.yandexToken}
-                onChange={(e) => settings.setYandexToken(e.target.value)}
-                className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
-              />
-              <button 
-                type="button"
-                onClick={() => setShowYandexToken(!showYandexToken)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
-              >
-                {showYandexToken ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+          {settings.useYandex && (
+            <div className="bg-black/20 p-4 rounded-xl">
+              <div className="relative mb-2">
+                <input 
+                  type={showYandexToken ? "text" : "password"}
+                  placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
+                  value={settings.yandexToken}
+                  onChange={(e) => settings.setYandexToken(e.target.value)}
+                  className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowYandexToken(!showYandexToken)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
+                >
+                  {showYandexToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <p className="text-xs text-secondary">
+                {t('settings.yandex_token_desc_part1')}<a href="https://github.com/MarshalX/yandex-music-api/discussions/513" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.yandex_token_desc_link')}</a>{t('settings.yandex_token_desc_part2')}
+              </p>
             </div>
-            <p className="text-xs text-secondary">
-              {t('settings.yandex_token_desc_part1') || 'Токен Яндекс.Музыки. Можно получить через расширение Яндекс.Музыка Token или '}<a href="https://github.com/MarshalX/yandex-music-api/discussions/513" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.yandex_token_desc_link') || 'инструкцию'}</a>{t('settings.yandex_token_desc_part2') || '.'}
-            </p>
-          </div>
+          )}
         </div>
       )
     },
@@ -309,6 +324,15 @@ export default function MobileSettingsView() {
             </div>
           </div>
           
+          <div className="flex flex-col gap-3">
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('settings.appIcon') || 'App Icon'}</span>
+            <div className="flex gap-2">
+              <AppIconOption label="Wave Dark" value="wave_dark" current={settings.appIcon} onSelect={settings.setAppIcon} />
+              <AppIconOption label="Wave Light" value="wave_light" current={settings.appIcon} onSelect={settings.setAppIcon} />
+              <AppIconOption label="Cassette" value="cassette" current={settings.appIcon} onSelect={settings.setAppIcon} />
+            </div>
+          </div>
+
           <div className="flex flex-col gap-3">
             <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_accent')}</span>
             <div className="flex gap-2 flex-wrap">
@@ -340,12 +364,12 @@ export default function MobileSettingsView() {
                       isSelected 
                         ? 'border-primary ring-2 ring-primary' 
                         : isEmpty 
-                          ? 'border-dashed border-white/20 hover:bg-foreground/10'
+                          ? 'border-dashed border-foreground/20 hover:bg-foreground/10'
                           : 'border-white/10 hover:border-white/30'
                     }`}
                     style={color ? { backgroundColor: color } : {}}
                   >
-                    {isEmpty && <span className="text-white/40 text-lg font-light">+</span>}
+                    {isEmpty && <span className="text-foreground/40 text-lg font-light">+</span>}
                     {isSelected && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
                         <Pencil size={14} className="text-[#b3b3b3]" />

@@ -6,7 +6,7 @@ import { getAudioEngine } from '../../audio/AudioEngine';
 import JamSessionControl from '../jam/JamSessionControl';
 import FullScreenPlayerUI from '../common/FullScreenPlayerUI';
 import { getSong, getCoverArtUrl, getAlbumFull } from '../../api/subsonic';
-import { Routes, Route, Navigate, Link, NavLink } from 'react-router-dom';
+import { Routes, Route, Navigate, Link, NavLink, useNavigate } from 'react-router-dom';
 import MobileJamPlayerUI from '../player/MobileJamPlayerUI';
 import TopBar from './TopBar';
 import AlbumsView from '../views/AlbumsView';
@@ -21,14 +21,18 @@ import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import LanguageSelector from '../common/LanguageSelector';
 import ThemeSelector from '../common/ThemeSelector';
+import { useSettingsStore } from '../../store/settingsStore';
 
 export default function JamLayout() {
   const { t } = useTranslation();
+  const appIcon = useSettingsStore(state => state.appIcon);
   const [searchParams] = useSearchParams();
   const roomToJoin = searchParams.get('room');
   const trackId = searchParams.get('track');
   const albumId = searchParams.get('album');
+  const playlistId = searchParams.get('playlist');
   const { setQueueAndPlay, queue, currentIndex, jamError, role, userName, isMinimized, setIsMinimized, setUserName } = usePlayerStore();
+  const navigate = useNavigate();
   
   const [localName, setLocalName] = useState('');
   const hasJoined = useRef(false);
@@ -46,7 +50,24 @@ export default function JamLayout() {
   // Standalone Track/Album initialization
   useEffect(() => {
     let ignore = false;
-    if (trackId && trackId.trim() !== '' && !roomToJoin) {
+
+    if (roomToJoin) {
+      if (albumId) {
+        navigate(`/jam/library/album/${albumId}?room=${roomToJoin}`, { replace: true });
+      } else if (playlistId) {
+        navigate(`/jam/library/playlist/${playlistId}?room=${roomToJoin}`, { replace: true });
+      } else if (trackId && trackId.trim() !== '') {
+        getSong(trackId).then(t => {
+          if (ignore) return;
+          if (t && t.albumId) {
+            navigate(`/jam/library/album/${t.albumId}?room=${roomToJoin}`, { replace: true });
+          }
+        });
+      }
+      return () => { ignore = true; };
+    }
+
+    if (trackId && trackId.trim() !== '') {
       usePlayerStore.setState({ queue: [], currentIndex: 0, isAutoDjEnabled: false });
       getSong(trackId).then(t => {
         if (ignore) return;
@@ -89,7 +110,7 @@ export default function JamLayout() {
       }).catch(() => {});
     }
     return () => { ignore = true; };
-  }, [trackId, albumId, roomToJoin, setQueueAndPlay]);
+  }, [trackId, albumId, playlistId, roomToJoin, setQueueAndPlay, navigate]);
 
   // Handle unmounting of JamLayout (leaving /jam/ routes entirely)
   useEffect(() => {
@@ -247,7 +268,7 @@ export default function JamLayout() {
         <div className="flex-1 overflow-hidden relative h-full flex flex-row bg-background pb-[56px] md:pb-0">
           <div className="hidden md:flex w-24 bg-background flex-col items-center py-4 border-r border-white/5 relative z-10 space-y-6">
             <div className="text-foreground flex flex-col items-center justify-center gap-2 px-2 w-full mb-2">
-              <img src={`${import.meta.env.BASE_URL}icons/logo_cassette.png`} alt="Holad" className="w-14 h-14 rounded-lg shadow-lg object-cover flex-shrink-0 cursor-default" />
+              <img src={`${import.meta.env.BASE_URL}icons/${appIcon === 'cassette' ? 'logo_cassette.png' : appIcon === 'wave_light' ? 'favicon_light.png' : 'favicon_dark.png'}`} alt="Holad" className="w-14 h-14 rounded-lg shadow-lg object-cover flex-shrink-0 cursor-default" />
             </div>
             <div className="flex-1 w-full flex flex-col gap-6 pt-4">
               <Link to={`/jam/albums?room=${roomToJoin}`} className="w-full flex flex-col items-center gap-1 transition-colors group text-secondary hover:text-foreground">
@@ -279,13 +300,13 @@ export default function JamLayout() {
             <div className="hidden md:block">
               <TopBar />
             </div>
-            <div className="md:hidden px-4 pt-4 pb-2 sticky top-0 bg-background/95 backdrop-blur-xl z-20 border-b border-white/5">
+            <div className="md:hidden px-4 pt-4 pb-2 sticky top-0 bg-background/95 backdrop-blur-xl z-20 border-b border-border">
               <div 
-                className="flex items-center bg-[#282828] rounded-xl px-3 py-2.5 border border-white/5 cursor-text"
+                className="flex items-center bg-card rounded-xl px-3 py-2.5 border border-border cursor-text"
                 onClick={() => useUIStore.getState().setSearchOpen(true)}
               >
-                <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
-                <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
+                <Search size={20} className="text-secondary mr-2 pointer-events-none" />
+                <div className="bg-transparent text-secondary outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
                   {t('topbar.search')}
                 </div>
               </div>
@@ -332,7 +353,7 @@ export default function JamLayout() {
 function MobileJamNav({ roomToJoin, role }: { roomToJoin: string | null, role: string | null }) {
   const { t } = useTranslation();
   return (
-    <div className="md:hidden flex items-center justify-around bg-[#121212]/70 backdrop-blur-2xl border-t border-white/10 h-[56px] pb-[env(safe-area-inset-bottom)] px-4 z-50 rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.4)] fixed bottom-0 left-0 right-0">
+    <div className="md:hidden flex items-center justify-around bg-background/80 backdrop-blur-2xl border-t border-border h-[56px] pb-[env(safe-area-inset-bottom)] px-4 z-50 rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.4)] fixed bottom-0 left-0 right-0">
       <NavLink to={`/jam/albums?room=${roomToJoin}`} className={({isActive}) => `flex flex-col items-center gap-0.5 p-1 flex-1 transition-colors ${isActive ? 'text-primary' : 'text-secondary'}`}><Disc size={26}/><span className="text-[10px] font-bold">{t('sidebar.albums')}</span></NavLink>
       {(role === 'cohost' || role === 'host') && (
         <>

@@ -222,7 +222,7 @@ export default function StorageDangerZone({
                   ? 'bg-green-500/20 text-green-400 border border-green-500/40'
                   : imageState === 'confirm'
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
-                    : 'bg-foreground/10 hover:bg-white/20 text-white border border-white/10'
+                    : 'bg-foreground/10 hover:bg-foreground/20 text-foreground border border-foreground/10'
               }`}
             >
               {imageState === 'in_progress' && <Loader2 size={14} className="animate-spin" />}
@@ -262,7 +262,7 @@ export default function StorageDangerZone({
                   ? 'bg-green-500/20 text-green-400 border border-green-500/40'
                   : metadataState === 'confirm'
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
-                    : 'bg-foreground/10 hover:bg-white/20 text-white border border-white/10'
+                    : 'bg-foreground/10 hover:bg-foreground/20 text-foreground border border-foreground/10'
               }`}
             >
               {metadataState === 'in_progress' && <Loader2 size={14} className="animate-spin" />}

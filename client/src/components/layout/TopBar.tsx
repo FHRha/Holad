@@ -72,11 +72,11 @@ export default function TopBar() {
   };
 
   return (
-    <div className="sticky top-0 z-50 h-16 bg-background transform-gpu border-b border-white/5 flex items-center justify-between px-4 w-full">
+    <div className="sticky top-0 z-50 h-16 bg-background transform-gpu border-b border-border flex items-center justify-between px-4 w-full">
       <div className="w-10 flex justify-center items-center">
         <button 
           onClick={toggleLeftSidebar} 
-          className="text-secondary hover:text-foreground transition-colors p-2"
+          className="h-10 w-10 flex items-center justify-center rounded-full bg-foreground/5 hover:bg-foreground/10 text-secondary hover:text-foreground transition-colors shrink-0"
           title={t('common.toggle_menu')}
         >
           <PanelLeft size={20} />
@@ -88,8 +88,8 @@ export default function TopBar() {
           data-testid="desktop-offline-chip"
           className={`h-10 px-4 rounded-full flex items-center justify-center gap-2 transition-all shrink-0 cursor-pointer border ${
             isOffline 
-              ? 'bg-primary text-white border-transparent shadow-md hover:scale-105 active:scale-95' 
-              : 'bg-zinc-200 dark:bg-zinc-800 text-secondary border-transparent hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-foreground'
+              ? 'bg-primary text-foreground border-transparent shadow-md hover:scale-105 active:scale-95' 
+              : 'bg-foreground/5 text-secondary border-transparent hover:bg-foreground/10 hover:text-foreground'
           }`}
           title={isOffline ? t('common.offline') : t('common.go_offline')}
         >
@@ -97,7 +97,7 @@ export default function TopBar() {
           <span className="text-sm font-bold hidden lg:inline">{isOffline ? t('common.offline') : t('common.go_offline')}</span>
         </button>
         <div className="relative w-full" ref={containerRef}>
-          <div className="relative flex items-center w-full bg-foreground/10 rounded-full hover:bg-white/15 transition-colors focus-within:bg-white/15 focus-within:ring-2 focus-within:ring-primary/50">
+          <div className="relative flex items-center w-full bg-foreground/5 rounded-full hover:bg-foreground/10 transition-colors focus-within:bg-foreground/10 focus-within:ring-2 focus-within:ring-primary/50">
           <Search size={20} className="text-secondary ml-4" />
           <input 
             ref={inputRef}
@@ -120,7 +120,7 @@ export default function TopBar() {
 
         {/* Dropdown Results */}
         {isSearchOpen && (query.trim().length >= 2 || loading) && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-card transform-gpu border border-white/10 rounded-xl shadow-2xl max-h-[70vh] overflow-y-auto hide-scrollbar p-4 animate-in fade-in slide-in-from-top-2 duration-200 z-[60]">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-card transform-gpu border border-border rounded-xl shadow-2xl max-h-[70vh] overflow-y-auto hide-scrollbar p-4 animate-in fade-in slide-in-from-top-2 duration-200 z-[60]">
             
             {loading && (
               <div className="flex justify-center items-center py-8">
@@ -146,7 +146,7 @@ export default function TopBar() {
                       {results.song.slice(0, 5).map(track => (
                         <div 
                           key={track.id}
-                          className="group flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                          className="group flex items-center gap-3 p-2 rounded-lg hover:bg-foreground/5 transition-colors cursor-pointer"
                           onClick={() => handlePlaySong(track)}
                           onContextMenu={(e) => {
                             e.preventDefault();
@@ -189,12 +189,12 @@ export default function TopBar() {
                             openMenu(e.clientX, e.clientY, album, 'album');
                           }}
                         >
-                          <div className="aspect-square bg-white/5">
+                          <div className="aspect-square bg-foreground/5">
                             <img src={getCoverArtUrl(album.coverArt || album.id, 300)} loading="lazy" className="w-full h-full object-cover" alt="" />
                           </div>
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
-                            <p className="font-bold text-xs text-white truncate drop-shadow-md">{album.name}</p>
-                            <p className="text-[10px] text-white/80 truncate drop-shadow-md">{formatArtistName(album.artist)}</p>
+                            <p className="font-bold text-xs text-foreground truncate drop-shadow-md">{album.name}</p>
+                            <p className="text-[10px] text-foreground/80 truncate drop-shadow-md">{formatArtistName(album.artist)}</p>
                           </div>
                         </div>
                       ))}
@@ -213,7 +213,7 @@ export default function TopBar() {
                         <div 
                           key={artist.id}
                           onClick={() => navigateToArtist(artist)}
-                          className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-foreground/10 border border-white/5 cursor-pointer text-xs font-medium transition-colors"
+                          className="px-3 py-1.5 rounded-full bg-foreground/5 hover:bg-foreground/10 border border-border cursor-pointer text-xs font-medium transition-colors"
                         >
                           {formatArtistName(artist.name)}
                         </div>
@@ -244,7 +244,7 @@ export default function TopBar() {
           </button>
           
           {showSession && (
-            <div className="absolute top-full right-0 mt-2 p-4 bg-card transform-gpu border border-white/10 rounded-xl shadow-2xl w-80 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute top-full right-0 mt-2 p-4 bg-card transform-gpu border border-border rounded-xl shadow-2xl w-80 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
               <h3 className="font-bold text-center mb-1">{t('common.jam_session_title')}</h3>
               <p className="text-xs text-secondary text-center mb-2">{t('common.jam_session_desc')}</p>
               <JamSessionControl />
