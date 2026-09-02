@@ -168,7 +168,7 @@ export default function AlbumView() {
                   }}
                   onClick={() => {
                     if (excludedTrackIds.includes(track.id)) {
-                      if (window.confirm(t('common.unignore_prompt', 'Убрать ли из игнора трек?'))) {
+                      if (window.confirm(t('common.unignore_prompt', { defaultValue: 'Убрать ли из игнора трек?' }))) {
                         toggleTrackExclude(track.id);
                         handlePlaySong(index);
                       }
@@ -176,7 +176,7 @@ export default function AlbumView() {
                       handlePlaySong(index);
                     }
                   }}
-                  className={`flex items-center px-2 sm:px-4 py-2 sm:py-3 rounded-lg cursor-pointer group hover:bg-foreground/5 transition-colors ${currentPlaying ? 'bg-foreground/10' : ''} ${excludedTrackIds.includes(track.id) ? 'opacity-50 grayscale' : ''}`}
+                  className={`flex items-center px-2 sm:px-4 py-2 sm:py-3 rounded-lg cursor-pointer group hover:bg-foreground/5 transition-colors ${currentPlaying ? 'bg-foreground/10' : ''}`}
                 >
                   <div className="w-8 sm:w-12 text-center text-xs sm:text-sm font-medium text-secondary">
                     {currentPlaying ? (
@@ -188,7 +188,7 @@ export default function AlbumView() {
                       </>
                     )}
                   </div>
-                  <div className="flex-1 flex flex-col min-w-0 pr-2 sm:pr-4">
+                  <div className={`flex-1 flex flex-col min-w-0 pr-2 sm:pr-4 ${excludedTrackIds.includes(track.id) ? 'opacity-50 grayscale' : ''}`}>
                     <span className={`flex items-center gap-2 text-sm sm:text-base font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-foreground'}`}>
                       <span className="truncate">{track.title}</span>
                       {isTrackDownloaded && <Download size={14} className="text-primary shrink-0" />}

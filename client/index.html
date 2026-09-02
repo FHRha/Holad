@@ -13,10 +13,12 @@
   <body style="background-color: transparent; color: #fff;">
     <script>
       window.addEventListener('error', (e) => {
-        document.body.insertAdjacentHTML('beforeend', '<div style="position:absolute;top:0;left:0;z-index:9999;background:red;color:white;font-size:24px;">' + (e.error ? e.error.stack : e.message) + '</div>');
+        const msg = (e.error && e.error.stack) ? e.error.stack : (e.error ? e.error.message : e.message);
+        document.body.insertAdjacentHTML('beforeend', '<div style="position:absolute;top:0;left:0;z-index:9999;background:red;color:white;font-size:24px;">' + msg + '</div>');
       });
       window.addEventListener('unhandledrejection', (e) => {
-        document.body.insertAdjacentHTML('beforeend', '<div style="position:absolute;top:0;left:0;z-index:9999;background:red;color:white;font-size:24px;">' + (e.reason ? e.reason.stack : 'Reject') + '</div>');
+        const msg = (e.reason && e.reason.stack) ? e.reason.stack : (e.reason ? e.reason.message : e.reason);
+        document.body.insertAdjacentHTML('beforeend', '<div style="position:absolute;top:0;left:0;z-index:9999;background:red;color:white;font-size:24px;">' + msg + '</div>');
       });
     </script>
     <div id="root"></div>

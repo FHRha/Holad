@@ -173,7 +173,7 @@ export default function RightSidebar() {
         trackIds={queue.map((t: any) => t.id)} 
       />
       <div 
-        className={`hidden md:flex flex-col h-full text-sm relative z-[60] flex-shrink-0 transition-[max-width,background-color] ${isSmall ? 'bg-gradient-to-r from-transparent to-background/90 border-l border-transparent' : 'bg-background border-l border-white/5'}`}
+        className={`hidden md:flex flex-col h-full text-sm relative z-[60] flex-shrink-0 transition-[max-width,background-color] ${isSmall ? 'bg-gradient-to-r from-transparent to-background/90 border-l border-transparent' : 'bg-background border-l border-border'}`}
         style={{ width: rightSidebarWidth, maxWidth: '35vw' }}
       >
         {/* Resizer */}
@@ -191,11 +191,11 @@ export default function RightSidebar() {
                     <Share size={16} />
                   </button>
                   {showShareMenu && (
-                    <div className="absolute top-full right-0 mt-2 py-1 bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl z-[60] flex flex-col min-w-[180px]">
-                      <button onClick={handleDownloadAlbum} className="text-left px-4 py-2 hover:bg-foreground/10 text-sm text-white font-medium transition-colors flex items-center gap-3 whitespace-nowrap">
+                    <div className="absolute top-full right-0 mt-2 py-1 bg-card border border-border rounded-lg shadow-2xl z-[60] flex flex-col min-w-[180px]">
+                      <button onClick={handleDownloadAlbum} className="text-left px-4 py-2 hover:bg-foreground/10 text-sm text-foreground font-medium transition-colors flex items-center gap-3 whitespace-nowrap">
                         <Download size={18} className="shrink-0" /> {t('common.download_album')}
                       </button>
-                      <button onClick={handleShareItem} className={`text-left px-4 py-2 hover:bg-foreground/10 text-sm font-medium transition-colors border-t border-white/5 flex items-center gap-3 whitespace-nowrap ${isCopied ? 'text-primary' : 'text-white'}`}>
+                      <button onClick={handleShareItem} className={`text-left px-4 py-2 hover:bg-foreground/10 text-sm font-medium transition-colors border-t border-border flex items-center gap-3 whitespace-nowrap ${isCopied ? 'text-primary' : 'text-foreground'}`}>
                         <Share size={18} className="shrink-0" /> {isCopied ? t('common.copied') : t('common.share_album')}
                       </button>
                     </div>
@@ -208,7 +208,7 @@ export default function RightSidebar() {
               </div>
             </div>
 
-            <div className="flex pl-4 pr-8 py-2 text-xs font-semibold tracking-wider text-secondary border-b border-white/5 uppercase">
+            <div className="flex pl-4 pr-8 py-2 text-xs font-semibold tracking-wider text-secondary border-b border-border uppercase">
               <div className="w-8">#</div>
               <div className="flex-1">{t('player.title')}</div>
               <div className="w-10 text-right"><Clock size={14} className="inline-block" /></div>
@@ -242,7 +242,7 @@ export default function RightSidebar() {
                       {...listeners}
                       onClick={() => playTrack(idx)}
                       onLongPress={(e: any) => handleContextMenu(e, track, idx)}
-                      className={`flex items-center ${isSmall ? 'justify-center p-1 hover:scale-105 transition-transform' : `px-2 py-2 rounded-md ${isPlaying ? 'bg-foreground/10' : 'hover:bg-white/5'}`} cursor-grab active:cursor-grabbing group ${isDragging ? 'opacity-30' : ''}`}
+                      className={`flex items-center ${isSmall ? 'justify-center p-1 hover:scale-105 transition-transform' : `px-2 py-2 rounded-md ${isPlaying ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`} cursor-grab active:cursor-grabbing group ${isDragging ? 'opacity-30' : ''}`}
                       title={isSmall ? `${track.title} • ${formatArtistName(track.artist)}` : undefined}
                     >
                       {!isSmall && (
@@ -254,7 +254,7 @@ export default function RightSidebar() {
                         <TrackImage src={track.coverArt || getCoverArtUrl(track.id, 100)} className="w-full h-full rounded object-cover pointer-events-none" alt="" trackId={track.id} />
                         {isSmall && (
                           <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} pointer-events-none`}>
-                            <Play size={16} className={isPlaying ? "text-primary stroke-none" : "text-white stroke-none"} fill="currentColor" />
+                            <Play size={16} className={isPlaying ? "text-primary stroke-none" : "text-foreground stroke-none"} fill="currentColor" />
                           </div>
                         )}
                       </div>

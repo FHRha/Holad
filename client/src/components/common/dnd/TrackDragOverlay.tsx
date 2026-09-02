@@ -79,8 +79,8 @@ export default function TrackDragOverlay({ track, grabOffset = 0.5 }: TrackDragO
         <TrackImage src={track.coverArt} className="w-full h-full object-cover" alt="" />
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-center">
-        <p className="truncate text-base font-bold text-white drop-shadow-md">{track.title}</p>
-        <p className="truncate text-sm text-white/70">{formatArtistName(track.artist)}</p>
+        <p className="truncate text-base font-bold text-foreground drop-shadow-md">{track.title}</p>
+        <p className="truncate text-sm text-foreground/70">{formatArtistName(track.artist)}</p>
       </div>
     </motion.div>
   );

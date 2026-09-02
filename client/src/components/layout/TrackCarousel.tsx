@@ -63,14 +63,14 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
         <div className="flex gap-2">
           <button 
             onClick={() => scroll('left')} 
-            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-foreground/10 transition-colors ${!canScrollLeft ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 hover:bg-foreground/10 transition-colors ${!canScrollLeft ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollLeft}
           >
             <ChevronLeft size={20} />
           </button>
           <button 
             onClick={() => scroll('right')} 
-            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-foreground/10 transition-colors ${!canScrollRight ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 hover:bg-foreground/10 transition-colors ${!canScrollRight ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollRight}
           >
             <ChevronRight size={20} />
@@ -102,7 +102,7 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
             <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828] shadow-md group-hover:shadow-xl transition-all duration-300">
               <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 300)} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt={track.title || track.name} trackId={track.id} />
               
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+              <div className="absolute inset-0 bg-background/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                 <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center pl-1 text-black shadow-lg transform scale-90 group-hover:scale-100 transition-transform duration-300">
                   <Play fill="currentColor" size={24} />
                 </div>
@@ -117,7 +117,7 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
             </div>
             
             <div className="flex flex-col mt-1 px-1">
-              <span className="flex items-center gap-1.5 text-[15px] font-bold text-white truncate">
+              <span className="flex items-center gap-1.5 text-[15px] font-bold text-foreground truncate">
                 <span className="truncate">{track.title || track.name}</span>
                 {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
               </span>

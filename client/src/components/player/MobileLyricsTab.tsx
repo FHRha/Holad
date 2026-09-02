@@ -46,7 +46,7 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
       <div className="flex-1 overflow-y-auto hide-scrollbar px-6">
         <div className="flex flex-col items-center justify-start text-center py-6 min-h-full">
           {loadingLyrics ? (
-            <p className="text-white/50 animate-pulse text-base mt-20">{t('player.loading_lyrics')}</p>
+            <p className="text-secondary animate-pulse text-base mt-20">{t('player.loading_lyrics')}</p>
           ) : lrcLines.length > 0 ? (
             <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[30vh] pb-[30vh] w-full transition-all duration-300">
               {lrcLines.map((line, idx) => {
@@ -57,9 +57,9 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
                   return (
                     <div key={idx} className={`flex justify-center items-center gap-3 transition-all duration-500 py-4 ${isLyricActive ? 'scale-110' : 'opacity-40'}`}>
                       {[0, 1, 2].map(i => (
-                        <div key={i} className="w-2 h-2 rounded-full bg-white/20 relative overflow-hidden">
+                        <div key={i} className="w-2 h-2 rounded-full bg-secondary/40 relative overflow-hidden">
                           <div 
-                            className="absolute inset-0 bg-white transition-opacity duration-100"
+                            className="absolute inset-0 bg-secondary transition-opacity duration-100"
                             style={{ 
                               opacity: isLyricActive ? `calc((var(--interlude-progress, 0) - ${i * 0.33}) * 3)` : 0
                             }}
@@ -79,8 +79,8 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
                       isLyricActive 
                         ? 'text-primary scale-110 drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
                         : isPast 
-                          ? (isSectionHeader ? 'text-primary/40' : 'text-white/40')
-                          : (isSectionHeader ? 'text-primary/70' : 'text-white/30 hover:text-foreground/50')
+                          ? (isSectionHeader ? 'text-primary/40' : 'text-secondary/70')
+                          : (isSectionHeader ? 'text-primary/70' : 'text-secondary/50 hover:text-secondary')
                     } ${role !== 'listener' ? 'cursor-pointer' : ''}`}
                     onClick={() => {
                       if (role === 'listener') return;
@@ -111,7 +111,7 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
                     className={`${
                       isSectionHeader 
                         ? 'text-xs font-bold text-primary tracking-widest uppercase mt-4 mb-1' 
-                        : 'text-lg font-bold text-white/80'
+                        : 'text-lg font-bold text-foreground/80'
                     }`}
                   >
                     {text}
@@ -120,7 +120,7 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
               })}
             </div>
           ) : (
-            <div className="text-white/40 text-base flex flex-col items-center gap-2 mt-20">
+            <div className="text-secondary text-base flex flex-col items-center gap-2 mt-20">
               <p>{t('player.lyrics_not_found')}</p>
             </div>
           )}

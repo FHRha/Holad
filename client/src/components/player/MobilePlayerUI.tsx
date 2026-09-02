@@ -190,7 +190,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
           {activeTab === 'player' && (
             <div className="w-full h-full flex items-center justify-center">
               <div className="h-full max-h-full max-w-full aspect-square">
-                <TrackImage src={coverArtHighRes} className="w-full h-full rounded-3xl shadow-2xl object-cover border border-white/10 bg-black/20" alt={currentTrack.title} />
+                <TrackImage src={coverArtHighRes} className="w-full h-full rounded-3xl shadow-2xl object-cover border border-border bg-card" alt={currentTrack.title} />
               </div>
             </div>
           )}
@@ -210,7 +210,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
           {/* Track Info */}
           <div className="flex items-center justify-between">
             <div className="flex flex-col overflow-hidden mr-4">
-              <h1 className="text-2xl font-bold text-white truncate drop-shadow-md">{currentTrack.title}</h1>
+              <h1 className="text-2xl font-bold text-foreground truncate drop-shadow-md">{currentTrack.title}</h1>
               <h2 className="text-base text-secondary truncate drop-shadow-md">{formatArtistName(currentTrack.artist)}</h2>
             </div>
             <div className="flex items-center gap-1">
@@ -313,7 +313,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Very Bottom: Navigation Tabs */}
-      <div className="relative z-10 w-full h-[72px] flex-shrink-0 bg-black/40 backdrop-blur-md transform-gpu will-change-transform border-t border-white/5 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
+      <div className="relative z-10 w-full h-[72px] flex-shrink-0 bg-background/40 backdrop-blur-md transform-gpu will-change-transform border-t border-border flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
         <button onClick={() => setActiveTab('player')} className={`p-3 rounded-full transition-colors ${activeTab === 'player' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
           <Music size={24} />
         </button>
@@ -337,11 +337,11 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       {showSleepTimerMenu && (
         <div className="absolute inset-0 z-[200] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div 
-            className="w-full sm:w-[400px] bg-background/90 backdrop-blur-xl transform-gpu border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 flex flex-col gap-2 animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95"
+            className="w-full sm:w-[400px] bg-background/90 backdrop-blur-xl transform-gpu border border-border rounded-t-3xl sm:rounded-3xl p-6 flex flex-col gap-2 animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
                 <Moon size={24} className="text-primary" />
                 {t('player.sleepTimer')}
               </h3>
@@ -350,19 +350,19 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               </button>
             </div>
             
-            <button onClick={() => handleSetSleepTimer(15)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-white">
+            <button onClick={() => handleSetSleepTimer(15)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-foreground">
               <span>{t('player.timer.15m')}</span>
               {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) <= 15 && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 0 && <span className="w-2 h-2 rounded-full bg-primary" />}
             </button>
-            <button onClick={() => handleSetSleepTimer(30)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-white">
+            <button onClick={() => handleSetSleepTimer(30)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-foreground">
               <span>{t('player.timer.30m')}</span>
               {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 15 && Math.round((sleepTimer.endTime - Date.now()) / 60000) <= 30 && <span className="w-2 h-2 rounded-full bg-primary" />}
             </button>
-            <button onClick={() => handleSetSleepTimer(60)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-white">
+            <button onClick={() => handleSetSleepTimer(60)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-foreground">
               <span>{t('player.timer.60m')}</span>
               {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 30 && <span className="w-2 h-2 rounded-full bg-primary" />}
             </button>
-            <button onClick={() => handleSetSleepTimer('track_end')} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-white">
+            <button onClick={() => handleSetSleepTimer('track_end')} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-foreground">
               <span>{t('player.timer.trackEnd')}</span>
               {sleepTimer.type === 'track_end' && <span className="w-2 h-2 rounded-full bg-primary" />}
             </button>

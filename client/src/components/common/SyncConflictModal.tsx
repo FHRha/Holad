@@ -26,13 +26,13 @@ export default function SyncConflictModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center gap-4 mb-4 text-orange-400">
           <div className="p-3 bg-orange-400/10 rounded-full">
             <AlertTriangle size={32} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">{t('sync.title')}</h2>
+            <h2 className="text-xl font-bold text-foreground">{t('sync.title')}</h2>
             <p className="text-sm">{t('sync.conflict')}</p>
           </div>
         </div>
@@ -53,7 +53,7 @@ export default function SyncConflictModal() {
           </button>
           <button 
             onClick={handleWipe}
-            className="flex items-center justify-center gap-2 w-full py-3 bg-white/5 text-red-400 font-bold rounded-xl hover:bg-foreground/10 transition-colors"
+            className="flex items-center justify-center gap-2 w-full py-3 bg-foreground/5 text-red-400 font-bold rounded-xl hover:bg-foreground/10 transition-colors"
           >
             <Trash2 size={18} />
             {t('sync.delete_everywhere')}

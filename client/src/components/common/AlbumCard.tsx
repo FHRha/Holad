@@ -190,7 +190,7 @@ export default function AlbumCard({ album }: { album: any }) {
       className="group relative bg-card hover:bg-accent rounded-xl cursor-pointer flex flex-col p-4 flex-shrink-0 transition-colors duration-300 shadow-sm hover:shadow-lg h-full"
       {...longPressProps}
     >
-      <div className="relative aspect-square overflow-hidden rounded-t-lg bg-black/20">
+      <div className="relative aspect-square overflow-hidden rounded-t-lg bg-background/20">
         <img 
           src={finalCoverUrl} 
           alt={album.name} 
@@ -229,13 +229,13 @@ export default function AlbumCard({ album }: { album: any }) {
         {/* Mobile Info Overlay (Stars and Heart) */}
         <div className="md:hidden absolute bottom-2 left-2 right-2 flex justify-between items-center z-10 pointer-events-none">
           {rating > 0 && (
-            <div className="flex items-center gap-1 text-primary text-xs font-bold bg-black/40 px-1.5 py-0.5 rounded-full pointer-events-auto">
+            <div className="flex items-center gap-1 text-primary text-xs font-bold bg-background/40 px-1.5 py-0.5 rounded-full pointer-events-auto">
               <Star size={10} fill="currentColor" />
               {rating}
             </div>
           )}
           {isLiked && (
-            <div className="text-primary bg-black/40 p-1 rounded-full pointer-events-auto ml-auto">
+            <div className="text-primary bg-background/40 p-1 rounded-full pointer-events-auto ml-auto">
               <Heart size={14} fill="currentColor" className="border-none" />
             </div>
           )}
@@ -256,7 +256,7 @@ export default function AlbumCard({ album }: { album: any }) {
                   key={starValue} 
                   size={14} 
                   fill={starValue <= rating ? 'currentColor' : 'transparent'} 
-                  className={`hover:scale-125 transition-transform ${starValue > rating ? 'text-white/30' : ''}`} 
+                  className={`hover:scale-125 transition-transform ${starValue > rating ? 'text-foreground/30' : ''}`} 
                   onClick={(e) => handleRate(e, starValue)}
                 />
               ))}
@@ -266,7 +266,7 @@ export default function AlbumCard({ album }: { album: any }) {
           <div className="flex items-center justify-center gap-2 lg:gap-4 mt-2">
             <button 
               onClick={handlePlayNext}
-              className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
+              className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-background/40 hover:bg-black/60 text-foreground flex items-center justify-center transition-colors"
             >
               <ListPlus size={20} strokeWidth={1.5} />
             </button>
@@ -280,7 +280,7 @@ export default function AlbumCard({ album }: { album: any }) {
 
             <button 
               onClick={handleAddToQueue}
-              className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
+              className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-background/40 hover:bg-black/60 text-foreground flex items-center justify-center transition-colors"
             >
               <SkipForward size={20} strokeWidth={1.5} />
             </button>

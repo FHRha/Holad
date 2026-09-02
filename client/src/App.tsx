@@ -253,7 +253,7 @@ function App() {
     }
   }, []);
   const [serverUrlSet, setServerUrlSet] = useState(!!localStorage.getItem('holadServerUrl'));
-  const isHostedOnBackend = window.location.pathname.toLowerCase().includes('/holad');
+  const isHostedOnBackend = window.location.pathname.toLowerCase().includes('/holad') || window.location.pathname.toLowerCase().startsWith('/jam');
   const needsServerUrl = !serverUrlSet && !isHostedOnBackend;
   const theme = useSettingsStore(state => state.theme);
   const accentColor = useSettingsStore(state => state.accentColor);

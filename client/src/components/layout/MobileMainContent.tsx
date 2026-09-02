@@ -42,8 +42,8 @@ function ScrollableSection({ title, children, onRefresh }: { title: string, chil
   return (
     <section>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-white tracking-tight">{title}</h2>
-        <div className="flex items-center gap-3 text-[#b3b3b3]">
+        <h2 className="text-2xl font-bold text-foreground tracking-tight">{title}</h2>
+        <div className="flex items-center gap-3 text-secondary">
           {onRefresh && (
             <button onClick={() => {
               onRefresh();
@@ -235,20 +235,20 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
   return (
     <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32">
       {/* Search & Filter Chips */}
-      <div className="px-4 pt-4 pb-2 sticky top-0 bg-black/40 backdrop-blur-xl z-10">
+      <div className="px-4 pt-4 pb-2 sticky top-0 bg-background/80 backdrop-blur-xl z-10">
         <div className="flex items-center gap-3 mb-4">
           <div 
-            className="flex-1 flex items-center bg-[#282828] rounded-xl px-3 py-2.5 border border-white/5 cursor-text"
+            className="flex-1 flex items-center bg-card rounded-xl px-3 py-2.5 border border-border cursor-text"
             onClick={() => setSearchOpen(true)}
           >
-            <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
-            <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
+            <Search size={20} className="text-secondary mr-2 pointer-events-none" />
+            <div className="bg-transparent text-secondary outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
               {t('views.search_tracks')}
             </div>
           </div>
           <button 
             onClick={() => setIsJamModalOpen(true)}
-            className={`h-[44px] w-[44px] flex-shrink-0 flex items-center justify-center rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform ${roomId ? 'bg-primary text-background' : 'bg-[#282828] border border-white/5 text-[#b3b3b3]'}`}
+            className={`h-[44px] w-[44px] flex-shrink-0 flex items-center justify-center rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform ${roomId ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-secondary'}`}
           >
             <Users size={20} />
           </button>
@@ -282,8 +282,8 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
         {/* Listening History */}
         <section onClick={() => navigate('/Holad/history')} className="cursor-pointer group">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white tracking-tight group-hover:text-primary transition-colors">{t('views.listening_history')}</h2>
-            <ChevronRight size={24} className="text-[#b3b3b3] group-hover:text-foreground transition-colors" />
+            <h2 className="text-2xl font-bold text-foreground tracking-tight group-hover:text-primary transition-colors">{t('views.listening_history')}</h2>
+            <ChevronRight size={24} className="text-secondary group-hover:text-foreground transition-colors" />
           </div>
           <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
             <StatCard icon={<Music size={18} className="text-primary" />} value={stats.totalPlays.toString()} label={t('views.tracks_count_label')} />
@@ -298,11 +298,11 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
             <button 
               onClick={startRandomRadio}
               disabled={loadingStation === 'random'}
-              className="flex-shrink-0 flex items-center bg-primary text-white border border-transparent rounded-full pl-4 pr-3 py-2 font-bold text-[15px] transition-all hover:scale-105 active:scale-95 shadow-md disabled:opacity-50"
+              className="flex-shrink-0 flex items-center bg-primary text-primary-foreground border border-transparent rounded-full pl-4 pr-3 py-2 font-bold text-[15px] transition-all hover:scale-105 active:scale-95 shadow-md disabled:opacity-50"
             >
               {loadingStation === 'random' ? <Loader2 size={18} className="animate-spin mr-2" /> : <Shuffle size={18} className="mr-2" />}
               {t('common.shuffle')}
-              <div className="w-0 h-0 border-t-4 border-t-transparent border-l-6 border-l-white border-b-4 border-b-transparent ml-2"></div>
+              <div className="w-0 h-0 border-t-4 border-t-transparent border-l-6 border-l-current border-b-4 border-b-transparent ml-2"></div>
             </button>
             {visibleGenres.map((g, idx) => {
               const spotifyColors = [
@@ -329,10 +329,10 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
 
         {actualRecent.length === 0 && actualFrequent.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 py-16 text-center opacity-70">
-            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4">
+            <div className="w-20 h-20 bg-foreground/5 rounded-full flex items-center justify-center mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-secondary"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">{t('empty_state.title', 'Здесь пока пусто')}</h2>
+            <h2 className="text-xl font-bold text-foreground mb-2">{t('empty_state.title', 'Здесь пока пусто')}</h2>
             <p className="text-sm text-secondary">{t('empty_state.description', 'Добавьте музыку на сервер или загрузите для оффлайна')}</p>
           </div>
         ) : (
@@ -349,10 +349,10 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                       openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
                     }}
                   >
-                    <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828]">
+                    <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-card">
                       <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 300)} className="w-full h-full object-cover" alt={track.title || track.name} trackId={track.id} />
                       <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center pl-1 text-black">
+                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center pl-1 text-primary-foreground">
                           <Play fill="currentColor" size={20} />
                         </div>
                       </div>
@@ -364,11 +364,11 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                       )}
                     </div>
                     <div className="flex flex-col">
-                      <span className="flex items-center gap-1.5 text-[15px] font-bold text-white truncate">
+                      <span className="flex items-center gap-1.5 text-[15px] font-bold text-foreground truncate">
                         <span className="truncate">{track.title || track.name}</span>
                         {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
                       </span>
-                      <span className="text-[13px] text-[#b3b3b3] truncate">{track.artist}</span>
+                      <span className="text-[13px] text-secondary truncate">{track.artist}</span>
                     </div>
                   </LongPressWrapper>
                 ))}
@@ -404,7 +404,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                       openMenu(e.clientX, e.clientY, album, 'album');
                     }}
                   >
-                    <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828]">
+                    <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-card">
                       <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full object-cover" alt={album.name || album.title} trackId={album.id} />
                       {(album.userRating > 0) && (
                         <div className="absolute bottom-2 left-2 flex items-center gap-1 text-primary text-xs font-bold bg-black/40 px-1.5 py-0.5 rounded-full">
@@ -414,8 +414,8 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                       )}
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[15px] font-bold text-white truncate">{album.name || album.title}</span>
-                      <span className="text-[13px] text-[#b3b3b3] truncate">{album.artist}</span>
+                      <span className="text-[15px] font-bold text-foreground truncate">{album.name || album.title}</span>
+                      <span className="text-[13px] text-secondary truncate">{album.artist}</span>
                     </div>
                   </LongPressWrapper>
                 ))}
@@ -436,8 +436,8 @@ function FilterChip({ icon, label, isActive, onClick, testId }: { icon: React.Re
       data-testid={testId}
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
         isActive 
-          ? 'bg-primary text-white border-transparent shadow-md' 
-          : 'bg-zinc-200 dark:bg-zinc-800 text-[#b3b3b3] hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-foreground border-transparent'
+          ? 'bg-primary text-primary-foreground border-transparent shadow-md' 
+          : 'bg-card border-border text-secondary hover:text-foreground hover:bg-muted'
       }`}
     >
       {icon}
@@ -448,12 +448,12 @@ function FilterChip({ icon, label, isActive, onClick, testId }: { icon: React.Re
 
 function StatCard({ icon, value, label }: { icon: React.ReactNode, value: string, label: string }) {
   return (
-    <div className="flex flex-col items-center justify-center bg-[#181818] rounded-xl p-2 gap-1.5 overflow-hidden">
+    <div className="flex flex-col items-center justify-center bg-card rounded-xl p-2 gap-1.5 overflow-hidden">
       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-0.5">
         {icon}
       </div>
-      <span className="text-white font-bold text-sm leading-none truncate w-full text-center px-0.5">{value}</span>
-      <span className="text-[#b3b3b3] text-[10px] font-medium leading-none truncate w-full text-center">{label}</span>
+      <span className="text-foreground font-bold text-sm leading-none truncate w-full text-center px-0.5">{value}</span>
+      <span className="text-secondary text-[10px] font-medium leading-none truncate w-full text-center">{label}</span>
     </div>
   );
 }

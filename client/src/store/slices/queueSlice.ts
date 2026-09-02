@@ -20,6 +20,10 @@ const triggerPlay = () => {
   }
 };
 
+let lastNextTrackTime = 0;
+let lastPrevTrackTime = 0;
+
+
 export interface QueueSlice {
   queue: Track[];
   originalQueue: Track[];
@@ -164,6 +168,10 @@ export const createQueueSlice: StateCreator<
   }),
   
   nextTrack: () => {
+    const now = Date.now();
+    if (now - lastNextTrackTime < 300) return;
+    lastNextTrackTime = now;
+
     triggerPlay();
     set((state) => {
       if (state.repeatMode === 'one') {
@@ -179,6 +187,10 @@ export const createQueueSlice: StateCreator<
   },
   
   prevTrack: () => {
+    const now = Date.now();
+    if (now - lastPrevTrackTime < 300) return;
+    lastPrevTrackTime = now;
+
     triggerPlay();
     set((state) => {
       if (state.currentIndex > 0) {

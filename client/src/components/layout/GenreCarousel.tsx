@@ -116,14 +116,14 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
         <div className="flex gap-2">
           <button 
             onClick={() => scroll('left')} 
-            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-foreground/10 transition-colors ${!canScrollLeft ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 hover:bg-foreground/10 transition-colors ${!canScrollLeft ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollLeft}
           >
             <ChevronLeft size={20} />
           </button>
           <button 
             onClick={() => scroll('right')} 
-            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-foreground/10 transition-colors ${!canScrollRight ? 'opacity-30 cursor-not-allowed' : ''}`}
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 hover:bg-foreground/10 transition-colors ${!canScrollRight ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollRight}
           >
             <ChevronRight size={20} />
@@ -158,12 +158,12 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
                 </div>
                 
                 <div className="relative z-10 p-4 flex flex-col h-full justify-between">
-                  <h3 className="text-xl font-black text-white drop-shadow-md line-clamp-2 leading-tight">
+                  <h3 className="text-xl font-black text-foreground drop-shadow-md line-clamp-2 leading-tight">
                     {formatGenre(genre.value, t)}
                   </h3>
                   
                   <div className="flex justify-between items-end">
-                    <p className="text-xs text-white/80 font-bold drop-shadow-md">
+                    <p className="text-xs text-foreground/80 font-bold drop-shadow-md">
                       {genre.songCount} {t('views.tracks')}
                     </p>
                     <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out shadow-xl transform translate-y-2 group-hover:translate-y-0">

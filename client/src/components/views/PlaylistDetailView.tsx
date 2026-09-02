@@ -91,6 +91,10 @@ export default function PlaylistDetailView() {
       }
     };
     fetchPlaylistData();
+    
+    const handleUpdate = () => fetchPlaylistData();
+    window.addEventListener('playlists-updated', handleUpdate);
+    return () => window.removeEventListener('playlists-updated', handleUpdate);
   }, [id, isOffline]);
 
   const handleSave = async () => {

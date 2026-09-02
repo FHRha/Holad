@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, Pause, SkipBack, SkipForward, Heart, Maximize2, X, Music, XCircle } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Heart, Maximize2, X, Music, Ban } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
 import { useSettingsStore } from '../../store/settingsStore';
 
@@ -116,8 +116,8 @@ export default function TrayMenu() {
          const { getCurrentWindow, LogicalSize } = await import('@tauri-apps/api/window');
          const menuEl = document.getElementById('tray-menu-content');
          if (menuEl) {
-            const height = menuEl.offsetHeight + 16; // +16 for p-2 margins
-            await getCurrentWindow().setSize(new LogicalSize(320, height));
+            const height = menuEl.offsetHeight; // Removed padding logic to fix cutoff
+            await getCurrentWindow().setSize(new LogicalSize(280, height)); // Made narrower (280)
          }
        // oxlint-disable-next-line
        } catch (err) {}
@@ -158,67 +158,67 @@ export default function TrayMenu() {
   };
 
   return (
-    <div className="h-[100vh] w-[100vw] overflow-hidden p-2 bg-transparent">
-      <div id="tray-menu-content" className="w-full bg-zinc-900 text-white rounded-xl border border-white/10 flex flex-col shadow-2xl p-2 select-none" data-tauri-drag-region>
+    <div className="w-full h-full overflow-hidden bg-transparent">
+      <div id="tray-menu-content" className="w-full bg-zinc-900 text-white rounded-xl border border-white/10 flex flex-col p-1.5 select-none" data-tauri-drag-region>
         {/* Header */}
-        <div className="flex items-center gap-3 p-3 mb-1 border-b border-white/5 pointer-events-none">
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-            <Music className="text-primary w-4 h-4" />
+        <div className="flex items-center gap-2 p-2 mb-1 border-b border-white/5 pointer-events-none">
+          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
+            <Music className="text-primary w-3.5 h-3.5" />
           </div>
-          <div className="font-bold tracking-wider text-sm">
+          <div className="font-bold tracking-wider text-xs">
             HOLAD <span className="text-primary">{t('common.music')}</span>
           </div>
         </div>
 
         {/* Track Info */}
-        <div className="px-3 py-2 flex items-center gap-3 pointer-events-none">
+        <div className="px-2 py-1.5 flex items-center gap-2 pointer-events-none">
           {currentTrack ? (
             <>
               <img 
                 src={currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 100)} 
-                className="w-10 h-10 rounded-md object-cover shadow-md"
+                className="w-9 h-9 rounded-md object-cover shadow-sm"
                 alt="Cover"
               />
               <div className="flex-1 min-w-0">
-                <div className={`text-sm font-semibold truncate ${isPlaying ? 'text-primary' : 'text-white'}`}>{currentTrack.title}</div>
-                <div className="text-xs truncate text-white/50">{currentTrack.artist}</div>
+                <div className={`text-xs font-semibold truncate ${isPlaying ? 'text-primary' : 'text-white'}`}>{currentTrack.title}</div>
+                <div className="text-[11px] truncate text-white/50">{currentTrack.artist}</div>
               </div>
             </>
           ) : (
-            <div className="text-sm text-white/50 italic py-2">
+            <div className="text-xs text-white/50 italic py-1.5">
               {t('common.no_track')}
             </div>
           )}
         </div>
 
         {/* Controls */}
-        <div className="flex flex-col gap-1 mt-2">
-          <button onClick={() => handleAction('play_pause')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/10 transition-colors text-sm font-medium w-full text-left">
+        <div className="flex flex-col gap-0.5 mt-1">
+          <button onClick={() => handleAction('play_pause')} className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-foreground/10 transition-colors text-xs font-medium w-full text-left">
             {isPlaying ? <Pause className="w-4 h-4 text-primary" /> : <Play className="w-4 h-4 text-primary" />}
             <span className={isPlaying ? 'text-primary' : ''}>
               {isPlaying ? t('player.pause') : t('player.play')}
             </span>
           </button>
           
-          <button onClick={() => handleAction('next')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/10 transition-colors text-sm font-medium w-full text-left">
+          <button onClick={() => handleAction('next')} className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-foreground/10 transition-colors text-xs font-medium w-full text-left">
             <SkipForward className="w-4 h-4" />
             {t('player.next')}
           </button>
           
-          <button onClick={() => handleAction('prev')} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/10 transition-colors text-sm font-medium w-full text-left">
+          <button onClick={() => handleAction('prev')} className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-foreground/10 transition-colors text-xs font-medium w-full text-left">
             <SkipBack className="w-4 h-4" />
             {t('player.previous')}
           </button>
         </div>
 
-        <div className="h-px bg-white/5 my-2 mx-2"></div>
+        <div className="h-px bg-white/5 my-1.5 mx-1"></div>
 
         {/* Actions */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-0.5">
           <button 
             onClick={() => handleAction('favorite')}
             disabled={!currentTrack}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium w-full text-left ${currentTrack && isLiked ? 'text-primary hover:bg-primary/10' : 'hover:bg-foreground/10 disabled:opacity-50 disabled:hover:bg-transparent'}`}
+            className={`flex items-center gap-2.5 px-2 py-2 rounded-md transition-colors text-xs font-medium w-full text-left ${currentTrack && isLiked ? 'text-primary hover:bg-primary/10' : 'hover:bg-foreground/10 disabled:opacity-50 disabled:hover:bg-transparent'}`}
           >
             <Heart className={`w-4 h-4 ${currentTrack && isLiked ? 'fill-primary text-primary' : ''}`} />
             {currentTrack && isLiked 
@@ -229,20 +229,20 @@ export default function TrayMenu() {
           <button 
             onClick={() => handleAction('ignore')}
             disabled={!currentTrack}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium w-full text-left hover:bg-red-500/10 text-red-400 hover:text-red-300 disabled:opacity-50 disabled:hover:bg-transparent"
+            className="flex items-center gap-2.5 px-2 py-2 rounded-md transition-colors text-xs font-medium w-full text-left hover:bg-red-500/10 text-red-400 hover:text-red-300 disabled:opacity-50 disabled:hover:bg-transparent"
           >
-            <XCircle className="w-4 h-4" />
+            <Ban className="w-4 h-4" />
             {t('common.ignore') || 'Игнорировать'}
           </button>
 
-          <div className="h-px bg-white/5 my-2 mx-2"></div>
+          <div className="h-px bg-white/5 my-1.5 mx-1"></div>
 
-          <button onClick={showApp} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-foreground/10 transition-colors text-sm font-medium w-full text-left">
+          <button onClick={showApp} className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-foreground/10 transition-colors text-xs font-medium w-full text-left">
             <Maximize2 className="w-4 h-4" />
             {t('common.show_app')}
           </button>
 
-          <button onClick={quitApp} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors text-sm font-medium w-full text-left">
+          <button onClick={quitApp} className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors text-xs font-medium w-full text-left">
             <X className="w-4 h-4" />
             {t('common.quit')}
           </button>

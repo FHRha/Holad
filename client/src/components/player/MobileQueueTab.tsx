@@ -67,7 +67,7 @@ export default function MobileQueueTab() {
   return (
     <div className="w-full h-full flex flex-col pt-4 overflow-y-auto hide-scrollbar" ref={listRef}>
       <div className="flex items-center justify-between px-6 pb-2 mb-2">
-        <h3 className="text-lg font-bold text-white">
+        <h3 className="text-lg font-bold text-foreground">
           {t('player.next_in_queue')}
         </h3>
         {!readOnly && (
@@ -111,7 +111,7 @@ export default function MobileQueueTab() {
                     }}
                     className={`flex items-center w-full px-6 py-3 transition-colors ${
                       isPlaying ? 'bg-foreground/10' : ''
-                    } ${!readOnly ? 'cursor-grab active:cursor-grabbing active:bg-white/20' : ''} ${
+                    } ${!readOnly ? 'cursor-grab active:cursor-grabbing active:bg-foreground/20' : ''} ${
                       isDragging ? 'opacity-30' : ''
                     }`}
                   >
@@ -125,17 +125,17 @@ export default function MobileQueueTab() {
                     </div>
                     
                     <div className="flex-1 min-w-0 flex flex-col justify-center pointer-events-none select-none">
-                      <p className={`flex items-center gap-2 truncate text-base font-medium ${isPlaying ? 'text-primary' : 'text-white'}`}>
+                      <p className={`flex items-center gap-2 truncate text-base font-medium ${isPlaying ? 'text-primary' : 'text-foreground'}`}>
                         <span className="truncate">{track.title}</span>
                         {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
                       </p>
-                      <p className="truncate text-sm text-white/60">
+                      <p className="truncate text-sm text-secondary">
                         {formatArtistName(track.artist)}
                       </p>
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      <div className="w-10 text-right text-xs font-medium text-white/40 pointer-events-none select-none">
+                      <div className="w-10 text-right text-xs font-medium text-secondary pointer-events-none select-none">
                         {formatTime(track.duration)}
                       </div>
                       {!readOnly && (
@@ -146,7 +146,7 @@ export default function MobileQueueTab() {
                             const rect = e.currentTarget.getBoundingClientRect();
                             openMenu(rect.left, rect.bottom, { ...track, queueIndex: idx, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
                           }}
-                          className="p-1 text-white/40 hover:text-foreground transition-colors"
+                          className="p-1 text-secondary hover:text-foreground transition-colors"
                         >
                           <MoreHorizontal size={18} />
                         </button>
@@ -161,7 +161,7 @@ export default function MobileQueueTab() {
       </SortableContext>
       
       {queue.length === 0 && (
-        <div className="flex flex-col items-center justify-center h-full text-white/40">
+        <div className="flex flex-col items-center justify-center h-full text-secondary">
           <p>{t('player.queue_is_empty')}</p>
         </div>
       )}

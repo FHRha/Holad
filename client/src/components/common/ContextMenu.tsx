@@ -143,7 +143,6 @@ export default function ContextMenu() {
         await updatePlaylist(item.playlistId, undefined, item.playlistIndex);
       }
       window.dispatchEvent(new CustomEvent('playlists-updated'));
-      setTimeout(() => window.location.reload(), 300);
       closeMenu();
     } catch (err) {
       console.error(err);
@@ -317,7 +316,7 @@ export default function ContextMenu() {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const ItemBtn = ({ icon: Icon, label, onClick, color = 'text-white' }: any) => (
+  const ItemBtn = ({ icon: Icon, label, onClick, color = 'text-foreground' }: any) => (
     <button 
       onMouseDown={(e) => { 
         if (e.button !== 0) return; // only left click
@@ -332,7 +331,7 @@ export default function ContextMenu() {
     </button>
   );
 
-  const MobileIconBtn = ({ icon: Icon, label, onClick, color = 'text-white', activeColor = '' }: any) => (
+  const MobileIconBtn = ({ icon: Icon, label, onClick, color = 'text-foreground', activeColor = '' }: any) => (
     <button 
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       className={`flex flex-col items-center justify-center gap-1.5 p-2 active:bg-foreground/10 rounded-xl transition-colors`}
@@ -380,7 +379,7 @@ export default function ContextMenu() {
         />
         <div 
           ref={menuRef}
-          className="fixed z-[9999] bottom-0 left-0 right-0 bg-[#1c1c1c] border-t border-white/10 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] overflow-hidden pb-8 animate-in slide-in-from-bottom-full duration-300"
+          className="fixed z-[9999] bottom-0 left-0 right-0 bg-card border-t border-border rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] overflow-hidden pb-8 animate-in slide-in-from-bottom-full duration-300"
           style={{ 
             maxHeight: '85vh',
             transition: 'transform 0.3s ease-out'
@@ -389,7 +388,7 @@ export default function ContextMenu() {
         >
           {/* Header with Drag Handle */}
           <div 
-            className="px-4 pt-2 pb-4 border-b border-white/10 touch-none"
+            className="px-4 pt-2 pb-4 border-b border-border touch-none"
             onTouchStart={(e) => {
               touchStartY.current = e.touches[0].clientY;
               if (menuRef.current) menuRef.current.style.transition = 'none';
@@ -423,7 +422,7 @@ export default function ContextMenu() {
           className="w-12 h-12 rounded object-cover shadow-md pointer-events-none" 
         />
               <div className="flex flex-col min-w-0">
-                <span className="font-bold text-white text-[15px] truncate">{item.title || item.name}</span>
+                <span className="font-bold text-foreground text-[15px] truncate">{item.title || item.name}</span>
                 <span className="text-secondary text-xs truncate">{item.artist}</span>
               </div>
             </div>
@@ -441,16 +440,16 @@ export default function ContextMenu() {
                   <button 
                     key={p.id}
                     onClick={() => handleAddToPlaylist(p.id)}
-                    className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl transition-colors text-left"
+                    className="flex items-center gap-3 p-2 hover:bg-foreground/5 rounded-xl transition-colors text-left"
                   >
                     {p.coverArt ? (
                       <img src={getCoverArtUrl(p.coverArt, 100)} alt="" className="w-10 h-10 rounded object-cover shadow-sm" />
                     ) : (
-                      <div className="w-10 h-10 rounded bg-white/5 flex items-center justify-center text-secondary">
+                      <div className="w-10 h-10 rounded bg-foreground/5 flex items-center justify-center text-secondary">
                         <ListMusic size={18} />
                       </div>
                     )}
-                    <span className="text-sm font-semibold text-white truncate flex-1">{p.name}</span>
+                    <span className="text-sm font-semibold text-foreground truncate flex-1">{p.name}</span>
                   </button>
                 ))}
                 {playlists.length === 0 && (
@@ -463,19 +462,19 @@ export default function ContextMenu() {
                     placeholder={t('common.new_playlist')} 
                     value={newPlaylistName}
                     onChange={(e) => setNewPlaylistName(e.target.value)}
-                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors"
+                    className="flex-1 bg-background/40 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors"
                   />
                   <button 
                     type="submit"
                     disabled={!newPlaylistName.trim()}
-                    className="px-4 py-2.5 bg-white/10 text-white font-semibold rounded-xl disabled:opacity-50 hover:bg-white/20 transition-colors"
+                    className="px-4 py-2.5 bg-foreground/10 text-foreground font-semibold rounded-xl disabled:opacity-50 hover:bg-white/20 transition-colors"
                   >
                     <Plus size={18} />
                   </button>
                 </form>
 
                 {playlists.length > 0 && (
-                  <button onClick={handleOpenPlaylistModal} className="w-full py-3 mt-2 bg-white/5 hover:bg-white/10 text-white text-sm font-semibold rounded-xl transition-colors">
+                  <button onClick={handleOpenPlaylistModal} className="w-full py-3 mt-2 bg-foreground/5 hover:bg-foreground/10 text-foreground text-sm font-semibold rounded-xl transition-colors">
                     {t('common.show_all_playlists')}
                   </button>
                 )}
@@ -492,14 +491,14 @@ export default function ContextMenu() {
                   ) : (
                     <MobileIconBtn icon={ListMusic} label={t('common.add_to_playlist')} onClick={onShowPlaylists} />
                   )}
-                  {!isGuest && <MobileIconBtn icon={Heart} label={t('common.favorite')} onClick={() => handleAction(onLike)} activeColor={isLiked ? "text-primary" : "text-white"} />}
-                  {!isGuest && <MobileIconBtn icon={Ban} label={t('common.ignore', 'В игнор')} onClick={() => handleAction(onExclude)} activeColor={isExcluded ? "text-red-500" : "text-white"} />}
+                  {!isGuest && <MobileIconBtn icon={Heart} label={t('common.favorite')} onClick={() => handleAction(onLike)} activeColor={isLiked ? "text-primary" : "text-foreground"} />}
+                  {!isGuest && <MobileIconBtn icon={Ban} label={t('common.ignore', 'В игнор')} onClick={() => handleAction(onExclude)} activeColor={isExcluded ? "text-red-500" : "text-foreground"} />}
                   {!isGuest && (isDownloaded ? (
                     <MobileIconBtn icon={Trash2} color="text-primary" label={t('common.remove_download')} onClick={() => handleAction(onRemoveDownload)} />
                   ) : (
                     <MobileIconBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />
                   ))}
-                  {!isGuest && <MobileIconBtn icon={Share2} label={t('common.share')} onClick={() => handleAction(onShare, false)} activeColor={isCopied ? "text-primary" : "text-white"} />}
+                  {!isGuest && <MobileIconBtn icon={Share2} label={t('common.share')} onClick={() => handleAction(onShare, false)} activeColor={isCopied ? "text-primary" : "text-foreground"} />}
                   {!isGuest && item.artistId && <MobileIconBtn icon={User} label={t('common.go_to_artist')} onClick={() => handleAction(() => navigate(`/Holad/artist/${item.artistId}`))} />}
                   {!isGuest && (isAlbum || item.albumId) && <MobileIconBtn icon={Disc} label={t('common.go_to_album')} onClick={() => handleAction(() => {
                     if (isAlbum) navigate(`/Holad/album/${item.id}`);
@@ -512,7 +511,7 @@ export default function ContextMenu() {
 
                 {/* Rating */}
                 {!isGuest && (
-                  <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center gap-2">
+                  <div className="bg-foreground/5 rounded-2xl p-4 flex flex-col items-center gap-2">
                     <span className="text-xs text-secondary font-medium">{t('common.rate')}</span>
                     <div className="flex gap-2 text-yellow-400">
                       {[1, 2, 3, 4, 5].map(v => (
@@ -520,7 +519,7 @@ export default function ContextMenu() {
                           key={v} 
                           size={24} 
                           fill={v <= rating ? 'currentColor' : 'transparent'} 
-                          className={`active:scale-125 transition-transform ${v > rating ? 'text-white/30' : ''}`}
+                          className={`active:scale-125 transition-transform ${v > rating ? 'text-foreground/30' : ''}`}
                           onClick={(e) => { e.stopPropagation(); onRate(v); }}
                         />
                       ))}
@@ -538,7 +537,7 @@ export default function ContextMenu() {
                   navigator.clipboard.writeText(shareUrl);
                   setIsCopied(true);
                   setTimeout(() => setIsCopied(false), 2000);
-                }, false)} activeColor={isCopied ? "text-primary" : "text-white"} />
+                }, false)} activeColor={isCopied ? "text-primary" : "text-foreground"} />
                 <MobileIconBtn icon={Trash2} color="text-red-500" label={t('common.delete', 'Удалить')} onClick={async () => {
                   if (window.confirm(t('common.delete_playlist_confirm', 'Вы уверены, что хотите удалить плейлист?'))) {
                     try {
@@ -581,7 +580,7 @@ export default function ContextMenu() {
       />
       <div 
         ref={menuRef}
-        className="fixed z-[9999] bg-[#1c1c1c] border border-white/10 rounded-lg shadow-2xl overflow-y-auto hide-scrollbar py-1 min-w-[220px] transform-gpu"
+        className="fixed z-[9999] bg-card border border-border rounded-lg shadow-2xl overflow-y-auto hide-scrollbar py-1 min-w-[220px] transform-gpu"
         style={{ 
           top, 
           left,
@@ -591,14 +590,14 @@ export default function ContextMenu() {
         onContextMenu={(e) => e.preventDefault()} // prevent native menu on the custom menu
       >
       {/* Header */}
-      <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
+      <div className="px-4 py-3 border-b border-border flex items-center gap-3">
         <img 
           src={item.coverArt && (item.coverArt.toString().startsWith('http') || item.coverArt.toString().includes('getCoverArt')) ? item.coverArt : getCoverArtUrl(item.coverArt || item.id, 300)} 
           alt="" 
           className="w-10 h-10 rounded object-cover shadow-md" 
         />
         <div className="flex flex-col min-w-0">
-          <span className="font-bold text-white text-sm truncate">{item.title || item.name}</span>
+          <span className="font-bold text-foreground text-sm truncate">{item.title || item.name}</span>
           <span className="text-secondary text-xs truncate">{item.artist}</span>
         </div>
       </div>
@@ -607,7 +606,7 @@ export default function ContextMenu() {
         <div className="py-2 px-1 flex flex-col w-[240px]">
           <button 
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowPlaylists(false); }} 
-            className="text-secondary text-xs font-semibold mb-2 px-3 flex items-center hover:text-white"
+            className="text-secondary text-xs font-semibold mb-2 px-3 flex items-center hover:text-foreground"
           >
             <ChevronRight size={14} className="rotate-180 mr-1" />
             {t('common.add_to_playlist')}
@@ -617,16 +616,16 @@ export default function ContextMenu() {
             <button 
               key={p.id}
               onClick={() => handleAddToPlaylist(p.id)}
-              className="flex items-center gap-3 p-2 mx-1 hover:bg-white/5 rounded-lg transition-colors text-left"
+              className="flex items-center gap-3 p-2 mx-1 hover:bg-foreground/5 rounded-lg transition-colors text-left"
             >
               {p.coverArt ? (
                 <img src={getCoverArtUrl(p.coverArt, 100)} alt="" className="w-8 h-8 rounded object-cover shadow-sm" />
               ) : (
-                <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-secondary">
+                <div className="w-8 h-8 rounded bg-foreground/5 flex items-center justify-center text-secondary">
                   <ListMusic size={14} />
                 </div>
               )}
-              <span className="text-sm font-semibold text-white truncate flex-1">{p.name}</span>
+              <span className="text-sm font-semibold text-foreground truncate flex-1">{p.name}</span>
             </button>
           ))}
           {playlists.length === 0 && (
@@ -639,19 +638,19 @@ export default function ContextMenu() {
               placeholder={t('common.new_playlist')} 
               value={newPlaylistName}
               onChange={(e) => setNewPlaylistName(e.target.value)}
-              className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors min-w-0"
+              className="flex-1 bg-background/40 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors min-w-0"
             />
             <button 
               type="submit"
               disabled={!newPlaylistName.trim()}
-              className="px-3 py-1.5 bg-white/10 text-white font-semibold rounded-lg disabled:opacity-50 hover:bg-white/20 transition-colors"
+              className="px-3 py-1.5 bg-foreground/10 text-foreground font-semibold rounded-lg disabled:opacity-50 hover:bg-white/20 transition-colors"
             >
               <Plus size={14} />
             </button>
           </form>
 
           {playlists.length > 0 && (
-            <button onClick={handleOpenPlaylistModal} className="w-[calc(100%-16px)] mx-2 py-2 mt-2 bg-white/5 hover:bg-white/10 text-white text-xs font-semibold rounded-lg transition-colors">
+            <button onClick={handleOpenPlaylistModal} className="w-[calc(100%-16px)] mx-2 py-2 mt-2 bg-foreground/5 hover:bg-foreground/10 text-foreground text-xs font-semibold rounded-lg transition-colors">
               {t('common.show_all_playlists')}
             </button>
           )}
@@ -670,30 +669,30 @@ export default function ContextMenu() {
           </div>
 
           {item.queueIndex !== undefined && (
-            <div className="py-1 border-t border-white/10">
+            <div className="py-1 border-t border-border">
               <ItemBtn icon={Trash2} label={t('common.remove_from_queue')} onClick={() => handleAction(onRemoveFromQueue)} color="text-red-400 hover:text-red-300" />
             </div>
           )}
 
           {!isGuest && (
             <>
-              <div className="py-1 border-t border-white/10">
+              <div className="py-1 border-t border-border">
                 <ItemBtn 
                   icon={Heart} 
                   label={isLiked ? t('common.remove_from_favs') : t('common.favorite')} 
                   onClick={() => handleAction(onLike)} 
-                  color={isLiked ? "text-primary" : "text-white"} 
+                  color={isLiked ? "text-primary" : "text-foreground"} 
                 />
                 <ItemBtn 
                   icon={Ban} 
                   label={isExcluded ? t('common.unignore', 'Убрать из игнора') : t('common.ignore', 'В игнор')} 
                   onClick={() => handleAction(onExclude)} 
-                  color={isExcluded ? "text-red-500" : "text-white"} 
+                  color={isExcluded ? "text-red-500" : "text-foreground"} 
                 />
                 
                 {/* Rating inline */}
                 <div className="flex items-center justify-between px-4 py-2 hover:bg-foreground/10 transition-colors cursor-default">
-                  <div className="flex items-center gap-3 text-sm font-semibold text-white">
+                  <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
                     <Star size={16} />
                     <span>{t('common.rate')}</span>
                   </div>
@@ -703,7 +702,7 @@ export default function ContextMenu() {
                         key={v} 
                         size={14} 
                         fill={v <= rating ? 'currentColor' : 'transparent'} 
-                        className={`cursor-pointer hover:scale-125 transition-transform ${v > rating ? 'text-white/30' : ''}`}
+                        className={`cursor-pointer hover:scale-125 transition-transform ${v > rating ? 'text-foreground/30' : ''}`}
                         onClick={(e) => { e.stopPropagation(); onRate(v); }}
                       />
                     ))}
@@ -711,7 +710,7 @@ export default function ContextMenu() {
                 </div>
               </div>
 
-              <div className="py-1 border-t border-white/10">
+              <div className="py-1 border-t border-border">
                 {isDownloaded ? (
                   <ItemBtn icon={Trash2} color="text-primary font-bold" label={t('common.remove_download')} onClick={() => handleAction(onRemoveDownload)} />
                 ) : (
@@ -721,11 +720,11 @@ export default function ContextMenu() {
                   icon={Share2} 
                   label={isCopied ? t('common.copied') : t('common.share')} 
                   onClick={() => handleAction(onShare, false)} 
-                  color={isCopied ? "text-primary font-bold" : "text-white"}
+                  color={isCopied ? "text-primary font-bold" : "text-foreground"}
                 />
               </div>
 
-              <div className="py-1 border-t border-white/10">
+              <div className="py-1 border-t border-border">
                 {item.artistId && (
                   <ItemBtn icon={User} label={t('common.go_to_artist')} onClick={() => handleAction(() => {
                     navigate(`/Holad/artist/${item.artistId}`);
@@ -749,8 +748,8 @@ export default function ContextMenu() {
             navigator.clipboard.writeText(shareUrl);
             setIsCopied(true);
             setTimeout(() => setIsCopied(false), 2000);
-          }, false)} color={isCopied ? "text-primary font-bold" : "text-white"} />
-          <div className="py-1 border-t border-white/10">
+          }, false)} color={isCopied ? "text-primary font-bold" : "text-foreground"} />
+          <div className="py-1 border-t border-border">
             <ItemBtn icon={Trash2} label={t('common.delete', 'Удалить')} onClick={async () => {
               if (window.confirm(t('common.delete_playlist_confirm', 'Вы уверены, что хотите удалить плейлист?'))) {
                 try {

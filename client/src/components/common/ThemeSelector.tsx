@@ -53,7 +53,7 @@ export default function ThemeSelector({ align = 'right' }: { align?: 'left' | 'r
       {isOpen && (
         <div 
           ref={menuRef}
-          className={`absolute top-12 ${align === 'left' ? 'left-0' : 'right-0'} w-40 bg-background backdrop-blur-xl border border-foreground/10 dark:border-transparent rounded-xl shadow-2xl overflow-hidden z-[70] flex flex-col py-1 animate-in fade-in zoom-in-95 duration-200`}
+          className={`absolute top-12 ${align === 'left' ? 'left-0' : 'right-0'} w-40 bg-background backdrop-blur-xl border border-foreground/10 dark:border-0 rounded-xl shadow-2xl overflow-hidden z-[70] flex flex-col py-1 animate-in fade-in zoom-in-95 duration-200`}
         >
           <button 
             onClick={() => changeTheme('light')}

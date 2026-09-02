@@ -51,30 +51,30 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
           <TrackImage src={getCoverArtUrl(currentTrack.id, 300)} className="w-full h-full object-cover" alt={currentTrack.title} />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-bold text-white mb-1 truncate">{currentTrack.title}</h2>
+          <h2 className="text-xl font-bold text-foreground mb-1 truncate">{currentTrack.title}</h2>
           <p className="text-base text-primary font-medium truncate">{formatArtistName(currentTrack.artist)}</p>
-          <p className="text-sm text-white/60 truncate">{currentTrack.album}</p>
+          <p className="text-sm text-secondary truncate">{currentTrack.album}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-white/5 rounded-xl p-4 flex flex-col justify-center items-center">
-          <span className="text-xs text-white/40 uppercase font-bold tracking-wider mb-1">{t('player.duration')}</span>
-          <span className="text-sm font-medium text-white">{formatTime(currentTrack.duration)}</span>
+        <div className="bg-foreground/5 rounded-xl p-4 flex flex-col justify-center items-center">
+          <span className="text-xs text-secondary uppercase font-bold tracking-wider mb-1">{t('player.duration')}</span>
+          <span className="text-sm font-medium text-foreground">{formatTime(currentTrack.duration)}</span>
         </div>
-        <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center justify-center">
+        <div className="bg-foreground/5 rounded-2xl p-4 flex flex-col items-center justify-center">
           <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.year')}</span>
-          <span className="font-bold text-sm text-white">{(currentTrack as any).year || '—'}</span>
+          <span className="font-bold text-sm text-foreground">{(currentTrack as any).year || '—'}</span>
         </div>
         
-        <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center justify-center">
+        <div className="bg-foreground/5 rounded-2xl p-4 flex flex-col items-center justify-center">
           <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.format')}</span>
-          <span className="font-bold text-sm text-white uppercase">{currentTrack.suffix || 'MP3'}</span>
+          <span className="font-bold text-sm text-foreground uppercase">{currentTrack.suffix || 'MP3'}</span>
         </div>
         
-        <div className="bg-white/5 rounded-2xl p-4 flex flex-col items-center justify-center">
+        <div className="bg-foreground/5 rounded-2xl p-4 flex flex-col items-center justify-center">
           <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.bitrate')}</span>
-          <span className="font-bold text-sm text-white">
+          <span className="font-bold text-sm text-foreground">
             {currentTrack.bitRate 
               ? `${currentTrack.bitRate} kbps` 
               : 'Unknown'}
@@ -83,7 +83,7 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
       </div>
 
       <div>
-        <h3 className="text-lg font-bold text-white mb-3">{t('player.about_artist')}</h3>
+        <h3 className="text-lg font-bold text-foreground mb-3">{t('player.about_artist')}</h3>
         {loading ? (
           <div className="animate-pulse space-y-2">
             <div className="h-4 bg-foreground/10 rounded w-full"></div>
@@ -92,7 +92,7 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
           </div>
         ) : artistBio ? (
           <div 
-            className="text-sm text-white/70 leading-relaxed text-justify"
+            className="text-sm text-foreground/70 leading-relaxed text-justify"
             dangerouslySetInnerHTML={{ __html: artistBio }}
           />
         ) : (

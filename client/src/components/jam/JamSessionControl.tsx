@@ -60,7 +60,7 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
       {/* Participants List */}
       <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
         {participants.map((p) => (
-          <div key={p.id} className="flex items-center justify-between bg-white/5 rounded-lg p-2">
+          <div key={p.id} className="flex items-center justify-between bg-foreground/5 rounded-lg p-2">
             <div className="flex items-center gap-2 overflow-hidden">
               <div className={`w-2 h-2 rounded-full flex-shrink-0 ${p.role === 'host' ? 'bg-primary' : p.role === 'cohost' ? 'bg-blue-400' : 'bg-secondary'}`} />
               <span className="text-sm font-medium text-foreground truncate" title={p.name}>{p.name}</span>
@@ -70,7 +70,7 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
               <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                 <button 
                   onClick={() => jamSocket.grantRole(p.id, p.role === 'cohost' ? 'listener' : 'cohost')}
-                  className={`p-1.5 rounded-md transition-colors ${p.role === 'cohost' ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/40' : 'bg-white/5 text-secondary hover:text-foreground hover:bg-foreground/10'}`}
+                  className={`p-1.5 rounded-md transition-colors ${p.role === 'cohost' ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/40' : 'bg-foreground/5 text-secondary hover:text-foreground hover:bg-foreground/10'}`}
                   title={p.role === 'cohost' ? t('common.revoke_rights') : t('common.grant_rights')}
                 >
                   {p.role === 'cohost' ? <ShieldAlert size={14} /> : <Shield size={14} />}
