@@ -113,12 +113,12 @@ export default function TrayMenu() {
     if (!('__TAURI_INTERNALS__' in window)) return;
     const adjustSize = async () => {
        try {
-         const { getCurrentWindow, LogicalSize } = await import('@tauri-apps/api/window');
+         const { invoke } = await import('@tauri-apps/api/core');
          const menuEl = document.getElementById('tray-menu-content');
          if (menuEl) {
             const height = menuEl.offsetHeight;
             const width = menuEl.offsetWidth;
-            await getCurrentWindow().setSize(new LogicalSize(width, height));
+            await invoke('set_tray_menu_size', { width, height });
          }
        // oxlint-disable-next-line
        } catch (err) {}
