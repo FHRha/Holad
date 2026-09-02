@@ -116,8 +116,9 @@ export default function TrayMenu() {
          const { getCurrentWindow, LogicalSize } = await import('@tauri-apps/api/window');
          const menuEl = document.getElementById('tray-menu-content');
          if (menuEl) {
-            const height = menuEl.offsetHeight; // Removed padding logic to fix cutoff
-            await getCurrentWindow().setSize(new LogicalSize(280, height)); // Made narrower (280)
+            const height = menuEl.offsetHeight;
+            const width = menuEl.offsetWidth;
+            await getCurrentWindow().setSize(new LogicalSize(width, height));
          }
        // oxlint-disable-next-line
        } catch (err) {}
@@ -158,8 +159,8 @@ export default function TrayMenu() {
   };
 
   return (
-    <div className="w-full h-full overflow-hidden bg-transparent">
-      <div id="tray-menu-content" className="w-full bg-zinc-900 text-white rounded-xl border border-white/10 flex flex-col p-1.5 select-none" data-tauri-drag-region>
+    <div className="w-max h-max overflow-hidden bg-transparent">
+      <div id="tray-menu-content" className="w-max min-w-[200px] max-w-[320px] bg-zinc-900 text-white rounded-xl border border-white/10 flex flex-col p-1.5 select-none" data-tauri-drag-region>
         {/* Header */}
         <div className="flex items-center gap-2 p-2 mb-1 border-b border-white/5 pointer-events-none">
           <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
