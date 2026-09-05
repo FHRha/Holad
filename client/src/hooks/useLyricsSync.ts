@@ -133,7 +133,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       const duration = currentTrack?.duration || 1;
       const currentTime = (audioStore.progress / 100) * duration;
 
-      let newIndex = -1;
+      let newIndex = 0;
       for (let i = 0; i < lrcLines.length; i++) {
         if (currentTime >= lrcLines[i].time) {
           newIndex = i;

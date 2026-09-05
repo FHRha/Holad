@@ -142,7 +142,7 @@ fn encode_wide(s: &str) -> [u16; 260] {
 }
 
 #[cfg(target_os = "windows")]
-unsafe fn setup_taskbar_buttons(window: &tauri::WebviewWindow) {
+pub unsafe fn setup_taskbar_buttons(window: &tauri::WebviewWindow) {
     let taskbar: Result<ITaskbarList3, _> = CoCreateInstance(&TaskbarList, None, CLSCTX_INPROC_SERVER);
     if let Ok(taskbar) = taskbar {
         let hwnd = HWND(window.hwnd().unwrap().0 as _);

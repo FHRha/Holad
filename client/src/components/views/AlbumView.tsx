@@ -167,9 +167,10 @@ export default function AlbumView() {
                     openMenu(e.clientX, e.clientY, { ...track, artistId: track.artistId || album.artistId, coverArt: getCoverArtUrl(track.coverArt || album.id, 300), albumId: album.id }, 'track'); 
                   }}
                   onClick={() => {
-                    if (excludedTrackIds.includes(track.id)) {
+                    if (excludedTrackIds.includes(track.id) || (track.albumId && excludedAlbumIds.includes(track.albumId))) {
                       if (window.confirm(t('common.unignore_prompt', { defaultValue: 'Убрать ли из игнора трек?' }))) {
-                        toggleTrackExclude(track.id);
+                        if (excludedTrackIds.includes(track.id)) toggleTrackExclude(track.id);
+                        if (track.albumId && excludedAlbumIds.includes(track.albumId)) toggleAlbumExclude(track.albumId);
                         handlePlaySong(index);
                       }
                     } else {

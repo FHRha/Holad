@@ -159,6 +159,10 @@ pub fn run() {
                       } else {
                           window.show().unwrap();
                           window.set_focus().unwrap();
+                          #[cfg(target_os = "windows")]
+                          {
+                              unsafe { crate::taskbar::setup_taskbar_buttons(&window); }
+                          }
                       }
                   }
               }

@@ -91,3 +91,7 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+svg {
+  user-select: none;
+}
