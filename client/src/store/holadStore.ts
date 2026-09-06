@@ -6,7 +6,7 @@ import { useSettingsStore } from './settingsStore';
 import { useHistoryStore } from './historyStore';
 
 import { useAuthStore } from './authStore';
-import { getSocketUrl } from '../utils/serverConfig';
+import { getSocketUrl, getHoladServerUrl } from '../utils/serverConfig';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
 import { getAudioEngine } from '../audio/AudioEngine';
 
@@ -218,6 +218,33 @@ export const useHoladStore = create<HoladState>((set, get) => {
       });
 
       socket.on('holad_remoteCommand', (command: { type: string, payload?: any }) => {
+        if (command.type === 'exclusionToggled') {
+          const { entityId, entityType, isExcluded } = command.payload || {};
+          const playerStore = usePlayerStore.getState();
+          if (entityType === 'track') {
+            const current = playerStore.excludedTrackIds;
+            const updated = isExcluded
+              ? [...new Set([...current, entityId])]
+              : current.filter(id => id !== entityId);
+            usePlayerStore.setState({ excludedTrackIds: updated });
+          } else if (entityType === 'album') {
+            const current = playerStore.excludedAlbumIds;
+            const updated = isExcluded
+              ? [...new Set([...current, entityId])]
+              : current.filter(id => id !== entityId);
+            usePlayerStore.setState({ excludedAlbumIds: updated });
+          }
+          return;
+        }
+
+        if (command.type === 'exclusionsSynced') {
+          const { excludedTrackIds, excludedAlbumIds } = command.payload || {};
+          usePlayerStore.setState({
+            excludedTrackIds: Array.isArray(excludedTrackIds) ? excludedTrackIds : [],
+            excludedAlbumIds: Array.isArray(excludedAlbumIds) ? excludedAlbumIds : []
+          });
+          return;
+        }
         
         if (command.type === 'syncHistory') {
           useHistoryStore.getState().addTrackToHistory(command.payload.track, command.payload.playedAt);
@@ -230,7 +257,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
           console.log('[Holad] Emitting history via REST API with tracks:', history.length);
           if (history.length > 0) {
             const { user, token, salt, url } = useAuthStore.getState();
-            fetch(`${getSocketUrl()}/api/holad/history/${encodeURIComponent(get().roomId!)}`, {
+            fetch(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(get().roomId!)}`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -248,7 +275,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
         if (command.type === 'historyAvailable') {
            console.log('[Holad] Received historyAvailable, fetching from API...');
            const { user, token, salt, url } = useAuthStore.getState();
-           fetch(`${getSocketUrl()}/api/holad/history/${encodeURIComponent(get().roomId!)}`, {
+           fetch(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(get().roomId!)}`, {
              headers: {
                'x-user': encodeURIComponent(user),
                'x-token': encodeURIComponent(token),
@@ -461,7 +488,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
       try {
         if (localHistory.length > 0) {
           console.log('[Holad] Pushing local history for manual sync...');
-          await fetch(`${getSocketUrl()}/api/holad/history/${encodeURIComponent(state.roomId)}`, {
+          await fetch(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(state.roomId)}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

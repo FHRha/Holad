@@ -119,11 +119,11 @@ export default function MobileSearchOverlay() {
                       }}
                       onLongPress={(e: any) => {
                         e.preventDefault?.();
-                        openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId, 300) }, 'track');
+                        openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId || track.id, 300) }, 'track');
                       }}
                     >
                       <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />
+                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId || track.id, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0">
                           <Play size={16} fill="currentColor" />
                         </div>

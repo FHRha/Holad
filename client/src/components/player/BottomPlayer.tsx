@@ -101,7 +101,7 @@ export default function BottomPlayer() {
       <div className="flex items-center gap-4 flex-1 min-w-0 max-w-[30%] md:min-w-[180px] lg:min-w-[250px]">
         <div className="w-[92px] h-[92px] rounded-md overflow-hidden relative group shadow-sm flex-shrink-0">
           <TrackImage 
-            src={role === 'listener' ? getCoverArtUrl(currentTrack.id, 100) : (currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 100))} 
+            src={getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 100)} 
             alt="Cover" 
             className="w-full h-full object-cover" 
           />
@@ -233,9 +233,7 @@ export default function BottomPlayer() {
           {/* Bottom row: Expand & Volume */}
           <div className="flex items-center gap-4 w-full justify-end">
             {/* Expand Now Playing View or Maximize Jam */}
-            {role === 'listener' ? (
-              <div className="w-5" /> // Placeholder for alignment
-            ) : (isJamRoute && role !== 'host') ? (
+            {(isJamRoute && role !== 'host') ? (
               <button 
                 onClick={() => setIsMinimized(!isMinimized)}
                 className={`transition-colors flex items-center justify-center w-5 mr-auto ${!isMinimized ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
@@ -316,7 +314,7 @@ export default function BottomPlayer() {
         </div>
       
         <TrackImage 
-          src={currentTrack.coverArt?.includes('http') ? currentTrack.coverArt : getCoverArtUrl(currentTrack.coverArt || currentTrack.id, 100)} 
+          src={getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 100)} 
           className="w-9 h-9 rounded shadow flex-shrink-0 object-cover" 
           alt="" 
         />

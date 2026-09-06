@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Palette, Settings2, MonitorPlay, Pencil, Check, HardDrive, FolderSearch, Speaker, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
@@ -77,10 +77,20 @@ export default function SettingsModal({
   const toggleAutoDj = usePlayerStore(state => state.toggleAutoDj);
   const volumeMultiplier = usePlayerStore(state => state.volumeMultiplier || 1.0);
   const setVolumeMultiplier = usePlayerStore(state => state.setVolumeMultiplier);
+  const role = usePlayerStore(state => state.role);
+  
+  const isJamGuest = window.location.pathname.startsWith('/jam') && (role === 'listener' || role === 'cohost');
   
   const [activeTab, setActiveTab] = useState<'general' | 'appearance' | 'player' | 'audio' | 'storage'>(
-    initialTab || (typeof isOpen === 'boolean' ? 'player' : 'general')
+    initialTab || (isJamGuest ? 'appearance' : (typeof isOpen === 'boolean' ? 'player' : 'general'))
   );
+  
+  // Force active tab to appearance if jam guest
+  useEffect(() => {
+      if (isJamGuest && activeTab !== 'appearance') {
+          setActiveTab('appearance');
+      }
+  }, [isJamGuest, activeTab]);
   const [resetState, setResetState] = useState<'idle' | 'confirm' | 'done'>('idle');
   const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null);
   const [customHexInput, setCustomHexInput] = useState('');
@@ -152,13 +162,15 @@ export default function SettingsModal({
           <h2 className="text-lg font-bold mb-4 px-2">{t('sidebar.settings') || 'Настройки'}</h2>
           
           <div className="flex flex-col gap-2 relative">
-            <button 
-              onClick={() => { setActiveTab('general'); setEditingColorIndex(null); }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'general' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
-            >
-              <Settings2 size={20} className={activeTab === 'general' ? 'animate-pulse-slow' : ''} />
-              <span>{t('settings.general')}</span>
-            </button>
+            {!isJamGuest && (
+              <button 
+                onClick={() => { setActiveTab('general'); setEditingColorIndex(null); }}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'general' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+              >
+                <Settings2 size={20} className={activeTab === 'general' ? 'animate-pulse-slow' : ''} />
+                <span>{t('settings.general')}</span>
+              </button>
+            )}
             
             <button 
               onClick={() => { setActiveTab('appearance'); setEditingColorIndex(null); }}
@@ -168,50 +180,52 @@ export default function SettingsModal({
               <span>{t('settings.appearance')}</span>
             </button>
             
-            <button 
-              onClick={() => { setActiveTab('player'); setEditingColorIndex(null); }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'player' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
-            >
-              <MonitorPlay size={20} className={activeTab === 'player' ? 'animate-pulse-slow' : ''} />
-              <span>{t('settings.player') || 'Плеер'}</span>
-            </button>
+            {!isJamGuest && (
+              <>
+                <button 
+                  onClick={() => { setActiveTab('player'); setEditingColorIndex(null); }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'player' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+                >
+                  <MonitorPlay size={20} className={activeTab === 'player' ? 'animate-pulse-slow' : ''} />
+                  <span>{t('settings.player') || 'Плеер'}</span>
+                </button>
 
-            <button 
-              onClick={() => { setActiveTab('audio'); setEditingColorIndex(null); }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'audio' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
-            >
-              <Speaker size={20} className={activeTab === 'audio' ? 'animate-pulse-slow' : ''} />
-              <span>{t('settings.audio') || 'Звук'}</span>
-            </button>
+                <button 
+                  onClick={() => { setActiveTab('audio'); setEditingColorIndex(null); }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'audio' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+                >
+                  <Speaker size={20} className={activeTab === 'audio' ? 'animate-pulse-slow' : ''} />
+                  <span>{t('settings.audio') || 'Звук'}</span>
+                </button>
 
-            <button 
-              onClick={() => { setActiveTab('storage'); setEditingColorIndex(null); }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'storage' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
-            >
-              <HardDrive size={20} className={activeTab === 'storage' ? 'animate-pulse-slow' : ''} />
-              <span>{t('settings.storage')}</span>
-            </button>
+                <button 
+                  onClick={() => { setActiveTab('storage'); setEditingColorIndex(null); }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'storage' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+                >
+                  <HardDrive size={20} className={activeTab === 'storage' ? 'animate-pulse-slow' : ''} />
+                  <span>{t('settings.storage')}</span>
+                </button>
+              </>
+            )}
           </div>
           
-          <div className="mt-auto pt-4">
-            <button 
-              onClick={handleReset}
-              disabled={resetState === 'done'}
-              className={`w-full py-2 text-xs font-medium rounded-lg transition-colors ${
-                resetState === 'done'
-                  ? 'bg-green-500/20 text-green-400 border border-green-500/50'
-                  : resetState === 'confirm'
-                    ? 'bg-red-500/20 text-red-500 border border-red-500/50 hover:bg-red-500/30'
-                    : 'text-red-400 hover:text-red-300 hover:bg-red-400/10'
-              }`}
-            >
-              {resetState === 'done' 
-                ? (t('settings.reset_done') || '✅ Сброшено!') 
-                : resetState === 'confirm' 
-                  ? (t('settings.confirm_reset') || 'Вы уверены?') 
-                  : (t('settings.reset') || 'Сбросить')}
-            </button>
-          </div>
+          {!isJamGuest && (
+            <div className="mt-auto pt-4">
+              <button 
+                onClick={handleReset}
+                disabled={resetState === 'done'}
+                className={`w-full py-2 text-xs font-medium rounded-lg transition-colors ${
+                  resetState === 'idle' ? 'text-secondary hover:text-foreground hover:bg-white/5' :
+                  resetState === 'confirm' ? 'bg-red-500 text-white animate-pulse' :
+                  'bg-green-500 text-white'
+                }`}
+              >
+                {resetState === 'idle' ? (t('settings.reset') || 'Сбросить') :
+                 resetState === 'confirm' ? (t('settings.confirm_reset') || 'Вы уверены?') :
+                 (t('settings.reset_done') || '✅ Сброшено!')}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Content */}

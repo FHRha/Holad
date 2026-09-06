@@ -31,6 +31,7 @@ export default function TracksView() {
   const { setQueueAndPlay, queue, currentIndex, likedTrackIds, toggleTrackLike, excludedTrackIds, toggleTrackExclude, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const downloads = useDownloadStore(state => state.downloads);
+  const isGuest = usePlayerStore(state => !!state.roomId && state.role !== 'host');
 
   const baseTracks = useMemo(() => {
     let result = tracks;
@@ -139,7 +140,7 @@ export default function TracksView() {
       album: t.album,
       albumId: t.albumId,
       artistId: t.artistId,
-      coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
+      coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
       duration: t.duration,
       userRating: t.userRating,
       bitRate: t.bitRate,
@@ -278,7 +279,7 @@ export default function TracksView() {
             <div className="flex-1 min-w-[150px]">{t('views.album')}</div>
             <div className="w-32 hidden md:block">{t('views.genre')}</div>
             <div className="w-16 text-right hidden lg:block">{t('views.year')}</div>
-            <div className="w-24 flex justify-center gap-4 ml-4"><Heart size={14} /><Ban size={14} /></div>
+            {!isGuest && <div className="w-24 flex justify-center gap-4 ml-4"><Heart size={14} /><Ban size={14} /></div>}
           </div>
 
           {/* Table Body */}
@@ -311,7 +312,7 @@ export default function TracksView() {
                       onClick={() => handlePlay(index)}
                       onLongPress={(e: any) => { 
                         e.preventDefault(); 
-                        openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId, 300) }, 'track'); 
+                        openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId || track.id, 300) }, 'track'); 
                       }}
                       className={`flex items-center md:px-6 md:py-2 cursor-pointer group hover:bg-white/5 transition-colors mb-3 md:mb-0 ${currentPlaying ? 'md:bg-foreground/10' : ''}`}
                     >
@@ -327,7 +328,7 @@ export default function TracksView() {
                       </div>
                       
                       <div className="flex-1 min-w-0 md:min-w-[200px] flex items-center gap-3 pr-2 md:pr-4">
-                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId, 300)} alt="" className="w-12 h-12 md:w-10 md:h-10 rounded-md md:rounded object-cover shadow-sm flex-shrink-0" trackId={track.id} />
+                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId || track.id, 300)} alt="" className="w-12 h-12 md:w-10 md:h-10 rounded-md md:rounded object-cover shadow-sm flex-shrink-0" trackId={track.id} />
                         <div className="flex flex-col min-w-0 flex-1">
                           <span className={`flex items-center gap-2 text-[15px] md:text-sm font-bold md:font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-foreground'}`}>
                             <span className="truncate">{track.title}</span>
@@ -353,27 +354,29 @@ export default function TracksView() {
                         {track.year || '-'}
                       </div>
 
-                      <div className="w-16 md:w-24 flex items-center justify-end md:justify-center gap-2 md:gap-4 md:ml-4">
-                        <Heart 
-                          size={18} 
-                          className={`md:opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3] md:text-[#b3b3b3]/30 hover:text-foreground'}`}
-                          fill={isTrackLiked ? "currentColor" : "none"}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleTrackLike(track.id);
-                            if (isTrackLiked) unstarItem(track.id);
-                            else starItem(track.id);
-                          }}
-                        />
-                        <Ban
-                          size={18}
-                          className={`md:opacity-0 group-hover:opacity-100 transition-opacity ${excludedTrackIds.includes(track.id) ? 'opacity-100 text-red-500' : 'text-[#b3b3b3] md:text-[#b3b3b3]/30 hover:text-red-400'}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleTrackExclude(track.id);
-                          }}
-                        />
-                      </div>
+                      {!isGuest && (
+                        <div className="w-16 md:w-24 flex items-center justify-end md:justify-center gap-2 md:gap-4 md:ml-4">
+                          <Heart 
+                            size={18} 
+                            className={`md:opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3] md:text-[#b3b3b3]/30 hover:text-foreground'}`}
+                            fill={isTrackLiked ? "currentColor" : "none"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleTrackLike(track.id);
+                              if (isTrackLiked) unstarItem(track.id);
+                              else starItem(track.id);
+                            }}
+                          />
+                          <Ban
+                            size={18}
+                            className={`md:opacity-0 group-hover:opacity-100 transition-opacity ${excludedTrackIds.includes(track.id) ? 'opacity-100 text-red-500' : 'text-[#b3b3b3] md:text-[#b3b3b3]/30 hover:text-red-400'}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleTrackExclude(track.id);
+                            }}
+                          />
+                        </div>
+                      )}
                     </LongPressWrapper>
                   );
                 }}

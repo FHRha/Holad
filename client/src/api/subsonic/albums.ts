@@ -1,4 +1,5 @@
 import { buildUrl, fetchWithRetry } from '../subsonic-core';
+import { getHoladServerUrl } from '../../utils/serverConfig';
 
 export const fetchAlbums = async (offset = 0, size = 50) => {
   const url = buildUrl('getAlbumList2', { type: 'newest', size: size.toString(), offset: offset.toString() });
@@ -35,13 +36,37 @@ export const getAlbumFull = async (id: string) => {
   return data['subsonic-response']?.album;
 };
 
-export const getCoverArtUrl = (id: string, size?: number) => {
-  if (id.startsWith('http') || id.startsWith('data:') || id.startsWith('blob:') || id.startsWith('asset://') || id.startsWith('https://')) {
+export const getCoverArtUrl = (id?: string | null, size?: number): string => {
+  if (!id || typeof id !== 'string' || id === 'undefined' || id === 'null' || !id.trim()) {
+    return '';
+  }
+
+  if (id.startsWith('data:') || id.startsWith('blob:') || id.startsWith('asset://') || id.startsWith('capacitor://') || id.startsWith('file://')) {
     return id;
   }
-  const params: Record<string, string> = { id };
-  if (size && size > 0) {
-    params.size = size.toString();
+  if ((id.startsWith('http://') || id.startsWith('https://')) && !id.includes('/api/cover/') && !id.includes('getCoverArt')) {
+    return id;
   }
-  return buildUrl('getCoverArt', params);
+
+  let rawId = id;
+  if (id.includes('/api/cover/')) {
+    const match = id.match(/\/api\/cover\/([a-zA-Z0-9_\-\.]+)/);
+    if (match && match[1]) rawId = match[1];
+  } else if (id.includes('getCoverArt')) {
+    try {
+      const parsed = new URL(id, 'http://dummy.local');
+      const idParam = parsed.searchParams.get('id');
+      if (idParam && idParam !== 'undefined' && idParam !== 'null') rawId = idParam;
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!rawId || rawId === 'undefined' || rawId === 'null' || !rawId.trim()) {
+    return '';
+  }
+
+  const proxyUrl = getHoladServerUrl();
+  const sizeParam = size && size > 0 ? `?size=${size}` : '';
+  return `${proxyUrl}/api/cover/${encodeURIComponent(rawId)}${sizeParam}`;
 };

@@ -44,6 +44,9 @@ interface UIState {
   setUpdateModalOpen: (open: boolean) => void;
   updateInfo: { version?: string; notes?: string; downloadUrl?: string } | null;
   setUpdateInfo: (info: { version?: string; notes?: string; downloadUrl?: string } | null) => void;
+  
+  isJamModalOpen: boolean;
+  setIsJamModalOpen: (open: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -88,6 +91,9 @@ export const useUIStore = create<UIState>()(
       setUpdateModalOpen: (open) => set({ isUpdateModalOpen: open }),
       updateInfo: null,
       setUpdateInfo: (info) => set({ updateInfo: info }),
+      
+      isJamModalOpen: false,
+      setIsJamModalOpen: (open) => set({ isJamModalOpen: open }),
     }),
     {
       name: 'ui-storage',

@@ -93,24 +93,41 @@ export class WebAudioPipeline implements IWebAudioPipeline {
         }
     }
 
+    private safeCancel(param: AudioParam, time: number) {
+        try {
+            if (typeof (param as any).cancelAndHoldAtTime === 'function') {
+                (param as any).cancelAndHoldAtTime(time);
+            } else {
+                const val = param.value;
+                param.cancelScheduledValues(time);
+                param.setValueAtTime(val, time);
+            }
+        } catch (e) {
+            try {
+                param.cancelScheduledValues(time);
+            } catch (e2) {
+                // Ignore, browser refuses to cancel (e.g. active curve in Firefox)
+            }
+        }
+    }
+
     public setDeckGain(deckIndex: 0 | 1, gain: number, rampDuration: number = 0): void {
+        if (!this.deckGains || !this.deckGains[deckIndex]) return;
         const safeGain = typeof gain === 'number' && !isNaN(gain) && Number.isFinite(gain) ? gain : 0;
         const target = Math.max(0, Math.min(1, safeGain));
         const gainParam = this.deckGains[deckIndex].gain;
         const now = this.context.currentTime;
 
-        if (typeof (gainParam as any).cancelAndHoldAtTime === 'function') {
-            (gainParam as any).cancelAndHoldAtTime(now);
-        } else {
-            const currentValue = gainParam.value;
-            gainParam.cancelScheduledValues(now);
-            gainParam.setValueAtTime(currentValue, now);
-        }
+        this.safeCancel(gainParam, now);
 
-        if (rampDuration > 0) {
-            gainParam.linearRampToValueAtTime(target, now + rampDuration);
-        } else {
-            gainParam.setTargetAtTime(target, now, 0.015);
+        try {
+            if (rampDuration > 0) {
+                gainParam.linearRampToValueAtTime(target, now + rampDuration);
+            } else {
+                gainParam.setTargetAtTime(target, now, 0.015);
+            }
+        } catch (e) {
+            try { gainParam.value = target; } catch (e2) {}
         }
     }
 
@@ -128,18 +145,16 @@ export class WebAudioPipeline implements IWebAudioPipeline {
         const gainParam = this.masterGainNode.gain;
         const now = this.context.currentTime;
 
-        if (typeof (gainParam as any).cancelAndHoldAtTime === 'function') {
-            (gainParam as any).cancelAndHoldAtTime(now);
-        } else {
-            const currentValue = gainParam.value;
-            gainParam.cancelScheduledValues(now);
-            gainParam.setValueAtTime(currentValue, now);
-        }
+        this.safeCancel(gainParam, now);
 
-        if (rampDuration > 0) {
-            gainParam.linearRampToValueAtTime(finalGain, now + rampDuration);
-        } else {
-            gainParam.setTargetAtTime(finalGain, now, 0.015);
+        try {
+            if (rampDuration > 0) {
+                gainParam.linearRampToValueAtTime(finalGain, now + rampDuration);
+            } else {
+                gainParam.setTargetAtTime(finalGain, now, 0.015);
+            }
+        } catch (e) {
+            try { gainParam.value = finalGain; } catch (e2) {}
         }
     }
 
@@ -167,40 +182,38 @@ export class WebAudioPipeline implements IWebAudioPipeline {
     }
 
     public scheduleCrossfade(outgoingDeckIndex: 0 | 1, incomingDeckIndex: 0 | 1, duration: number, curve: 'equalPower' | 'linear', startTime: number): void {
+        if (!this.deckGains || !this.deckGains[outgoingDeckIndex] || !this.deckGains[incomingDeckIndex]) return;
         const outGainParam = this.deckGains[outgoingDeckIndex].gain;
         const inGainParam = this.deckGains[incomingDeckIndex].gain;
-        
-        const safeOutGain = outGainParam.value;
-        const safeInGain = inGainParam.value;
 
         // Cancel previous automation
-        if (typeof (outGainParam as any).cancelAndHoldAtTime === 'function') {
-            (outGainParam as any).cancelAndHoldAtTime(startTime);
-            (inGainParam as any).cancelAndHoldAtTime(startTime);
-        } else {
-            outGainParam.cancelScheduledValues(startTime);
-            outGainParam.setValueAtTime(safeOutGain, startTime);
-            inGainParam.cancelScheduledValues(startTime);
-            inGainParam.setValueAtTime(safeInGain, startTime);
-        }
+        this.safeCancel(outGainParam, startTime);
+        this.safeCancel(inGainParam, startTime);
 
-        if (curve === 'linear') {
-            outGainParam.linearRampToValueAtTime(0, startTime + duration);
-            inGainParam.linearRampToValueAtTime(1, startTime + duration);
-        } else {
-            // equalPower
-            const steps = 30;
-            const outCurve = new Float32Array(steps);
-            const inCurve = new Float32Array(steps);
-            
-            for (let i = 0; i < steps; i++) {
-                const t = i / (steps - 1);
-                outCurve[i] = Math.cos(t * 0.5 * Math.PI);
-                inCurve[i] = Math.cos((1 - t) * 0.5 * Math.PI);
+        try {
+            if (curve === 'linear') {
+                outGainParam.linearRampToValueAtTime(0, startTime + duration);
+                inGainParam.linearRampToValueAtTime(1, startTime + duration);
+            } else {
+                // equalPower
+                const steps = 30;
+                const outCurve = new Float32Array(steps);
+                const inCurve = new Float32Array(steps);
+                
+                for (let i = 0; i < steps; i++) {
+                    const t = i / (steps - 1);
+                    outCurve[i] = Math.cos(t * 0.5 * Math.PI);
+                    inCurve[i] = Math.cos((1 - t) * 0.5 * Math.PI);
+                }
+                
+                outGainParam.setValueCurveAtTime(outCurve, startTime + 0.01, duration);
+                inGainParam.setValueCurveAtTime(inCurve, startTime + 0.01, duration);
             }
-            
-            outGainParam.setValueCurveAtTime(outCurve, startTime + 0.01, duration);
-            inGainParam.setValueCurveAtTime(inCurve, startTime + 0.01, duration);
+        } catch (e) {
+            try {
+                outGainParam.value = 0;
+                inGainParam.value = 1;
+            } catch (e2) {}
         }
     }
 

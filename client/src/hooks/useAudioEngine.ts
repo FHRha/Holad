@@ -369,7 +369,11 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
 
       if (crossfadeTriggeredRef.current === currentTrack?.id) return;
-      nextTrack();
+      
+      const pStore = usePlayerStore.getState();
+      if (pStore.role === 'host' || !pStore.roomId) {
+        nextTrack();
+      }
     };
 
     const handleRequestPreload = () => {

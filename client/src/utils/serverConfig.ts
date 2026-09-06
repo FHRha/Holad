@@ -10,7 +10,11 @@ export const getHoladServerUrl = (): string => {
   }
 
   if (import.meta.env.VITE_SERVER_URL) {
-    return import.meta.env.VITE_SERVER_URL;
+    const cleanUrl = import.meta.env.VITE_SERVER_URL.replace(/\/$/, '');
+    if (!cleanUrl.endsWith('/Holad')) {
+      return `${cleanUrl}/Holad`;
+    }
+    return cleanUrl;
   }
   
   const path = window.location.pathname;
@@ -18,7 +22,7 @@ export const getHoladServerUrl = (): string => {
       return path.substring(0, path.toLowerCase().indexOf('/holad') + 6);
   }
   
-  return import.meta.env.BASE_URL.replace(/\/$/, '') || '.';
+  return '/Holad';
 };
 
 export const getSocketUrl = (): string => {

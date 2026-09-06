@@ -20,6 +20,7 @@ export default function AlbumView() {
   const { queue, currentIndex, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, toggleTrackExclude, toggleAlbumExclude, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const downloads = useDownloadStore(state => state.downloads);
+  const isGuest = usePlayerStore(state => !!state.roomId && state.role !== 'host');
 
   const {
     album,
@@ -111,25 +112,29 @@ export default function AlbumView() {
               
               <div className="hidden md:block flex-1" />
               
-              <div className="flex gap-1 text-yellow-400">
-                {[1, 2, 3, 4, 5].map(v => (
-                  <Star 
-                    key={v} 
-                    size={24} 
-                    fill={v <= (album.userRating || 0) ? 'currentColor' : 'transparent'} 
-                    className={`cursor-pointer md:w-5 md:h-5 hover:scale-125 transition-transform ${v > (album.userRating || 0) ? 'text-foreground/30' : ''}`}
-                    onClick={() => handleRate(v)}
-                  />
-                ))}
-              </div>
-              
-              <button onClick={handleLike} className="hover:scale-110 transition-transform ml-2">
-                <Heart size={28} className={isLiked ? "text-primary" : "text-foreground/70 hover:text-foreground"} fill={isLiked ? "currentColor" : "none"} />
-              </button>
-              
-              <button onClick={() => toggleAlbumExclude(album.id)} className="hover:scale-110 transition-transform ml-2">
-                <Ban size={28} className={excludedAlbumIds.includes(album.id) ? "text-red-500" : "text-foreground/70 hover:text-foreground"} />
-              </button>
+              {!isGuest && (
+                <>
+                  <div className="flex gap-1 text-yellow-400">
+                    {[1, 2, 3, 4, 5].map(v => (
+                      <Star 
+                        key={v} 
+                        size={24} 
+                        fill={v <= (album.userRating || 0) ? 'currentColor' : 'transparent'} 
+                        className={`cursor-pointer md:w-5 md:h-5 hover:scale-125 transition-transform ${v > (album.userRating || 0) ? 'text-foreground/30' : ''}`}
+                        onClick={() => handleRate(v)}
+                      />
+                    ))}
+                  </div>
+                  
+                  <button onClick={handleLike} className="hover:scale-110 transition-transform ml-2">
+                    <Heart size={28} className={isLiked ? "text-primary" : "text-foreground/70 hover:text-foreground"} fill={isLiked ? "currentColor" : "none"} />
+                  </button>
+                  
+                  <button onClick={() => toggleAlbumExclude(album.id)} className="hover:scale-110 transition-transform ml-2">
+                    <Ban size={28} className={excludedAlbumIds.includes(album.id) ? "text-red-500" : "text-foreground/70 hover:text-foreground"} />
+                  </button>
+                </>
+              )}
               
               <button 
                 onClick={(e) => openMenu(e.clientX, e.clientY, album, 'album')}
@@ -150,7 +155,7 @@ export default function AlbumView() {
             <div className="hidden md:flex px-4 py-2 text-xs font-semibold tracking-widest text-secondary border-b border-white/10 uppercase mb-2">
               <div className="w-12 text-center">#</div>
               <div className="flex-1">{t('views.title')}</div>
-              <div className="w-24 flex justify-center gap-4"><Heart size={14} /><Ban size={14} /></div>
+              {!isGuest && <div className="w-24 flex justify-center gap-4"><Heart size={14} /><Ban size={14} /></div>}
               <div className="w-16 text-right"><Clock size={14} className="inline-block" /></div>
             </div>
             
@@ -196,27 +201,29 @@ export default function AlbumView() {
                     </span>
                     <ArtistLinks artistString={track.artist || album.artist} artistId={track.artistId || album.artistId} className="text-xs text-secondary truncate" />
                   </div>
-                  <div className="hidden md:flex w-24 justify-center gap-4">
-                    <Heart 
-                      size={16} 
-                      className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3]/50 hover:text-foreground'}`}
-                      fill={isTrackLiked ? "currentColor" : "none"}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleTrackLike(track.id);
-                        if (isTrackLiked) unstarItem(track.id);
-                        else starItem(track.id);
-                      }}
-                    />
-                    <Ban
-                      size={16}
-                      className={`opacity-0 group-hover:opacity-100 transition-opacity ${excludedTrackIds.includes(track.id) ? 'opacity-100 text-red-500' : 'text-[#b3b3b3]/50 hover:text-red-400'}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleTrackExclude(track.id);
-                      }}
-                    />
-                  </div>
+                  {!isGuest && (
+                    <div className="hidden md:flex w-24 justify-center gap-4">
+                      <Heart 
+                        size={16} 
+                        className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3]/50 hover:text-foreground'}`}
+                        fill={isTrackLiked ? "currentColor" : "none"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleTrackLike(track.id);
+                          if (isTrackLiked) unstarItem(track.id);
+                          else starItem(track.id);
+                        }}
+                      />
+                      <Ban
+                        size={16}
+                        className={`opacity-0 group-hover:opacity-100 transition-opacity ${excludedTrackIds.includes(track.id) ? 'opacity-100 text-red-500' : 'text-[#b3b3b3]/50 hover:text-red-400'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleTrackExclude(track.id);
+                        }}
+                      />
+                    </div>
+                  )}
                   <div className="w-12 sm:w-16 text-right text-xs sm:text-sm text-secondary font-medium">
                     {formatTime(track.duration)}
                   </div>

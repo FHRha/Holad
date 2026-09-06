@@ -67,22 +67,14 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   // oxlint-disable-next-line
   const coverArtHighRes = useMemo(() => {
     if (!currentTrack) return '';
-    const cover = currentTrack.coverArt || currentTrack.id;
-    if (cover.startsWith('http')) {
-      return cover.replace(/([?&])size=\d+&?/, (m, p1) => m.endsWith('&') ? p1 : '').replace(/&$/, '') + (cover.includes('?') ? '&size=1000' : '?size=1000');
-    }
-    return cover.startsWith('capacitor://') || cover.startsWith('asset://') || cover.startsWith('blob:') || cover.startsWith('file://') ? cover : getCoverArtUrl(cover, 1000);
-  }, [currentTrack?.id, currentTrack?.coverArt]);
+    return getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 1000);
+  }, [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
 
   // oxlint-disable-next-line
   const coverArtLowRes = useMemo(() => {
     if (!currentTrack) return '';
-    const cover = currentTrack.coverArt || currentTrack.id;
-    if (cover.startsWith('http')) {
-      return cover.replace(/([?&])size=\d+&?/, (m, p1) => m.endsWith('&') ? p1 : '').replace(/&$/, '') + (cover.includes('?') ? '&size=300' : '?size=300');
-    }
-    return cover.startsWith('capacitor://') || cover.startsWith('asset://') || cover.startsWith('blob:') || cover.startsWith('file://') ? cover : getCoverArtUrl(cover, 300);
-  }, [currentTrack?.id, currentTrack?.coverArt]);
+    return getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
+  }, [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
 
   const handleLike = () => {
     if (!currentTrack) return;

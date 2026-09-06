@@ -154,16 +154,18 @@ export default function Sidebar() {
                   <Settings size={18} />
                   <span>{t('sidebar.settings')}</span>
                 </button>
-                <button 
-                  onClick={() => {
-                    navigate('/Holad/history');
-                    setIsProfileMenuOpen(false);
-                  }}
-                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-foreground/5 transition-colors text-left w-full"
-                >
-                  <Clock size={18} />
-                  <span>{t('views.listening_history')}</span>
-                </button>
+                {!isJamGuest && (
+                  <button 
+                    onClick={() => {
+                      navigate('/Holad/history');
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-foreground/5 transition-colors text-left w-full"
+                  >
+                    <Clock size={18} />
+                    <span>{t('views.listening_history')}</span>
+                  </button>
+                )}
                 <button 
                   onClick={() => {
                     openExternalLink('https://github.com/FHRha/Holad');
@@ -171,30 +173,34 @@ export default function Sidebar() {
                   }}
                   className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-foreground/5 transition-colors text-left w-full"
                 >
-                  <img src="/icons/github.png" className="w-[18px] h-[18px] dark:invert opacity-70 group-hover:opacity-100 transition-opacity" alt="GitHub" />
+                  <img src={`${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/github.png`} className="w-[18px] h-[18px] dark:invert opacity-70 group-hover:opacity-100 transition-opacity" alt="GitHub" />
                   <span>GitHub {appVersion && <span className="text-xs text-secondary/50 ml-1">v{appVersion}</span>}</span>
                 </button>
-                <button 
-                  onClick={() => {
-                    UpdateService.checkForUpdates(true);
-                    setIsProfileMenuOpen(false);
-                  }}
-                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-foreground/5 transition-colors text-left w-full"
-                >
-                  <DownloadCloud size={18} />
-                  <span>{t('sidebar.check_updates', 'Проверить обновления')}</span>
-                </button>
+                {!isJamGuest && (
+                  <button 
+                    onClick={() => {
+                      UpdateService.checkForUpdates(true);
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-foreground/5 transition-colors text-left w-full"
+                  >
+                    <DownloadCloud size={18} />
+                    <span>{t('sidebar.check_updates')}</span>
+                  </button>
+                )}
               </div>
 
-              <div className="px-2 pt-2 border-t border-border">
-                <button 
-                  onClick={handleLogout}
-                  className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors text-left w-full"
-                >
-                  <LogOut size={18} />
-                  <span>{t('sidebar.logout')}</span>
-                </button>
-              </div>
+              {!isJamGuest && (
+                <div className="px-2 pt-2 border-t border-border">
+                  <button 
+                    onClick={handleLogout}
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors text-left w-full"
+                  >
+                    <LogOut size={18} />
+                    <span>{t('sidebar.logout')}</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -362,7 +368,8 @@ function SidebarItem({ to, icon, label, end, isWide, disabled }: { to: string, i
   const location = useLocation();
   // Properly check active state including trailing slashes which NavLink sometimes misses
   const path = location.pathname;
-  const isActive = end ? (path === to || path === `${to}/`) : path.startsWith(to);
+  const toPathname = to.split('?')[0];
+  const isActive = end ? (path === toPathname || path === `${toPathname}/`) : path.startsWith(toPathname);
 
   return (
     <NavLink 

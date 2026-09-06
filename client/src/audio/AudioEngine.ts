@@ -394,6 +394,10 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         return this.activeIndex;
     }
 
+    public getActiveTrackId(): string | null {
+        return this.deckTrackIds[this.activeIndex];
+    }
+
     public getWebAudioPipeline(): IWebAudioPipeline | undefined {
         return this.pipeline || undefined;
     }

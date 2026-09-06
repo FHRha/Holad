@@ -7,6 +7,7 @@ import { useSettingsStore } from '../store/settingsStore';
 
 import { getSocketUrl } from '../utils/serverConfig';
 import { getAudioEngine } from '../audio/AudioEngine';
+import { sanitizeTracks } from '../store/slices/queueSlice';
 
 class JamSocketService {
   private socket: Socket | null = null;
@@ -45,9 +46,7 @@ class JamSocketService {
       usePlayerStore.getState().setRoomInfo(roomId, role);
       this.stopHostSync(); // Listeners don't sync state outwards
       // Immediately apply host's state
-      this.isApplyingRemoteState = true;
       this.applySyncState(state);
-      this.isApplyingRemoteState = false;
     });
 
     this.socket.on('syncStateVersion', (version) => {
@@ -60,9 +59,7 @@ class JamSocketService {
       if (state.version !== undefined) {
         this.latestStateVersion = state.version;
       }
-      this.isApplyingRemoteState = true;
       this.applySyncState(state);
-      this.isApplyingRemoteState = false;
     });
 
     this.socket.on('syncQueue', ({ queue, currentIndex, version }) => {
@@ -70,10 +67,12 @@ class JamSocketService {
         this.latestStateVersion = version;
       }
       const currentStore = usePlayerStore.getState();
-      if (queue !== currentStore.queue || currentIndex !== currentStore.currentIndex) {
+      const sanitized = queue ? sanitizeTracks(queue) : queue;
+      const isSameQueue = currentStore.queue && sanitized && currentStore.queue.length === sanitized.length && currentStore.queue.every((t, i) => t.id === sanitized[i]?.id);
+      if (!isSameQueue || currentIndex !== currentStore.currentIndex) {
         this.isApplyingRemoteState = true;
-        usePlayerStore.setState({ queue, currentIndex });
-        this.isApplyingRemoteState = false;
+        usePlayerStore.setState({ queue: sanitized, currentIndex });
+        setTimeout(() => { this.isApplyingRemoteState = false; }, 100);
       }
     });
 
@@ -158,7 +157,7 @@ class JamSocketService {
     
     // Send initial queue
     const state = usePlayerStore.getState();
-    if (state.roomId && state.queue.length > 0) {
+    if (state.roomId && state.queue.length > 0 && state.role === 'host') {
       this.socket?.emit('syncQueue', { roomId: state.roomId, queue: state.queue, currentIndex: state.currentIndex });
     }
 
@@ -239,7 +238,6 @@ class JamSocketService {
               isPlaying: newState.isPlaying,
               currentIndex: newState.currentIndex,
               isAutoDjEnabled: newState.isAutoDjEnabled,
-              version: this.latestStateVersion,
               isCrossfadeEnabled: settings.isCrossfadeEnabled,
               crossfadeDuration: settings.crossfadeDuration,
               crossfadeCurve: settings.crossfadeCurve,
@@ -263,89 +261,101 @@ class JamSocketService {
   }
 
   private applySyncState(state: any) {
-    const { currentTime, isPlaying, currentIndex, queue, isAutoDjEnabled, isCrossfadeEnabled, crossfadeDuration, crossfadeCurve, isGaplessEnabled } = state;
-    const store = usePlayerStore.getState();
+    this.isApplyingRemoteState = true;
+    try {
+      const { currentTime, isPlaying, currentIndex, queue, isAutoDjEnabled, isCrossfadeEnabled, crossfadeDuration, crossfadeCurve, isGaplessEnabled } = state;
+      const store = usePlayerStore.getState();
 
-    if (isCrossfadeEnabled !== undefined) {
-      usePlayerStore.getState().setHostSettings({
-        isCrossfadeEnabled,
-        crossfadeDuration,
-        crossfadeCurve,
-        isGaplessEnabled
-      });
-    }
-
-    // trackChanged removed
-    
-    const isQueueDifferent = () => {
-      if (!queue || queue.length === 0) return false;
-      if (!store.queue || queue.length !== store.queue.length) return true;
-      for (let i = 0; i < queue.length; i++) {
-        if (queue[i].id !== store.queue[i].id) return true;
-      }
-      return false;
-    };
-
-    const currentTrackId = store.queue && store.queue[store.currentIndex]?.id;
-    const newQueue = queue || store.queue;
-    const newIndex = currentIndex !== undefined ? currentIndex : store.currentIndex;
-    const newTrackId = newQueue && newQueue[newIndex]?.id;
-    const actualTrackChanged = currentTrackId !== newTrackId;
-
-    // Apply queue if present (initial join or real change)
-    if (isQueueDifferent()) {
-      usePlayerStore.setState({ queue, currentIndex: currentIndex !== undefined ? currentIndex : 0 });
-    } else if (currentIndex !== undefined && currentIndex !== store.currentIndex) {
-      usePlayerStore.setState({ currentIndex });
-    }
-
-    if (actualTrackChanged && currentTime > 0) {
-      usePlayerStore.getState().setInitialPosition(currentTime * 1000);
-    }
-
-    if (isAutoDjEnabled !== undefined && isAutoDjEnabled !== store.isAutoDjEnabled) {
-      usePlayerStore.setState({ isAutoDjEnabled });
-    }
-
-    const engine = getAudioEngine();
-    
-    if (engine) {
-      if (isPlaying && engine.getState() !== 'playing') {
-        engine.resume().catch((e: any) => console.error("Playback prevented", e));
-        store.setIsPlaying(true);
-      } else if (!isPlaying && engine.getState() === 'playing') {
-        engine.pause();
-        store.setIsPlaying(false);
-        engine.setPlaybackRate(1.0); // Reset rate on pause
+      if (isCrossfadeEnabled !== undefined) {
+        usePlayerStore.getState().setHostSettings({
+          isCrossfadeEnabled,
+          crossfadeDuration,
+          crossfadeCurve,
+          isGaplessEnabled
+        });
       }
 
-      if (isPlaying) {
-        // Compensate for network latency (~150ms)
-        const targetTime = currentTime + 0.15;
-        const drift = targetTime - engine.getCurrentTime();
-        
-        // Dynamic hard sync threshold: be aggressive at the start of a track
-        const isEarlyInTrack = engine.getCurrentTime() < 5;
-        const hardSyncThreshold = isEarlyInTrack ? 0.3 : 2.0;
+      // trackChanged removed
+      
+      const sanitizedQueue = queue ? sanitizeTracks(queue) : queue;
+      const isQueueDifferent = () => {
+        if (!sanitizedQueue || sanitizedQueue.length === 0) return false;
+        if (!store.queue || sanitizedQueue.length !== store.queue.length) return true;
+        for (let i = 0; i < sanitizedQueue.length; i++) {
+          if (sanitizedQueue[i].id !== store.queue[i].id) return true;
+        }
+        return false;
+      };
 
-        if (Math.abs(drift) > hardSyncThreshold) {
-          console.log(`Large drift detected (${Math.abs(drift).toFixed(2)}s), hard seeking to match host`);
-          engine.seek(targetTime);
-          engine.setPlaybackRate(1.0);
-        } else if (drift > 0.15) {
-          // We are behind the host, speed up
-          engine.setPlaybackRate(1.05);
-          console.log(`Soft sync: Catching up (+${drift.toFixed(2)}s)`);
-        } else if (drift < -0.15) {
-          // We are ahead of the host, slow down
-          engine.setPlaybackRate(0.95);
-          console.log(`Soft sync: Waiting (-${Math.abs(drift).toFixed(2)}s)`);
-        } else {
-          // Perfect sync
-          engine.setPlaybackRate(1.0);
-          console.log("Soft sync: Perfectly in sync");
+      const currentTrackId = store.queue && store.queue[store.currentIndex]?.id;
+      const newQueue = sanitizedQueue || store.queue;
+      const newIndex = currentIndex !== undefined ? currentIndex : store.currentIndex;
+      const newTrackId = newQueue && newQueue[newIndex]?.id;
+      const actualTrackChanged = currentTrackId !== newTrackId;
+
+      // Apply queue if present (initial join or real change)
+      if (isQueueDifferent()) {
+        usePlayerStore.setState({ queue: sanitizedQueue, currentIndex: currentIndex !== undefined ? currentIndex : 0 });
+      } else if (currentIndex !== undefined && currentIndex !== store.currentIndex) {
+        usePlayerStore.setState({ currentIndex });
+      }
+
+      if (actualTrackChanged && currentTime > 0) {
+        usePlayerStore.getState().setInitialPosition(currentTime * 1000);
+      }
+
+      if (isAutoDjEnabled !== undefined && isAutoDjEnabled !== store.isAutoDjEnabled) {
+        usePlayerStore.setState({ isAutoDjEnabled });
+      }
+
+      const engine = getAudioEngine();
+      
+      if (engine) {
+        if (isPlaying && engine.getState() !== 'playing') {
+          engine.resume().catch((e: any) => console.error("Playback prevented", e));
+          store.setIsPlaying(true);
+        } else if (!isPlaying && engine.getState() === 'playing') {
+          engine.pause();
+          store.setIsPlaying(false);
+          engine.setPlaybackRate(1.0); // Reset rate on pause
+        }
+
+        if (isPlaying) {
+          const isEngineOnTargetTrack = engine.getActiveTrackId() === newTrackId;
+          if (!isEngineOnTargetTrack) {
+            console.log('Skipping sync: AudioEngine is still transitioning to the target track');
+            return;
+          }
+
+          // Compensate for network latency (~150ms)
+          const targetTime = currentTime + 0.15;
+          const drift = targetTime - engine.getCurrentTime();
+          
+          // Dynamic hard sync threshold: be aggressive at the start of a track
+          const isEarlyInTrack = engine.getCurrentTime() < 5;
+          const hardSyncThreshold = isEarlyInTrack ? 0.3 : 2.0;
+
+          if (Math.abs(drift) > hardSyncThreshold) {
+            console.log(`Large drift detected (${Math.abs(drift).toFixed(2)}s), hard seeking to match host`);
+            engine.seek(targetTime);
+            engine.setPlaybackRate(1.0);
+          } else if (drift > 0.15) {
+            // We are behind the host, speed up
+            engine.setPlaybackRate(1.05);
+            console.log(`Soft sync: Catching up (+${drift.toFixed(2)}s)`);
+          } else if (drift < -0.15) {
+            // We are ahead of the host, slow down
+            engine.setPlaybackRate(0.95);
+            console.log(`Soft sync: Waiting (-${Math.abs(drift).toFixed(2)}s)`);
+          } else {
+            // Perfect sync
+            engine.setPlaybackRate(1.0);
+            console.log("Soft sync: Perfectly in sync");
+          }
         }
       }
+    } finally {
+      setTimeout(() => { this.isApplyingRemoteState = false; }, 100);
     }
   }
 

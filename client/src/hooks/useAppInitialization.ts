@@ -3,6 +3,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { usePlayerStore } from '../store/playerStore';
 import { useAuthStore } from '../store/authStore';
 import { fetchStarred, getPlayQueue, getCoverArtUrl } from '../api/subsonic';
+import { fetchExclusions } from '../api/exclusions';
 import { jamSocket } from '../api/socket';
 import { useHoladStore } from '../store/holadStore';
 import type { Track } from '../types';
@@ -15,6 +16,7 @@ export function useAppInitialization() {
   const albumId = searchParams.get('album');
   
   const setLikedItems = usePlayerStore(state => state.setLikedItems);
+  const setExcludedItems = usePlayerStore(state => state.setExcludedItems);
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const user = useAuthStore(state => state.user);
   const isJamRoute = location.pathname.startsWith('/jam');
@@ -43,6 +45,10 @@ export function useAppInitialization() {
         const albumIds = data.album?.map((a: any) => a.id) || [];
         setLikedItems(trackIds, albumIds);
       }).catch(e => console.error("Failed to fetch starred items", e));
+
+      fetchExclusions().then(exclusions => {
+        setExcludedItems(exclusions.excludedTrackIds, exclusions.excludedAlbumIds);
+      }).catch(e => console.error("Failed to fetch exclusions", e));
     }
 
     const isStandaloneJam = isJamRoute && (!!trackId || !!albumId);
@@ -58,7 +64,7 @@ export function useAppInitialization() {
             album: t.album,
             albumId: t.albumId,
             artistId: t.artistId,
-            coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
+            coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
             duration: t.duration,
             bitRate: t.bitRate,
             suffix: t.suffix
@@ -89,7 +95,7 @@ export function useAppInitialization() {
         }
       }).catch(e => console.error("Failed to fetch play queue", e));
     }
-  }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, isJamRoute]);
+  }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute]);
 
   return { isAuthenticated, isJamRoute };
 }

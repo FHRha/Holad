@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import type { PlayerState } from '../playerStore';
 import { setItemRating } from '../../api/subsonic';
+import { syncToggleExclusion } from '../../api/exclusions';
 import type { Track } from '../../types';
 
 export interface SocialSlice {
@@ -10,6 +11,7 @@ export interface SocialSlice {
   excludedAlbumIds: string[];
 
   setLikedItems: (tracks: string[], albums: string[]) => void;
+  setExcludedItems: (tracks: string[], albums: string[]) => void;
   toggleTrackLike: (id: string) => void;
   toggleAlbumLike: (id: string) => void;
   toggleTrackExclude: (id: string) => void;
@@ -29,6 +31,7 @@ export const createSocialSlice: StateCreator<
   excludedAlbumIds: [],
 
   setLikedItems: (tracks, albums) => set({ likedTrackIds: tracks, likedAlbumIds: albums }),
+  setExcludedItems: (tracks, albums) => set({ excludedTrackIds: tracks, excludedAlbumIds: albums }),
   
   toggleTrackLike: (id) => set((state) => {
     const isLiked = state.likedTrackIds.includes(id);
@@ -48,23 +51,29 @@ export const createSocialSlice: StateCreator<
     };
   }),
 
-  toggleTrackExclude: (id) => set((state) => {
-    const isExcluded = state.excludedTrackIds.includes(id);
-    return {
-      excludedTrackIds: isExcluded
-        ? state.excludedTrackIds.filter(t => t !== id)
-        : [...state.excludedTrackIds, id]
-    };
-  }),
+  toggleTrackExclude: (id) => {
+    syncToggleExclusion(id, 'track').catch(err => console.error(err));
+    set((state) => {
+      const isExcluded = state.excludedTrackIds.includes(id);
+      return {
+        excludedTrackIds: isExcluded
+          ? state.excludedTrackIds.filter(t => t !== id)
+          : [...state.excludedTrackIds, id]
+      };
+    });
+  },
 
-  toggleAlbumExclude: (id) => set((state) => {
-    const isExcluded = state.excludedAlbumIds.includes(id);
-    return {
-      excludedAlbumIds: isExcluded
-        ? state.excludedAlbumIds.filter(a => a !== id)
-        : [...state.excludedAlbumIds, id]
-    };
-  }),
+  toggleAlbumExclude: (id) => {
+    syncToggleExclusion(id, 'album').catch(err => console.error(err));
+    set((state) => {
+      const isExcluded = state.excludedAlbumIds.includes(id);
+      return {
+        excludedAlbumIds: isExcluded
+          ? state.excludedAlbumIds.filter(a => a !== id)
+          : [...state.excludedAlbumIds, id]
+      };
+    });
+  },
 
   setTrackRating: (id, rating) => set((state) => {
     // Optimistically update rating in queues

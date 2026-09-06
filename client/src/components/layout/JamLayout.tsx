@@ -27,6 +27,7 @@ export default function JamLayout() {
   const albumId = searchParams.get('album');
   const playlistId = searchParams.get('playlist');
   const { setQueueAndPlay, jamError, userName, setUserName } = usePlayerStore();
+  const role = usePlayerStore(state => state.role);
   const navigate = useNavigate();
   
   const [localName, setLocalName] = useState('');
@@ -41,6 +42,13 @@ export default function JamLayout() {
       hasJoined.current = true;
     }
   }, [roomToJoin, userName]);
+
+  // Force fullscreen player open for listeners
+  useEffect(() => {
+      if (role === 'listener') {
+          usePlayerStore.getState().setIsMinimized(false);
+      }
+  }, [role]);
 
   // Standalone Track/Album initialization
   useEffect(() => {

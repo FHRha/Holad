@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
-import { Play, ChevronDown, Download } from 'lucide-react';
+import { Play, ChevronDown, Download, ListMusic, Radio, MessageSquareQuote, Activity, Users } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
 
 import { formatTime } from '../../utils/timeFormat';
@@ -12,11 +12,13 @@ import { useLyricsSync } from '../../hooks/useLyricsSync';
 import { useSimilarTracks } from '../../hooks/useSimilarTracks';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from './LanguageSelector';
+import ThemeSelector from './ThemeSelector';
 import { getAudioEngine } from '../../audio/AudioEngine';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from './dnd/SortableItem';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
+import JamSessionControl from '../jam/JamSessionControl';
 
 export default function FullScreenPlayerUI({ 
   onClose,
@@ -26,12 +28,24 @@ export default function FullScreenPlayerUI({
   extraControls?: React.ReactNode
 }) {
   const { t } = useTranslation();
-  const { queue, currentIndex, setQueueAndPlay, role } = usePlayerStore();
+  const { queue, currentIndex, setQueueAndPlay, role, roomId } = usePlayerStore();
   const currentTrack = queue[currentIndex];
   const { audioElement } = useAudioStore();
   const downloads = useDownloadStore(state => state.downloads);
   const { openMenu } = useContextMenuStore();
   const [activeTab, setActiveTab] = useState<'queue' | 'similar' | 'lyrics' | 'visualizer'>('lyrics');
+  const [showJamMenu, setShowJamMenu] = useState(false);
+  const jamMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (jamMenuRef.current && !jamMenuRef.current.contains(e.target as Node)) {
+        setShowJamMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   
   const isJamRoute = window.location.pathname.startsWith('/jam');
   const searchParams = new URLSearchParams(window.location.search);
@@ -41,9 +55,9 @@ export default function FullScreenPlayerUI({
   const queueContainerRef = useRef<HTMLDivElement>(null);
   
   // oxlint-disable-next-line
-  const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 1000) : '', [currentTrack?.id]);
+  const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 1000) : '', [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
   // oxlint-disable-next-line
-  const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.id, 300) : '', [currentTrack?.id]);
+  const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300) : '', [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
 
   const {
     lyricsText,
@@ -82,7 +96,7 @@ export default function FullScreenPlayerUI({
   } as import('../../types').Track;
 
   return (
-    <div className={`absolute inset-0 bg-background flex text-foreground overflow-hidden ${onClose ? 'z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-500 ease-out' : 'z-10'}`}>
+    <div className={`absolute inset-0 bg-background flex text-foreground overflow-hidden z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-500 ease-out`}>
       
       {/* Blurred Background */}
       <div 
@@ -104,17 +118,34 @@ export default function FullScreenPlayerUI({
               <ChevronDown size={28} className="text-[#b3b3b3]" />
             </button>
           )}
-          {!onClose && isJamRoute && (role === 'host' || role === 'cohost') && (
-            <button 
-              onClick={() => usePlayerStore.getState().setIsMinimized(true)}
-              className="p-2 bg-black/20 hover:bg-black/40 rounded-full backdrop-blur-md transition-colors border border-white/10 shadow-lg"
-              title={t('player.minimize_session')}
-            >
-              <ChevronDown size={28} className="text-[#b3b3b3]" />
-            </button>
-          )}
         </div>
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto flex items-center gap-4">
+          {isJamRoute && (role === 'listener' || role === 'cohost') && (
+            <div className="relative" ref={jamMenuRef}>
+              <button 
+                onClick={() => setShowJamMenu(!showJamMenu)} 
+                className={`flex items-center gap-2 px-3.5 h-10 rounded-full transition-all backdrop-blur-md border shadow-lg ${
+                  showJamMenu 
+                    ? 'bg-primary text-background border-primary' 
+                    : roomId 
+                      ? 'bg-primary/20 text-primary hover:bg-primary/30 border-primary/30' 
+                      : 'bg-black/20 hover:bg-black/40 text-white/80 border-white/10'
+                }`}
+                title={t('common.jam_session')}
+              >
+                <Users size={18} className="shrink-0" />
+                <span className="text-sm font-bold">{t('common.jam_session')}</span>
+              </button>
+              
+              {showJamMenu && (
+                <div className="absolute top-full right-0 mt-3 p-4 bg-card/95 backdrop-blur-xl border border-border/80 rounded-2xl shadow-2xl w-80 z-[70] animate-in fade-in slide-in-from-top-2 duration-200 text-foreground">
+                  <h3 className="font-bold text-center mb-1">{t('common.jam_session_title')}</h3>
+                  <p className="text-xs text-secondary text-center mb-2">{t('common.jam_session_desc')}</p>
+                  <JamSessionControl hideCreate={true} />
+                </div>
+              )}
+            </div>
+          )}
           {extraControls}
         </div>
       </div>
@@ -165,31 +196,42 @@ export default function FullScreenPlayerUI({
             <div className="absolute left-6">
               <LanguageSelector align="left" />
             </div>
+            <div className="absolute right-6">
+              <ThemeSelector align="right" />
+            </div>
             <button 
               onClick={() => setActiveTab('queue')}
-              className={`transition-all rounded-full px-5 py-2 ${activeTab === 'queue' ? 'bg-primary text-background shadow-md' : 'hover:bg-foreground/10 hover:text-foreground'}`}
+              className={`transition-all rounded-full px-4 md:px-5 py-2 flex items-center justify-center gap-2 ${activeTab === 'queue' ? 'bg-primary text-background shadow-md' : 'hover:bg-foreground/10 hover:text-foreground'}`}
+              title={t('player.queue')}
             >
-              {t('player.queue')}
+              <ListMusic size={18} className="md:hidden" />
+              <span className="hidden md:inline">{t('player.queue')}</span>
             </button>
             {!isStandalone && !readOnlyControls && (
               <button 
                 onClick={() => setActiveTab('similar')}
-                className={`transition-all rounded-full px-5 py-2 ${activeTab === 'similar' ? 'bg-primary text-background shadow-md' : 'hover:bg-foreground/10 hover:text-foreground'}`}
+                className={`transition-all rounded-full px-4 md:px-5 py-2 flex items-center justify-center gap-2 ${activeTab === 'similar' ? 'bg-primary text-background shadow-md' : 'hover:bg-foreground/10 hover:text-foreground'}`}
+                title={t('player.similar')}
               >
-                {t('player.similar')}
+                <Radio size={18} className="md:hidden" />
+                <span className="hidden md:inline">{t('player.similar')}</span>
               </button>
             )}
             <button 
               onClick={() => setActiveTab('lyrics')}
-              className={`transition-all rounded-full px-5 py-2 ${activeTab === 'lyrics' ? 'bg-primary text-background shadow-md' : 'hover:bg-foreground/10 hover:text-foreground'}`}
+              className={`transition-all rounded-full px-4 md:px-5 py-2 flex items-center justify-center gap-2 ${activeTab === 'lyrics' ? 'bg-primary text-background shadow-md' : 'hover:bg-foreground/10 hover:text-foreground'}`}
+              title={t('player.lyrics')}
             >
-              {t('player.lyrics')}
+              <MessageSquareQuote size={18} className="md:hidden" />
+              <span className="hidden md:inline">{t('player.lyrics')}</span>
             </button>
             <button 
               onClick={() => setActiveTab('visualizer')}
-              className={`transition-all rounded-full px-5 py-2 ${activeTab === 'visualizer' ? 'bg-primary text-background shadow-md' : 'hover:bg-foreground/10 hover:text-foreground'}`}
+              className={`transition-all rounded-full px-4 md:px-5 py-2 flex items-center justify-center gap-2 ${activeTab === 'visualizer' ? 'bg-primary text-background shadow-md' : 'hover:bg-foreground/10 hover:text-foreground'}`}
+              title={t('player.visualizer')}
             >
-              {t('player.visualizer')}
+              <Activity size={18} className="md:hidden" />
+              <span className="hidden md:inline">{t('player.visualizer')}</span>
             </button>
           </div>
 
@@ -316,14 +358,14 @@ export default function FullScreenPlayerUI({
                             }}
                             onContextMenu={(e) => {
                               e.preventDefault();
-                              openMenu(e.clientX, e.clientY, { ...track, queueIndex: idx, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
+                              openMenu(e.clientX, e.clientY, { ...track, queueIndex: idx, coverArt: getCoverArtUrl(track.coverArt || track.albumId || track.id, 300) }, 'track');
                             }}
                           >
                             <div className="w-8 flex justify-center text-white/50 text-sm font-medium select-none pointer-events-none">
                               {isPlayingQueue ? <Play size={14} className="text-primary stroke-none" fill="currentColor" /> : idx + 1}
                             </div>
                             <div className="w-12 h-12 flex-shrink-0 mx-4 rounded-lg overflow-hidden shadow-md select-none pointer-events-none">
-                              <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />
+                              <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId || track.id, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />
                             </div>
                             <div className="flex-1 min-w-0 flex flex-col justify-center select-none pointer-events-none">
                               <p className={`flex items-center gap-2 truncate text-base font-semibold ${isPlayingQueue ? 'text-primary drop-shadow-md' : 'text-white/90'}`}>
@@ -353,11 +395,11 @@ export default function FullScreenPlayerUI({
                     onClick={() => !readOnlyControls && setQueueAndPlay(similarTracks, idx)}
                     onContextMenu={(e) => {
                       e.preventDefault();
-                      openMenu(e.clientX, e.clientY, { ...track, coverArt: track.coverArt || getCoverArtUrl(track.id, 300) }, 'track');
+                      openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId || track.id, 300) }, 'track');
                     }}
                   >
                     <div className="w-12 h-12 flex-shrink-0 mr-4 rounded-lg overflow-hidden shadow-md">
-                      <TrackImage src={track.coverArt} className="w-full h-full object-cover" alt="" />
+                      <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId || track.id, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
                       <p className="flex items-center gap-2 truncate text-base font-semibold text-white/90">

@@ -246,3 +246,46 @@ export function removeTrackFromPlaylist(userId: string, playlistId: string, trac
     db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?').run(playlistId, trackId);
   }
 }
+
+export function getExclusions(userId: string): { excludedTrackIds: string[], excludedAlbumIds: string[] } {
+  ensureUserExists(userId);
+  const rows = db.prepare('SELECT entity_id, entity_type FROM exclusions WHERE user_id = ?').all(userId) as { entity_id: string; entity_type: string }[];
+  const excludedTrackIds: string[] = [];
+  const excludedAlbumIds: string[] = [];
+  for (const row of rows) {
+    if (row.entity_type === 'track') {
+      excludedTrackIds.push(row.entity_id);
+    } else if (row.entity_type === 'album') {
+      excludedAlbumIds.push(row.entity_id);
+    }
+  }
+  return { excludedTrackIds, excludedAlbumIds };
+}
+
+export function setExclusions(userId: string, excludedTrackIds: string[], excludedAlbumIds: string[]): void {
+  ensureUserExists(userId);
+  const transaction = db.transaction(() => {
+    db.prepare('DELETE FROM exclusions WHERE user_id = ?').run(userId);
+    const stmt = db.prepare('INSERT OR IGNORE INTO exclusions (user_id, entity_id, entity_type) VALUES (?, ?, ?)');
+    for (const trackId of excludedTrackIds) {
+      stmt.run(userId, trackId, 'track');
+    }
+    for (const albumId of excludedAlbumIds) {
+      stmt.run(userId, albumId, 'album');
+    }
+  });
+  transaction();
+}
+
+export function toggleExclusion(userId: string, entityId: string, entityType: 'track' | 'album'): boolean {
+  ensureUserExists(userId);
+  const existing = db.prepare('SELECT 1 FROM exclusions WHERE user_id = ? AND entity_id = ? AND entity_type = ?').get(userId, entityId, entityType);
+  if (existing) {
+    db.prepare('DELETE FROM exclusions WHERE user_id = ? AND entity_id = ? AND entity_type = ?').run(userId, entityId, entityType);
+    return false;
+  } else {
+    db.prepare('INSERT OR IGNORE INTO exclusions (user_id, entity_id, entity_type) VALUES (?, ?, ?)').run(userId, entityId, entityType);
+    return true;
+  }
+}
+

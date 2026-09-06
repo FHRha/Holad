@@ -30,7 +30,7 @@ export default function ArtistCard({ artist, onClick }: ArtistCardProps) {
           const searchParams = new URLSearchParams(window.location.search);
           const room = searchParams.get('room');
           if (isJam && room) {
-            navigate(`/jam/library/artist/${slug}?room=${room}`);
+            navigate(`/jam/artist/${slug}?room=${room}`);
           } else {
             navigate(`/Holad/artist/${slug}`);
           }

@@ -145,27 +145,30 @@ export default function AddToPlaylistModal({ isOpen, onClose, trackIds }: Props)
         <div className="flex-1 overflow-y-auto p-2 min-h-[200px]">
           {filtered.length > 0 ? (
             <div className="space-y-1">
-              {filtered.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => handleAdd(p.id)}
-                  disabled={addingTo !== null}
-                  className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-foreground/5 transition-colors text-left disabled:opacity-50 group"
-                >
-                  {p.coverArt ? (
-                    <img src={getCoverArtUrl(p.coverArt, 100)} alt="" className="w-12 h-12 rounded object-cover shadow-sm" />
-                  ) : (
-                    <div className="w-12 h-12 rounded bg-foreground/5 flex items-center justify-center text-secondary">
-                      <ListMusic size={20} />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
+              {filtered.map(p => {
+                const coverUrl = getCoverArtUrl(p.coverArt, 100);
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => handleAdd(p.id)}
+                    disabled={addingTo !== null}
+                    className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-foreground/5 transition-colors text-left disabled:opacity-50 group"
+                  >
+                    {coverUrl ? (
+                      <img src={coverUrl} alt="" className="w-12 h-12 rounded object-cover shadow-sm" />
+                    ) : (
+                      <div className="w-12 h-12 rounded bg-foreground/5 flex items-center justify-center text-secondary">
+                        <ListMusic size={20} />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-foreground truncate">{p.name}</div>
                     <div className="text-xs text-secondary truncate">{p.songCount || 0} {t('common.songs')}</div>
-                  </div>
-                  {addingTo === p.id && <Check size={18} className="text-primary mr-2" />}
-                </button>
-              ))}
+                    </div>
+                    {addingTo === p.id && <Check size={18} className="text-primary mr-2" />}
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-secondary gap-2 p-8 text-center">

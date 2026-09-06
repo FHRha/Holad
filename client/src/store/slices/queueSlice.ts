@@ -20,6 +20,34 @@ const triggerPlay = () => {
   }
 };
 
+export const sanitizeTracks = (tracks: Track[]): Track[] => {
+  if (!Array.isArray(tracks)) return [];
+  return tracks.map((track) => {
+    if (typeof track.coverArt === 'string') {
+      if (track.coverArt.includes('/api/cover/')) {
+        const match = track.coverArt.match(/\/api\/cover\/([a-zA-Z0-9_\-\.]+)/);
+        if (match && match[1]) {
+          return { ...track, coverArt: match[1] };
+        }
+        return { ...track, coverArt: track.albumId || track.id };
+      }
+      if (track.coverArt.includes('getCoverArt')) {
+        try {
+          const url = new URL(track.coverArt, 'http://dummy.local');
+          const id = url.searchParams.get('id');
+          if (id && id !== 'undefined' && id !== 'null' && !id.includes('getCoverArt')) {
+            return { ...track, coverArt: id };
+          }
+          return { ...track, coverArt: track.albumId || track.id };
+        } catch {
+          return { ...track, coverArt: track.albumId || track.id };
+        }
+      }
+    }
+    return track;
+  });
+};
+
 let lastNextTrackTime = 0;
 let lastPrevTrackTime = 0;
 
@@ -64,13 +92,15 @@ export const createQueueSlice: StateCreator<
   playActionId: 0,
 
   setQueue: (tracks) => set((state) => {
+    const sanitized = sanitizeTracks(tracks);
     const isJamGuest = state.roomId && state.role !== 'host';
-    const filtered = isJamGuest ? tracks : tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+    const filtered = isJamGuest ? sanitized : sanitized.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
     return { queue: filtered, originalQueue: filtered, currentIndex: filtered.length > 0 ? 0 : -1, isShuffle: false };
   }),
   setQueueAndPlay: (tracks, startIndex = 0) => {
     const state = get();
-    const targetTrack = tracks[startIndex];
+    const sanitized = sanitizeTracks(tracks);
+    const targetTrack = sanitized[startIndex];
     if (targetTrack && (state.excludedTrackIds.includes(targetTrack.id) || (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)))) {
       if (window.confirm(i18n.t('common.unignore_and_play', { defaultValue: 'Этот трек находится в игноре. Хотите убрать его из игнора и начать воспроизведение?' }))) {
         if (state.excludedTrackIds.includes(targetTrack.id)) state.toggleTrackExclude(targetTrack.id);
@@ -82,9 +112,9 @@ export const createQueueSlice: StateCreator<
     
     set((state) => {
       triggerPlay();
-      const targetTrackId = tracks[startIndex]?.id;
+      const targetTrackId = sanitized[startIndex]?.id;
       const isJamGuest = state.roomId && state.role !== 'host';
-      const filtered = isJamGuest ? tracks : tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+      const filtered = isJamGuest ? sanitized : sanitized.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
       let newIndex = filtered.findIndex(t => t.id === targetTrackId);
       if (newIndex === -1) newIndex = 0;
       return { queue: filtered, originalQueue: filtered, currentIndex: newIndex, isPlaying: true, isShuffle: false, playActionId: state.playActionId + 1 };
@@ -92,8 +122,9 @@ export const createQueueSlice: StateCreator<
   },
   playNext: (tracks) => {
     let state = get();
+    const sanitized = sanitizeTracks(tracks);
     // Assuming tracks[0] is the target since playNext often takes an array of 1
-    const targetTrack = tracks[0];
+    const targetTrack = sanitized[0];
     if (targetTrack && (state.excludedTrackIds.includes(targetTrack.id) || (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)))) {
       if (window.confirm(i18n.t('common.unignore_and_queue', { defaultValue: 'Этот трек находится в игноре. Хотите убрать его из игнора и добавить в очередь?' }))) {
         if (state.excludedTrackIds.includes(targetTrack.id)) state.toggleTrackExclude(targetTrack.id);
@@ -106,7 +137,7 @@ export const createQueueSlice: StateCreator<
     set((state) => {
       triggerPlay();
       const isJamGuest = state.roomId && state.role !== 'host';
-      const filtered = isJamGuest ? tracks : tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+      const filtered = isJamGuest ? sanitized : sanitized.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
       if (filtered.length === 0) return state;
 
       let newQueue = [...state.queue];
@@ -141,8 +172,9 @@ export const createQueueSlice: StateCreator<
     });
   },
   addToQueue: (tracks) => set((state) => {
+    const sanitized = sanitizeTracks(tracks);
     const isJamGuest = state.roomId && state.role !== 'host';
-    const filtered = isJamGuest ? tracks : tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+    const filtered = isJamGuest ? sanitized : sanitized.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
     if (filtered.length === 0) return state;
     return { 
       queue: [...state.queue, ...filtered],

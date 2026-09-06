@@ -1,3 +1,5 @@
+import { getHoladServerUrl } from '../utils/serverConfig';
+
 export async function getExternalArtistStats(artistName: string) {
   const useNavidrome = localStorage.getItem('useNavidrome') !== 'false';
   const useLastFm = localStorage.getItem('useLastFm') === 'true';
@@ -13,7 +15,7 @@ export async function getExternalArtistStats(artistName: string) {
   if (yandexToken) params.append('yandexToken', yandexToken);
 
   try {
-    const res = await fetch(`/api/stats/artist/${encodeURIComponent(artistName)}?${params.toString()}`);
+    const res = await fetch(`${getHoladServerUrl()}/api/stats/artist/${encodeURIComponent(artistName)}?${params.toString()}`);
     if (!res.ok) {
       throw new Error('Stats endpoint returned error');
     }
@@ -39,7 +41,7 @@ export async function getExternalAlbumStats(artistName: string, albumName: strin
   if (yandexToken) params.append('yandexToken', yandexToken);
 
   try {
-    const res = await fetch(`/api/stats/album/${encodeURIComponent(artistName)}/${encodeURIComponent(albumName)}?${params.toString()}`);
+    const res = await fetch(`${getHoladServerUrl()}/api/stats/album/${encodeURIComponent(artistName)}/${encodeURIComponent(albumName)}?${params.toString()}`);
     if (!res.ok) {
       throw new Error('Stats endpoint returned error');
     }

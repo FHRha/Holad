@@ -3,6 +3,7 @@ import { Music } from 'lucide-react';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { useDownloadStore } from '../../store/downloadStore';
 import { StorageManager } from '../../utils/StorageManager';
+import { getCoverArtUrl } from '../../api/subsonic';
 
 interface TrackImageProps {
   src?: string;
@@ -11,7 +12,8 @@ interface TrackImageProps {
   trackId?: string;
 }
 
-export default function TrackImage({ src, className, alt = '', trackId }: TrackImageProps) {
+export default function TrackImage({ src: rawSrc, className, alt = '', trackId }: TrackImageProps) {
+  const src = (!rawSrc || typeof rawSrc !== 'string' || rawSrc === 'undefined' || rawSrc === 'null' || !rawSrc.trim()) ? undefined : rawSrc;
   const [error, setError] = useState(false);
   const [retries, setRetries] = useState(0);
   const [finalSrc, setFinalSrc] = useState<string | undefined>(undefined);
@@ -49,17 +51,22 @@ export default function TrackImage({ src, className, alt = '', trackId }: TrackI
     }
 
     const checkLocalAndFetch = async () => {
+      let resolvedSrc = src;
+      if (resolvedSrc && !resolvedSrc.startsWith('http') && !resolvedSrc.startsWith('/') && !resolvedSrc.startsWith('blob:') && !resolvedSrc.startsWith('data:') && !resolvedSrc.startsWith('asset:') && !resolvedSrc.startsWith('capacitor:') && !resolvedSrc.startsWith('file:') && !resolvedSrc.startsWith('_capacitor_')) {
+        resolvedSrc = getCoverArtUrl(resolvedSrc, 300);
+      }
+
       // If src is already a local asset or file URI, use directly
-      if (src && (
-        src.startsWith('http://asset.localhost') ||
-        src.startsWith('asset://') ||
-        src.startsWith('_capacitor_file_') ||
-        src.startsWith('capacitor://') ||
-        src.startsWith('file://') ||
-        src.startsWith('blob:') ||
-        src.startsWith('data:')
+      if (resolvedSrc && (
+        resolvedSrc.startsWith('http://asset.localhost') ||
+        resolvedSrc.startsWith('asset://') ||
+        resolvedSrc.startsWith('_capacitor_file_') ||
+        resolvedSrc.startsWith('capacitor://') ||
+        resolvedSrc.startsWith('file://') ||
+        resolvedSrc.startsWith('blob:') ||
+        resolvedSrc.startsWith('data:')
       )) {
-        if (isMounted) setFinalSrc(src);
+        if (isMounted) setFinalSrc(resolvedSrc);
         return;
       }
 
@@ -73,15 +80,19 @@ export default function TrackImage({ src, className, alt = '', trackId }: TrackI
         } catch {}
       }
 
-      if (!src) {
+      if (!resolvedSrc && trackId) {
+        resolvedSrc = getCoverArtUrl(trackId, 300);
+      }
+
+      if (!resolvedSrc) {
         if (isMounted) setFinalSrc(undefined);
         return;
       }
 
       // If we're retrying, append a timestamp to the original URL before caching
       const urlToFetch = retries > 0 
-        ? `${src}${src.includes('?') ? '&' : '?'}retry=${retries}`
-        : src;
+        ? `${resolvedSrc}${resolvedSrc.includes('?') ? '&' : '?'}retry=${retries}`
+        : resolvedSrc;
         
       try {
         const cachedUrl = await getCachedImageUrl(urlToFetch);

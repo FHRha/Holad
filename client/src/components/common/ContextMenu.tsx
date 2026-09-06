@@ -417,7 +417,7 @@ export default function ContextMenu() {
             <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-4" />
             <div className="flex items-center gap-3">
         <img 
-          src={item?.coverArt && (item.coverArt.toString().startsWith('http') || item.coverArt.toString().includes('getCoverArt')) ? item.coverArt : getCoverArtUrl(item?.coverArt || item?.id, 300)} 
+          src={getCoverArtUrl(item?.coverArt || item?.albumId || item?.id, 300)} 
           alt="" 
           className="w-12 h-12 rounded object-cover shadow-md pointer-events-none" 
         />
@@ -436,22 +436,25 @@ export default function ContextMenu() {
                   <ChevronRight size={16} className="rotate-180 mr-1" />
                   {t('common.add_to_playlist')}
                 </button>
-                {playlists.slice(0, 5).map(p => (
-                  <button 
-                    key={p.id}
-                    onClick={() => handleAddToPlaylist(p.id)}
-                    className="flex items-center gap-3 p-2 hover:bg-foreground/5 rounded-xl transition-colors text-left"
-                  >
-                    {p.coverArt ? (
-                      <img src={getCoverArtUrl(p.coverArt, 100)} alt="" className="w-10 h-10 rounded object-cover shadow-sm" />
-                    ) : (
-                      <div className="w-10 h-10 rounded bg-foreground/5 flex items-center justify-center text-secondary">
-                        <ListMusic size={18} />
-                      </div>
-                    )}
-                    <span className="text-sm font-semibold text-foreground truncate flex-1">{p.name}</span>
-                  </button>
-                ))}
+                {playlists.slice(0, 5).map(p => {
+                  const coverUrl = getCoverArtUrl(p.coverArt, 100);
+                  return (
+                    <button 
+                      key={p.id}
+                      onClick={() => handleAddToPlaylist(p.id)}
+                      className="flex items-center gap-3 p-2 hover:bg-foreground/5 rounded-xl transition-colors text-left"
+                    >
+                      {coverUrl ? (
+                        <img src={coverUrl} alt="" className="w-10 h-10 rounded object-cover shadow-sm" />
+                      ) : (
+                        <div className="w-10 h-10 rounded bg-foreground/5 flex items-center justify-center text-secondary">
+                          <ListMusic size={18} />
+                        </div>
+                      )}
+                      <span className="text-sm font-semibold text-foreground truncate flex-1">{p.name}</span>
+                    </button>
+                  );
+                })}
                 {playlists.length === 0 && (
                   <div className="text-secondary text-sm text-center py-4">{t('common.no_playlists_found')}</div>
                 )}
@@ -486,11 +489,11 @@ export default function ContextMenu() {
                   <MobileIconBtn icon={Play} label={t('common.play_now')} onClick={() => handleAction(onPlayNow)} />
                   <MobileIconBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
                   {!isInQueue && <MobileIconBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
-                  {item.playlistId ? (
+                  {!isGuest && (item.playlistId ? (
                     <MobileIconBtn icon={ListMinus} label={t('common.remove_from_playlist', 'Убрать из плейлиста')} onClick={handleRemoveFromPlaylist} color="text-red-500" />
                   ) : (
                     <MobileIconBtn icon={ListMusic} label={t('common.add_to_playlist')} onClick={onShowPlaylists} />
-                  )}
+                  ))}
                   {!isGuest && <MobileIconBtn icon={Heart} label={t('common.favorite')} onClick={() => handleAction(onLike)} activeColor={isLiked ? "text-primary" : "text-foreground"} />}
                   {!isGuest && <MobileIconBtn icon={Ban} label={t('common.ignore', 'В игнор')} onClick={() => handleAction(onExclude)} activeColor={isExcluded ? "text-red-500" : "text-foreground"} />}
                   {!isGuest && (isDownloaded ? (
@@ -592,7 +595,7 @@ export default function ContextMenu() {
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center gap-3">
         <img 
-          src={item.coverArt && (item.coverArt.toString().startsWith('http') || item.coverArt.toString().includes('getCoverArt')) ? item.coverArt : getCoverArtUrl(item.coverArt || item.id, 300)} 
+          src={getCoverArtUrl(item.coverArt || item.albumId || item.id, 300)} 
           alt="" 
           className="w-10 h-10 rounded object-cover shadow-md" 
         />
@@ -612,22 +615,25 @@ export default function ContextMenu() {
             {t('common.add_to_playlist')}
           </button>
           
-          {playlists.slice(0, 5).map(p => (
-            <button 
-              key={p.id}
-              onClick={() => handleAddToPlaylist(p.id)}
-              className="flex items-center gap-3 p-2 mx-1 hover:bg-foreground/5 rounded-lg transition-colors text-left"
-            >
-              {p.coverArt ? (
-                <img src={getCoverArtUrl(p.coverArt, 100)} alt="" className="w-8 h-8 rounded object-cover shadow-sm" />
-              ) : (
-                <div className="w-8 h-8 rounded bg-foreground/5 flex items-center justify-center text-secondary">
-                  <ListMusic size={14} />
-                </div>
-              )}
-              <span className="text-sm font-semibold text-foreground truncate flex-1">{p.name}</span>
-            </button>
-          ))}
+          {playlists.slice(0, 5).map(p => {
+            const coverUrl = getCoverArtUrl(p.coverArt, 100);
+            return (
+              <button 
+                key={p.id}
+                onClick={() => handleAddToPlaylist(p.id)}
+                className="flex items-center gap-3 p-2 mx-1 hover:bg-foreground/5 rounded-lg transition-colors text-left"
+              >
+                {coverUrl ? (
+                  <img src={coverUrl} alt="" className="w-8 h-8 rounded object-cover shadow-sm" />
+                ) : (
+                  <div className="w-8 h-8 rounded bg-foreground/5 flex items-center justify-center text-secondary">
+                    <ListMusic size={14} />
+                  </div>
+                )}
+                <span className="text-sm font-semibold text-foreground truncate flex-1">{p.name}</span>
+              </button>
+            );
+          })}
           {playlists.length === 0 && (
             <div className="text-secondary text-xs text-center py-4">{t('common.no_playlists_found')}</div>
           )}
@@ -661,11 +667,11 @@ export default function ContextMenu() {
             <ItemBtn icon={Play} label={t('common.play_now')} onClick={() => handleAction(onPlayNow)} />
             <ItemBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
             {!isInQueue && <ItemBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
-            {item.playlistId ? (
+            {!isGuest && (item.playlistId ? (
               <ItemBtn icon={ListMinus} label={t('common.remove_from_playlist', 'Убрать из плейлиста')} onClick={handleRemoveFromPlaylist} color="text-red-500 hover:text-red-400" />
             ) : (
               <ItemBtn icon={ListMusic} label={t('common.add_to_playlist')} onClick={onShowPlaylists} />
-            )}
+            ))}
           </div>
 
           {item.queueIndex !== undefined && (

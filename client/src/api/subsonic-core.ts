@@ -49,6 +49,9 @@ export const buildUrl = (endpoint: string, params: Record<string, string> = {}) 
   }
   
   const queryString = query ? `${query}&${auth}` : auth;
+  if (baseUrl.endsWith('/api/subsonic')) {
+    return `${baseUrl}/${endpoint}?${queryString}`;
+  }
   return `${baseUrl}/rest/${endpoint}?${queryString}`;
 };
 
@@ -70,12 +73,22 @@ export const fetchWithRetry = async (url: string, options?: RequestInit): Promis
       // We got a response, so we're online
       import('../utils/networkStatus').then(m => m.networkManager.setOnline(true)).catch(() => {});
       
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const error = new Error(`HTTP ${res.status}`);
+        (error as any).status = res.status;
+        throw error;
+      }
       return res;
     } catch (e: any) {
       if (e.name === 'AbortError') {
         import('../utils/networkStatus').then(m => m.networkManager.setOnline(false)).catch(() => {});
         throw new Error('Network timeout');
+      }
+
+      // Do not retry 4xx errors (except 429)
+      const status = e.status || (e.message?.startsWith('HTTP ') ? parseInt(e.message.slice(5), 10) : undefined);
+      if (typeof status === 'number' && status >= 400 && status < 500 && status !== 429) {
+        throw e;
       }
       
       if (i === delays.length) throw e;

@@ -111,6 +111,7 @@ const ALLOWED_GUEST_ENDPOINTS = new Set([
   'getCoverArt',
   'getAlbum',
   'getArtist',
+  'getArtists',
   'getArtistInfo',
   'getArtistInfo2',
   'getIndexes',
@@ -230,7 +231,15 @@ app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, re
 
 async function executeWithFailover(req: express.Request, res: express.Response, buildUrlFn: (account: NavidromeAccount) => string, handleResponseFn: (response: Response) => Promise<any>) {
   if (navidromeAccounts.length === 0) {
-    return res.status(503).send('No available Navidrome accounts for guest access.');
+    if (process.env.NAVIDROME_URL) {
+      navidromeAccounts.push({
+        url: process.env.NAVIDROME_URL,
+        user: process.env.NAVIDROME_USER || '',
+        pass: process.env.NAVIDROME_PASS || ''
+      });
+    } else {
+      return res.status(503).send('No available Navidrome accounts for guest access.');
+    }
   }
 
   const accountsToTry = [...navidromeAccounts];
@@ -243,9 +252,11 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
       const response = await fetch(url, { headers });
       
       if (response.status === 401 || response.status === 403) {
-        console.warn(`Account ${account.user} failed auth. Removing.`);
-        navidromeAccounts = navidromeAccounts.filter(a => a.user !== account.user || a.url !== account.url);
-        saveAccountsToEnv();
+        console.warn(`Account ${account.user} failed auth.`);
+        if (navidromeAccounts.length > 1 && account.user !== process.env.NAVIDROME_USER) {
+          navidromeAccounts = navidromeAccounts.filter(a => a.user !== account.user || a.url !== account.url);
+          saveAccountsToEnv();
+        }
         continue;
       }
       
@@ -255,9 +266,11 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
             const clonedResponse = response.clone();
             const data = await clonedResponse.json();
             if (data['subsonic-response']?.status === 'failed' && data['subsonic-response']?.error?.code === 40) {
-               console.warn(`Account ${account.user} failed auth (code 40). Removing.`);
-               navidromeAccounts = navidromeAccounts.filter(a => a.user !== account.user || a.url !== account.url);
-               saveAccountsToEnv();
+               console.warn(`Account ${account.user} failed auth (code 40).`);
+               if (navidromeAccounts.length > 1 && account.user !== process.env.NAVIDROME_USER) {
+                 navidromeAccounts = navidromeAccounts.filter(a => a.user !== account.user || a.url !== account.url);
+                 saveAccountsToEnv();
+               }
                continue;
             }
          }
@@ -436,6 +449,47 @@ app.delete('/api/holad/playlists/:roomId/:playlistId/tracks/:trackId', validateR
     res.status(500).send('Error removing track');
   }
 });
+
+app.get('/api/holad/exclusions/:roomId', validateRestAuth, (req, res) => {
+  const roomId = req.params.roomId as string;
+  try {
+    const exclusions = database.getExclusions(roomId);
+    res.json(exclusions);
+  } catch (error) {
+    console.error('Error fetching exclusions:', error);
+    res.status(500).send('Error fetching exclusions');
+  }
+});
+
+app.post('/api/holad/exclusions/:roomId', validateRestAuth, express.json(), (req, res) => {
+  const roomId = req.params.roomId as string;
+  try {
+    if (req.body && 'entityId' in req.body && 'entityType' in req.body) {
+      const { entityId, entityType } = req.body;
+      const isExcluded = database.toggleExclusion(roomId, entityId, entityType);
+      io.to(`holad_${roomId}`).emit('holad_remoteCommand', {
+        type: 'exclusionToggled',
+        payload: { entityId, entityType, isExcluded }
+      });
+      return res.json({ ok: true, isExcluded });
+    } else if (req.body && ('excludedTrackIds' in req.body || 'excludedAlbumIds' in req.body)) {
+      const excludedTrackIds = req.body.excludedTrackIds || [];
+      const excludedAlbumIds = req.body.excludedAlbumIds || [];
+      database.setExclusions(roomId, excludedTrackIds, excludedAlbumIds);
+      io.to(`holad_${roomId}`).emit('holad_remoteCommand', {
+        type: 'exclusionsSynced',
+        payload: { excludedTrackIds, excludedAlbumIds }
+      });
+      return res.json({ ok: true });
+    } else {
+      return res.status(400).send('Invalid request');
+    }
+  } catch (error) {
+    console.error('Error modifying exclusions:', error);
+    return res.status(500).send('Error modifying exclusions');
+  }
+});
+
 
 app.get('/api/stats/artist/:name', async (req, res) => {
   const { name } = req.params;
@@ -632,8 +686,51 @@ app.get('/api/stats/album/:artist/:album', async (req, res) => {
   }
 });
 
-app.get('/api/subsonic/:endpoint', async (req, res) => {
-  const { endpoint } = req.params;
+app.get(['/api/cover/:id', '/Holad/api/cover/:id'], async (req, res) => {
+  const id = req.params.id as string;
+  if (!id || id === 'undefined' || id === 'null' || !String(id).trim()) {
+    return res.status(404).send('Cover art not found');
+  }
+
+  // Security: Prevent path traversal and enforce valid alphanumeric id format
+  if (id.includes('..') || id.includes('/') || id.includes('\\') || !/^[a-zA-Z0-9_\-\.]+$/.test(id)) {
+    return res.status(400).send('Invalid cover ID');
+  }
+
+  const rawSize = parseInt(req.query.size as string, 10);
+  const size = (!isNaN(rawSize) && rawSize > 0) ? Math.min(1200, Math.max(50, rawSize)) : 300;
+
+  await executeWithFailover(req, res,
+    (account) => {
+      const authParams = getSubsonicAuthParams(account);
+      return `${account.url.replace(/\/$/, '')}/rest/getCoverArt?id=${encodeURIComponent(id)}&size=${size}&${authParams}`;
+    },
+    async (response) => {
+      if (!response.ok) {
+        return res.status(response.status).send('Cover art not found');
+      }
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('image/')) {
+        res.set('Content-Type', contentType);
+        res.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+        const arrayBuffer = await response.arrayBuffer();
+        res.send(Buffer.from(arrayBuffer));
+      } else {
+        res.status(404).send('Cover art not found');
+      }
+    }
+  );
+});
+
+app.get(['/api/subsonic/:endpoint', '/api/subsonic/rest/:endpoint'], async (req, res) => {
+  const endpoint = req.params.endpoint as string;
+
+  if (endpoint === 'getCoverArt') {
+    const { id } = req.query;
+    if (!id || id === 'undefined' || id === 'null' || !String(id).trim()) {
+      return res.status(404).send('Cover art not found');
+    }
+  }
   
   if (!ALLOWED_GUEST_ENDPOINTS.has(endpoint)) {
     console.warn(`Blocked unauthorized access attempt to endpoint: ${endpoint}`);
@@ -1155,7 +1252,7 @@ if (fs.existsSync(clientPath)) {
   
   // SPA fallback (using regex for Express 5 compatibility)
   app.get(/^(.*)$/, (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io') || req.path.startsWith('/Holad/api') || req.path.startsWith('/Holad/socket.io')) {
       return next();
     }
     // Prevent caching of index.html so users don't get white screens after deployments
@@ -1171,4 +1268,4 @@ httpServer.listen(PORT, () => {
   console.log(`▶ Access Holad at: http://localhost:${PORT}/`);
 });
 
-export { app, httpServer, io };
+export { app, httpServer, io, navidromeAccounts };

@@ -35,7 +35,7 @@ export default function ArtistLinks({ artistString, artistId, className = "", on
        if (onLinkClick) onLinkClick(); // Close search overlay if passed
        const path = `/artist/${artistId}`;
        if (isJam && room) {
-          navigate(`/jam/library${path}?room=${room}`);
+          navigate(`/jam${path}?room=${room}`);
        } else {
           navigate(`/Holad${path}`);
        }

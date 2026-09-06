@@ -20,6 +20,7 @@ export default function AlbumCard({ album }: { album: any }) {
   const toggleAlbumExclude = usePlayerStore(state => state.toggleAlbumExclude);
   const excludedAlbumIds = usePlayerStore(state => state.excludedAlbumIds);
   const setIsProcessing = usePlayerStore(state => state.setIsProcessing);
+  const isGuest = usePlayerStore(state => !!state.roomId && state.role !== 'host');
   const { openMenu } = useContextMenuStore();
   const downloadItem = useDownloadStore(state => state.downloads[album.id]);
   const isDownloaded = downloadItem?.status === 'completed';
@@ -63,7 +64,7 @@ export default function AlbumCard({ album }: { album: any }) {
       const searchParams = new URLSearchParams(window.location.search);
       const room = searchParams.get('room');
       if (isJam && room) {
-        navigate(`/jam/library/album/${album.id}?room=${room}`);
+        navigate(`/jam/album/${album.id}?room=${room}`);
       } else {
         navigate(`/Holad/album/${album.id}`);
       }
@@ -89,7 +90,7 @@ export default function AlbumCard({ album }: { album: any }) {
   const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const coverUrl = getCoverArtUrl(album.coverArt, 300);
+  const coverUrl = getCoverArtUrl(album.coverArt || album.id, 300);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -242,26 +243,28 @@ export default function AlbumCard({ album }: { album: any }) {
         </div>
 
         {/* Hover Overlay Buttons on Image */}
-        <div className="absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 flex [@media(hover:none)]:!hidden flex-col justify-between p-3 bg-background/50">
-          <div className="flex justify-between items-start z-20">
-            <Heart 
-              size={20} 
-              className={`cursor-pointer transition-colors hover:scale-110 ${isLiked ? 'text-primary' : 'text-[#b3b3b3] hover:text-primary'}`} 
-              fill={isLiked ? "currentColor" : "none"}
-              onClick={handleLike}
-            />
-            <div className="flex text-yellow-400 drop-shadow-md cursor-pointer z-20">
-              {[1, 2, 3, 4, 5].map((starValue) => (
-                <Star 
-                  key={starValue} 
-                  size={14} 
-                  fill={starValue <= rating ? 'currentColor' : 'transparent'} 
-                  className={`hover:scale-125 transition-transform ${starValue > rating ? 'text-foreground/30' : ''}`} 
-                  onClick={(e) => handleRate(e, starValue)}
-                />
-              ))}
+        <div className={`absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 flex [@media(hover:none)]:!hidden flex-col ${!isGuest ? 'justify-between' : 'justify-center items-center'} p-3 bg-background/50`}>
+          {!isGuest && (
+            <div className="flex justify-between items-start z-20 w-full">
+              <Heart 
+                size={20} 
+                className={`cursor-pointer transition-colors hover:scale-110 ${isLiked ? 'text-primary' : 'text-[#b3b3b3] hover:text-primary'}`} 
+                fill={isLiked ? "currentColor" : "none"}
+                onClick={handleLike}
+              />
+              <div className="flex text-yellow-400 drop-shadow-md cursor-pointer z-20">
+                {[1, 2, 3, 4, 5].map((starValue) => (
+                  <Star 
+                    key={starValue} 
+                    size={14} 
+                    fill={starValue <= rating ? 'currentColor' : 'transparent'} 
+                    className={`hover:scale-125 transition-transform ${starValue > rating ? 'text-foreground/30' : ''}`} 
+                    onClick={(e) => handleRate(e, starValue)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex items-center justify-center gap-2 lg:gap-4 mt-2">
             <button 
@@ -286,8 +289,8 @@ export default function AlbumCard({ album }: { album: any }) {
             </button>
           </div>
 
-          <div className="flex justify-between items-end z-20">
-            <Ban size={18} className={`cursor-pointer transition-colors hover:text-red-500 ${isExcluded ? 'text-red-500' : 'text-[#b3b3b3]'}`} onClick={(e) => { e.stopPropagation(); toggleAlbumExclude(album.id); }} />
+          <div className={`flex ${!isGuest ? 'justify-between' : 'justify-end w-full absolute top-3 right-3'} items-end z-20`}>
+            {!isGuest && <Ban size={18} className={`cursor-pointer transition-colors hover:text-red-500 ${isExcluded ? 'text-red-500' : 'text-[#b3b3b3]'}`} onClick={(e) => { e.stopPropagation(); toggleAlbumExclude(album.id); }} />}
             <MoreHorizontal size={20} className="text-[#b3b3b3] hover:text-foreground cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>

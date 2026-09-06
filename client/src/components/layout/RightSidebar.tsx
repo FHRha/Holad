@@ -251,7 +251,7 @@ export default function RightSidebar() {
                         </div>
                       )}
                       <div className={`relative group rounded overflow-hidden shadow-sm flex-shrink-0 ${isSmall ? 'w-14 h-14' : 'w-10 h-10 mx-2'}`}>
-                        <TrackImage src={track.coverArt || getCoverArtUrl(track.id, 100)} className="w-full h-full rounded object-cover pointer-events-none" alt="" trackId={track.id} />
+                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId || track.id, 100)} className="w-full h-full rounded object-cover pointer-events-none" alt="" trackId={track.id} />
                         {isSmall && (
                           <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} pointer-events-none`}>
                             <Play size={16} className={isPlaying ? "text-primary stroke-none" : "text-foreground stroke-none"} fill="currentColor" />

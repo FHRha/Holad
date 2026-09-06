@@ -150,11 +150,11 @@ export default function TopBar() {
                           onClick={() => handlePlaySong(track)}
                           onContextMenu={(e) => {
                             e.preventDefault();
-                            openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId, 300) }, 'track');
+                            openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId || track.id, 300) }, 'track');
                           }}
                         >
                           <div className="relative w-10 h-10 rounded overflow-hidden flex-shrink-0">
-                            <img src={getCoverArtUrl(track.coverArt || track.albumId, 100)} className="w-full h-full object-cover" alt="" />
+                            <img src={getCoverArtUrl(track.coverArt || track.albumId || track.id, 100)} className="w-full h-full object-cover" alt="" />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <Play size={16} fill="currentColor" />
                             </div>
