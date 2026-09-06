@@ -162,12 +162,14 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
       {/* Top Bar */}
       <div className="relative z-10 flex items-center justify-between px-4 py-4 w-full">
-        <button 
-          onClick={onClose}
-          className="p-2 text-secondary hover:bg-foreground/10 rounded-full transition-colors active:scale-95"
-        >
-          <ChevronDown size={28} />
-        </button>
+        {role !== 'listener' ? (
+          <button 
+            onClick={onClose}
+            className="p-2 text-secondary hover:bg-foreground/10 rounded-full transition-colors active:scale-95"
+          >
+            <ChevronDown size={28} />
+          </button>
+        ) : <div className="w-[44px]" />}
         <span className="text-white font-bold text-sm tracking-wider">
           {t('player.now_playing')}
         </span>

@@ -64,7 +64,8 @@ export const createQueueSlice: StateCreator<
   playActionId: 0,
 
   setQueue: (tracks) => set((state) => {
-    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+    const isJamGuest = state.roomId && state.role !== 'host';
+    const filtered = isJamGuest ? tracks : tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
     return { queue: filtered, originalQueue: filtered, currentIndex: filtered.length > 0 ? 0 : -1, isShuffle: false };
   }),
   setQueueAndPlay: (tracks, startIndex = 0) => {
@@ -82,7 +83,8 @@ export const createQueueSlice: StateCreator<
     set((state) => {
       triggerPlay();
       const targetTrackId = tracks[startIndex]?.id;
-      const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+      const isJamGuest = state.roomId && state.role !== 'host';
+      const filtered = isJamGuest ? tracks : tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
       let newIndex = filtered.findIndex(t => t.id === targetTrackId);
       if (newIndex === -1) newIndex = 0;
       return { queue: filtered, originalQueue: filtered, currentIndex: newIndex, isPlaying: true, isShuffle: false, playActionId: state.playActionId + 1 };
@@ -103,7 +105,8 @@ export const createQueueSlice: StateCreator<
     
     set((state) => {
       triggerPlay();
-      const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+      const isJamGuest = state.roomId && state.role !== 'host';
+      const filtered = isJamGuest ? tracks : tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
       if (filtered.length === 0) return state;
 
       let newQueue = [...state.queue];
@@ -138,7 +141,8 @@ export const createQueueSlice: StateCreator<
     });
   },
   addToQueue: (tracks) => set((state) => {
-    const filtered = tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+    const isJamGuest = state.roomId && state.role !== 'host';
+    const filtered = isJamGuest ? tracks : tracks.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
     if (filtered.length === 0) return state;
     return { 
       queue: [...state.queue, ...filtered],

@@ -10,13 +10,19 @@ import { useDownloadStore } from '../../store/downloadStore';
 import { isTauri, isCapacitor } from '../../utils/StorageManager';
 import { openExternalLink } from '../../utils/linkHelper';
 import { useSettingsStore } from '../../store/settingsStore';
+import { usePlayerStore } from '../../store/playerStore';
 
 
 export default function Sidebar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { leftSidebarWidth, setLeftSidebarWidth } = useUIStore();
   const { user, url, setAuthenticated, setCredentials } = useAuthStore();
+  const { role, roomId } = usePlayerStore();
+  const isJamRoute = location.pathname.startsWith('/jam');
+  const isJamGuest = isJamRoute && (role === 'listener' || role === 'cohost');
+  const basePath = isJamRoute ? '/jam' : '/Holad';
   const appIcon = useSettingsStore(state => state.appIcon);
   const isNative = isTauri() || isCapacitor();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -194,14 +200,14 @@ export default function Sidebar() {
         </div>
 
         <div className={`flex-1 w-full flex flex-col pt-4 ${isWide ? 'gap-1' : 'gap-6'}`}>
-          <SidebarItem to="/Holad" icon={<Home size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.home')} isWide={isWide} end />
-          <SidebarItem to="/Holad/favorites" icon={<Heart size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.favorites')} isWide={isWide} />
-          <SidebarItem to="/Holad/albums" icon={<Disc size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.albums')} isWide={isWide} />
-          <SidebarItem to="/Holad/tracks" icon={<Music size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.tracks')} isWide={isWide} />
-          <SidebarItem to="/Holad/artists" icon={<Users size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.artists')} isWide={isWide} />
-          <SidebarItem to="/Holad/playlists" icon={<ListMusic size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.playlists')} isWide={isWide} />
-          <SidebarItem to="/Holad/radio" icon={<Radio size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.radio')} isWide={isWide} />
-          {isNative && (
+          {!isJamGuest && <SidebarItem to={basePath} icon={<Home size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.home')} isWide={isWide} end />}
+          {!isJamGuest && <SidebarItem to={`${basePath}/favorites`} icon={<Heart size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.favorites')} isWide={isWide} />}
+          <SidebarItem to={`${basePath}/albums${roomId ? `?room=${roomId}` : ''}`} icon={<Disc size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.albums')} isWide={isWide} />
+          {(!isJamGuest || role === 'cohost') && <SidebarItem to={`${basePath}/tracks${roomId ? `?room=${roomId}` : ''}`} icon={<Music size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.tracks')} isWide={isWide} />}
+          {(!isJamGuest || role === 'cohost') && <SidebarItem to={`${basePath}/artists${roomId ? `?room=${roomId}` : ''}`} icon={<Users size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.artists')} isWide={isWide} />}
+          {!isJamGuest && <SidebarItem to={`${basePath}/playlists`} icon={<ListMusic size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.playlists')} isWide={isWide} />}
+          {!isJamGuest && <SidebarItem to={`${basePath}/radio`} icon={<Radio size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.radio')} isWide={isWide} />}
+          {isNative && !isJamGuest && (
             <SidebarDownloadsItem isWide={isWide} />
           )}
         </div>

@@ -289,6 +289,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     public async resume(): Promise<void> {
+        this.isPlaying = true;
         if (this.pipeline) {
             await this.pipeline.unlockContext();
         }

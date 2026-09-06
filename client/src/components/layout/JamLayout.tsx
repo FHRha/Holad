@@ -3,11 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { jamSocket } from '../../api/socket';
 import { usePlayerStore } from '../../store/playerStore';
 import { getAudioEngine } from '../../audio/AudioEngine';
-import JamSessionControl from '../jam/JamSessionControl';
-import FullScreenPlayerUI from '../common/FullScreenPlayerUI';
 import { getSong, getCoverArtUrl, getAlbumFull } from '../../api/subsonic';
-import { Routes, Route, Navigate, Link, NavLink, useNavigate } from 'react-router-dom';
-import MobileJamPlayerUI from '../player/MobileJamPlayerUI';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import TopBar from './TopBar';
 import AlbumsView from '../views/AlbumsView';
 import ArtistsView from '../views/ArtistsView';
@@ -16,22 +13,20 @@ import AlbumView from '../views/AlbumView';
 import ArtistView from '../views/ArtistView';
 import PlaylistDetailView from '../views/PlaylistDetailView';
 import RightSidebar from './RightSidebar';
-import { Disc, Music, Users, LogOut, Search } from 'lucide-react';
+import Sidebar from './Sidebar';
+import MainContent from './MainContent';
 import { useTranslation } from 'react-i18next';
-import { useUIStore } from '../../store/uiStore';
-import LanguageSelector from '../common/LanguageSelector';
 import ThemeSelector from '../common/ThemeSelector';
-import { useSettingsStore } from '../../store/settingsStore';
+import LanguageSelector from '../common/LanguageSelector';
 
 export default function JamLayout() {
   const { t } = useTranslation();
-  const appIcon = useSettingsStore(state => state.appIcon);
   const [searchParams] = useSearchParams();
   const roomToJoin = searchParams.get('room');
   const trackId = searchParams.get('track');
   const albumId = searchParams.get('album');
   const playlistId = searchParams.get('playlist');
-  const { setQueueAndPlay, queue, currentIndex, jamError, role, userName, isMinimized, setIsMinimized, setUserName } = usePlayerStore();
+  const { setQueueAndPlay, jamError, userName, setUserName } = usePlayerStore();
   const navigate = useNavigate();
   
   const [localName, setLocalName] = useState('');
@@ -143,14 +138,10 @@ export default function JamLayout() {
           <a href="/" className="px-8 py-3 rounded-full bg-primary text-background font-bold hover:scale-105 transition-transform shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.3)]">
             {t('jam.go_home')}
           </a>
-          <a href="/login" className="px-8 py-3 rounded-full bg-white/5 text-foreground font-medium hover:bg-foreground/10 transition-colors border border-white/10">
-            {t('jam.login_account')}
-          </a>
         </div>
       </div>
     );
   }
-
 
   const isValidStandaloneTrack = trackId && trackId.trim() !== '';
   const isValidStandaloneAlbum = albumId && albumId.trim() !== '';
@@ -160,34 +151,6 @@ export default function JamLayout() {
       <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background">
         <h2 className="text-2xl font-bold mb-4">{t('jam.invalid_link')}</h2>
         <p className="text-secondary">{t('jam.invalid_link_desc')}</p>
-      </div>
-    );
-  }
-
-  const hasTrack = !!queue[currentIndex];
-
-  if (!hasTrack) {
-    if (!trackId && !albumId) {
-      // We already checked roomToJoin, so this might be unnecessary
-    } else {
-      return (
-        <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background">
-          <h2 className="text-2xl font-bold mb-4">{t('jam.temp_link')}</h2>
-          <p className="text-secondary">{t('jam.loading_track')}</p>
-        </div>
-      );
-    }
-  }
-
-  if (!roomToJoin && hasTrack) {
-    return (
-      <div className="w-full h-full relative overflow-hidden bg-background flex">
-        <div className="hidden md:flex flex-1">
-          <FullScreenPlayerUI />
-        </div>
-        <div className="md:hidden">
-          <MobileJamPlayerUI onClose={() => {}} />
-        </div>
       </div>
     );
   }
@@ -234,111 +197,31 @@ export default function JamLayout() {
     );
   }
 
-  const currentRoomId = usePlayerStore.getState().roomId;
-  
-  if (hasJoined.current && !currentRoomId && usePlayerStore.getState().role !== 'host') {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6 relative">
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
-          <ThemeSelector />
-          <LanguageSelector />
-        </div>
-        <div className="w-24 h-24 mb-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 border border-red-500/30">
-          <LogOut size={48} />
-        </div>
-        <h2 className="text-3xl font-bold mb-4">{t('jam.left_session')}</h2>
-        <p className="text-secondary max-w-md mb-8">
-          {t('jam.left_session_desc')}
-        </p>
-        <div className="flex flex-col gap-4">
-          <a href="/login" className="px-8 py-3 rounded-full bg-primary text-background font-bold hover:scale-105 transition-transform shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.3)]">
-            {t('jam.login_account')}
-          </a>
-          <button onClick={() => window.location.reload()} className="px-8 py-3 rounded-full bg-white/5 text-foreground font-medium hover:bg-foreground/10 transition-colors border border-white/10">
-            {t('jam.rejoin')}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (hasJoined.current || usePlayerStore.getState().role === 'host') {
-    if (isMinimized) {
-      return (
-        <div className="flex-1 overflow-hidden relative h-full flex flex-row bg-background pb-[56px] md:pb-0">
-          <div className="hidden md:flex w-24 bg-background flex-col items-center py-4 border-r border-white/5 relative z-10 space-y-6">
-            <div className="text-foreground flex flex-col items-center justify-center gap-2 px-2 w-full mb-2">
-              <img src={`${import.meta.env.BASE_URL}icons/${appIcon === 'cassette' ? 'logo_cassette.png' : appIcon === 'wave_light' ? 'favicon_light.png' : 'favicon_dark.png'}`} alt="Holad" className="w-14 h-14 rounded-lg shadow-lg object-cover flex-shrink-0 cursor-default" />
-            </div>
-            <div className="flex-1 w-full flex flex-col gap-6 pt-4">
-              <Link to={`/jam/albums?room=${roomToJoin}`} className="w-full flex flex-col items-center gap-1 transition-colors group text-secondary hover:text-foreground">
-                <div className="relative flex justify-center w-full">
-                  <Disc size={22} />
-                </div>
-                <span className="text-[10px] font-bold leading-normal mt-1 px-1 text-center pb-0.5">{t('sidebar.albums')}</span>
-              </Link>
-              {(role === 'cohost' || role === 'host') && (
-                <>
-                  <Link to={`/jam/tracks?room=${roomToJoin}`} className="w-full flex flex-col items-center gap-1 transition-colors group text-secondary hover:text-foreground">
-                    <div className="relative flex justify-center w-full">
-                      <Music size={22} />
-                    </div>
-                    <span className="text-[10px] font-bold leading-normal mt-1 px-1 text-center pb-0.5">{t('sidebar.tracks')}</span>
-                  </Link>
-                  <Link to={`/jam/artists?room=${roomToJoin}`} className="w-full flex flex-col items-center gap-1 transition-colors group text-secondary hover:text-foreground">
-                    <div className="relative flex justify-center w-full">
-                      <Users size={22} />
-                    </div>
-                    <span className="text-[10px] font-bold leading-normal mt-1 px-1 text-center pb-0.5">{t('sidebar.artists')}</span>
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-          
-          <div className="flex-1 overflow-hidden relative flex flex-col">
+    return (
+      <>
+        <Sidebar />
+        <div className="flex-1 overflow-hidden relative">
+          <div className="absolute inset-0 flex flex-col">
             <div className="hidden md:block">
               <TopBar />
-            </div>
-            <div className="md:hidden px-4 pt-4 pb-2 sticky top-0 bg-background/95 backdrop-blur-xl z-20 border-b border-border">
-              <div 
-                className="flex items-center bg-card rounded-xl px-3 py-2.5 border border-border cursor-text"
-                onClick={() => useUIStore.getState().setSearchOpen(true)}
-              >
-                <Search size={20} className="text-secondary mr-2 pointer-events-none" />
-                <div className="bg-transparent text-secondary outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
-                  {t('topbar.search')}
-                </div>
-              </div>
             </div>
             <div className="flex-1 overflow-hidden flex flex-col relative hide-scrollbar">
               <Routes>
                 <Route path="/" element={<Navigate to={`/jam/albums?room=${roomToJoin}`} replace />} />
                 <Route path="/albums" element={<AlbumsView />} />
-                <Route path="/artists" element={role === 'cohost' || role === 'host' ? <ArtistsView /> : <Navigate to={`/jam/albums?room=${roomToJoin}`} replace />} />
-                <Route path="/tracks" element={role === 'cohost' || role === 'host' ? <TracksView /> : <Navigate to={`/jam/albums?room=${roomToJoin}`} replace />} />
-                <Route path="/library/album/:id" element={<AlbumView />} />
-                <Route path="/library/artist/:id" element={<ArtistView />} />
-                <Route path="/library/playlist/:id" element={<PlaylistDetailView />} />
-                <Route path="*" element={<Navigate to={`/jam/albums?room=${roomToJoin}`} replace />} />
+                <Route path="/artists" element={<ArtistsView />} />
+                <Route path="/artist/:id" element={<ArtistView />} />
+                <Route path="/tracks" element={<TracksView />} />
+                <Route path="/album/:id" element={<AlbumView />} />
+                <Route path="/playlist/:id" element={<PlaylistDetailView />} />
+                <Route path="*" element={<MainContent />} />
               </Routes>
             </div>
           </div>
-          <RightSidebar />
-          <MobileJamNav roomToJoin={roomToJoin} role={role} />
         </div>
-      );
-    }
-    
-    return (
-      <div className="w-full h-full relative overflow-hidden bg-background flex">
-        <div className="hidden md:flex flex-1">
-          <FullScreenPlayerUI extraControls={<JamSessionControl hideCreate={true} />} />
-        </div>
-        <div className="md:hidden">
-          <MobileJamPlayerUI onClose={() => setIsMinimized(true)} />
-        </div>
-      </div>
+        <RightSidebar />
+      </>
     );
   }
 
@@ -350,17 +233,4 @@ export default function JamLayout() {
   );
 }
 
-function MobileJamNav({ roomToJoin, role }: { roomToJoin: string | null, role: string | null }) {
-  const { t } = useTranslation();
-  return (
-    <div className="md:hidden flex items-center justify-around bg-background/80 backdrop-blur-2xl border-t border-border h-[56px] pb-[env(safe-area-inset-bottom)] px-4 z-50 rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.4)] fixed bottom-0 left-0 right-0">
-      <NavLink to={`/jam/albums?room=${roomToJoin}`} className={({isActive}) => `flex flex-col items-center gap-0.5 p-1 flex-1 transition-colors ${isActive ? 'text-primary' : 'text-secondary'}`}><Disc size={26}/><span className="text-[10px] font-bold">{t('sidebar.albums')}</span></NavLink>
-      {(role === 'cohost' || role === 'host') && (
-        <>
-          <NavLink to={`/jam/tracks?room=${roomToJoin}`} className={({isActive}) => `flex flex-col items-center gap-0.5 p-1 flex-1 transition-colors ${isActive ? 'text-primary' : 'text-secondary'}`}><Music size={26}/><span className="text-[10px] font-bold">{t('sidebar.tracks')}</span></NavLink>
-          <NavLink to={`/jam/artists?room=${roomToJoin}`} className={({isActive}) => `flex flex-col items-center gap-0.5 p-1 flex-1 transition-colors ${isActive ? 'text-primary' : 'text-secondary'}`}><Users size={26}/><span className="text-[10px] font-bold">{t('sidebar.artists')}</span></NavLink>
-        </>
-      )}
-    </div>
-  );
-}
+

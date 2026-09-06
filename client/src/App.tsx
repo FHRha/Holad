@@ -307,7 +307,9 @@ function App() {
     root.style.setProperty('--color-primary-rgb', rgbStr);
   }, [theme, accentColor]);
   
-  if (needsServerUrl) {
+  const isJamRouteGlobal = window.location.pathname.startsWith('/jam');
+  
+  if (needsServerUrl && !isJamRouteGlobal) {
     return <ServerConnectionView onConnected={() => setServerUrlSet(true)} />;
   }
 
