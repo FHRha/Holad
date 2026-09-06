@@ -1,15 +1,17 @@
 import { useEffect, useRef } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../store/playerStore';
 import { useAuthStore } from '../store/authStore';
 import { fetchStarred, getPlayQueue, getCoverArtUrl } from '../api/subsonic';
 import { fetchExclusions } from '../api/exclusions';
 import { jamSocket } from '../api/socket';
 import { useHoladStore } from '../store/holadStore';
+import { useSocialStore } from '../store/socialStore';
 import type { Track } from '../types';
 
 export function useAppInitialization() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomToJoin = searchParams.get('room');
   const trackId = searchParams.get('track');
@@ -29,11 +31,8 @@ export function useAppInitialization() {
     jamSocket.connect();
     
     if (isAuthenticated && typeof user === 'string') {
-       if (!isJamRoute) {
-          useHoladStore.getState().connect(user);
-       } else {
-          useHoladStore.getState().disconnect();
-       }
+      useHoladStore.getState().connect(user);
+      useSocialStore.getState().initSocial();
     }
     
     // Connection logic is now handled in JamLayout if needed
@@ -96,6 +95,20 @@ export function useAppInitialization() {
       }).catch(e => console.error("Failed to fetch play queue", e));
     }
   }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const jamParam = searchParams.get('jam');
+    const isJoinRoute = location.pathname.startsWith('/join');
+    const roomParam = isJoinRoute ? searchParams.get('room') : null;
+    const targetRoom = jamParam || roomParam;
+
+    if (targetRoom) {
+      const userName = typeof user === 'string' ? user : undefined;
+      jamSocket.joinRoom(targetRoom, userName);
+      navigate('/Holad', { replace: true });
+    }
+  }, [isAuthenticated, searchParams, location.pathname, user, navigate]);
 
   return { isAuthenticated, isJamRoute };
 }

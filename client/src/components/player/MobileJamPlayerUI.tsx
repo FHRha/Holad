@@ -17,6 +17,7 @@ import MobileQueueTab from './MobileQueueTab';
 import MobileLyricsTab from './MobileLyricsTab';
 import JamSessionControl from '../jam/JamSessionControl';
 import { getAudioEngine } from '../../audio/AudioEngine';
+import { jamSocket } from '../../api/socket';
 
 export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -42,7 +43,12 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
   const handleRewind = () => {
     if (currentTrack) {
       const engine = getAudioEngine();
-      engine.seek(Math.max(0, engine.getCurrentTime() - 15));
+      const newTime = Math.max(0, engine.getCurrentTime() - 15);
+      engine.seek(newTime);
+      const pState = usePlayerStore.getState();
+      if (pState.roomId && (pState.role === 'host' || pState.role === 'cohost')) {
+        jamSocket.syncSeek(newTime);
+      }
     }
   };
 
@@ -50,7 +56,12 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
     if (currentTrack) {
       const engine = getAudioEngine();
       const dur = engine.getDuration() || currentTrack.duration || 0;
-      engine.seek(Math.min(dur, engine.getCurrentTime() + 30));
+      const newTime = Math.min(dur, engine.getCurrentTime() + 30);
+      engine.seek(newTime);
+      const pState = usePlayerStore.getState();
+      if (pState.roomId && (pState.role === 'host' || pState.role === 'cohost')) {
+        jamSocket.syncSeek(newTime);
+      }
     }
   };
 

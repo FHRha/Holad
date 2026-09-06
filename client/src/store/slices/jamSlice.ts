@@ -16,6 +16,7 @@ export interface JamSlice {
     crossfadeCurve?: any;
     isGaplessEnabled?: boolean;
   } | null;
+  hostAudioMode?: 'speaker_dj' | 'synced_audio' | null;
 
   setRoomInfo: (roomId: string | null, role: JamRole) => void;
   setJamError: (error: string | null) => void;
@@ -24,6 +25,7 @@ export interface JamSlice {
   setIsMinimized: (minimized: boolean) => void;
   setSyncDrift: (drift: number) => void;
   setHostSettings: (settings: any) => void;
+  setHostAudioMode: (mode: 'speaker_dj' | 'synced_audio' | null) => void;
 }
 
 export const createJamSlice: StateCreator<
@@ -40,12 +42,13 @@ export const createJamSlice: StateCreator<
   jamError: null,
   isMinimized: false,
   hostSettings: null,
+  hostAudioMode: null,
 
   setRoomInfo: (roomId, role) => set(() => {
     if (roomId) {
-      return { roomId, role, jamError: null, hostSettings: null };
+      return { roomId, role, jamError: null, hostSettings: null, hostAudioMode: null };
     } else {
-      return { roomId: null, role: null, participants: [], isMinimized: false, hostSettings: null };
+      return { roomId: null, role: null, participants: [], isMinimized: false, hostSettings: null, hostAudioMode: null };
     }
   }),
   setJamError: (error) => set({ jamError: error }),
@@ -54,4 +57,5 @@ export const createJamSlice: StateCreator<
   setIsMinimized: (isMinimized) => set({ isMinimized }),
   setSyncDrift: (syncDrift) => set({ syncDrift }),
   setHostSettings: (settings) => set({ hostSettings: settings }),
+  setHostAudioMode: (mode) => set({ hostAudioMode: mode }),
 });

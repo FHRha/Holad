@@ -44,6 +44,7 @@ import ServerConnectionView from './components/views/ServerConnectionView';
 import { useDownloadStore } from './store/downloadStore';
 import { Toaster } from 'sonner';
 import UpdateModal from './components/modals/UpdateModal';
+import JamJoinDialog from './components/modals/JamJoinDialog';
 
 // Helper to convert hex to rgb string for Tailwind's opacity to work
 function hexToRgb(hex: string) {
@@ -60,6 +61,7 @@ function AppContent() {
     return <TrayMenu />;
   }
 
+  // oxlint-disable-next-line
   useAppLifecycle();
 
   // oxlint-disable-next-line
@@ -179,6 +181,7 @@ function AppContent() {
             } />
             
             <Route path="/jam/*" element={<JamLayout />} />
+            <Route path="/join" element={<JamJoinDialog />} />
             <Route path="*" element={<Navigate to="/Holad" replace />} />
           </Routes>
           

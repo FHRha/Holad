@@ -24,4 +24,6 @@ export interface JamParticipant {
   id: string;
   name: string;
   role: 'host' | 'cohost' | 'listener';
+  userId?: string;
+  tag?: string;
 }

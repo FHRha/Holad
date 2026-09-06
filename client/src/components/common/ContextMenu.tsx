@@ -17,12 +17,14 @@ import { usePlaylistStore } from '../../store/playlistStore';
 import AddToPlaylistModal from './AddToPlaylistModal';
 import { ListMusic, Plus, ChevronRight } from 'lucide-react';
 import { networkManager } from '../../utils/networkStatus';
+import { jamSocket } from '../../api/socket';
 
 export default function ContextMenu() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isOpen, x, y, item, type, closeMenu } = useContextMenuStore();
-  const { setQueueAndPlay, playNext, addToQueue, queue, setQueue, likedTrackIds, likedAlbumIds, toggleTrackLike, toggleAlbumLike, role, toggleTrackExclude, toggleAlbumExclude, excludedTrackIds, excludedAlbumIds } = usePlayerStore();
+  const { setQueueAndPlay, playNext, addToQueue, queue, setQueue, likedTrackIds, likedAlbumIds, toggleTrackLike, toggleAlbumLike, role, toggleTrackExclude, toggleAlbumExclude, excludedTrackIds, excludedAlbumIds, roomId } = usePlayerStore();
+  const isJamActive = roomId !== null;
   const isJamRoute = window.location.pathname.startsWith('/jam');
   const isGuest = isJamRoute && role !== 'host';
   const menuRef = useRef<HTMLDivElement>(null);
@@ -210,11 +212,19 @@ export default function ContextMenu() {
   const onPlayNext = async () => {
     const tracks = await getTracks();
     playNext(tracks);
+    const state = usePlayerStore.getState();
+    if (state.roomId) {
+      jamSocket.emit('syncQueue', { roomId: state.roomId, queue: state.queue, currentIndex: state.currentIndex });
+    }
   };
 
   const onAddToQueue = async () => {
     const tracks = await getTracks();
     addToQueue(tracks);
+    const state = usePlayerStore.getState();
+    if (state.roomId) {
+      jamSocket.emit('syncQueue', { roomId: state.roomId, queue: state.queue, currentIndex: state.currentIndex });
+    }
   };
 
   const onRemoveFromQueue = () => {
@@ -487,8 +497,22 @@ export default function ContextMenu() {
                 {/* Action Grid */}
                 <div className="grid grid-cols-4 gap-2">
                   <MobileIconBtn icon={Play} label={t('common.play_now')} onClick={() => handleAction(onPlayNow)} />
-                  <MobileIconBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
-                  {!isInQueue && <MobileIconBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
+                  <MobileIconBtn 
+                    icon={ListPlus} 
+                    label={isJamActive ? t('common.play_next_jam') : t('common.play_next')} 
+                    onClick={() => handleAction(onPlayNext)} 
+                    activeColor={isJamActive ? "text-primary" : ""}
+                    color={isJamActive ? "text-primary font-semibold" : "text-foreground"}
+                  />
+                  {!isInQueue && (
+                    <MobileIconBtn 
+                      icon={SkipForward} 
+                      label={isJamActive ? t('common.add_to_jam_queue') : t('common.add_to_queue')} 
+                      onClick={() => handleAction(onAddToQueue)} 
+                      activeColor={isJamActive ? "text-primary" : ""}
+                      color={isJamActive ? "text-primary font-semibold" : "text-foreground"}
+                    />
+                  )}
                   {!isGuest && (item.playlistId ? (
                     <MobileIconBtn icon={ListMinus} label={t('common.remove_from_playlist', 'Убрать из плейлиста')} onClick={handleRemoveFromPlaylist} color="text-red-500" />
                   ) : (
@@ -665,8 +689,20 @@ export default function ContextMenu() {
         <>
           <div className="py-1">
             <ItemBtn icon={Play} label={t('common.play_now')} onClick={() => handleAction(onPlayNow)} />
-            <ItemBtn icon={ListPlus} label={t('common.play_next')} onClick={() => handleAction(onPlayNext)} />
-            {!isInQueue && <ItemBtn icon={SkipForward} label={t('common.add_to_queue')} onClick={() => handleAction(onAddToQueue)} />}
+            <ItemBtn 
+              icon={ListPlus} 
+              label={isJamActive ? t('common.play_next_jam') : t('common.play_next')} 
+              onClick={() => handleAction(onPlayNext)} 
+              color={isJamActive ? "text-primary font-bold" : "text-foreground"} 
+            />
+            {!isInQueue && (
+              <ItemBtn 
+                icon={SkipForward} 
+                label={isJamActive ? t('common.add_to_jam_queue') : t('common.add_to_queue')} 
+                onClick={() => handleAction(onAddToQueue)} 
+                color={isJamActive ? "text-primary font-bold" : "text-foreground"} 
+              />
+            )}
             {!isGuest && (item.playlistId ? (
               <ItemBtn icon={ListMinus} label={t('common.remove_from_playlist', 'Убрать из плейлиста')} onClick={handleRemoveFromPlaylist} color="text-red-500 hover:text-red-400" />
             ) : (

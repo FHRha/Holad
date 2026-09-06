@@ -20,6 +20,7 @@ import MobileLyricsTab from './MobileLyricsTab';
 import HoladConnectMenu from './HoladConnectMenu';
 import { getAudioEngine } from '../../audio/AudioEngine';
 import { useBookmark } from '../../hooks/useBookmark';
+import { jamSocket } from '../../api/socket';
 
 export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -46,7 +47,12 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const handleRewind = () => {
     if (currentTrack) {
       const engine = getAudioEngine();
-      engine.seek(Math.max(0, engine.getCurrentTime() - 15));
+      const newTime = Math.max(0, engine.getCurrentTime() - 15);
+      engine.seek(newTime);
+      const pState = usePlayerStore.getState();
+      if (pState.roomId && (pState.role === 'host' || pState.role === 'cohost')) {
+        jamSocket.syncSeek(newTime);
+      }
     }
   };
 
@@ -54,7 +60,12 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     if (currentTrack) {
       const engine = getAudioEngine();
       const dur = engine.getDuration() || currentTrack.duration || 0;
-      engine.seek(Math.min(dur, engine.getCurrentTime() + 30));
+      const newTime = Math.min(dur, engine.getCurrentTime() + 30);
+      engine.seek(newTime);
+      const pState = usePlayerStore.getState();
+      if (pState.roomId && (pState.role === 'host' || pState.role === 'cohost')) {
+        jamSocket.syncSeek(newTime);
+      }
     }
   };
 

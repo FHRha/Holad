@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { useHoladStore } from './holadStore';
 import { usePlayerStore } from './playerStore';
 import { getAudioEngine } from '../audio/AudioEngine';
+import { jamSocket } from '../api/socket';
 
 interface AudioStore {
   audioElement: HTMLAudioElement | null;
@@ -77,11 +78,17 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
     const currentTrack = usePlayerStore.getState().queue[usePlayerStore.getState().currentIndex];
     const engine = getAudioEngine();
     const targetDuration = engine.getDuration() || state.duration || (currentTrack ? currentTrack.duration : 0);
+    const targetTime = val * targetDuration;
 
     if (isDeviceActive) {
-      engine.seek(val * targetDuration);
+      engine.seek(targetTime);
     } else {
-      useHoladStore.getState().sendRemoteCommand('seek', val * targetDuration * 1000);
+      useHoladStore.getState().sendRemoteCommand('seek', targetTime * 1000);
+    }
+
+    const playerState = usePlayerStore.getState();
+    if (playerState.roomId && (playerState.role === 'host' || playerState.role === 'cohost')) {
+      jamSocket.syncSeek(targetTime);
     }
   }
 }));

@@ -13,7 +13,9 @@
     "downloading": "Загрузка...",
     "downloading_of": "{{current}} из {{total}}",
     "logout": "Выйти",
-    "playlists": "Плейлисты"
+    "playlists": "Плейлисты",
+    "check_updates": "Проверить обновления",
+    "sheck_updates": "Проверить обновления"
   },
   "settings": {
     "general": "Общие",
@@ -459,7 +461,9 @@
     "clear_queue": "Очистить очередь",
     "play_now": "Слушать сейчас",
     "play_next": "Слушать следующим",
+    "play_next_jam": "Включить следующим в Jam",
     "add_to_queue": "Добавить в очередь",
+    "add_to_jam_queue": "Добавить в очередь Jam",
     "remove_from_queue": "Удалить из очереди",
     "remove_from_favs": "Удалить из любимых",
     "favorite": "Любимый",
@@ -594,5 +598,46 @@
     "error_create": "Ошибка создания плейлиста",
     "error_update": "Ошибка обновления плейлиста",
     "error_delete": "Ошибка удаления плейлиста"
+  },
+  "social": {
+    "tab_queue": "Очередь",
+    "tab_friends": "Jam & Друзья",
+    "tab_friends_button": "Друзья",
+    "create_jam": "Создать Jam",
+    "in_jam_with": "В сессии с {{count}} участниками",
+    "leave_jam": "Выйти из Jam",
+    "mode_speaker": "Общая колонка (пульт)",
+    "mode_speaker_desc": "Звук играет у хоста, вы управляете треками",
+    "mode_headphones": "Совместное прослушивание",
+    "mode_headphones_desc": "Звук синхронно играет в ваших наушниках",
+    "mobile_speaker_hint": "Вы управляете воспроизведением. Звук воспроизводится на устройстве хоста. Чтобы слушать через этот телефон, переключите на «Совместное прослушивание».",
+    "invite_to_jam": "Позвать в Jam",
+    "invited_to_jam_toast": "{{name}} приглашает вас в Jam!",
+    "accept": "Принять",
+    "decline": "Отклонить",
+    "add_friend": "Добавить в друзья",
+    "search_placeholder": "Имя#1234 или логин...",
+    "friend_requests": "Заявки в друзья",
+    "status_online": "В сети",
+    "status_offline": "Не в сети",
+    "listening_to": "Слушает",
+    "no_friends": "У вас пока нет друзей",
+    "no_friends_desc": "Добавьте друзей по их тегу (например, User#1234)",
+    "my_tag": "Ваш тег",
+    "copy_tag": "Скопировать тег",
+    "tag_copied": "Тег скопирован!",
+    "active_jam": "Активная Jam-сессия",
+    "sent_request": "Запрос отправлен",
+    "friend_added": "Друг добавлен",
+    "already_friends": "Уже в друзьях",
+    "no_users_found": "Пользователи не найдены",
+    "searching": "Поиск..."
+  },
+  "deeplink": {
+    "open_in_app": "Открыть в приложении Holad",
+    "continue_in_browser": "Продолжить в браузере",
+    "always_open_app": "Всегда открывать в приложении",
+    "invite_title": "Приглашение в Jam-сессию",
+    "invite_desc": "{{name}} приглашает вас слушать музыку вместе"
   }
 }

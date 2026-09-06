@@ -222,6 +222,54 @@ describe('WebSocket Events', () => {
       });
     });
   });
+
+  it('should advance track on jam_trackEnded and deduplicate race conditions', async () => {
+    // Set queue with 3 tracks
+    clientSocket.emit('syncQueue', {
+      roomId,
+      queue: [{ id: 'track-1' }, { id: 'track-2' }, { id: 'track-3' }],
+      currentIndex: 0
+    });
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    // First track ended signal (e.g. host finishes first)
+    await new Promise<void>((resolve) => {
+      clientSocket.once('syncQueue', (data) => {
+        expect(data.currentIndex).toBe(1);
+        resolve();
+      });
+      clientSocket.emit('jam_trackEnded', {
+        roomId,
+        trackId: 'track-1',
+        currentIndex: 0
+      });
+    });
+
+    // Duplicate track ended signal from slower client with old index (e.g. cohost finishes 200ms later)
+    let duplicateTriggered = false;
+    const testListener = () => { duplicateTriggered = true; };
+    clientSocket.on('syncQueue', testListener);
+
+    clientSocket.emit('jam_trackEnded', {
+      roomId,
+      trackId: 'track-1',
+      currentIndex: 0
+    });
+
+    // Also immediate duplicate signal within debounce window
+    clientSocket.emit('jam_trackEnded', {
+      roomId,
+      trackId: 'track-2',
+      currentIndex: 1
+    });
+
+    await new Promise((r) => setTimeout(r, 200));
+    clientSocket.off('syncQueue', testListener);
+
+    // Verify it was NOT advanced again to track-3 (no double skip)
+    expect(duplicateTriggered).toBe(false);
+  });
 });
 
 describe('Exclusions REST API & Socket.io Broadcast', () => {

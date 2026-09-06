@@ -19,6 +19,7 @@ import { SortableItem } from './dnd/SortableItem';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import JamSessionControl from '../jam/JamSessionControl';
+import { jamSocket } from '../../api/socket';
 
 export default function FullScreenPlayerUI({ 
   onClose,
@@ -294,6 +295,10 @@ export default function FullScreenPlayerUI({
                               getAudioEngine().resume().catch(console.error);
                               usePlayerStore.getState().setIsPlaying(true);
                               getAudioEngine().seek(line.time);
+                              const pState = usePlayerStore.getState();
+                              if (pState.roomId && (pState.role === 'host' || pState.role === 'cohost')) {
+                                jamSocket.syncSeek(line.time);
+                              }
                             }
                             setIsUserScrolled(false);
                           }}

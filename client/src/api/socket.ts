@@ -1,13 +1,18 @@
+import React from 'react';
 import { io, Socket } from 'socket.io-client';
+import { toast } from 'sonner';
 import { usePlayerStore } from '../store/playerStore';
 import { useHoladStore } from '../store/holadStore';
 import { useAudioStore } from '../store/audioStore';
+import { useSocialStore } from '../store/socialStore';
+import { useAuthStore } from '../store/authStore';
 import i18n from '../i18n';
 import { useSettingsStore } from '../store/settingsStore';
 
 import { getSocketUrl } from '../utils/serverConfig';
 import { getAudioEngine } from '../audio/AudioEngine';
 import { sanitizeTracks } from '../store/slices/queueSlice';
+import { getCoverArtUrl } from './subsonic';
 
 class JamSocketService {
   private socket: Socket | null = null;
@@ -15,6 +20,8 @@ class JamSocketService {
   private unsubscribeStore: (() => void) | null = null;
   private isApplyingRemoteState = false;
   private latestStateVersion: number = 0;
+  private lastTrackEndedId: string | null = null;
+  private lastTrackEndedTime: number = 0;
 
   connect() {
     if (this.socket) return;
@@ -30,6 +37,10 @@ class JamSocketService {
       if (roomId) {
         // Automatically rejoin the room if we get disconnected (e.g. app went to background)
         this.joinRoom(roomId, userName);
+      }
+      const { user, token, salt, url, isAuthenticated } = useAuthStore.getState();
+      if (isAuthenticated && user && token && salt && url) {
+        this.socket?.emit('social_init', { user, token, salt, url });
       }
     });
 
@@ -111,9 +122,155 @@ class JamSocketService {
         window.location.href = '/jam/';
       }
     });
+
+    this.socket.on('social_init_success', (data: any) => {
+      if (data) {
+        const username = data.username || useAuthStore.getState().user || 'User';
+        useSocialStore.getState().setUserData(username, data.tag || null);
+        if (data.friends) useSocialStore.getState().setFriends(data.friends);
+        if (data.pendingRequests) useSocialStore.getState().setPendingRequests(data.pendingRequests);
+      }
+    });
+
+    this.socket.on('social_error', (msg: any) => {
+      if (typeof msg === 'string') {
+        toast.error(msg);
+      }
+    });
+
+    this.socket.on('social_friendsList', (friends: any) => {
+      if (Array.isArray(friends)) {
+        useSocialStore.getState().setFriends(friends);
+      }
+    });
+
+    this.socket.on('social_friendRequestReceived', (data: any) => {
+      if (data) {
+        const name = data.fromUsername || data.fromTag || 'User';
+        toast.info(`${i18n.t('social.friend_requests')}: ${name}`);
+        useSocialStore.getState().addIncomingRequest(data);
+      }
+    });
+
+    this.socket.on('social_friendPresence', (data: any) => {
+      if (data && data.userId) {
+        useSocialStore.getState().updateFriendPresence(data.userId, data.isOnline, data.nowPlaying);
+      }
+    });
+
+    this.socket.on('social_friendAccepted', (data: any) => {
+      if (data && data.friend) {
+        useSocialStore.getState().addFriend(data.friend);
+        toast.success(i18n.t('social.friend_added'));
+      }
+    });
+
+    this.socket.on('social_friendRemoved', (data: any) => {
+      if (data && data.friendId) {
+        useSocialStore.getState().removeFriendFromList(data.friendId);
+      }
+    });
+
+    this.socket.on('jam_inviteReceived', (data: any) => {
+      if (!data || !data.roomId) return;
+      useSocialStore.getState().addInvite(data);
+
+      toast.custom(
+        (t) =>
+          React.createElement('div', { className: 'bg-card border border-border rounded-xl shadow-2xl p-4 flex items-center gap-3.5 w-full max-w-sm text-foreground' },
+            data.track?.coverArt
+              ? React.createElement('img', {
+                  src: getCoverArtUrl(data.track.coverArt || data.track.albumId || data.track.id, 100),
+                  alt: '',
+                  className: 'w-12 h-12 rounded-lg object-cover flex-shrink-0'
+                })
+              : React.createElement('div', { className: 'w-12 h-12 rounded-lg bg-primary/20 text-primary flex items-center justify-center flex-shrink-0 font-bold text-lg' }, 'J'),
+            React.createElement('div', { className: 'flex-1 min-w-0' },
+              React.createElement('div', { className: 'font-semibold text-sm truncate text-foreground' },
+                data.fromUser,
+                data.fromTag ? React.createElement('span', { className: 'text-secondary text-xs font-normal ml-1' }, `#${data.fromTag}`) : null
+              ),
+              React.createElement('div', { className: 'text-xs text-secondary truncate mt-0.5' },
+                i18n.t('social.invited_to_jam_toast', { name: data.fromUser })
+              ),
+              data.track?.title ? React.createElement('div', { className: 'text-[11px] text-primary truncate font-medium mt-0.5' },
+                `${data.track.title}${data.track.artist ? ` - ${data.track.artist}` : ''}`
+              ) : null,
+              React.createElement('div', { className: 'flex gap-2 mt-2' },
+                React.createElement('button', {
+                  onClick: () => {
+                    const userName = useAuthStore.getState().user || usePlayerStore.getState().userName;
+                    this.joinRoom(data.roomId, userName);
+                    useSocialStore.getState().removeInvite(data.roomId);
+                    toast.dismiss(t);
+                  },
+                  className: 'px-3 py-1 bg-primary text-black font-semibold text-xs rounded-lg hover:opacity-90 transition-opacity'
+                }, i18n.t('social.accept')),
+                React.createElement('button', {
+                  onClick: () => {
+                    useSocialStore.getState().removeInvite(data.roomId);
+                    toast.dismiss(t);
+                  },
+                  className: 'px-3 py-1 bg-foreground/10 hover:bg-foreground/20 text-foreground font-semibold text-xs rounded-lg transition-colors'
+                }, i18n.t('social.decline'))
+              )
+            )
+          ),
+        { id: `jam-invite-${data.roomId}`, duration: 15000 }
+      );
+    });
   }
+
+  emit(event: string, data?: any) {
+    this.socket?.emit(event, data);
+  }
+
+  initSocial(payload: { user: string; token: string; salt: string; url: string }) {
+    this.socket?.emit('social_init', payload);
+  }
+
+  sendFriendRequest(target: string) {
+    this.socket?.emit('social_sendFriendRequest', { target });
+  }
+
+  respondFriendRequest(requesterId: string, action: 'accept' | 'reject') {
+    this.socket?.emit('social_respondFriendRequest', { requesterId, action });
+  }
+
+  removeFriend(friendId: string) {
+    this.socket?.emit('social_removeFriend', { friendId });
+  }
+
+  inviteFriendToJam(friendId: string, roomId: string, track?: any) {
+    this.socket?.emit('jam_inviteFriend', { friendId, roomId, track });
+  }
+
+  searchUsers(query: string): Promise<any[]> {
+    return new Promise((resolve) => {
+      if (!this.socket || !this.socket.connected) {
+        resolve([]);
+        return;
+      }
+      this.socket.emit('social_searchUsers', { query }, (res: any) => {
+        if (Array.isArray(res)) {
+          resolve(res);
+        } else if (res && Array.isArray(res.results)) {
+          resolve(res.results);
+        } else {
+          resolve([]);
+        }
+      });
+      this.socket.once('social_searchResults', (results: any) => {
+        if (Array.isArray(results)) {
+          resolve(results);
+        }
+      });
+    });
+  }
+
   createRoom(name?: string) {
-    this.socket?.emit('createRoom', { name, sessionId: this.getSessionId() });
+    const userName = name || useAuthStore.getState().user || usePlayerStore.getState().userName || 'Host';
+    this.socket?.emit('createRoom', { name: userName, sessionId: this.getSessionId() });
   }
 
   private getSessionId() {
@@ -126,7 +283,8 @@ class JamSocketService {
   }
 
   joinRoom(roomId: string, name?: string) {
-    this.socket?.emit('joinRoom', { roomId, name, sessionId: this.getSessionId() });
+    const userName = name || useAuthStore.getState().user || usePlayerStore.getState().userName || 'Guest';
+    this.socket?.emit('joinRoom', { roomId, name: userName, sessionId: this.getSessionId() });
   }
 
   grantRole(userId: string, role: 'host' | 'cohost' | 'listener') {
@@ -141,6 +299,70 @@ class JamSocketService {
     if (roomId) {
       this.socket?.emit('kickParticipant', { roomId, userId });
     }
+  }
+
+  syncSeek(currentTime: number) {
+    const state = usePlayerStore.getState();
+    if (!state.roomId || (state.role !== 'host' && state.role !== 'cohost')) return;
+    const currentTrack = state.queue[state.currentIndex];
+    if (!currentTrack) return;
+
+    const settings = useSettingsStore.getState();
+    this.latestStateVersion += 1;
+    this.socket?.emit('syncState', {
+      roomId: state.roomId,
+      trackId: currentTrack.id,
+      currentTime,
+      isPlaying: state.isPlaying,
+      currentIndex: state.currentIndex,
+      isAutoDjEnabled: state.isAutoDjEnabled,
+      version: this.latestStateVersion,
+      isCrossfadeEnabled: settings.isCrossfadeEnabled,
+      crossfadeDuration: settings.crossfadeDuration,
+      crossfadeCurve: settings.crossfadeCurve,
+      isGaplessEnabled: settings.isGaplessEnabled,
+      isSeek: true
+    });
+  }
+
+  trackEnded(trackId?: string, currentIndex?: number, repeatMode?: 'none' | 'all' | 'one') {
+    const state = usePlayerStore.getState();
+    if (!state.roomId || (state.role !== 'host' && state.role !== 'cohost')) return;
+
+    const now = Date.now();
+    const trackKey = trackId || `${currentIndex ?? state.currentIndex}`;
+    if (this.lastTrackEndedId === trackKey && (now - this.lastTrackEndedTime < 3000)) {
+      return; // deduplicate within 3 seconds
+    }
+    this.lastTrackEndedId = trackKey;
+    this.lastTrackEndedTime = now;
+
+    this.socket?.emit('jam_trackEnded', {
+      roomId: state.roomId,
+      trackId: trackId || (state.queue[state.currentIndex]?.id),
+      currentIndex: currentIndex ?? state.currentIndex,
+      repeatMode: repeatMode ?? state.repeatMode
+    });
+  }
+
+  updateAudioMode(mode: 'speaker_dj' | 'synced_audio') {
+    const state = usePlayerStore.getState();
+    if (!state.roomId || state.role !== 'host') return;
+    const currentTrack = state.queue[state.currentIndex];
+    const settings = useSettingsStore.getState();
+    this.socket?.emit('syncState', {
+      roomId: state.roomId,
+      trackId: currentTrack?.id || '',
+      currentTime: (useAudioStore.getState().progress / 100) * (currentTrack?.duration || 0),
+      isPlaying: state.isPlaying,
+      currentIndex: state.currentIndex,
+      isAutoDjEnabled: state.isAutoDjEnabled,
+      isCrossfadeEnabled: settings.isCrossfadeEnabled,
+      crossfadeDuration: settings.crossfadeDuration,
+      crossfadeCurve: settings.crossfadeCurve,
+      isGaplessEnabled: settings.isGaplessEnabled,
+      hostAudioMode: mode
+    });
   }
 
   leaveRoom() {
@@ -161,10 +383,17 @@ class JamSocketService {
       this.socket?.emit('syncQueue', { roomId: state.roomId, queue: state.queue, currentIndex: state.currentIndex });
     }
 
-    if (state.role === 'host') {
+    if (state.role === 'host' || state.role === 'cohost') {
       this.syncInterval = setInterval(() => {
         const state = usePlayerStore.getState();
         if (state.roomId && state.queue.length > 0 && state.currentIndex >= 0 && state.currentIndex < state.queue.length && (state.role === 'host' || state.role === 'cohost')) {
+          const isSpeakerDj = useSocialStore.getState().audioMode === 'speaker_dj';
+          // Remote control device does not output audio locally, so it must not broadcast local engine time
+          if (isSpeakerDj) return;
+
+          // If this is cohost, only broadcast time if host is in speaker_dj (remote control)
+          if (state.role === 'cohost' && state.hostAudioMode !== 'speaker_dj') return;
+
           const currentTrack = state.queue[state.currentIndex];
           
           let currentTime = 0;
@@ -182,6 +411,7 @@ class JamSocketService {
           }
 
           const settings = useSettingsStore.getState();
+          const hostAudioMode = state.role === 'host' ? useSocialStore.getState().audioMode : undefined;
           this.socket?.emit('syncState', {
             roomId: state.roomId,
             trackId: currentTrack.id,
@@ -193,7 +423,8 @@ class JamSocketService {
             isCrossfadeEnabled: settings.isCrossfadeEnabled,
             crossfadeDuration: settings.crossfadeDuration,
             crossfadeCurve: settings.crossfadeCurve,
-            isGaplessEnabled: settings.isGaplessEnabled
+            isGaplessEnabled: settings.isGaplessEnabled,
+            hostAudioMode
           });
         }
       }, 2000); // Send sync ping every 2 seconds
@@ -214,6 +445,7 @@ class JamSocketService {
           if (currentTrack) {
             const prevTrackId = prevState.queue[prevState.currentIndex]?.id;
             const trackChanged = currentTrack.id !== prevTrackId;
+            const isSpeakerDj = useSocialStore.getState().audioMode === 'speaker_dj';
             
             let currentTime = 0;
             const holadState = useHoladStore.getState();
@@ -221,6 +453,8 @@ class JamSocketService {
 
             if (trackChanged) {
               currentTime = 0;
+            } else if (isSpeakerDj) {
+              currentTime = (useAudioStore.getState().progress / 100) * (currentTrack.duration || 0);
             } else if (isDeviceActive) {
               const engine = getAudioEngine();
               if (engine) {
@@ -231,6 +465,7 @@ class JamSocketService {
             }
             
             const settings = useSettingsStore.getState();
+            const hostAudioMode = newState.role === 'host' ? useSocialStore.getState().audioMode : undefined;
             this.socket?.emit('syncState', {
               roomId: newState.roomId,
               trackId: currentTrack.id,
@@ -241,7 +476,8 @@ class JamSocketService {
               isCrossfadeEnabled: settings.isCrossfadeEnabled,
               crossfadeDuration: settings.crossfadeDuration,
               crossfadeCurve: settings.crossfadeCurve,
-              isGaplessEnabled: settings.isGaplessEnabled
+              isGaplessEnabled: settings.isGaplessEnabled,
+              hostAudioMode
             });
           }
         }
@@ -263,7 +499,7 @@ class JamSocketService {
   private applySyncState(state: any) {
     this.isApplyingRemoteState = true;
     try {
-      const { currentTime, isPlaying, currentIndex, queue, isAutoDjEnabled, isCrossfadeEnabled, crossfadeDuration, crossfadeCurve, isGaplessEnabled } = state;
+      const { currentTime, isPlaying, currentIndex, queue, isAutoDjEnabled, isCrossfadeEnabled, crossfadeDuration, crossfadeCurve, isGaplessEnabled, isSeek } = state;
       const store = usePlayerStore.getState();
 
       if (isCrossfadeEnabled !== undefined) {
@@ -273,6 +509,10 @@ class JamSocketService {
           crossfadeCurve,
           isGaplessEnabled
         });
+      }
+
+      if (state.hostAudioMode !== undefined) {
+        usePlayerStore.getState().setHostAudioMode(state.hostAudioMode);
       }
 
       // trackChanged removed
@@ -309,8 +549,21 @@ class JamSocketService {
       }
 
       const engine = getAudioEngine();
+      const isSpeakerDj = store.roomId !== null && useSocialStore.getState().audioMode === 'speaker_dj';
       
       if (engine) {
+        if (isSpeakerDj) {
+          engine.pause();
+          store.setIsPlaying(isPlaying);
+          if (!useAudioStore.getState().isSeeking) {
+            const trackDur = (newQueue && newQueue[newIndex]?.duration) || 0;
+            if (trackDur > 0) {
+              useAudioStore.getState().setProgress((currentTime / trackDur) * 100);
+            }
+          }
+          return;
+        }
+
         if (isPlaying && engine.getState() !== 'playing') {
           engine.resume().catch((e: any) => console.error("Playback prevented", e));
           store.setIsPlaying(true);
@@ -320,34 +573,40 @@ class JamSocketService {
           engine.setPlaybackRate(1.0); // Reset rate on pause
         }
 
-        if (isPlaying) {
+        if (isPlaying || isSeek) {
           const isEngineOnTargetTrack = engine.getActiveTrackId() === newTrackId;
           if (!isEngineOnTargetTrack) {
             console.log('Skipping sync: AudioEngine is still transitioning to the target track');
             return;
           }
 
-          // Compensate for network latency (~150ms)
-          const targetTime = currentTime + 0.15;
+          // Compensate for network latency (~150ms) if playing, no compensation if paused
+          const targetTime = isPlaying ? (currentTime + 0.15) : currentTime;
           const drift = targetTime - engine.getCurrentTime();
           
-          // Dynamic hard sync threshold: be aggressive at the start of a track
+          // Dynamic hard sync threshold: be aggressive at the start of a track or on explicit seek
           const isEarlyInTrack = engine.getCurrentTime() < 5;
-          const hardSyncThreshold = isEarlyInTrack ? 0.3 : 2.0;
+          const hardSyncThreshold = (isSeek || isEarlyInTrack) ? 0.3 : 2.0;
 
-          if (Math.abs(drift) > hardSyncThreshold) {
-            console.log(`Large drift detected (${Math.abs(drift).toFixed(2)}s), hard seeking to match host`);
+          if (isSeek || Math.abs(drift) > hardSyncThreshold) {
+            console.log(`Seek or large drift detected (${Math.abs(drift).toFixed(2)}s), hard seeking to match`);
             engine.seek(targetTime);
             engine.setPlaybackRate(1.0);
-          } else if (drift > 0.15) {
+            if (!isPlaying) {
+              const dur = engine.getDuration() || (newQueue && newQueue[newIndex]?.duration) || 0;
+              if (dur > 0) {
+                useAudioStore.getState().setProgress((targetTime / dur) * 100);
+              }
+            }
+          } else if (isPlaying && drift > 0.15) {
             // We are behind the host, speed up
             engine.setPlaybackRate(1.05);
             console.log(`Soft sync: Catching up (+${drift.toFixed(2)}s)`);
-          } else if (drift < -0.15) {
+          } else if (isPlaying && drift < -0.15) {
             // We are ahead of the host, slow down
             engine.setPlaybackRate(0.95);
             console.log(`Soft sync: Waiting (-${Math.abs(drift).toFixed(2)}s)`);
-          } else {
+          } else if (isPlaying) {
             // Perfect sync
             engine.setPlaybackRate(1.0);
             console.log("Soft sync: Perfectly in sync");

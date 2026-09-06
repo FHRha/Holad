@@ -13,7 +13,9 @@
     "downloading": "Downloading...",
     "downloading_of": "{{current}} of {{total}}",
     "logout": "Log out",
-    "playlists": "Playlists"
+    "playlists": "Playlists",
+    "check_updates": "Check for updates",
+    "sheck_updates": "Check for updates"
   },
   "settings": {
     "general": "General",
@@ -459,7 +461,9 @@
     "clear_queue": "Clear queue",
     "play_now": "Play Now",
     "play_next": "Play Next",
+    "play_next_jam": "Play next in Jam",
     "add_to_queue": "Add to Queue",
+    "add_to_jam_queue": "Add to Jam queue",
     "remove_from_queue": "Remove from Queue",
     "remove_from_favs": "Remove from Favorites",
     "favorite": "Favorite",
@@ -594,5 +598,46 @@
     "error_create": "Error creating playlist",
     "error_update": "Error updating playlist",
     "error_delete": "Error deleting playlist"
+  },
+  "social": {
+    "tab_queue": "Queue",
+    "tab_friends": "Jam & Friends",
+    "tab_friends_button": "Friends",
+    "create_jam": "Create Jam",
+    "in_jam_with": "In session with {{count}} participants",
+    "leave_jam": "Leave Jam",
+    "mode_speaker": "Shared speaker (remote)",
+    "mode_speaker_desc": "Sound plays on host device, you control tracks",
+    "mode_headphones": "Listen along (synced)",
+    "mode_headphones_desc": "Sound plays synchronously in your headphones",
+    "mobile_speaker_hint": "You are controlling playback. Sound is playing on the host device. To listen on this phone, switch to \"Listen along\".",
+    "invite_to_jam": "Invite to Jam",
+    "invited_to_jam_toast": "{{name}} invites you to Jam!",
+    "accept": "Accept",
+    "decline": "Decline",
+    "add_friend": "Add Friend",
+    "search_placeholder": "Name#1234 or username...",
+    "friend_requests": "Friend requests",
+    "status_online": "Online",
+    "status_offline": "Offline",
+    "listening_to": "Listening to",
+    "no_friends": "No friends yet",
+    "no_friends_desc": "Add friends by their tag (e.g. User#1234)",
+    "my_tag": "Your tag",
+    "copy_tag": "Copy tag",
+    "tag_copied": "Tag copied!",
+    "active_jam": "Active Jam session",
+    "sent_request": "Request sent",
+    "friend_added": "Friend added",
+    "already_friends": "Already friends",
+    "no_users_found": "No users found",
+    "searching": "Searching..."
+  },
+  "deeplink": {
+    "open_in_app": "Open in Holad App",
+    "continue_in_browser": "Continue in browser",
+    "always_open_app": "Always open in app",
+    "invite_title": "Jam session invitation",
+    "invite_desc": "{{name}} invites you to listen together"
   }
 }

@@ -14,7 +14,22 @@ db.pragma('journal_mode = WAL');
 // Initialize tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
-    user_id TEXT PRIMARY KEY
+    user_id TEXT PRIMARY KEY,
+    username TEXT,
+    tag TEXT,
+    avatar_url TEXT,
+    last_seen DATETIME
+  );
+
+  CREATE TABLE IF NOT EXISTS friends (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    friend_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('pending', 'accepted', 'blocked')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, friend_id),
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY(friend_id) REFERENCES users(user_id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS preferences (
@@ -71,6 +86,27 @@ db.exec(`
     FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
   );
 `);
+
+// Safely migrate existing users table if columns are missing
+try {
+  const userColumns = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+  const colNames = new Set(userColumns.map(c => c.name));
+  if (!colNames.has('username')) {
+    db.exec('ALTER TABLE users ADD COLUMN username TEXT');
+  }
+  if (!colNames.has('tag')) {
+    db.exec('ALTER TABLE users ADD COLUMN tag TEXT');
+  }
+  if (!colNames.has('avatar_url')) {
+    db.exec('ALTER TABLE users ADD COLUMN avatar_url TEXT');
+  }
+  if (!colNames.has('last_seen')) {
+    db.exec('ALTER TABLE users ADD COLUMN last_seen DATETIME');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_users_username_tag ON users(username, tag)');
+} catch (err) {
+  console.error('Failed to migrate users table columns:', err);
+}
 
 // Helper to generate user_id
 export function generateUserId(login: string, passwordHash: string): string {
@@ -288,4 +324,213 @@ export function toggleExclusion(userId: string, entityId: string, entityType: 't
     return true;
   }
 }
+
+// Social & Friends Types and Functions
+export interface UserRecord {
+  user_id: string;
+  username: string;
+  tag: string;
+  avatar_url: string | null;
+  last_seen: string | null;
+}
+
+export interface FriendRecord {
+  user_id: string;
+  username: string;
+  tag: string;
+  avatar_url: string | null;
+  created_at: string;
+}
+
+export interface PendingRequest {
+  id: number;
+  user_id: string;
+  username: string;
+  tag: string;
+  avatar_url: string | null;
+  created_at: string;
+}
+
+export function ensureUserWithTag(userId: string, username: string, avatarUrl?: string): UserRecord {
+  const finalUsername = username || userId;
+
+  db.prepare('INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)').run(userId, finalUsername);
+
+  let user = db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE user_id = ?').get(userId) as UserRecord;
+
+  let currentTag = user.tag;
+  if (!currentTag) {
+    let attempts = 0;
+    while (attempts < 10000) {
+      const candidateTag = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      const collision = db.prepare('SELECT 1 FROM users WHERE username = ? AND tag = ? AND user_id != ?').get(finalUsername, candidateTag, userId);
+      if (!collision) {
+        currentTag = candidateTag;
+        break;
+      }
+      attempts++;
+    }
+    if (!currentTag) {
+      currentTag = Math.floor(1000 + Math.random() * 9000).toString();
+    }
+  }
+
+  const updatedAvatar = avatarUrl !== undefined ? avatarUrl : user.avatar_url;
+  db.prepare(`
+    UPDATE users 
+    SET username = ?, tag = ?, avatar_url = ?, last_seen = CURRENT_TIMESTAMP 
+    WHERE user_id = ?
+  `).run(finalUsername, currentTag, updatedAvatar, userId);
+
+  return db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE user_id = ?').get(userId) as UserRecord;
+}
+
+export function searchUsers(query: string, currentUserId: string): Array<{ user_id: string; username: string; tag: string; avatar_url: string | null }> {
+  if (!query || !query.trim()) return [];
+  const trimmed = query.trim();
+  const pattern = `%${trimmed}%`;
+  return db.prepare(`
+    SELECT user_id, COALESCE(username, user_id) AS username, tag, avatar_url 
+    FROM users 
+    WHERE user_id != ? 
+      AND (LOWER(COALESCE(username, user_id)) LIKE LOWER(?) OR LOWER(COALESCE(username, user_id) || '#' || tag) LIKE LOWER(?))
+    LIMIT 20
+  `).all(currentUserId, pattern, pattern) as any[];
+}
+
+export function getFriends(userId: string): FriendRecord[] {
+  return db.prepare(`
+    SELECT 
+      u.user_id, 
+      COALESCE(u.username, u.user_id) AS username, 
+      u.tag, 
+      u.avatar_url, 
+      f.created_at
+    FROM friends f
+    JOIN users u ON u.user_id = (CASE WHEN f.user_id = ? THEN f.friend_id ELSE f.user_id END)
+    WHERE (f.user_id = ? OR f.friend_id = ?) 
+      AND f.status = 'accepted'
+    ORDER BY u.username COLLATE NOCASE ASC
+  `).all(userId, userId, userId) as FriendRecord[];
+}
+
+export function getPendingRequests(userId: string): { incoming: PendingRequest[]; outgoing: PendingRequest[] } {
+  const incoming = db.prepare(`
+    SELECT 
+      f.id,
+      u.user_id,
+      COALESCE(u.username, u.user_id) AS username,
+      u.tag,
+      u.avatar_url,
+      f.created_at
+    FROM friends f
+    JOIN users u ON u.user_id = f.user_id
+    WHERE f.friend_id = ? AND f.status = 'pending'
+    ORDER BY f.created_at DESC
+  `).all(userId) as PendingRequest[];
+
+  const outgoing = db.prepare(`
+    SELECT 
+      f.id,
+      u.user_id,
+      COALESCE(u.username, u.user_id) AS username,
+      u.tag,
+      u.avatar_url,
+      f.created_at
+    FROM friends f
+    JOIN users u ON u.user_id = f.friend_id
+    WHERE f.user_id = ? AND f.status = 'pending'
+    ORDER BY f.created_at DESC
+  `).all(userId) as PendingRequest[];
+
+  return { incoming, outgoing };
+}
+
+export function sendFriendRequest(userId: string, targetTagOrName: string): UserRecord {
+  if (!targetTagOrName || !targetTagOrName.trim()) {
+    throw new Error('User not found');
+  }
+  const trimmed = targetTagOrName.trim();
+  let targetUser: UserRecord | undefined;
+
+  if (trimmed.includes('#')) {
+    const hashIndex = trimmed.lastIndexOf('#');
+    const uname = trimmed.substring(0, hashIndex).trim();
+    const tag = trimmed.substring(hashIndex + 1).trim();
+    targetUser = db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE username = ? COLLATE NOCASE AND tag = ?').get(uname, tag) as UserRecord | undefined;
+  } else {
+    targetUser = db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE username = ? COLLATE NOCASE OR user_id = ?').get(trimmed, trimmed) as UserRecord | undefined;
+  }
+
+  if (!targetUser) {
+    throw new Error('User not found');
+  }
+
+  if (targetUser.user_id === userId) {
+    throw new Error('Cannot send friend request to yourself');
+  }
+
+  ensureUserExists(userId);
+
+  const existing = db.prepare(`
+    SELECT id, user_id, friend_id, status 
+    FROM friends 
+    WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)
+  `).get(userId, targetUser.user_id, targetUser.user_id, userId) as any;
+
+  if (existing) {
+    if (existing.status === 'accepted') {
+      throw new Error('Already friends');
+    }
+    if (existing.status === 'blocked') {
+      throw new Error('User is blocked');
+    }
+    if (existing.status === 'pending') {
+      if (existing.user_id === userId) {
+        throw new Error('Friend request already sent');
+      } else {
+        db.prepare("UPDATE friends SET status = 'accepted' WHERE id = ?").run(existing.id);
+        return targetUser;
+      }
+    }
+  }
+
+  db.prepare(`
+    INSERT INTO friends (user_id, friend_id, status)
+    VALUES (?, ?, 'pending')
+  `).run(userId, targetUser.user_id);
+
+  return targetUser;
+}
+
+export function respondFriendRequest(userId: string, requesterUserId: string, action: 'accept' | 'reject'): void {
+  if (action === 'accept') {
+    const res = db.prepare(`
+      UPDATE friends 
+      SET status = 'accepted' 
+      WHERE user_id = ? AND friend_id = ? AND status = 'pending'
+    `).run(requesterUserId, userId);
+    if (res.changes === 0) {
+      db.prepare(`
+        UPDATE friends 
+        SET status = 'accepted' 
+        WHERE user_id = ? AND friend_id = ? AND status = 'pending'
+      `).run(userId, requesterUserId);
+    }
+  } else if (action === 'reject') {
+    db.prepare(`
+      DELETE FROM friends 
+      WHERE ((user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)) 
+        AND status = 'pending'
+    `).run(requesterUserId, userId, userId, requesterUserId);
+  }
+}
+
+export function removeFriend(userId: string, friendId: string): void {
+  db.prepare(`
+    DELETE FROM friends 
+    WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)
+  `).run(userId, friendId, friendId, userId);
+}
+
 

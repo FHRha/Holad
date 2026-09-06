@@ -9,6 +9,8 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useTrackSource } from './useTrackSource';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
 import { AudioEngine } from '../audio/AudioEngine';
+import { useSocialStore } from '../store/socialStore';
+import { jamSocket } from '../api/socket';
 
 export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | null>, React.RefObject<HTMLAudioElement | null>], currentTrack: any) {
   const {
@@ -20,6 +22,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     mobileVolume,
     volumeMultiplier,
     role,
+    roomId,
     playbackRate,
     sleepTimer,
     setSleepTimer,
@@ -28,6 +31,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     repeatMode,
     hostSettings,
   } = usePlayerStore();
+
+  const audioMode = useSocialStore(s => s.audioMode);
+  const isSpeakerDj = roomId !== null && audioMode === 'speaker_dj';
 
   const {
     setAudioElement,
@@ -193,7 +199,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     // Use prevIsPlayingRef to avoid being tricked by queueSlice's triggerPlay() which calls .play() blindly
     const wasPlayingEngine = prevIsPlayingRef.current;
 
-    if (isPlayingStore && isActiveDevice) {
+    if (isPlayingStore && isActiveDevice && !isSpeakerDj) {
       const activeDeckIdx = engineRef.current.getActiveDeckIndex();
       const nextDeckIdx = (isCrossfade ? (1 - activeDeckIdx) : activeDeckIdx) as 0 | 1;
       setActiveIndex(nextDeckIdx);
@@ -228,21 +234,58 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       const deck = engineRef.current.getActiveDeck();
       deck.load(audioSrc, initialPosition > 0 ? initialPosition / 1000 : 0).catch(() => {});
       if (initialPosition > 0) setInitialPosition(0);
+      if (isSpeakerDj) {
+        engineRef.current.pause();
+      }
     }
-  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition]);
+  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition]);
 
   // Handle play/pause toggle
   useEffect(() => {
     if (!currentTrack) return;
 
-    if (isPlaying && isActiveDevice) {
+    if (isPlaying && isActiveDevice && !isSpeakerDj) {
       engineRef.current.resume().catch((e) => {
         console.error('Playback resume error:', e);
       });
     } else {
       engineRef.current.pause();
     }
-  }, [isPlaying, currentTrack, isActiveDevice]);
+  }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj]);
+
+  // Audio mode dynamic change in Jam
+  useEffect(() => {
+    if (roomId !== null) {
+      if (audioMode === 'speaker_dj') {
+        engineRef.current.pause();
+      } else if (audioMode === 'synced_audio' && isPlaying && isActiveDevice) {
+        const currentProgress = useAudioStore.getState().progress;
+        const dur = engineRef.current.getDuration() || currentTrack?.duration || 0;
+        if (dur > 0 && currentProgress > 0) {
+          const targetTime = (currentProgress / 100) * dur;
+          engineRef.current.seek(targetTime);
+        }
+        engineRef.current.resume().catch(() => {});
+      }
+    }
+  }, [audioMode, roomId, isPlaying, isActiveDevice, currentTrack?.duration]);
+
+  // Broadcast current playing track to friends (only when actively playing)
+  useEffect(() => {
+    if (currentTrack && isPlaying) {
+      jamSocket.emit('social_presenceUpdate', {
+        track: {
+          id: currentTrack.id,
+          title: currentTrack.title,
+          artist: currentTrack.artist,
+          album: currentTrack.album,
+          coverArt: currentTrack.coverArt
+        }
+      });
+    } else {
+      jamSocket.emit('social_presenceUpdate', { track: null });
+    }
+  }, [currentTrack?.id, isPlaying]);
 
   // Sleep timer
   useEffect(() => {
@@ -348,12 +391,27 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         }
 
         // Auto crossfade trigger
+        const pStore = usePlayerStore.getState();
+        const isJamSession = Boolean(pStore.roomId);
+        const canAdvanceTrack = !isJamSession || pStore.role === 'host' || pStore.role === 'cohost';
+        const isEngineOnCurrentTrack = engine.getActiveTrackId() === currentTrack.id;
         const actualDur = engine.getDuration() || currentTrack.duration || 0;
-        if (effectiveSettings.isCrossfadeEnabled && actualDur > 0 && currentTrack.id !== crossfadeTriggeredRef.current) {
+
+        if (
+          canAdvanceTrack &&
+          isEngineOnCurrentTrack &&
+          effectiveSettings.isCrossfadeEnabled &&
+          actualDur > 0 &&
+          currentTrack.id !== crossfadeTriggeredRef.current
+        ) {
           const remaining = actualDur - currentTime;
           if (remaining > 0 && remaining <= effectiveSettings.crossfadeDuration && currentTime > 0) {
             crossfadeTriggeredRef.current = currentTrack.id;
-            nextTrack();
+            if (isJamSession) {
+              jamSocket.trackEnded(currentTrack.id, pStore.currentIndex, pStore.repeatMode);
+            } else {
+              nextTrack();
+            }
           }
         }
       }
@@ -361,6 +419,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
     const handleEnded = (emittedTrackId?: string) => {
       if (emittedTrackId && currentTrack && emittedTrackId !== currentTrack.id) return;
+      const pStore = usePlayerStore.getState();
+      const isJamSession = Boolean(pStore.roomId);
+      if (isJamSession && pStore.role !== 'host' && pStore.role !== 'cohost') return;
       if (role === 'listener') return;
       if (sleepTimer.type === 'track_end') {
         setIsPlaying(false);
@@ -370,8 +431,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
       if (crossfadeTriggeredRef.current === currentTrack?.id) return;
       
-      const pStore = usePlayerStore.getState();
-      if (pStore.role === 'host' || !pStore.roomId) {
+      if (isJamSession) {
+        jamSocket.trackEnded(currentTrack?.id, pStore.currentIndex, pStore.repeatMode);
+      } else {
         nextTrack();
       }
     };

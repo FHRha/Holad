@@ -3,6 +3,7 @@ import { useAudioStore } from '../../store/audioStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useLyricsSync } from '../../hooks/useLyricsSync';
 import { getAudioEngine } from '../../audio/AudioEngine';
+import { jamSocket } from '../../api/socket';
 import type { Track } from '../../types';
 
 interface MobileLyricsTabProps {
@@ -88,6 +89,10 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
                         getAudioEngine().resume().catch(console.error);
                         usePlayerStore.getState().setIsPlaying(true);
                         getAudioEngine().seek(line.time);
+                        const pState = usePlayerStore.getState();
+                        if (pState.roomId && (pState.role === 'host' || pState.role === 'cohost')) {
+                          jamSocket.syncSeek(line.time);
+                        }
                       }
                       setIsUserScrolled(false);
                     }}

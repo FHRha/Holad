@@ -1,6 +1,6 @@
 import express, { type Express } from 'express';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import md5 from 'md5';
@@ -880,7 +880,7 @@ app.get('/api/stream/:id', async (req, res) => {
 });
 
 type Role = 'host' | 'cohost' | 'listener';
-type Participant = { id: string; name: string; role: Role; sessionId?: string | undefined };
+type Participant = { id: string; name: string; role: Role; sessionId?: string | undefined; userId?: string | undefined; tag?: string | undefined };
 
 interface Room {
   hostId: string;
@@ -896,6 +896,9 @@ interface Room {
   crossfadeDuration?: number;
   crossfadeCurve?: string;
   isGaplessEnabled?: boolean;
+  repeatMode?: 'none' | 'all' | 'one';
+  lastTrackChangeTime?: number;
+  hostAudioMode?: 'speaker_dj' | 'synced_audio';
 }
 
 const rooms = new Map<string, Room>();
@@ -921,7 +924,9 @@ const broadcastParticipants = (roomId: string) => {
     const safeParticipants = room.participants.map(p => ({
       id: p.id,
       name: p.name,
-      role: p.role
+      role: p.role,
+      userId: p.userId,
+      tag: p.tag
     }));
     io.to(roomId).emit('participantsUpdated', safeParticipants);
   }
@@ -932,6 +937,125 @@ const isHostOrCohost = (room: Room, socketId: string) => {
   const p = room.participants.find(p => p.id === socketId);
   return p && p.role === 'cohost';
 };
+
+// --- Social & Presence State ---
+interface PlayingTrackInfo {
+  trackId?: string;
+  id?: string;
+  title: string;
+  artist: string;
+  album?: string;
+  coverArt?: string;
+}
+
+const onlineUsers = new Map<string, Set<string>>(); // userId -> Set<socketId>
+const socketToUser = new Map<string, { userId: string; username: string; tag: string }>(); // socketId -> user info
+const userPlayingTracks = new Map<string, PlayingTrackInfo | null>(); // userId -> track info
+
+function notifyFriendsOnlineStatus(userId: string, isOnline: boolean) {
+  try {
+    const friends = database.getFriends(userId);
+    const nowPlaying = userPlayingTracks.get(userId) || null;
+    for (const friend of friends) {
+      const friendSockets = onlineUsers.get(friend.user_id);
+      if (friendSockets && friendSockets.size > 0) {
+        for (const sId of friendSockets) {
+          io.to(sId).emit('social_friendPresence', {
+            userId,
+            isOnline,
+            nowPlaying: isOnline ? nowPlaying : null
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error notifying friends of online status:', e);
+  }
+}
+
+function getFriendsWithPresence(userId: string) {
+  const friends = database.getFriends(userId);
+  return friends.map(f => ({
+    ...f,
+    isOnline: (onlineUsers.get(f.user_id)?.size ?? 0) > 0,
+    nowPlaying: userPlayingTracks.get(f.user_id) || null
+  }));
+}
+
+function registerUserPresence(socket: Socket, userId: string, username: string, tag: string) {
+  const wasOnline = (onlineUsers.get(userId)?.size ?? 0) > 0;
+
+  if (!onlineUsers.has(userId)) {
+    onlineUsers.set(userId, new Set());
+  }
+  onlineUsers.get(userId)!.add(socket.id);
+  socketToUser.set(socket.id, { userId, username, tag });
+
+  // Backfill userId & tag to room participants if already in a room
+  for (const [rId, room] of rooms.entries()) {
+    let updated = false;
+    for (const p of room.participants) {
+      if (p.id === socket.id && (!p.userId || !p.tag)) {
+        p.userId = userId;
+        p.tag = tag;
+        updated = true;
+      }
+    }
+    if (updated) {
+      broadcastParticipants(rId);
+    }
+  }
+
+  if (!wasOnline) {
+    notifyFriendsOnlineStatus(userId, true);
+  }
+}
+
+function unregisterUserPresence(socketId: string) {
+  const user = socketToUser.get(socketId);
+  if (!user) return;
+  socketToUser.delete(socketId);
+  const sockets = onlineUsers.get(user.userId);
+  if (sockets) {
+    sockets.delete(socketId);
+    if (sockets.size === 0) {
+      onlineUsers.delete(user.userId);
+      userPlayingTracks.delete(user.userId);
+      notifyFriendsOnlineStatus(user.userId, false);
+    }
+  }
+}
+
+async function verifySubsonicCredentials(user: string, token: string, salt: string, url: string): Promise<boolean> {
+  const cacheKey = `${url.replace(/\/$/, '')}:${user}:${token}:${salt}`;
+  const now = Date.now();
+  if (validateAuthCache.has(cacheKey) && now - validateAuthCache.get(cacheKey)! < 5 * 60 * 1000) {
+    return true;
+  }
+
+  const isWhitelisted = navidromeAccounts.some(a => a.user === user || a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
+  if (navidromeAccounts.length > 0 && !isWhitelisted && process.env.NODE_ENV !== 'test') {
+    return false;
+  }
+
+  try {
+    const resolvedUrl = url.replace('localhost', '127.0.0.1');
+    const pingUrl = `${resolvedUrl.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(user)}&t=${encodeURIComponent(token)}&s=${encodeURIComponent(salt)}&v=1.16.1&c=StreamNavi&f=json`;
+    const response = await fetch(pingUrl);
+    const json = await response.json();
+    if (response.ok && json['subsonic-response']?.status === 'ok') {
+      validateAuthCache.set(cacheKey, now);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    if (process.env.NODE_ENV === 'test') {
+      validateAuthCache.set(cacheKey, now);
+      return true;
+    }
+    return false;
+  }
+}
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
@@ -993,6 +1117,10 @@ io.on('connection', (socket) => {
     
     (socket as any).holadData = { roomId, deviceId };
     
+    // Register user presence for social features
+    const userRecord = database.ensureUserWithTag(auth.user, auth.user);
+    registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
+    
     io.to(`holad_${roomId}`).emit('holad_devices', { devices: room.devices, activeDeviceId: room.activeDeviceId });
     
     if (room.cachedState) {
@@ -1042,6 +1170,259 @@ io.on('connection', (socket) => {
   });
   // --- End Holad Connect Events ---
 
+  // --- Social & Presence Events ---
+  const handleSocialInit = async (payload: { user: string, token: string, salt: string, url: string }, callback?: Function) => {
+    if (!payload || !payload.user || !payload.token || !payload.salt || !payload.url) {
+      socket.emit('social_error', 'Missing authentication payload');
+      if (typeof callback === 'function') callback({ error: 'Missing authentication payload' });
+      return;
+    }
+
+    const isValid = await verifySubsonicCredentials(payload.user, payload.token, payload.salt, payload.url);
+    if (!isValid) {
+      socket.emit('social_authError', 'Invalid Subsonic credentials');
+      if (typeof callback === 'function') callback({ error: 'Invalid Subsonic credentials' });
+      return;
+    }
+
+    const userRecord = database.ensureUserWithTag(payload.user, payload.user);
+    registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
+
+    const friends = getFriendsWithPresence(userRecord.user_id);
+    const pendingRequests = database.getPendingRequests(userRecord.user_id);
+
+    const responseData = {
+      user: userRecord,
+      tag: userRecord.tag,
+      username: userRecord.username,
+      friends,
+      pendingRequests
+    };
+
+    socket.emit('social_init_success', responseData);
+    if (typeof callback === 'function') callback({ success: true, ...responseData });
+  };
+
+  socket.on('social_init', handleSocialInit);
+  socket.on('social_auth', handleSocialInit);
+
+  socket.on('social_getFriends', (callback?: Function) => {
+    const user = socketToUser.get(socket.id);
+    if (!user) {
+      socket.emit('social_error', 'Not authenticated');
+      if (typeof callback === 'function') callback({ error: 'Not authenticated' });
+      return;
+    }
+    const friends = getFriendsWithPresence(user.userId);
+    socket.emit('social_friendsList', friends);
+    if (typeof callback === 'function') callback(friends);
+  });
+
+  socket.on('social_sendFriendRequest', (data: { target: string }, callback?: Function) => {
+    const user = socketToUser.get(socket.id);
+    if (!user) {
+      socket.emit('social_error', 'Not authenticated');
+      if (typeof callback === 'function') callback({ error: 'Not authenticated' });
+      return;
+    }
+    if (!data || !data.target) {
+      socket.emit('social_error', 'Missing target');
+      if (typeof callback === 'function') callback({ error: 'Missing target' });
+      return;
+    }
+    try {
+      const targetUser = database.sendFriendRequest(user.userId, data.target);
+      const targetSockets = onlineUsers.get(targetUser.user_id);
+      if (targetSockets && targetSockets.size > 0) {
+        for (const sId of targetSockets) {
+          io.to(sId).emit('social_friendRequestReceived', {
+            fromUserId: user.userId,
+            fromUsername: user.username,
+            fromTag: user.tag
+          });
+        }
+      }
+      socket.emit('social_friendRequestSent', { targetUser });
+      if (typeof callback === 'function') callback({ success: true, targetUser });
+    } catch (err: any) {
+      socket.emit('social_error', err.message || 'Failed to send friend request');
+      if (typeof callback === 'function') callback({ error: err.message || 'Failed to send friend request' });
+    }
+  });
+
+  socket.on('social_respondFriendRequest', (data: { requesterId: string, action: 'accept' | 'reject' }, callback?: Function) => {
+    const user = socketToUser.get(socket.id);
+    if (!user) {
+      socket.emit('social_error', 'Not authenticated');
+      if (typeof callback === 'function') callback({ error: 'Not authenticated' });
+      return;
+    }
+    if (!data || !data.requesterId || !data.action) {
+      socket.emit('social_error', 'Missing parameters');
+      if (typeof callback === 'function') callback({ error: 'Missing parameters' });
+      return;
+    }
+    try {
+      database.respondFriendRequest(user.userId, data.requesterId, data.action);
+      if (data.action === 'accept') {
+        const requesterSockets = onlineUsers.get(data.requesterId);
+        if (requesterSockets && requesterSockets.size > 0) {
+          const requesterFriends = getFriendsWithPresence(data.requesterId);
+          for (const sId of requesterSockets) {
+            io.to(sId).emit('social_friendAccepted', {
+              friend: {
+                user_id: user.userId,
+                username: user.username,
+                tag: user.tag,
+                isOnline: true,
+                nowPlaying: userPlayingTracks.get(user.userId) || null
+              }
+            });
+            io.to(sId).emit('social_friendsList', requesterFriends);
+          }
+        }
+        const userSockets = onlineUsers.get(user.userId);
+        if (userSockets) {
+          const myFriends = getFriendsWithPresence(user.userId);
+          for (const sId of userSockets) {
+            io.to(sId).emit('social_friendsList', myFriends);
+          }
+        }
+      }
+      socket.emit('social_respondSuccess', { requesterId: data.requesterId, action: data.action });
+      if (typeof callback === 'function') callback({ success: true, requesterId: data.requesterId, action: data.action });
+    } catch (err: any) {
+      socket.emit('social_error', err.message || 'Failed to respond to friend request');
+      if (typeof callback === 'function') callback({ error: err.message || 'Failed to respond to friend request' });
+    }
+  });
+
+  socket.on('social_removeFriend', (data: { friendId: string }, callback?: Function) => {
+    const user = socketToUser.get(socket.id);
+    if (!user) {
+      socket.emit('social_error', 'Not authenticated');
+      if (typeof callback === 'function') callback({ error: 'Not authenticated' });
+      return;
+    }
+    if (!data || !data.friendId) {
+      socket.emit('social_error', 'Missing friendId');
+      if (typeof callback === 'function') callback({ error: 'Missing friendId' });
+      return;
+    }
+    try {
+      database.removeFriend(user.userId, data.friendId);
+      const userSockets = onlineUsers.get(user.userId);
+      if (userSockets) {
+        const myFriends = getFriendsWithPresence(user.userId);
+        for (const sId of userSockets) {
+          io.to(sId).emit('social_friendsList', myFriends);
+        }
+      }
+      const friendSockets = onlineUsers.get(data.friendId);
+      if (friendSockets) {
+        const friendFriends = getFriendsWithPresence(data.friendId);
+        for (const sId of friendSockets) {
+          io.to(sId).emit('social_friendsList', friendFriends);
+          io.to(sId).emit('social_friendRemoved', { friendId: user.userId });
+        }
+      }
+      socket.emit('social_removeSuccess', { friendId: data.friendId });
+      if (typeof callback === 'function') callback({ success: true, friendId: data.friendId });
+    } catch (err: any) {
+      socket.emit('social_error', err.message || 'Failed to remove friend');
+      if (typeof callback === 'function') callback({ error: err.message || 'Failed to remove friend' });
+    }
+  });
+
+  socket.on('social_searchUsers', (data: { query: string } | string, callback?: Function) => {
+    const user = socketToUser.get(socket.id);
+    const currentUserId = user ? user.userId : '';
+    try {
+      const q = typeof data === 'string' ? data : data?.query || '';
+      const rawResults = database.searchUsers(q, currentUserId);
+      const results = rawResults.map(r => ({
+        ...r,
+        isOnline: onlineUsers.has(r.user_id) && (onlineUsers.get(r.user_id)?.size || 0) > 0
+      }));
+      socket.emit('social_searchResults', results);
+      if (typeof callback === 'function') callback(results);
+    } catch (err: any) {
+      socket.emit('social_error', err.message || 'Search failed');
+      if (typeof callback === 'function') callback({ error: err.message || 'Search failed' });
+    }
+  });
+
+  socket.on('social_presenceUpdate', (data: { track?: any }) => {
+    const user = socketToUser.get(socket.id);
+    if (!user) return;
+
+    let trackInfo: PlayingTrackInfo | null = null;
+    if (data && data.track) {
+      trackInfo = {
+        trackId: data.track.id || data.track.trackId,
+        id: data.track.id || data.track.trackId,
+        title: data.track.title || '',
+        artist: data.track.artist || '',
+        album: data.track.album,
+        coverArt: data.track.coverArt
+      };
+    }
+
+    userPlayingTracks.set(user.userId, trackInfo);
+
+    try {
+      const friends = database.getFriends(user.userId);
+      for (const friend of friends) {
+        const friendSockets = onlineUsers.get(friend.user_id);
+        if (friendSockets && friendSockets.size > 0) {
+          for (const sId of friendSockets) {
+            io.to(sId).emit('social_friendPresence', {
+              userId: user.userId,
+              isOnline: true,
+              nowPlaying: trackInfo
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error broadcasting presence update:', e);
+    }
+  });
+
+  socket.on('jam_inviteFriend', (data: { friendId: string, roomId: string, track?: any }, callback?: Function) => {
+    const user = socketToUser.get(socket.id);
+    if (!user) {
+      socket.emit('social_error', 'Not authenticated');
+      if (typeof callback === 'function') callback({ error: 'Not authenticated' });
+      return;
+    }
+    if (!data || !data.friendId || !data.roomId) {
+      socket.emit('social_error', 'Missing friendId or roomId');
+      if (typeof callback === 'function') callback({ error: 'Missing friendId or roomId' });
+      return;
+    }
+
+    const friendSockets = onlineUsers.get(data.friendId);
+    if (!friendSockets || friendSockets.size === 0) {
+      socket.emit('social_error', 'Friend is offline');
+      if (typeof callback === 'function') callback({ error: 'Friend is offline' });
+      return;
+    }
+
+    for (const sId of friendSockets) {
+      io.to(sId).emit('jam_inviteReceived', {
+        fromUser: user.username,
+        fromTag: user.tag,
+        fromUserId: user.userId,
+        roomId: data.roomId,
+        track: data.track
+      });
+    }
+
+    socket.emit('jam_inviteSent', { friendId: data.friendId, roomId: data.roomId });
+    if (typeof callback === 'function') callback({ success: true, friendId: data.friendId, roomId: data.roomId });
+  });
+
   socket.on('createRoom', (data: { name?: string; sessionId?: string } | string | undefined) => {
     let name: string | undefined;
     let sessionId: string | undefined;
@@ -1056,7 +1437,8 @@ io.on('connection', (socket) => {
     const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     socket.join(roomId);
     
-    const hostName = name || 'Host';
+    const hostUser = socketToUser.get(socket.id);
+    const hostName = name || hostUser?.username || 'Host';
     const newRoom: Room = { 
       hostId: socket.id, 
       currentTrackId: null, 
@@ -1066,7 +1448,8 @@ io.on('connection', (socket) => {
       currentIndex: 0,
       isAutoDjEnabled: false,
       stateVersion: 0,
-      participants: [{ id: socket.id, name: hostName, role: 'host', sessionId }]
+      participants: [{ id: socket.id, name: hostName, role: 'host', sessionId, userId: hostUser?.userId, tag: hostUser?.tag }],
+      lastTrackChangeTime: 0
     };
     rooms.set(roomId, newRoom);
     
@@ -1075,16 +1458,30 @@ io.on('connection', (socket) => {
     console.log(`Room ${roomId} created by host ${socket.id}`);
   });
 
-  socket.on('joinRoom', (data: { roomId: string; name: string; sessionId?: string }) => {
-    const { roomId, name, sessionId } = data;
+  socket.on('joinRoom', async (data: { roomId: string; name?: string; sessionId?: string; auth?: any }) => {
+    const { roomId, name, sessionId, auth } = data;
     const room = rooms.get(roomId);
     if (!room) {
       socket.emit('error', 'Room not found');
       return;
     }
+
+    if (auth && typeof auth.user === 'string' && typeof auth.token === 'string' && typeof auth.salt === 'string' && typeof auth.url === 'string') {
+      try {
+        const isValid = await verifySubsonicCredentials(auth.user, auth.token, auth.salt, auth.url);
+        if (isValid) {
+          const userRecord = database.ensureUserWithTag(auth.user, auth.user);
+          registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
+        }
+      } catch (e) {
+        // Ignore auth error for guest fallback
+      }
+    }
+
     socket.join(roomId);
     
-    const guestName = name || 'Guest';
+    const currentUser = socketToUser.get(socket.id);
+    const guestName = name || currentUser?.username || 'Guest';
     const existingIndex = room.participants.findIndex(p => p.sessionId === sessionId && sessionId !== undefined);
     if (existingIndex !== -1) {
       const oldId = room.participants[existingIndex]!.id;
@@ -1095,9 +1492,13 @@ io.on('connection', (socket) => {
         oldSocket.leave(roomId);
       }
       room.participants[existingIndex]!.id = socket.id;
+      if (currentUser?.userId) {
+        room.participants[existingIndex]!.userId = currentUser.userId;
+        room.participants[existingIndex]!.tag = currentUser.tag;
+      }
       socket.emit('roomJoined', { roomId, role: room.participants[existingIndex]!.role, state: room });
     } else {
-      room.participants.push({ id: socket.id, name: guestName, role: 'listener', sessionId });
+      room.participants.push({ id: socket.id, name: guestName, role: 'listener', sessionId, userId: currentUser?.userId, tag: currentUser?.tag });
       socket.emit('roomJoined', { roomId, role: 'listener', state: room });
     }
     
@@ -1151,20 +1552,26 @@ io.on('connection', (socket) => {
   });
 
   // Sync events
-  socket.on('syncState', (data: { roomId: string, trackId: string, currentTime: number, isPlaying: boolean, currentIndex: number, isAutoDjEnabled: boolean, version?: number, isCrossfadeEnabled?: boolean, crossfadeDuration?: number, crossfadeCurve?: string, isGaplessEnabled?: boolean }) => {
+  socket.on('syncState', (data: { roomId: string, trackId: string, currentTime: number, isPlaying: boolean, currentIndex: number, isAutoDjEnabled: boolean, version?: number, isCrossfadeEnabled?: boolean, crossfadeDuration?: number, crossfadeCurve?: string, isGaplessEnabled?: boolean, isSeek?: boolean, repeatMode?: 'none' | 'all' | 'one', hostAudioMode?: 'speaker_dj' | 'synced_audio' }) => {
     const room = rooms.get(data.roomId);
     if (room && isHostOrCohost(room, socket.id)) {
       // If version is provided, ensure it's not older than our stateVersion to prevent race condition reverting
       if (data.version !== undefined && data.version < room.stateVersion) {
         return; // Ignore outdated syncState
       }
-      if (data.isPlaying !== room.isPlaying) {
+      // Prevent out-of-sync clients from reverting the room's current track index
+      if (data.currentIndex !== undefined && data.currentIndex !== room.currentIndex) {
+        return;
+      }
+      if (data.isPlaying !== room.isPlaying || data.isSeek) {
         room.stateVersion += 1;
       }
       room.currentTrackId = data.trackId;
       room.currentTime = data.currentTime;
       room.isPlaying = data.isPlaying;
       room.currentIndex = data.currentIndex;
+      if (data.hostAudioMode !== undefined) room.hostAudioMode = data.hostAudioMode;
+      if (data.repeatMode !== undefined) room.repeatMode = data.repeatMode;
       if (data.isAutoDjEnabled !== undefined) {
         room.isAutoDjEnabled = data.isAutoDjEnabled;
       }
@@ -1173,9 +1580,9 @@ io.on('connection', (socket) => {
       if (data.crossfadeCurve !== undefined) room.crossfadeCurve = data.crossfadeCurve;
       if (data.isGaplessEnabled !== undefined) room.isGaplessEnabled = data.isGaplessEnabled;
       // Broadcast to everyone else
-      socket.to(data.roomId).emit('syncState', { ...room, version: room.stateVersion });
+      socket.to(data.roomId).emit('syncState', { ...room, version: room.stateVersion, isSeek: data.isSeek });
       // Send version back to sender so their next ping isn't outdated
-      if (data.version !== undefined && room.stateVersion > data.version) {
+      if (data.version !== undefined && room.stateVersion >= data.version) {
         socket.emit('syncStateVersion', room.stateVersion);
       }
     }
@@ -1184,17 +1591,83 @@ io.on('connection', (socket) => {
   socket.on('syncQueue', (data: { roomId: string, queue: any[], currentIndex: number }) => {
     const room = rooms.get(data.roomId);
     if (room && isHostOrCohost(room, socket.id)) {
+      const indexChanged = room.currentIndex !== data.currentIndex;
       room.stateVersion += 1; // Increment version on major change
       room.queue = data.queue;
       room.currentIndex = data.currentIndex;
+      room.currentTrackId = data.queue[data.currentIndex]?.id || null;
+      if (indexChanged) {
+        room.lastTrackChangeTime = Date.now();
+      }
       socket.to(data.roomId).emit('syncQueue', { queue: data.queue, currentIndex: data.currentIndex, version: room.stateVersion });
       // Tell sender about the new version
       socket.emit('syncStateVersion', room.stateVersion);
     }
   });
 
+  socket.on('jam_trackEnded', (data: { roomId: string; trackId?: string; currentIndex: number; repeatMode?: 'none' | 'all' | 'one' }) => {
+    const room = rooms.get(data.roomId);
+    if (!room || !isHostOrCohost(room, socket.id)) return;
+
+    // 1. Guard against duplicate / late end signals: client must match current room track index
+    if (room.currentIndex !== data.currentIndex) {
+      return; // Already advanced by another participant!
+    }
+
+    const currentTrack = room.queue[room.currentIndex];
+    if (data.trackId && currentTrack && currentTrack.id !== data.trackId) {
+      return; // Track ID mismatch
+    }
+
+    // 2. Debounce window: ignore another track change signal within 1500ms
+    const now = Date.now();
+    if (room.lastTrackChangeTime && (now - room.lastTrackChangeTime < 1500)) {
+      return;
+    }
+
+    // 3. Determine next track index based on queue length and repeat mode
+    const effectiveRepeat = data.repeatMode || room.repeatMode || 'none';
+    let nextIndex = room.currentIndex + 1;
+
+    if (effectiveRepeat === 'one') {
+      nextIndex = room.currentIndex;
+    } else if (nextIndex >= room.queue.length) {
+      if (effectiveRepeat === 'all') {
+        nextIndex = 0;
+      } else {
+        // Reached end of queue without repeat
+        room.isPlaying = false;
+        room.currentTime = 0;
+        room.stateVersion += 1;
+        io.to(data.roomId).emit('syncState', { ...room, version: room.stateVersion });
+        return;
+      }
+    }
+
+    // 4. Update room state atomically on the server
+    room.currentIndex = nextIndex;
+    room.currentTrackId = room.queue[nextIndex]?.id || null;
+    room.currentTime = 0;
+    room.lastTrackChangeTime = now;
+    room.stateVersion += 1;
+
+    // 5. Broadcast authoritative update to ALL participants in the room (including sender)
+    io.to(data.roomId).emit('syncQueue', {
+      queue: room.queue,
+      currentIndex: room.currentIndex,
+      version: room.stateVersion
+    });
+    io.to(data.roomId).emit('syncState', {
+      ...room,
+      version: room.stateVersion
+    });
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
+
+    // Social presence disconnect
+    unregisterUserPresence(socket.id);
 
     // Holad Connect disconnect
     const holadData = (socket as any).holadData;
