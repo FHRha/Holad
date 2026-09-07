@@ -66,7 +66,32 @@ export default function DownloadedMusicGrid({
   const albumCount = useMemo(() => completedItems.filter(d => d.type === 'album').length, [completedItems]);
   const trackCount = useMemo(() => completedItems.filter(d => d.type === 'track').length, [completedItems]);
   const totalSizeBytes = useMemo(() => {
-    return completedItems.reduce((acc, item) => acc + (item.sizeBytes || item.totalBytes || 0), 0);
+    // Avoid double counting: an album item's sizeBytes is already the sum of its tracks.
+    const completedAlbumIds = new Set(
+      completedItems.filter(d => d.type === 'album').map(d => d.id)
+    );
+
+    const tracksSizeByAlbumId = new Map<string, number>();
+    for (const item of completedItems) {
+      if (item.type === 'track' && item.albumId && completedAlbumIds.has(item.albumId)) {
+        const cur = tracksSizeByAlbumId.get(item.albumId) || 0;
+        tracksSizeByAlbumId.set(item.albumId, cur + (item.sizeBytes || item.totalBytes || 0));
+      }
+    }
+
+    return completedItems.reduce((acc, item) => {
+      if (item.type === 'track') {
+        return acc + (item.sizeBytes || item.totalBytes || 0);
+      }
+      if (item.type === 'album') {
+        // Only count album size if its child tracks are not indexed or have 0 size in completedItems
+        const childTracksSize = tracksSizeByAlbumId.get(item.id) || 0;
+        if (childTracksSize === 0) {
+          return acc + (item.sizeBytes || item.totalBytes || 0);
+        }
+      }
+      return acc;
+    }, 0);
   }, [completedItems]);
 
   // 3. Tab and Search filtering
