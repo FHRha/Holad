@@ -8,5 +8,10 @@ fn main() {
       let _ = windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(app_id);
   }
 
-  app_lib::run();
+  std::env::set_var(
+      "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+      "--app-name=Holad --app-user-model-id=com.holad.desktop --disable-features=AudioServiceOutOfProcess",
+  );
+
+  holad_lib::run();
 }

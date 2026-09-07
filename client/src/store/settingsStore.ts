@@ -10,6 +10,7 @@ export type AppIcon = 'wave_dark' | 'wave_light' | 'cassette';
 export type AccentColor = string;
 export type ClickAction = 'play_now' | 'play_next';
 export type StartPage = '/Holad' | '/Holad/albums' | '/Holad/radio' | '/Holad/favorites';
+export type VisualizerStyle = 'classic' | 'modern' | 'wave' | 'radial' | 'peaks';
 
 export interface SettingsState {
   theme: AppTheme;
@@ -42,6 +43,7 @@ export interface SettingsState {
   useYandex: boolean;
   lastFmKey: string;
   yandexToken: string;
+  visualizerStyle: VisualizerStyle;
 
   setTheme: (theme: AppTheme) => void;
   setAppIcon: (appIcon: AppIcon) => void;
@@ -73,6 +75,7 @@ export interface SettingsState {
   setUseYandex: (enabled: boolean) => void;
   setLastFmKey: (key: string) => void;
   setYandexToken: (token: string) => void;
+  setVisualizerStyle: (style: VisualizerStyle) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -81,6 +84,7 @@ export const useSettingsStore = create<SettingsState>()(
       theme: 'dark',
       appIcon: 'wave_dark',
       accentColor: 'green',
+      visualizerStyle: 'classic',
       customColors: ['', '', ''],
       language: i18n.language || 'ru',
       clickAction: 'play_now',
@@ -94,7 +98,7 @@ export const useSettingsStore = create<SettingsState>()(
       runOnStartup: true,
       startMinimized: true,
       closeToTray: true,
-      imageCacheLimitMb: 256,
+      imageCacheLimitMb: 48,
       totalStorageLimitGb: 10,
       maxDownloadConcurrency: 3,
       hideOfflineExplanationModal: false,
@@ -167,6 +171,7 @@ export const useSettingsStore = create<SettingsState>()(
       setUseYandex: (useYandex) => set({ useYandex }),
       setLastFmKey: (lastFmKey) => set({ lastFmKey }),
       setYandexToken: (yandexToken) => set({ yandexToken }),
+      setVisualizerStyle: (visualizerStyle) => set({ visualizerStyle }),
     }),
     {
       name: 'holad-settings',

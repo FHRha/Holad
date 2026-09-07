@@ -1,17 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Play, Pause, Heart, Clock, ArrowLeft, Download, Ban, Pencil, Check, X } from 'lucide-react';
+import { Play, Heart, Clock, ArrowLeft, Ban, Pencil, Check, X } from 'lucide-react';
 import { getPlaylist, updatePlaylist } from '../../api/subsonic/playlists';
-import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
+import { getCoverArtUrl } from '../../api/subsonic';
 import { formatDurationVerbose } from '../../utils/timeFormat';
 import { usePlayerStore } from '../../store/playerStore';
-import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../store/downloadStore';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
-import ArtistLinks from '../common/ArtistLinks';
-import LongPressWrapper from '../common/LongPressWrapper';
+import TrackRow from '../common/TrackRow';
+import { Virtuoso } from 'react-virtuoso';
 
 export default function PlaylistDetailView() {
   const { t } = useTranslation();
@@ -22,10 +21,10 @@ export default function PlaylistDetailView() {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [scrollParent, setScrollParent] = useState<HTMLDivElement | null>(null);
 
-  const { queue, currentIndex, likedTrackIds, toggleTrackLike, excludedTrackIds, toggleTrackExclude, isPlaying, setQueueAndPlay, setIsProcessing } = usePlayerStore();
-  const { openMenu } = useContextMenuStore();
-  const downloads = useDownloadStore(state => state.downloads);
+  const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
+  const setIsProcessing = usePlayerStore(state => state.setIsProcessing);
   const { isOffline } = useNetworkStatus();
 
   useEffect(() => {
@@ -120,7 +119,7 @@ export default function PlaylistDetailView() {
     setIsEditing(false);
   };
 
-  const handlePlayAll = () => {
+  const handlePlayAll = useCallback(() => {
     if (!playlist || !playlist.entry) return;
     setIsProcessing(true);
     setQueueAndPlay(playlist.entry.map((t: any) => ({
@@ -136,9 +135,9 @@ export default function PlaylistDetailView() {
       suffix: t.suffix
     })), 0);
     setIsProcessing(false);
-  };
+  }, [playlist, setIsProcessing, setQueueAndPlay]);
 
-  const handlePlaySong = (index: number) => {
+  const handlePlaySong = useCallback((index: number) => {
     if (!playlist || !playlist.entry) return;
     setIsProcessing(true);
     setQueueAndPlay(playlist.entry.map((t: any) => ({
@@ -154,7 +153,7 @@ export default function PlaylistDetailView() {
       suffix: t.suffix
     })), index);
     setIsProcessing(false);
-  };
+  }, [playlist, setIsProcessing, setQueueAndPlay]);
 
   if (loading) {
     return (
@@ -169,17 +168,11 @@ export default function PlaylistDetailView() {
   }
 
   const coverUrl = playlist.coverArt ? getCoverArtUrl(playlist.coverArt, 600) : null;
-  const formatTime = (seconds: number) => {
-    if (!seconds) return '0:00';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
 
   const tracks = playlist.entry || [];
 
   return (
-    <div className="flex-1 overflow-y-auto relative h-full bg-transparent md:bg-background custom-scrollbar">
+    <div ref={setScrollParent} className="flex-1 overflow-y-auto relative h-full bg-transparent md:bg-background custom-scrollbar">
       <div className="relative z-10 px-4 md:px-8 py-6 md:py-10 flex flex-col gap-6 md:gap-10 min-h-full pb-32 md:pb-10">
         <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-end text-center md:text-left relative">
           <button 
@@ -263,65 +256,25 @@ export default function PlaylistDetailView() {
           {tracks.length === 0 ? (
             <div className="text-center text-secondary py-10">{t('views.playlist_empty', 'Playlist is empty')}</div>
           ) : (
-            tracks.map((track: any, index: number) => {
-              const currentPlaying = queue[currentIndex]?.id === track.id;
-              const isTrackLiked = likedTrackIds.includes(track.id);
-              const isTrackDownloaded = isItemDownloaded(downloads, track.id, track.albumId);
-              
-              return (
-                <LongPressWrapper 
+            <Virtuoso
+              customScrollParent={scrollParent || undefined}
+              data={tracks}
+              overscan={300}
+              itemContent={(index: number, track: any) => (
+                <TrackRow
                   key={track.id + '-' + index}
-                  onLongPress={(e: any) => { 
-                    e.preventDefault(); 
-                    openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt, 300), playlistId: playlist.id, isCustomPlaylist: playlist.isCustom, playlistIndex: index }, 'track'); 
+                  track={track}
+                  index={index}
+                  onPlay={handlePlaySong}
+                  variant="playlist"
+                  contextMenuExtra={{
+                    playlistId: playlist.id,
+                    isCustomPlaylist: playlist.isCustom,
+                    playlistIndex: index
                   }}
-                  onClick={() => handlePlaySong(index)}
-                  className={`flex items-center px-2 sm:px-4 py-2 sm:py-3 rounded-lg cursor-pointer group hover:bg-foreground/5 transition-colors ${currentPlaying ? 'bg-foreground/10' : ''}`}
-                >
-                  <div className="w-8 sm:w-12 text-center text-xs sm:text-sm font-medium text-secondary">
-                    {currentPlaying ? (
-                      isPlaying ? <Pause size={14} className="text-primary mx-auto stroke-none" fill="currentColor" /> : <Play size={14} className="text-primary mx-auto stroke-none" fill="currentColor" />
-                    ) : (
-                      <>
-                        <span className="group-hover:hidden">{index + 1}</span>
-                        <Play size={14} className="hidden group-hover:block mx-auto text-[#b3b3b3] stroke-none" fill="currentColor" />
-                      </>
-                    )}
-                  </div>
-                  <div className="flex-1 flex flex-col min-w-0 pr-2 sm:pr-4">
-                    <span className={`flex items-center gap-2 text-sm sm:text-base font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-foreground'}`}>
-                      <span className="truncate">{track.title}</span>
-                      {isTrackDownloaded && <Download size={14} className="text-primary shrink-0" />}
-                    </span>
-                    <ArtistLinks artistString={track.artist} artistId={track.artistId} className="text-xs text-secondary truncate" />
-                  </div>
-                  <div className="hidden md:flex w-24 justify-center gap-4">
-                    <Heart 
-                      size={16} 
-                      className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3]/50 hover:text-foreground'}`}
-                      fill={isTrackLiked ? "currentColor" : "none"}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleTrackLike(track.id);
-                        if (isTrackLiked) unstarItem(track.id);
-                        else starItem(track.id);
-                      }}
-                    />
-                    <Ban
-                      size={16}
-                      className={`opacity-0 group-hover:opacity-100 transition-opacity ${excludedTrackIds.includes(track.id) ? 'opacity-100 text-red-500' : 'text-[#b3b3b3]/50 hover:text-red-400'}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleTrackExclude(track.id);
-                      }}
-                    />
-                  </div>
-                  <div className="w-12 sm:w-16 text-right text-xs sm:text-sm text-secondary font-medium">
-                    {formatTime(track.duration)}
-                  </div>
-                </LongPressWrapper>
-              );
-            })
+                />
+              )}
+            />
           )}
         </div>
       </div>

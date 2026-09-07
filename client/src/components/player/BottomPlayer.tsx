@@ -1,11 +1,10 @@
-import { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Star, Maximize2, Monitor, Smartphone, Tv2, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
 import { starItem, unstarItem } from '../../api/subsonic';
 import Slider from '../common/Slider';
-import LiquidSeekBar from '../common/LiquidSeekBar';
 import ArtistLinks from '../common/ArtistLinks';
 import TrackImage from '../common/TrackImage';
 import { getCoverArtUrl } from '../../api/subsonic';
@@ -21,6 +20,26 @@ import { useHoladStore } from '../../store/holadStore';
 import { useAudioStore } from '../../store/audioStore';
 import { useBookmark } from '../../hooks/useBookmark';
 import { Bookmark } from 'lucide-react';
+import PlayerProgressControl from './PlayerProgressControl';
+
+const MiniProgressBar = React.memo(function MiniProgressBar() {
+  const progress = useAudioStore(s => s.progress);
+  const buffered = useAudioStore(s => s.buffered);
+  return (
+    <div className="absolute bottom-0 left-4 right-4 h-[2px] overflow-hidden rounded-t-full">
+      {buffered > 0 && (
+        <div 
+          className="absolute bottom-0 left-0 h-full bg-white/40 z-0 transition-all duration-300 pointer-events-none" 
+          style={{ width: `${buffered}%` }} 
+        />
+      )}
+      <div 
+        className="absolute bottom-0 left-0 h-full bg-primary z-10 transition-all opacity-80" 
+        style={{ width: `${progress}%` }} 
+      />
+    </div>
+  );
+});
 
 export default function BottomPlayer() {
   const navigate = useNavigate();
@@ -32,18 +51,11 @@ export default function BottomPlayer() {
   const audioRef1 = useRef<HTMLAudioElement>(null);
   const audioRefs = useMemo(() => [audioRef0, audioRef1] as [React.RefObject<HTMLAudioElement | null>, React.RefObject<HTMLAudioElement | null>], []);
 
-  const {
-    progress,
-    duration,
-    handleSeekChange,
-    handleSeekEnd
-  } = useAudioEngine(audioRefs, queue[currentIndex]);
+  useAudioEngine(audioRefs, queue[currentIndex]);
 
   useMediaSession();
 
   const currentTrack = queue[currentIndex];
-
-  const buffered = useAudioStore(s => s.buffered);
 
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const [dragVolume, setDragVolume] = useState<number | null>(null);
@@ -164,18 +176,7 @@ export default function BottomPlayer() {
           </button>
         </div>
 
-        <div className="w-full flex items-center gap-3 text-[11px] text-secondary font-medium px-4">
-          <span className="min-w-[35px] text-right">{formatTime((progress / 100) * (duration || 0))}</span>
-          <LiquidSeekBar 
-            value={progress / 100} 
-            buffered={buffered / 100}
-            onChange={handleSeekChange} 
-            onDragEnd={handleSeekEnd} 
-            className={`flex-1 ${role === 'listener' ? 'pointer-events-none' : ''}`}
-            isAnimated={isPlaying}
-          />
-          <span className="min-w-[35px] text-left">{formatTime(duration)}</span>
-        </div>
+        <PlayerProgressControl isPlaying={isPlaying} role={role} />
       </div>
 
       <div className="flex flex-col justify-center items-end flex-1 min-w-0 max-w-[30%] md:min-w-[150px] lg:min-w-[300px] text-secondary pr-2">
@@ -300,18 +301,7 @@ export default function BottomPlayer() {
           else setIsMobileExpanded(true);
         }}
       >
-        <div className="absolute bottom-0 left-4 right-4 h-[2px] overflow-hidden rounded-t-full">
-          {buffered > 0 && (
-            <div 
-              className="absolute bottom-0 left-0 h-full bg-white/40 z-0 transition-all duration-300 pointer-events-none" 
-              style={{ width: `${buffered}%` }} 
-            />
-          )}
-          <div 
-            className="absolute bottom-0 left-0 h-full bg-primary z-10 transition-all opacity-80" 
-            style={{ width: `${progress}%` }} 
-          />
-        </div>
+        <MiniProgressBar />
       
         <TrackImage 
           src={getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 100)} 
@@ -366,11 +356,4 @@ export default function BottomPlayer() {
       </div>
     </>
   );
-}
-
-function formatTime(seconds: number) {
-  if (!seconds) return '0:00';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
 }

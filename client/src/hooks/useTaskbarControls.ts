@@ -36,5 +36,8 @@ export function useTaskbarControls() {
 
     invoke('update_taskbar_state', { isPlaying })
       .catch((err) => console.warn('Failed to update taskbar state:', err));
+
+    invoke('sync_audio_session')
+      .catch(() => {});
   }, [isPlaying]);
 }

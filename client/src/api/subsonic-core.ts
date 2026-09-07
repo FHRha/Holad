@@ -85,6 +85,9 @@ export const fetchWithRetry = async (url: string, options?: RequestInit): Promis
         throw new Error('Network timeout');
       }
 
+      // On actual network failure, trigger ping check
+      import('../utils/networkStatus').then(m => m.networkManager.checkConnection()).catch(() => {});
+
       // Do not retry 4xx errors (except 429)
       const status = e.status || (e.message?.startsWith('HTTP ') ? parseInt(e.message.slice(5), 10) : undefined);
       if (typeof status === 'number' && status >= 400 && status < 500 && status !== 429) {

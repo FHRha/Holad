@@ -35,17 +35,14 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const audioMode = useSocialStore(s => s.audioMode);
   const isSpeakerDj = roomId !== null && audioMode === 'speaker_dj';
 
-  const {
-    setAudioElement,
-    progress,
-    setProgress,
-    duration,
-    setDuration,
-    isSeeking,
-    setIsSeeking,
-    handleSeekChange,
-    handleSeekEnd,
-  } = useAudioStore();
+  const setAudioElement = useAudioStore(s => s.setAudioElement);
+  const setProgress = useAudioStore(s => s.setProgress);
+  const duration = useAudioStore(s => s.duration);
+  const setDuration = useAudioStore(s => s.setDuration);
+  const isSeeking = useAudioStore(s => s.isSeeking);
+  const setIsSeeking = useAudioStore(s => s.setIsSeeking);
+  const handleSeekChange = useAudioStore(s => s.handleSeekChange);
+  const handleSeekEnd = useAudioStore(s => s.handleSeekEnd);
 
   const holadDeviceId = useHoladStore(s => s.deviceId);
   const holadActiveDeviceId = useHoladStore(s => s.activeDeviceId);
@@ -58,6 +55,38 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const engineRef = useRef<AudioEngine>(AudioEngine.getInstance());
   const isInitializedRef = useRef<boolean>(false);
   const prevIsPlayingRef = useRef<boolean>(isPlaying);
+
+  const lastLocalStorageWriteRef = useRef<number>(0);
+  const latestPositionRef = useRef<number>(0);
+  const latestTrackIdRef = useRef<string | null>(null);
+
+  const flushPositionToLocalStorage = useCallback(() => {
+    if (latestTrackIdRef.current) {
+      try {
+        localStorage.setItem('holad_time', latestPositionRef.current.toString());
+        localStorage.setItem('holad_track', latestTrackIdRef.current);
+        lastLocalStorageWriteRef.current = performance.now();
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, []);
+
+  // Flush track position on page unload / pagehide
+  useEffect(() => {
+    const handleUnload = () => {
+      flushPositionToLocalStorage();
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+      flushPositionToLocalStorage();
+    };
+  }, [flushPositionToLocalStorage]);
 
   useEffect(() => {
     prevIsPlayingRef.current = isPlaying;
@@ -249,9 +278,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         console.error('Playback resume error:', e);
       });
     } else {
+      flushPositionToLocalStorage();
       engineRef.current.pause();
     }
-  }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj]);
+  }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage]);
 
   // Audio mode dynamic change in Jam
   useEffect(() => {
@@ -380,8 +410,14 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
         const pct = (currentTime / dur) * 100;
         setProgress(pct);
-        localStorage.setItem('holad_time', currentTime.toString());
-        localStorage.setItem('holad_track', currentTrack.id);
+
+        latestPositionRef.current = currentTime;
+        latestTrackIdRef.current = currentTrack.id;
+
+        const now = performance.now();
+        if (now - lastLocalStorageWriteRef.current >= 2500) {
+          flushPositionToLocalStorage();
+        }
 
         if (!syncedRef.current && (accumulatedTimeRef.current >= 30 || accumulatedTimeRef.current / currentTrack.duration >= 0.5)) {
           syncedRef.current = true;
@@ -418,6 +454,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     };
 
     const handleEnded = (emittedTrackId?: string) => {
+      flushPositionToLocalStorage();
       if (emittedTrackId && currentTrack && emittedTrackId !== currentTrack.id) return;
       const pStore = usePlayerStore.getState();
       const isJamSession = Boolean(pStore.roomId);
@@ -451,7 +488,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       engine.off('ended', handleEnded);
       engine.off('requestPreload', handleRequestPreload);
     };
-  }, [currentTrack, isActiveDevice, duration, role, sleepTimer, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer]);
+  }, [currentTrack, isActiveDevice, duration, role, sleepTimer, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer, flushPositionToLocalStorage]);
 
   // Holad Syncing
   useEffect(() => {
@@ -519,7 +556,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   }, [isActiveDevice, currentTrack, isHoladConnected, duration, setDuration]);
 
   return {
-    progress,
+    get progress() {
+      return useAudioStore.getState().progress;
+    },
     setProgress,
     duration,
     setDuration,

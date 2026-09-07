@@ -87,8 +87,11 @@ export function useTrackSource(track: any) {
 
     return () => {
       isMounted = false;
+      if (src && src.startsWith('blob:')) {
+        StorageManager.revokeBlobUrl(src);
+      }
     };
-  }, [track?.id, track?.title, track?.albumId]);
+  }, [track?.id, track?.title, track?.albumId, src]);
 
   return { src, trackId, isLocal, isLoading, isAvailable };
 }

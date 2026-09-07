@@ -57,6 +57,7 @@ export interface IAudioDeck {
     getState(): AudioState;
     getBufferedRanges(): BufferedRange[];
     getBufferedPercent(): number;
+    releaseMedia?(): void;
     
     on(event: string, listener: (...args: any[]) => void): void;
     off(event: string, listener: (...args: any[]) => void): void;

@@ -1,7 +1,15 @@
+import { useState, useEffect } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { usePlayerStore } from '../../store/playerStore';
 import FullScreenPlayerUI from './FullScreenPlayerUI';
 import MobilePlayerUI from '../player/MobilePlayerUI';
+import { isTauri, isCapacitor } from '../../utils/StorageManager';
+
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  if (isTauri()) return false;
+  return isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+};
 
 export default function NowPlayingModal() {
   const isNowPlayingOpen = useUIStore(state => state.isNowPlayingOpen);
@@ -9,6 +17,14 @@ export default function NowPlayingModal() {
   const isMinimized = usePlayerStore(state => state.isMinimized);
   const role = usePlayerStore(state => state.role);
   const roomId = usePlayerStore(state => state.roomId);
+
+  const [isMobile, setIsMobile] = useState(isMobileDevice);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(isMobileDevice());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const isJamRoute = window.location.pathname.startsWith('/jam');
   const searchParams = new URLSearchParams(window.location.search);
@@ -31,12 +47,11 @@ export default function NowPlayingModal() {
 
   return (
     <>
-      <div className="hidden md:block">
+      {!isMobile ? (
         <FullScreenPlayerUI onClose={desktopOnClose} />
-      </div>
-      <div className="block md:hidden">
+      ) : (
         <MobilePlayerUI onClose={handleClose} />
-      </div>
+      )}
     </>
   );
 }

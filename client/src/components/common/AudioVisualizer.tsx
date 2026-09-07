@@ -1,126 +1,105 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { Monitor, Smartphone, Tv2 } from 'lucide-react';
 import { useAudioStore } from '../../store/audioStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
+import { useSettingsStore, type VisualizerStyle } from '../../store/settingsStore';
 import { useTranslation } from 'react-i18next';
 import { getAudioEngine } from '../../audio/AudioEngine';
+import { VisualizerEngine } from '../visualizer/VisualizerEngine';
+import Dropdown from './Dropdown';
+import { getCoverArtUrl } from '../../api/subsonic';
 
 export default function AudioVisualizer() {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<VisualizerEngine | null>(null);
+  const coverImgRef = useRef<HTMLImageElement | null>(null);
+
   const { audioElement } = useAudioStore();
   const isPlaying = usePlayerStore(s => s.isPlaying);
-  
+  const queue = usePlayerStore(s => s.queue);
+  const currentIndex = usePlayerStore(s => s.currentIndex);
+  const currentTrack = queue[currentIndex];
+
+  const visualizerStyle = useSettingsStore(s => s.visualizerStyle);
+  const setVisualizerStyle = useSettingsStore(s => s.setVisualizerStyle);
+
   const activeDeviceId = useHoladStore(s => s.activeDeviceId);
   const localDeviceId = useHoladStore(s => s.deviceId);
   const devices = useHoladStore(s => s.devices);
-  
+
   const isRemotePlaying = audioElement && audioElement.paused && isPlaying && activeDeviceId !== localDeviceId && activeDeviceId !== null;
   const activeDevice = devices.find(d => d.id === activeDeviceId);
 
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationRef = useRef<number>(0);
+  // Refs for current states to keep engine zero-allocation and without re-instantiation
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
 
+  const styleRef = useRef<VisualizerStyle>(visualizerStyle);
+  styleRef.current = visualizerStyle;
+
+  // Track cover art loading for 'radial' mode
+  const coverArtUrl = useMemo(() => {
+    if (!currentTrack) return '';
+    return getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 400);
+  }, [currentTrack]);
 
   useEffect(() => {
-    if (!audioElement) return;
+    if (!coverArtUrl) {
+      coverImgRef.current = null;
+      return;
+    }
 
-    // Use the global analyser from AudioEngine rather than duplicating contexts
-    const engine = getAudioEngine();
-    const analyser = engine.getAnalyserNode();
-    
-    if (!analyser) return;
-    analyserRef.current = analyser;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = coverArtUrl;
+    img.onload = () => {
+      coverImgRef.current = img;
+    };
+    img.onerror = () => {
+      coverImgRef.current = null;
+    };
+  }, [coverArtUrl]);
 
+  // Initialize Visualizer Engine
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const canvasCtx = canvas.getContext('2d');
-    if (!canvasCtx) return;
+    const audioCtxEngine = getAudioEngine();
 
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    const engine = new VisualizerEngine({
+      canvas,
+      getAnalyser: () => audioCtxEngine.getAnalyserNode() || null,
+      getIsPlaying: () => isPlayingRef.current,
+      getStyle: () => styleRef.current,
+      getCoverImage: () => coverImgRef.current,
+    });
 
-    const renderFrame = () => {
-      animationRef.current = requestAnimationFrame(renderFrame);
-      
-      const width = canvas.width;
-      const height = canvas.height;
-      
-      canvasCtx.clearRect(0, 0, width, height);
-      
-      // We will draw the spectrum in the top half, and a reflection in the bottom half.
-      const centerY = height * 0.65; 
-      
-      const segmentHeight = 4;
-      const segmentGap = 3;
-      const barWidth = 6;
-      const barGap = 4;
-      
-      // Calculate how many bars we can fit
-      const totalBars = Math.floor(width / (barWidth + barGap));
-      // Only use the first 60% of the frequency bins for a richer visual
-      const usefulBuffer = Math.floor(bufferLength * 0.6);
-      
-      let x = (width - (totalBars * (barWidth + barGap))) / 2; // Center horizontally
-      
-      analyser.getByteFrequencyData(dataArray);
-      
-      for (let i = 0; i < totalBars; i++) {
-        let value = 0;
-        
-        const dataIndex = Math.floor(Math.pow(i / totalBars, 1.2) * usefulBuffer);
-        const nextDataIndex = Math.floor(Math.pow((i + 1) / totalBars, 1.2) * usefulBuffer);
-        
-        let sum = 0;
-        let count = 0;
-        for (let j = dataIndex; j <= nextDataIndex && j < bufferLength; j++) {
-           sum += dataArray[j];
-           count++;
-        }
-        
-        value = count > 0 ? sum / count : dataArray[dataIndex];
-        
-        const normalized = value / 255; // 0 to 1
-        
-        // Calculate number of segments based on intensity
-        const maxSegments = Math.floor(centerY / (segmentHeight + segmentGap));
-        const activeSegments = Math.floor(normalized * maxSegments * 1.2); // boost a bit
-        
-        // Determine color based on X position (Green on left, Blue on right)
-        const hue = 140 + (i / totalBars) * 80; // 140 is green, 220 is blue
-        const color = `hsl(${hue}, 100%, 50%)`;
-        
-        canvasCtx.fillStyle = color;
-        
-        // Draw upper segments
-        for (let s = 0; s < activeSegments; s++) {
-           const y = centerY - s * (segmentHeight + segmentGap) - segmentHeight;
-           canvasCtx.fillRect(x, y, barWidth, segmentHeight);
-        }
-        
-        // Draw lower reflection segments (fading opacity)
-        const reflectSegments = Math.floor(activeSegments * 0.5); // Reflection is shorter
-        for (let s = 0; s < reflectSegments; s++) {
-           const y = centerY + s * (segmentHeight + segmentGap) + segmentGap;
-           const alpha = 0.3 * (1 - s / reflectSegments);
-           canvasCtx.fillStyle = `hsla(${hue}, 100%, 50%, ${alpha})`;
-           canvasCtx.fillRect(x, y, barWidth, segmentHeight);
-        }
-        
-        x += barWidth + barGap;
-      }
-    };
-
-    renderFrame();
+    engineRef.current = engine;
+    engine.start();
 
     return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
+      engine.destroy();
+      engineRef.current = null;
     };
   }, [audioElement]);
+
+  // Sync state changes with the running engine
+  useEffect(() => {
+    if (engineRef.current) {
+      engineRef.current.evaluateRunningState();
+    }
+  }, [isPlaying, visualizerStyle]);
+
+  const styleOptions = useMemo(() => [
+    { label: t('visualizer.style_classic', 'Классический спектр'), value: 'classic' },
+    { label: t('visualizer.style_modern', 'Неоновый спектр'), value: 'modern' },
+    { label: t('visualizer.style_wave', 'Плавная волна'), value: 'wave' },
+    { label: t('visualizer.style_radial', 'Круговой'), value: 'radial' },
+    { label: t('visualizer.style_peaks', 'Студийный эквалайзер'), value: 'peaks' },
+  ], [t]);
 
   if (isRemotePlaying) {
     const getDeviceIcon = (name: string, className: string) => {
@@ -143,12 +122,21 @@ export default function AudioVisualizer() {
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center p-4">
+    <div className="relative w-full h-full flex items-center justify-center p-4 overflow-hidden">
+      {/* Visualizer Style Switcher Dropdown in Top-Right corner */}
+      <div className="absolute top-4 right-4 z-20 w-44 sm:w-52">
+        <Dropdown
+          options={styleOptions}
+          value={visualizerStyle}
+          onChange={(val) => setVisualizerStyle(val as VisualizerStyle)}
+          className="text-xs"
+        />
+      </div>
+
+      {/* Visualizer Canvas */}
       <canvas 
         ref={canvasRef} 
-        className="w-full max-w-[1000px] h-[400px] max-h-full"
-        width={1000}
-        height={400}
+        className="w-full max-w-[1100px] h-[450px] max-h-full block"
       />
     </div>
   );

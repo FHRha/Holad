@@ -98,7 +98,7 @@ export default function ArtistAvatar({ artistName, artistId, className = "w-6 h-
   return (
     <div ref={containerRef} className={className}>
       {imageUrl && !loading ? (
-        <img src={imageUrl} loading="lazy" alt={artistName} className="w-full h-full object-cover" onError={(e) => {
+        <img src={imageUrl} loading="lazy" decoding="async" alt={artistName} className="w-full h-full object-cover" onError={(e) => {
           // If the loaded image fails (e.g. broken Last.fm link from Navidrome), fallback to icon
           (e.target as HTMLImageElement).style.display = 'none';
         }} />

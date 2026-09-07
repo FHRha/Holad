@@ -14,6 +14,10 @@ use windows::Win32::UI::Shell::{
 use windows::Win32::UI::WindowsAndMessaging::{
     LoadImageW, IMAGE_ICON, LR_DEFAULTSIZE, LR_LOADFROMFILE, WM_COMMAND, HICON
 };
+#[cfg(target_os = "windows")]
+use windows::Win32::System::ProcessStatus::EmptyWorkingSet;
+#[cfg(target_os = "windows")]
+use windows::Win32::System::Threading::GetCurrentProcess;
 use std::sync::OnceLock;
 use std::path::PathBuf;
 #[cfg(target_os = "windows")]
@@ -102,6 +106,29 @@ unsafe extern "system" fn subclass_proc(
                     let _ = app.emit("taskbar-action", action);
                 }
             }
+        }
+    } else if msg == 0x0005 {
+        // WM_SIZE
+        const SIZE_RESTORED: usize = 0;
+        const SIZE_MINIMIZED: usize = 1;
+        const SIZE_MAXIMIZED: usize = 2;
+
+        if wparam.0 == SIZE_MINIMIZED {
+            if let Some(app) = APP_HANDLE.get() {
+                let _ = app.emit("window-visibility-change", false);
+            }
+            // Мгновенный сброс неиспользуемой физической памяти (Working Set Trim)
+            let _ = EmptyWorkingSet(GetCurrentProcess());
+        } else if wparam.0 == SIZE_RESTORED || wparam.0 == SIZE_MAXIMIZED {
+            if let Some(app) = APP_HANDLE.get() {
+                let _ = app.emit("window-visibility-change", true);
+            }
+        }
+    } else if msg == 0x0018 {
+        // WM_SHOWWINDOW
+        let is_visible = wparam.0 != 0;
+        if let Some(app) = APP_HANDLE.get() {
+            let _ = app.emit("window-visibility-change", is_visible);
         }
     }
     DefSubclassProc(hwnd, msg, wparam, lparam)

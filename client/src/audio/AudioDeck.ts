@@ -23,6 +23,7 @@ export class AudioDeck implements IAudioDeck {
 
     private listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
     private boundHandlers: Map<string, (...args: any[]) => void> = new Map();
+    private isTainted: boolean = false;
 
     constructor(id: string, element?: HTMLAudioElement) {
         this.id = id;
@@ -118,7 +119,11 @@ export class AudioDeck implements IAudioDeck {
         });
 
         register('error', (e: any) => {
-            if (this.element === this.primaryElement && this.element.getAttribute('crossorigin') === 'anonymous') {
+            const actualError = (e && e.error) || this.element.error || e;
+            const errMsg = actualError instanceof Error ? actualError.message : (actualError && typeof actualError.message === 'string' ? actualError.message : String(actualError));
+            const isFatalOrDecoder = errMsg.includes('MEDIA_ERR_DECODE') || errMsg.includes('decoder') || errMsg.includes('corrupt') || errMsg.includes('Decode');
+            
+            if (!isFatalOrDecoder && !this.isTainted && this.element === this.primaryElement && this.element.getAttribute('crossorigin') === 'anonymous') {
                 console.warn('AudioDeck: Error with crossOrigin anonymous, falling back to secondary element');
                 
                 const oldElement = this.element;
@@ -135,7 +140,7 @@ export class AudioDeck implements IAudioDeck {
                 });
                 
                 this.element = newElement;
-                (this as any).isTainted = true;
+                this.isTainted = true;
                 
                 const currentTime = this.state === 'loading' ? this.targetPosition : oldElement.currentTime;
                 
@@ -248,6 +253,13 @@ export class AudioDeck implements IAudioDeck {
         if (this.state !== 'ended') {
             this.setState('paused');
         }
+    }
+
+    public releaseMedia(): void {
+        this.pause();
+        this.element.removeAttribute('src');
+        this.element.load();
+        this.setState('idle');
     }
 
     public seek(positionSeconds: number): void {

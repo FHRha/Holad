@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Heart, Star, MoreHorizontal, SkipForward, ListPlus, Download, Ban } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
@@ -10,15 +10,15 @@ import ArtistLinks from './ArtistLinks';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useDownloadStore } from '../../store/downloadStore';
 
-export default function AlbumCard({ album }: { album: any }) {
+const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
   const navigate = useNavigate();
   const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
   const playNext = usePlayerStore(state => state.playNext);
   const addToQueue = usePlayerStore(state => state.addToQueue);
-  const likedAlbumIds = usePlayerStore(state => state.likedAlbumIds);
+  const isLiked = usePlayerStore(s => s.likedAlbumIds.includes(album.id));
+  const isExcluded = usePlayerStore(s => s.excludedAlbumIds.includes(album.id));
   const toggleAlbumLike = usePlayerStore(state => state.toggleAlbumLike);
   const toggleAlbumExclude = usePlayerStore(state => state.toggleAlbumExclude);
-  const excludedAlbumIds = usePlayerStore(state => state.excludedAlbumIds);
   const setIsProcessing = usePlayerStore(state => state.setIsProcessing);
   const isGuest = usePlayerStore(state => !!state.roomId && state.role !== 'host');
   const { openMenu } = useContextMenuStore();
@@ -26,8 +26,6 @@ export default function AlbumCard({ album }: { album: any }) {
   const isDownloaded = downloadItem?.status === 'completed';
   const isDownloading = downloadItem?.status === 'downloading';
 
-  const isLiked = likedAlbumIds.includes(album.id);
-  const isExcluded = excludedAlbumIds.includes(album.id);
   const [rating, setRatingState] = useState(album.userRating || 0);
 
   useEffect(() => {
@@ -197,6 +195,7 @@ export default function AlbumCard({ album }: { album: any }) {
           alt={album.name} 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
+          decoding="async"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             if (target.src.includes('&size=')) {
@@ -305,4 +304,6 @@ export default function AlbumCard({ album }: { album: any }) {
       </div>
     </div>
   );
-}
+});
+
+export default AlbumCard;

@@ -3,9 +3,10 @@ import { useState, useEffect, useRef } from 'react';
 import { getLyrics, getLyricsBySongId } from '../api/subsonic';
 import { parseLRC, injectInterludes } from '../utils/lyrics';
 import type { LyricLine } from '../utils/lyrics';
-import { type Track } from '../store/playerStore';
+import { usePlayerStore, type Track } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 import { getAudioEngine } from '../audio/AudioEngine';
+import { subscribeWindowVisibility, getIsWindowVisible } from './useWindowVisibility';
 
 export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTMLAudioElement | null, isActive: boolean) {
   const [lyricsText, setLyricsText] = useState<string | null>(null);
@@ -124,11 +125,16 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
   useEffect(() => {
     if (!audioElement || lrcLines.length === 0 || !isActive) return;
     
-    let rafId: number;
+    let rafId: number | null = null;
     // oxlint-disable-next-line
     let lastActiveIndex = activeLyricIndexRef.current;
 
     const updateCurrentLyric = () => {
+      if (!usePlayerStore.getState().isPlaying || !getIsWindowVisible()) {
+        rafId = null;
+        return;
+      }
+
       const audioStore = useAudioStore.getState();
       const duration = currentTrack?.duration || 1;
       const currentTime = (audioStore.progress / 100) * duration;
@@ -193,8 +199,34 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       rafId = requestAnimationFrame(updateCurrentLyric);
     };
     
-    rafId = requestAnimationFrame(updateCurrentLyric);
-    return () => cancelAnimationFrame(rafId);
+    if (usePlayerStore.getState().isPlaying && getIsWindowVisible()) {
+      rafId = requestAnimationFrame(updateCurrentLyric);
+    }
+
+    const unsub = usePlayerStore.subscribe((state, prevState) => {
+      if (state.isPlaying && !prevState.isPlaying) {
+        if (!rafId && getIsWindowVisible()) {
+          rafId = requestAnimationFrame(updateCurrentLyric);
+        }
+      }
+    });
+
+    const unsubVis = subscribeWindowVisibility((visible) => {
+      if (visible && usePlayerStore.getState().isPlaying) {
+        if (!rafId) {
+          rafId = requestAnimationFrame(updateCurrentLyric);
+        }
+      } else if (!visible && rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    });
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      unsub();
+      unsubVis();
+    };
   }, [audioElement, lrcLines, isActive]);
 
   // Jump to current active line when switching back to lyrics tab

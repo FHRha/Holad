@@ -80,7 +80,20 @@ if (typeof window !== 'undefined') {
     unobserve() {}
     disconnect() {}
   }
-  Object.defineProperty(window, 'IntersectionObserver', { value: IntersectionObserverMock });
+  Object.defineProperty(window, 'IntersectionObserver', { value: IntersectionObserverMock, writable: true, configurable: true });
+
+  // Mock ResizeObserver
+  class ResizeObserverMock {
+    callback?: ResizeObserverCallback;
+    constructor(callback?: ResizeObserverCallback) {
+      this.callback = callback;
+    }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  Object.defineProperty(window, 'ResizeObserver', { value: ResizeObserverMock, writable: true, configurable: true });
+  Object.defineProperty(globalThis, 'ResizeObserver', { value: ResizeObserverMock, writable: true, configurable: true });
 }
 
 // Reset stores and mock global context before each test

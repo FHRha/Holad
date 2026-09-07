@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ArtistAvatar from './ArtistAvatar';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +13,7 @@ interface ArtistCardProps {
   onClick?: () => void;
 }
 
-export default function ArtistCard({ artist, onClick }: ArtistCardProps) {
+const ArtistCard = memo(function ArtistCard({ artist, onClick }: ArtistCardProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { setSearchOpen } = useUIStore();
@@ -55,4 +56,7 @@ export default function ArtistCard({ artist, onClick }: ArtistCardProps) {
       </div>
     </div>
   );
-}
+});
+
+export default ArtistCard;
+

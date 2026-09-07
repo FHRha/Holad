@@ -33,6 +33,7 @@ import { useAppInitialization } from './hooks/useAppInitialization';
 import { useDocumentTitle } from './hooks/useDocumentTitle';
 import { useTaskbarControls } from './hooks/useTaskbarControls';
 import { useTrayIntegration } from './hooks/useTrayIntegration';
+import { useWindowVisibility } from './hooks/useWindowVisibility';
 import SettingsModal from './components/modals/SettingsModal';
 import OfflineModeModal from './components/modals/OfflineModeModal';
 import TrayMenu from './components/player/TrayMenu';
@@ -86,6 +87,8 @@ function AppContent() {
   useTaskbarControls();
   // oxlint-disable-next-line
   useTrayIntegration();
+  // oxlint-disable-next-line
+  useWindowVisibility();
   
   // oxlint-disable-next-line
   useEffect(() => {

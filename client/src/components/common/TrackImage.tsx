@@ -140,6 +140,7 @@ export default function TrackImage({ src: rawSrc, className, alt = '', trackId }
           alt={alt} 
           onError={handleError}
           loading="lazy"
+          decoding="async"
         />
       )}
     </div>

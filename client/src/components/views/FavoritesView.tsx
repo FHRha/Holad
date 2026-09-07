@@ -1,19 +1,19 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect, useState } from 'react';
-import { fetchStarred, getCoverArtUrl, unstarItem, starItem, getAlbum } from '../../api/subsonic';
-import { Play, Heart, Search, CloudOff, Download, LayoutGrid } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { fetchStarred, getCoverArtUrl, getAlbum } from '../../api/subsonic';
+import { Heart, Search, CloudOff, Download, LayoutGrid, List } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { formatArtistName } from '../../utils/formatters';
 import TrackImage from '../common/TrackImage';
+import TrackRow from '../common/TrackRow';
 import AlbumCard from '../common/AlbumCard';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useUIStore } from '../../store/uiStore';
-import { List } from 'lucide-react';
-import { useDownloadStore, isItemDownloaded, getOfflineTracks, getDownloadedAlbums } from '../../store/downloadStore';
+import { getOfflineTracks, getDownloadedAlbums } from '../../store/downloadStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
+import { Virtuoso } from 'react-virtuoso';
 
 function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
   return (
@@ -35,27 +35,17 @@ export default function FavoritesView() {
   const [albums, setAlbums] = useState<any[]>([]);
   const [tracks, setTracks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { setQueueAndPlay, likedTrackIds, toggleTrackLike } = usePlayerStore();
+  const likedCount = usePlayerStore(s => s.likedTrackIds.length);
   const [mobileTab, setMobileTab] = useState<'tracks' | 'albums' | 'artists'>('tracks');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const downloads = useDownloadStore(state => state.downloads);
+  const [desktopScrollParent, setDesktopScrollParent] = useState<HTMLDivElement | null>(null);
+  const [mobileScrollParent, setMobileScrollParent] = useState<HTMLDivElement | null>(null);
   const { openMenu } = useContextMenuStore();
 
   useEffect(() => {
     // oxlint-disable-next-line
     loadStarred();
-  }, [likedTrackIds.length]);
-
-  const handleToggleLike = (e: React.MouseEvent, trackId: string) => {
-    e.stopPropagation();
-    const isLiked = likedTrackIds.includes(trackId);
-    toggleTrackLike(trackId);
-    if (isLiked) {
-      unstarItem(trackId);
-    } else {
-      starItem(trackId);
-    }
-  };
+  }, [likedCount]);
 
   const loadStarred = async () => {
     try {
@@ -66,7 +56,8 @@ export default function FavoritesView() {
       console.error('Failed to load favorites from server, checking local offline items:', error);
       const offlineTracks = getOfflineTracks();
       const offlineAlbums = getDownloadedAlbums();
-      const likedOfflineTracks = offlineTracks.filter(t => likedTrackIds.includes(t.id));
+      const currentLiked = usePlayerStore.getState().likedTrackIds;
+      const likedOfflineTracks = offlineTracks.filter(t => currentLiked.includes(t.id));
       setTracks(likedOfflineTracks.length > 0 ? likedOfflineTracks : offlineTracks);
       setAlbums(offlineAlbums);
     } finally {
@@ -74,7 +65,7 @@ export default function FavoritesView() {
     }
   };
 
-  const handlePlayTrack = (index: number, trackList: any[]) => {
+  const handlePlayTrack = useCallback((index: number, trackList: any[]) => {
     const mappedTracks: Track[] = trackList.map((t) => ({
       id: t.id,
       title: t.title,
@@ -94,9 +85,9 @@ export default function FavoritesView() {
     if (action === 'play_next') {
       usePlayerStore.getState().playNext([mappedTracks[index]]);
     } else {
-      setQueueAndPlay(mappedTracks, index);
+      usePlayerStore.getState().setQueueAndPlay(mappedTracks, index);
     }
-  };
+  }, []);
 
   const searchedTracks = tracks;
   const searchedAlbums = albums;
@@ -112,7 +103,7 @@ export default function FavoritesView() {
   return (
     <>
       {/* DESKTOP UI */}
-      <div className="hidden md:block flex-1 bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar">
+      <div ref={setDesktopScrollParent} className="hidden md:block flex-1 bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar">
         <div className="flex items-center gap-6 text-xl font-bold mb-10 text-foreground border-b border-white/5 pb-4">
           <h1 className="text-2xl text-foreground">{t('views.favorites')}</h1>
         </div>
@@ -131,57 +122,20 @@ export default function FavoritesView() {
         {tracks.length > 0 && (
           <div className="mb-10">
             <h2 className="text-xl font-bold text-foreground mb-6">{t('views.favorite_tracks')}</h2>
-            <div className="flex flex-col gap-1">
-              {tracks.map((track, index) => {
-                const isLiked = likedTrackIds.includes(track.id);
-                return (
-                  <div 
-                    key={track.id} 
-                    className="flex items-center gap-4 p-2 rounded-md hover:bg-white/5 group transition-colors cursor-pointer"
-                    onDoubleClick={() => handlePlayTrack(index, tracks)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
-                    }}
-                  >
-                    <div className="w-8 flex justify-center text-secondary relative">
-                      <span className="group-hover:hidden">{index + 1}</span>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handlePlayTrack(index, tracks); }}
-                        className="hidden group-hover:flex text-primary"
-                      >
-                        <Play fill="currentColor" size={14} />
-                      </button>
-                    </div>
-                    
-                    <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-foreground/10 relative shadow-sm">
-                      {track.coverArt && <TrackImage src={getCoverArtUrl(track.coverArt, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="flex items-center gap-2 text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                        <span className="truncate">{track.title}</span>
-                        {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0 group-hover:text-primary" />}
-                      </p>
-                      <p className="text-xs text-secondary truncate">
-                        {formatArtistName(track.artist)}{track.album ? ` • ${track.album}` : ''}
-                      </p>
-                    </div>
-                    
-                    <button 
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => handleToggleLike(e, track.id)}
-                    >
-                      <Heart size={16} fill={isLiked ? "currentColor" : "none"} className={isLiked ? "text-primary" : "text-white/30 hover:text-foreground"} />
-                    </button>
-
-                    <div className="w-12 text-right text-xs text-secondary">
-                      {Math.floor(track.duration / 60)}:{(track.duration % 60).toString().padStart(2, '0')}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <Virtuoso
+              customScrollParent={desktopScrollParent || undefined}
+              data={tracks}
+              overscan={300}
+              itemContent={(index: number, track: any) => (
+                <TrackRow
+                  key={track.id}
+                  track={track}
+                  index={index}
+                  onPlay={(idx) => handlePlayTrack(idx, tracks)}
+                  variant="favorites"
+                />
+              )}
+            />
           </div>
         )}
 
@@ -194,7 +148,7 @@ export default function FavoritesView() {
       </div>
 
       {/* MOBILE UI */}
-      <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32 w-full">
+      <div ref={setMobileScrollParent} className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32 w-full">
         <div className="px-4 pt-4 pb-2 sticky top-0 bg-black/40 backdrop-blur-xl z-10 w-full">
           <div 
             className="flex items-center bg-[#282828] rounded-xl px-3 py-2.5 mb-4 w-full border border-white/5 cursor-text"
@@ -233,7 +187,7 @@ export default function FavoritesView() {
           </div>
         </div>
         
-        <div className="w-full flex-1 flex flex-col px-4">
+        <div ref={setMobileScrollParent} className="w-full flex-1 flex flex-col px-4">
           {mobileTab === 'tracks' && (
             searchedTracks.length === 0 ? (
               <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
@@ -244,41 +198,21 @@ export default function FavoritesView() {
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col gap-3 py-4">
-                {searchedTracks.map((track, index) => {
-                  const isLiked = likedTrackIds.includes(track.id);
-                  return (
-                    <LongPressWrapper 
-                      key={track.id} 
-                      className="flex items-center gap-3 p-2 rounded-md hover:bg-white/5 transition-colors cursor-pointer"
-                      onClick={() => handlePlayTrack(index, searchedTracks)}
-                      onLongPress={(e: any) => {
-                        e.preventDefault?.();
-                        openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
-                      }}
-                    >
-                      <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-foreground/10 relative shadow-sm">
-                        {track.coverArt && <TrackImage src={getCoverArtUrl(track.coverArt, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="flex items-center gap-2 text-[15px] font-bold text-foreground truncate">
-                          <span className="truncate">{track.title}</span>
-                          {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
-                        </p>
-                        <p className="text-[13px] text-[#b3b3b3] truncate">
-                          {formatArtistName(track.artist)}{track.album ? ` • ${track.album}` : ''}
-                        </p>
-                      </div>
-                      
-                      <button 
-                        onClick={(e) => handleToggleLike(e, track.id)}
-                      >
-                        <Heart size={18} fill={isLiked ? "currentColor" : "none"} className={isLiked ? "text-primary" : "text-[#b3b3b3] hover:text-foreground"} />
-                      </button>
-                    </LongPressWrapper>
-                  );
-                })}
+              <div className="py-4">
+                <Virtuoso
+                  customScrollParent={mobileScrollParent || undefined}
+                  data={searchedTracks}
+                  overscan={300}
+                  itemContent={(index: number, track: any) => (
+                    <TrackRow
+                      key={track.id}
+                      track={track}
+                      index={index}
+                      onPlay={(idx) => handlePlayTrack(idx, searchedTracks)}
+                      variant="favorites"
+                    />
+                  )}
+                />
               </div>
             )
           )}

@@ -1,4 +1,4 @@
-import { writeFile, mkdir, exists, remove, copyFile, readDir, readFile } from '@tauri-apps/plugin-fs';
+import { writeFile, mkdir, exists, remove, copyFile, readDir } from '@tauri-apps/plugin-fs';
 import { join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useDownloadStore } from '../store/downloadStore';
@@ -343,6 +343,60 @@ export class StorageManager {
     }
   }
 
+  private static createdBlobUrls = new Set<string>();
+
+  static registerBlobUrl(url: string): string {
+    if (url && url.startsWith('blob:')) {
+      this.createdBlobUrls.add(url);
+    }
+    return url;
+  }
+
+  static revokeBlobUrl(url: string | null | undefined): void {
+    if (url && url.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.warn('Failed to revoke blob URL:', e);
+      }
+      this.createdBlobUrls.delete(url);
+    }
+  }
+
+  static revokeAllBlobUrls(): void {
+    for (const url of this.createdBlobUrls) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.warn('Failed to revoke blob URL:', e);
+      }
+    }
+    this.createdBlobUrls.clear();
+  }
+
+  static async resolveAudioUri(trackIdOrPath: string, trackTitle?: string, albumId?: string): Promise<string | null> {
+    if (!trackIdOrPath) return null;
+    if (isTauri()) {
+      if (trackIdOrPath.startsWith('http://asset.localhost') || trackIdOrPath.startsWith('asset://')) {
+        return trackIdOrPath;
+      }
+      if (trackIdOrPath.includes('/') || trackIdOrPath.includes('\\')) {
+        try {
+          if (await exists(trackIdOrPath)) {
+            return convertFileSrc(trackIdOrPath);
+          }
+        } catch {
+          return convertFileSrc(trackIdOrPath);
+        }
+      }
+    }
+    return this.getLocalTrackUri(trackIdOrPath, trackTitle, albumId);
+  }
+
+  static async getTrackAudioUri(trackId: string, trackTitle?: string, albumId?: string): Promise<string | null> {
+    return this.resolveAudioUri(trackId, trackTitle, albumId);
+  }
+
   static async getLocalTrackUri(trackId: string, trackTitle?: string, albumId?: string): Promise<string | null> {
     const { downloads } = useDownloadStore.getState();
 
@@ -352,9 +406,7 @@ export class StorageManager {
       if (isTauri()) {
         try {
           if (await exists(trackDownload.path)) {
-            const data = await readFile(trackDownload.path);
-            const blob = new Blob([data]);
-            return URL.createObjectURL(blob);
+            return convertFileSrc(trackDownload.path);
           }
         } catch (e) {
           console.warn('Error reading track via Tauri, assuming it exists to prevent playback blocking:', e);
@@ -362,19 +414,12 @@ export class StorageManager {
         }
       } else if (isCapacitor()) {
         try {
-
+          const { Capacitor } = await import('@capacitor/core');
           const { Filesystem, Directory } = await import('@capacitor/filesystem');
           const stat = await Filesystem.stat({ path: trackDownload.path, directory: Directory.Data });
           if (stat) {
-             const { data } = await Filesystem.readFile({ path: trackDownload.path, directory: Directory.Data });
-             const binaryString = atob(data as string);
-             const len = binaryString.length;
-             const bytes = new Uint8Array(len);
-             for (let i = 0; i < len; i++) {
-               bytes[i] = binaryString.charCodeAt(i);
-             }
-             const blob = new Blob([bytes]);
-             return URL.createObjectURL(blob);
+             const uri = await Filesystem.getUri({ path: trackDownload.path, directory: Directory.Data });
+             return Capacitor.convertFileSrc(uri.uri);
           }
         } catch (e: any) {
           if (e.message && !e.message.includes('does not exist')) {
@@ -400,9 +445,7 @@ export class StorageManager {
                 : entries.find(e => e.isFile);
               if (matchedEntry) {
                 const fullPath = await join(albumDownload.path, matchedEntry.name);
-                const data = await readFile(fullPath);
-                const blob = new Blob([data]);
-                return URL.createObjectURL(blob);
+                return convertFileSrc(fullPath);
               }
             }
           } catch (e) {
@@ -410,7 +453,7 @@ export class StorageManager {
           }
         } else if (isCapacitor()) {
           try {
-
+             const { Capacitor } = await import('@capacitor/core');
              const { Filesystem, Directory } = await import('@capacitor/filesystem');
              const res = await Filesystem.readdir({ path: albumDownload.path, directory: Directory.Data });
              const matchedFile = safeTitle
@@ -418,15 +461,8 @@ export class StorageManager {
                : res.files[0];
              if (matchedFile) {
                 const fullPath = `${albumDownload.path}/${matchedFile.name}`;
-                const { data } = await Filesystem.readFile({ path: fullPath, directory: Directory.Data });
-                const binaryString = atob(data as string);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                  bytes[i] = binaryString.charCodeAt(i);
-                }
-                const blob = new Blob([bytes]);
-                return URL.createObjectURL(blob);
+                const uri = await Filesystem.getUri({ path: fullPath, directory: Directory.Data });
+                return Capacitor.convertFileSrc(uri.uri);
              }
           } catch (e: any) {
             if (e.message && !e.message.includes('does not exist')) {

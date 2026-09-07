@@ -8,6 +8,9 @@ export class WebAudioPipeline implements IWebAudioPipeline {
 
     private deckSources: [MediaElementAudioSourceNode | null, MediaElementAudioSourceNode | null] = [null, null];
     private deckGains: [GainNode, GainNode];
+    private deckElements: [HTMLAudioElement | null, HTMLAudioElement | null] = [null, null];
+    private deckListeners: [(() => void) | null, (() => void) | null] = [null, null];
+    private sleepTimer: ReturnType<typeof setTimeout> | null = null;
     private normalizationEnabled: boolean = true;
     private masterVolume: number = 1.0;
     private volumeMultiplier: number = 1.0;
@@ -46,6 +49,40 @@ export class WebAudioPipeline implements IWebAudioPipeline {
         // Wire graph:
         // Deck Gains -> Compressor -> Master Gain -> Analyser -> Destination
         this.reconnectGraph();
+
+        // Schedule auto-sleep if no audio starts within 3 seconds
+        this.scheduleSleep(3000);
+    }
+
+    public isAnyDeckPlaying(): boolean {
+        return this.deckElements.some((el) => el && !el.paused && !el.ended);
+    }
+
+    public scheduleSleep(delayMs: number = 3000): void {
+        this.cancelSleepTimer();
+        this.sleepTimer = setTimeout(() => {
+            if (!this.isAnyDeckPlaying() && this.context.state === 'running') {
+                this.context.suspend().catch((e) => console.warn('AudioContext auto-suspend warning:', e));
+            }
+        }, delayMs);
+    }
+
+    public cancelSleepTimer(): void {
+        if (this.sleepTimer !== null) {
+            clearTimeout(this.sleepTimer);
+            this.sleepTimer = null;
+        }
+    }
+
+    public async resume(): Promise<void> {
+        this.cancelSleepTimer();
+        if (this.context.state === 'suspended') {
+            try {
+                await this.context.resume();
+            } catch (e) {
+                console.warn('AudioContext resume failed:', e);
+            }
+        }
     }
 
     private reconnectGraph(): void {
@@ -77,6 +114,36 @@ export class WebAudioPipeline implements IWebAudioPipeline {
 
     public attachDeck(deckIndex: 0 | 1, element: HTMLAudioElement): void {
         try {
+            // Clean up previous listeners if any
+            if (this.deckListeners[deckIndex]) {
+                this.deckListeners[deckIndex]!();
+                this.deckListeners[deckIndex] = null;
+            }
+
+            this.deckElements[deckIndex] = element;
+
+            const onPlay = () => {
+                this.cancelSleepTimer();
+                this.resume();
+            };
+            const onPauseOrEnded = () => {
+                if (!this.isAnyDeckPlaying()) {
+                    this.scheduleSleep(3000);
+                }
+            };
+
+            element.addEventListener('play', onPlay);
+            element.addEventListener('playing', onPlay);
+            element.addEventListener('pause', onPauseOrEnded);
+            element.addEventListener('ended', onPauseOrEnded);
+
+            this.deckListeners[deckIndex] = () => {
+                element.removeEventListener('play', onPlay);
+                element.removeEventListener('playing', onPlay);
+                element.removeEventListener('pause', onPauseOrEnded);
+                element.removeEventListener('ended', onPauseOrEnded);
+            };
+
             // Check if element already has a source node attached
             const audioEl = element as any;
             let source = audioEl._sourceNode;
@@ -113,6 +180,10 @@ export class WebAudioPipeline implements IWebAudioPipeline {
 
     public setDeckGain(deckIndex: 0 | 1, gain: number, rampDuration: number = 0): void {
         if (!this.deckGains || !this.deckGains[deckIndex]) return;
+        this.resume();
+        if (!this.isAnyDeckPlaying()) {
+            this.scheduleSleep(3000);
+        }
         const safeGain = typeof gain === 'number' && !isNaN(gain) && Number.isFinite(gain) ? gain : 0;
         const target = Math.max(0, Math.min(1, safeGain));
         const gainParam = this.deckGains[deckIndex].gain;
@@ -136,6 +207,10 @@ export class WebAudioPipeline implements IWebAudioPipeline {
     }
 
     public setMasterVolume(volume: number, multiplier: number = 1.0, rampDuration: number = 0): void {
+        this.resume();
+        if (!this.isAnyDeckPlaying()) {
+            this.scheduleSleep(3000);
+        }
         const safeVol = typeof volume === 'number' && !isNaN(volume) && Number.isFinite(volume) ? volume : 0;
         const safeMul = typeof multiplier === 'number' && !isNaN(multiplier) && Number.isFinite(multiplier) ? multiplier : 1.0;
         this.masterVolume = Math.max(0, Math.min(1, safeVol));
@@ -218,9 +293,7 @@ export class WebAudioPipeline implements IWebAudioPipeline {
     }
 
     public async unlockContext(): Promise<void> {
-        if (this.context.state === 'suspended') {
-            await this.context.resume().catch((e) => console.warn('AudioContext unlock failed:', e));
-        }
+        await this.resume();
     }
 
     public getFrequencyData(array: any): void {
@@ -228,6 +301,12 @@ export class WebAudioPipeline implements IWebAudioPipeline {
     }
 
     public destroy(): void {
+        this.cancelSleepTimer();
+        this.deckListeners.forEach((cleanup, idx) => {
+            if (cleanup) cleanup();
+            this.deckListeners[idx] = null;
+        });
+        this.deckElements = [null, null];
         try {
             this.deckSources.forEach((src) => {
                 if (src) src.disconnect();

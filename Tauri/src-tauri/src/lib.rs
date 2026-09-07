@@ -1,11 +1,19 @@
 mod taskbar;
+mod audio_session;
 use std::sync::Mutex;
 use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState, TrayIconEvent};
 use tauri::Manager;
 use tauri::State;
+use tauri::Emitter;
 
 struct AppConfig {
     close_to_tray: Mutex<bool>,
+}
+
+#[tauri::command]
+fn sync_audio_session() {
+    #[cfg(target_os = "windows")]
+    audio_session::windows_audio::trigger_sync_burst();
 }
 
 #[tauri::command]
@@ -29,6 +37,7 @@ fn show_main_window(app: tauri::AppHandle) {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
+        let _ = window.emit("window-visibility-change", true);
     }
 }
 
@@ -54,6 +63,12 @@ fn set_app_icon(app: tauri::AppHandle, icon: String) -> Result<(), String> {
     if let Some(tray) = app.tray_by_id("main") {
         let _ = tray.set_icon(Some(img));
     }
+
+    #[cfg(target_os = "windows")]
+    {
+        audio_session::windows_audio::set_current_icon(&icon);
+    }
+
     Ok(())
 }
 
@@ -106,7 +121,8 @@ pub fn run() {
         quit_app,
         show_main_window,
         set_tray_menu_size,
-        set_app_icon
+        set_app_icon,
+        sync_audio_session
     ])
     .setup(|app| {
       let is_autostart = std::env::args().any(|arg| arg == "--autostart");
@@ -116,6 +132,9 @@ pub fn run() {
           if let Some(window) = app.get_webview_window("main") {
               taskbar::init_taskbar(&window);
           }
+
+          // Запуск легковесного фонового супервизора микшера громкости Windows
+          audio_session::windows_audio::start_audio_session_supervisor();
       }
 
       if let Some(window) = app.get_webview_window("main") {
@@ -182,9 +201,15 @@ pub fn run() {
                       let is_visible = window.is_visible().unwrap_or(false);
                       if is_visible {
                           window.hide().unwrap();
+                          let _ = window.emit("window-visibility-change", false);
+                          #[cfg(target_os = "windows")]
+                          unsafe {
+                              let _ = windows::Win32::System::ProcessStatus::EmptyWorkingSet(windows::Win32::System::Threading::GetCurrentProcess());
+                          }
                       } else {
                           window.show().unwrap();
                           window.set_focus().unwrap();
+                          let _ = window.emit("window-visibility-change", true);
                           #[cfg(target_os = "windows")]
                           {
                               unsafe { crate::taskbar::setup_taskbar_buttons(&window); }
@@ -212,6 +237,11 @@ pub fn run() {
                     let config = window.state::<AppConfig>();
                     if *config.close_to_tray.lock().unwrap() {
                         window.hide().unwrap();
+                        let _ = window.emit("window-visibility-change", false);
+                        #[cfg(target_os = "windows")]
+                        unsafe {
+                            let _ = windows::Win32::System::ProcessStatus::EmptyWorkingSet(windows::Win32::System::Threading::GetCurrentProcess());
+                        }
                         api.prevent_close();
                     } else {
                         // Exit the entire app, closing tray icon and child windows

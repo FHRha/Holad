@@ -639,5 +639,13 @@
     "always_open_app": "Always open in app",
     "invite_title": "Jam session invitation",
     "invite_desc": "{{name}} invites you to listen together"
+  },
+  "visualizer": {
+    "style": "Visualizer Style",
+    "style_classic": "Classic Spectrum",
+    "style_modern": "Modern Spectrum",
+    "style_wave": "Smooth Waveform",
+    "style_radial": "Radial Spectrum",
+    "style_peaks": "Studio Peaks"
   }
 }

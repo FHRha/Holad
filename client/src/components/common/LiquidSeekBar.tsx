@@ -1,5 +1,5 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useRef, useEffect, useState } from 'react';
+import { subscribeWindowVisibility, getIsWindowVisible } from '../../hooks/useWindowVisibility';
 
 interface LiquidSeekBarProps {
   value: number; // 0 to 1
@@ -23,7 +23,9 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({ 
   const [isDragging, setIsDragging] = useState(false);
   const lastUpdate = useRef(0);
 
-  const normalizedBuffered = Math.max(0, Math.min(1, buffered));
+  const normalizedBuffered = buffered > 1
+    ? Math.max(0, Math.min(100, buffered)) / 100
+    : Math.max(0, Math.min(1, buffered));
 
   React.useImperativeHandle(ref, () => ({
     setValue: (val: number) => {
@@ -39,6 +41,10 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({ 
   const amplitudeMultiplierRef = useRef(isAnimated ? 1 : 0);
   const prevValueRef = useRef(value);
 
+  const isAnimatedRef = useRef(isAnimated);
+  isAnimatedRef.current = isAnimated;
+  const renderRef = useRef<(() => void) | undefined>(undefined);
+
   useEffect(() => {
     if (!isDragging) {
       // oxlint-disable-next-line
@@ -49,23 +55,12 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({ 
   const updateThumbAndClip = (val: number) => {
     const percent = Math.max(0, Math.min(val * 100, 100));
     
-    // We don't need CSS transitions for natural playback because the parent
-    // uses requestAnimationFrame and calls this 60 times a second.
-    // CSS transitions on clip-path when updated every frame cause the browser
-    // transition engine to freeze and hide the element.
-    const transitionDuration = '0ms';
-    
     if (thumbRef.current) {
-      thumbRef.current.style.transitionProperty = 'left';
-      thumbRef.current.style.transitionDuration = transitionDuration;
-      thumbRef.current.style.transitionTimingFunction = 'linear';
       thumbRef.current.style.left = `${percent}%`;
     }
     if (canvasContainerRef.current) {
-      canvasContainerRef.current.style.transitionProperty = 'width';
-      canvasContainerRef.current.style.transitionDuration = transitionDuration;
-      canvasContainerRef.current.style.transitionTimingFunction = 'linear';
-      canvasContainerRef.current.style.width = `${percent}%`;
+      // Using clip-path eliminates Layout Reflow of parent flex containers
+      canvasContainerRef.current.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
     }
     
     prevValueRef.current = val;
@@ -133,15 +128,11 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({ 
     };
     updateColor();
     
-    // Fallback interval for color changes
-    const interval = setInterval(updateColor, 1000);
-    
     // Observer for theme class changes on the document
     const observer = new MutationObserver(updateColor);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
     
     return () => {
-      clearInterval(interval);
       observer.disconnect();
     };
   }, []);
@@ -155,26 +146,15 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({ 
 
     let width = 0;
     let height = 0;
+    let isWindowVisible = getIsWindowVisible();
+    let isIntersecting = true;
 
-    const resizeObserver = new ResizeObserver(() => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1; 
-      width = rect.width;
-      height = rect.height;
-      
-      canvas.width = Math.ceil(width * dpr);
-      canvas.height = Math.ceil(height * dpr);
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      
-      ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
-      ctx.scale(dpr, dpr);
-    });
-
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
+    const drawFlatLine = () => {
+      ctx.clearRect(0, 0, width, height);
+      const rgb = colorRef.current.primaryRgb;
+      ctx.fillStyle = `rgba(${rgb}, 0.8)`;
+      ctx.fillRect(0, height / 2 - 2, width, 4);
+    };
 
     const drawWave = (
       time: number,
@@ -192,44 +172,49 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({ 
       // Wave bottom left
       ctx.lineTo(0, height / 2 + 2);
       
+      const t = time * speed;
       // Breathing effect: modulating amplitude
-      const currentAmp = baseAmp * (0.8 + 0.2 * Math.sin(time * speed * 0.5));
-      
-      const step = 4; // Optimized for performance
+      const currentAmp = baseAmp * (0.8 + 0.2 * Math.sin(t * 0.5));
+      const effectiveAmp = currentAmp * amplitudeMultiplierRef.current;
+      const baseTop = height / 2 - 2;
+      const step = 8; // Step 8 for 2x performance gain while remaining visually smooth
 
       for (let x = 0; x <= width + step; x += step) {
-        const t = time * speed;
         // xPhase gives chaotic horizontal stretching
         const phase = x * freq + Math.sin(x * warpFreq + t) * warpAmp + offsetPhase - t;
+        const waveHeight = (Math.sin(phase) + 1) * 0.5;
         
-        // waveHeight is 0 to 1
-        const waveHeight = (Math.sin(phase) + 1) / 2;
-        
-        // baseTop is the top edge of the track
-        const baseTop = height / 2 - 2;
-        
-        // Fade in amplitude over the first 40 pixels with a sinusoidal curve
-        const fadeProgress = Math.min(x / 40, 1);
-        // Sinusoidal ease-in-out: always 0 on the very left, smoothly connects to 1
-        const fadeIn = (1 - Math.cos(fadeProgress * Math.PI)) / 2;
-        
-        // Add wave amplitude upwards
-        const y = baseTop - (waveHeight * currentAmp * amplitudeMultiplierRef.current * fadeIn);
+        // Fast fade-in for first 40 pixels, 1.0 thereafter
+        const fadeIn = x < 40 ? (1 - Math.cos((x / 40) * Math.PI)) * 0.5 : 1;
+        const y = baseTop - (waveHeight * effectiveAmp * fadeIn);
         
         ctx.lineTo(x, y);
       }
       
       ctx.closePath();
-      
       ctx.fillStyle = color;
       ctx.fill();
     };
 
     const render = () => {
+      // If window is minimized/hidden or seekbar is offscreen, stop rAF and draw static line
+      if (!isWindowVisible || !isIntersecting) {
+        drawFlatLine();
+        animationRef.current = undefined;
+        return;
+      }
+
+      if (!isAnimatedRef.current && amplitudeMultiplierRef.current < 0.001) {
+        amplitudeMultiplierRef.current = 0;
+        drawFlatLine();
+        animationRef.current = undefined;
+        return;
+      }
+
       ctx.clearRect(0, 0, width, height);
 
       // Smoothly transition amplitude based on isAnimated
-      const targetAmp = isAnimated ? 1 : 0.0;
+      const targetAmp = isAnimatedRef.current ? 1 : 0.0;
       amplitudeMultiplierRef.current += (targetAmp - amplitudeMultiplierRef.current) * 0.08;
       
       timeRef.current += 0.016; 
@@ -246,12 +231,89 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({ 
       animationRef.current = requestAnimationFrame(render);
     };
 
-    render();
+    renderRef.current = render;
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1; 
+      width = rect.width;
+      height = rect.height;
+      
+      canvas.width = Math.ceil(width * dpr);
+      canvas.height = Math.ceil(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
+      ctx.scale(dpr, dpr);
+
+      // On resize: cancel any pending rAF and re-render
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = undefined;
+      }
+      render();
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    // IntersectionObserver to pause when seekbar is scrolled off screen
+    const intersectionObserver = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      isIntersecting = entry ? entry.isIntersecting : true;
+      if (!isIntersecting) {
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+          animationRef.current = undefined;
+        }
+        drawFlatLine();
+      } else if (isAnimatedRef.current && isWindowVisible) {
+        if (!animationRef.current && renderRef.current) {
+          renderRef.current();
+        }
+      }
+    }, { threshold: 0.05 });
+
+    if (containerRef.current) {
+      intersectionObserver.observe(containerRef.current);
+    }
+
+    // Window visibility subscriber (Tauri minimize / restore and web visibility)
+    const unsubVisibility = subscribeWindowVisibility((visible) => {
+      isWindowVisible = visible;
+      if (!visible) {
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+          animationRef.current = undefined;
+        }
+        drawFlatLine();
+      } else if (isAnimatedRef.current && isIntersecting) {
+        if (!animationRef.current && renderRef.current) {
+          renderRef.current();
+        }
+      }
+    });
 
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      animationRef.current = undefined;
+      renderRef.current = undefined;
       resizeObserver.disconnect();
+      intersectionObserver.disconnect();
+      unsubVisibility();
     };
+  }, []);
+
+  // Trigger render when isAnimated becomes true
+  useEffect(() => {
+    if (isAnimated) {
+      if (!animationRef.current && renderRef.current) {
+        renderRef.current();
+      }
+    }
   }, [isAnimated]);
 
   return (
@@ -259,6 +321,7 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({ 
       className={`w-full h-8 flex items-center cursor-pointer group relative touch-none ${className}`}
       onPointerDown={handlePointerDown}
       ref={containerRef}
+      style={{ transform: 'translateZ(0)' }}
     >
       {/* Background track (thin line) */}
       <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-white/20 rounded-full" />
@@ -271,15 +334,16 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({ 
         />
       )}
       
-      {/* Canvas container with overflow hidden */}
+      {/* Canvas container with overflow hidden, GPU compositor isolation and zero layout reflow */}
       <div 
         ref={canvasContainerRef}
-        className="absolute left-0 top-0 bottom-0 pointer-events-none overflow-hidden"
-        style={{ width: '0%' }}
+        className="absolute inset-0 pointer-events-none overflow-hidden"
+        style={{ clipPath: 'inset(0 100% 0 0)', transform: 'translateZ(0)', willChange: 'clip-path' }}
       >
         <canvas 
           ref={canvasRef}
           className="absolute left-0 top-0 h-full"
+          style={{ transform: 'translateZ(0)' }}
         />
       </div>
 

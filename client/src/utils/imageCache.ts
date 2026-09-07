@@ -19,15 +19,15 @@ export class LRUImageMemoryManager {
   private cache = new Map<string, ImageCacheEntry>();
   private fetchingCache = new Map<string, Promise<string>>();
   public currentBytes: number = 0;
-  public limitMB: number = 256;
+  public limitMB: number = 48;
   private accessCounter: number = 0;
 
-  constructor(limitMB: number = 256) {
+  constructor(limitMB: number = 48) {
     this.limitMB = this.clampLimit(limitMB);
   }
 
   private clampLimit(mb: number): number {
-    if (typeof mb !== 'number' || isNaN(mb)) return 256;
+    if (typeof mb !== 'number' || isNaN(mb)) return 48;
     return Math.max(32, Math.min(2048, Math.round(mb)));
   }
 
@@ -151,7 +151,7 @@ export class LRUImageMemoryManager {
 }
 
 // Export singleton instance and utility functions
-export const imageMemoryCache = new LRUImageMemoryManager(256);
+export const imageMemoryCache = new LRUImageMemoryManager(48);
 
 export async function getCachedImageUrl(originalUrl: string): Promise<string> {
   return imageMemoryCache.getCachedImageUrl(originalUrl);

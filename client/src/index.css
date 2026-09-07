@@ -95,3 +95,12 @@
 svg {
   user-select: none;
 }
+
+button, a, input, select, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.backdrop-blur-xl, .backdrop-blur-2xl, .backdrop-blur-3xl {
+  transform: translateZ(0);
+}

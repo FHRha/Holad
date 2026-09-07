@@ -39,41 +39,38 @@ class NetworkStatusManager {
         console.error('Failed to initialize @capacitor/network', err);
       });
     }
+  }
 
-    // All platforms: Poll server lightly to detect true offline status
-    // because window 'offline' events can be unreliable.
-    setInterval(async () => {
-      if (!this.isTesting) {
+  public async checkConnection(): Promise<boolean> {
+    if (this.isTesting) return this.online;
+    try {
+      const authStore = (await import('../store/authStore')).useAuthStore.getState();
+      if (authStore.isAuthenticated && authStore.url) {
+        const core = await import('../api/subsonic-core');
+        const pingUrl = core.buildUrl('ping');
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        
         try {
-          const authStore = (await import('../store/authStore')).useAuthStore.getState();
-          if (authStore.isAuthenticated && authStore.url) {
-            const core = await import('../api/subsonic-core');
-            const pingUrl = core.buildUrl('ping');
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000);
-            
-            try {
-              await fetch(pingUrl, { signal: controller.signal });
-              clearTimeout(timeoutId);
-              // If we get a response, even an HTTP error, we are technically online.
-              this.pingFailures = 0;
-              this.setOnline(true);
-            // oxlint-disable-next-line
-            } catch (e) {
-              clearTimeout(timeoutId);
-              this.pingFailures++;
-              if (this.pingFailures >= 2) {
-                this.setOnline(false);
-              }
-            }
+          await fetch(pingUrl, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          this.pingFailures = 0;
+          this.setOnline(true);
+          return true;
+        } catch {
+          clearTimeout(timeoutId);
+          this.pingFailures++;
+          if (this.pingFailures >= 2) {
+            this.setOnline(false);
           }
-        // oxlint-disable-next-line
-        } catch (e) {
-          // ignore
+          return false;
         }
       }
-    }, 5000); // Check every 5s
+    } catch {
+      // ignore
+    }
+    return this.online;
   }
 
   public isOnline(): boolean {
@@ -156,3 +153,5 @@ export const toggleOfflineMode = () => networkManager.toggleOffline();
 export const addNetworkListener = (cb: NetworkListener) => networkManager.subscribe(cb);
 export const setNetworkStatusForTesting = (online: boolean) => networkManager.setTestingStatus(online);
 export const resetNetworkStatusForTesting = () => networkManager.resetTestingStatus();
+export const checkNetworkConnection = () => networkManager.checkConnection();
+export const verifyNetworkPing = () => networkManager.checkConnection();

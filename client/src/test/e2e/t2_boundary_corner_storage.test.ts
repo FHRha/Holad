@@ -651,7 +651,7 @@ describe('Tier 2: Boundary & Corner Cases Test Suite', () => {
       const originalMock = fetchSpy.getMockImplementation()!;
       fetchSpy.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
-        if (url.includes('getCoverArt')) {
+        if (url.includes('getCoverArt') || url.includes('/api/cover/')) {
           return new Response('404 Cover Not Found', {
             status: 404,
             statusText: 'Not Found',

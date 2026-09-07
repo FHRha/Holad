@@ -31,7 +31,7 @@
       },
       {
         "label": "tray_menu",
-        "title": "Tray Menu",
+        "title": "Holad (Tray Menu)",
         "url": "/#tray",
         "visible": false,
         "decorations": false,

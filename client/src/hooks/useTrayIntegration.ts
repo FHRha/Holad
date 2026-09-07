@@ -86,12 +86,8 @@ export function useTrayIntegration() {
 
         // Initial sync
         broadcastState();
-        
-        // Polling to avoid race conditions and ensure sync
-        const interval = setInterval(broadcastState, 1000);
 
         return () => {
-          clearInterval(interval);
           unlistenReq();
           unlistenCtrl();
           unsubStore();

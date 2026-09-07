@@ -466,8 +466,10 @@ node dist/index.js
             try { fs.chmodSync(path.join(ROOT_DIR, 'Capacitor', 'android', 'gradlew'), 0o755); } catch(e) {}
           }
           const buildType = process.env.ANDROID_KEYSTORE_FILE ? 'assembleRelease' : 'assembleDebug';
-          const daemonFlag = process.env.GITHUB_ACTIONS ? '--no-daemon' : '';
+          const daemonFlag = '--no-daemon';
           await runCommand('Android Build', `${gradlew} ${buildType} ${daemonFlag} -q`.trim(), path.join(ROOT_DIR, 'Capacitor', 'android'));
+          // Ensure Gradle daemon doesn't linger in RAM (saves ~1-1.5 GB memory)
+          await runCommand('Stop Gradle Daemon', `${gradlew} --stop`, path.join(ROOT_DIR, 'Capacitor', 'android')).catch(() => {});
           
           // Copy APK
           const apkDir = path.join(ROOT_DIR, 'Capacitor', 'android', 'app', 'build', 'outputs', 'apk');
