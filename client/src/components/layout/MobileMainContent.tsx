@@ -13,7 +13,8 @@ import { useDownloadStore, isItemDownloaded, getOfflineTracks, getDownloadedAlbu
 import { useSettingsStore } from '../../store/settingsStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { toggleOfflineMode } from '../../utils/networkStatus';
-import MobileJamModal from '../modals/MobileJamModal';
+import MobileSocialModal from '../modals/MobileSocialModal';
+import { useSocialStore } from '../../store/socialStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { formatGenre } from '../../utils/formatters';
@@ -98,6 +99,9 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
   const roomId = usePlayerStore(state => state.roomId);
   const [isJamModalOpen, setIsJamModalOpen] = useState(false);
   const { openMenu } = useContextMenuStore();
+  const pendingRequests = useSocialStore(state => state.pendingRequests);
+  const activeInvites = useSocialStore(state => state.activeInvites);
+  const hasSocialNotifications = pendingRequests.incoming.length > 0 || activeInvites.length > 0;
   
   const prevIsOfflineRef = useRef(isOffline);
   
@@ -248,9 +252,13 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
           </div>
           <button 
             onClick={() => setIsJamModalOpen(true)}
-            className={`h-[44px] w-[44px] flex-shrink-0 flex items-center justify-center rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform ${roomId ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-secondary'}`}
+            className={`relative h-[44px] w-[44px] flex-shrink-0 flex items-center justify-center rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all ${roomId ? 'bg-primary text-black' : 'bg-card border border-border text-secondary'}`}
+            title={t('social.tab_friends_button', 'Друзья')}
           >
             <Users size={20} />
+            {hasSocialNotifications && (
+              <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-background animate-pulse" />
+            )}
           </button>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-2">
@@ -424,7 +432,11 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
         )}
 
       </div>
-      <MobileJamModal isOpen={isJamModalOpen} onClose={() => setIsJamModalOpen(false)} />
+      <MobileSocialModal 
+        isOpen={isJamModalOpen} 
+        onClose={() => setIsJamModalOpen(false)} 
+        defaultTab={roomId ? 'jam' : 'friends'}
+      />
     </div>
   );
 }

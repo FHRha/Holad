@@ -250,16 +250,19 @@ function isAndroidSdkAvailable(env) {
   return false;
 }
 
-function copyRecursiveSync(src, dest) {
+function copyRecursiveSync(src, dest, ignoreExt = ['.sqlite', '.sqlite-wal', '.sqlite-shm']) {
   if (!fs.existsSync(src)) return;
   const stats = fs.statSync(src);
   const isDirectory = stats.isDirectory();
   if (isDirectory) {
     if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
     fs.readdirSync(src).forEach((childItemName) => {
-      copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName));
+      copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName), ignoreExt);
     });
   } else {
+    if (ignoreExt.some(ext => src.toLowerCase().endsWith(ext))) {
+      return;
+    }
     fs.copyFileSync(src, dest);
   }
 }

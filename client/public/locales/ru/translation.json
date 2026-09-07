@@ -634,7 +634,13 @@
     "friend_added": "Друг добавлен",
     "already_friends": "Уже в друзьях",
     "no_users_found": "Пользователи не найдены",
-    "searching": "Поиск..."
+    "searching": "Поиск...",
+    "incoming_requests": "Входящие заявки",
+    "outgoing_requests": "Исходящие заявки",
+    "cancel": "Отменить",
+    "tab_jam": "Jam-сессия",
+    "remove_friend": "Удалить из друзей",
+    "remove_friend_confirm": "Вы уверены, что хотите удалить {{name}} из друзей?"
   },
   "deeplink": {
     "open_in_app": "Открыть в приложении Holad",

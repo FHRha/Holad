@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { X, Plus, Search, Check, ListMusic } from 'lucide-react';
 import { getPlaylists, createPlaylist, updatePlaylistTracks } from '../../api/subsonic/playlists';
-import { getCoverArtUrl } from '../../api/subsonic';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import PlaylistCover from './PlaylistCover';
 
 interface Props {
   isOpen: boolean;
@@ -26,36 +26,24 @@ export default function AddToPlaylistModal({ isOpen, onClose, trackIds }: Props)
 
   useEffect(() => {
     if (isOpen) {
+      const mapCustom = () => customPlaylists.map(cp => ({
+        id: cp.id,
+        name: cp.name,
+        songCount: cp.trackIds.length,
+        coverArt: cp.trackIds.length > 0 ? cp.trackIds[0] : null,
+        trackIds: cp.trackIds,
+        isCustom: true
+      }));
+
       if (!isOffline) {
         getPlaylists().then(serverPlaylists => {
-          const mappedCustomPlaylists = customPlaylists.map(cp => ({
-            id: cp.id,
-            name: cp.name,
-            songCount: cp.trackIds.length,
-            coverArt: null,
-            isCustom: true
-          }));
-          setPlaylists([...mappedCustomPlaylists, ...(serverPlaylists || [])]);
+          setPlaylists([...mapCustom(), ...(serverPlaylists || [])]);
         }).catch(err => {
           console.error(err);
-          const mappedCustomPlaylists = customPlaylists.map(cp => ({
-            id: cp.id,
-            name: cp.name,
-            songCount: cp.trackIds.length,
-            coverArt: null,
-            isCustom: true
-          }));
-          setPlaylists(mappedCustomPlaylists);
+          setPlaylists(mapCustom());
         });
       } else {
-        const mappedCustomPlaylists = customPlaylists.map(cp => ({
-          id: cp.id,
-          name: cp.name,
-          songCount: cp.trackIds.length,
-          coverArt: null,
-          isCustom: true
-        }));
-        setPlaylists(mappedCustomPlaylists);
+        setPlaylists(mapCustom());
       }
     } else {
       setSearch('');
@@ -146,7 +134,6 @@ export default function AddToPlaylistModal({ isOpen, onClose, trackIds }: Props)
           {filtered.length > 0 ? (
             <div className="space-y-1">
               {filtered.map(p => {
-                const coverUrl = getCoverArtUrl(p.coverArt, 100);
                 return (
                   <button
                     key={p.id}
@@ -154,13 +141,15 @@ export default function AddToPlaylistModal({ isOpen, onClose, trackIds }: Props)
                     disabled={addingTo !== null}
                     className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-foreground/5 transition-colors text-left disabled:opacity-50 group"
                   >
-                    {coverUrl ? (
-                      <img src={coverUrl} alt="" className="w-12 h-12 rounded object-cover shadow-sm" />
-                    ) : (
-                      <div className="w-12 h-12 rounded bg-foreground/5 flex items-center justify-center text-secondary">
-                        <ListMusic size={20} />
-                      </div>
-                    )}
+                    <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 shadow-sm bg-black/20">
+                      <PlaylistCover
+                        coverArt={p.coverArt}
+                        trackIds={p.trackIds}
+                        alt=""
+                        size={100}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                     <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-foreground truncate">{p.name}</div>
                     <div className="text-xs text-secondary truncate">{p.songCount || 0} {t('common.songs')}</div>

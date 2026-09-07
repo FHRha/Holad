@@ -10,6 +10,7 @@ import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../stor
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import TrackRow from '../common/TrackRow';
+import PlaylistCover from '../common/PlaylistCover';
 import { Virtuoso } from 'react-virtuoso';
 
 export default function PlaylistDetailView() {
@@ -65,13 +66,18 @@ export default function PlaylistDetailView() {
              }
            }
            
+           const firstCover = resolvedEntries.length > 0 
+             ? (resolvedEntries[0].coverArt || resolvedEntries[0].albumId || resolvedEntries[0].id) 
+             : null;
+           
            setPlaylist({
              id: customPlaylist.id,
              name: customPlaylist.name,
              comment: customPlaylist.description,
              songCount: resolvedEntries.length,
              duration: resolvedEntries.reduce((acc, t) => acc + (t.duration || 0), 0),
-             coverArt: null,
+             coverArt: firstCover,
+             trackIds: customPlaylist.trackIds,
              entry: resolvedEntries,
              isCustom: true
            });
@@ -129,7 +135,7 @@ export default function PlaylistDetailView() {
       album: t.album,
       albumId: t.albumId,
       artistId: t.artistId,
-      coverArt: getCoverArtUrl(t.coverArt, 300),
+      coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
       duration: t.duration,
       bitRate: t.bitRate,
       suffix: t.suffix
@@ -147,7 +153,7 @@ export default function PlaylistDetailView() {
       album: t.album,
       albumId: t.albumId,
       artistId: t.artistId,
-      coverArt: getCoverArtUrl(t.coverArt, 300),
+      coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
       duration: t.duration,
       bitRate: t.bitRate,
       suffix: t.suffix
@@ -167,8 +173,6 @@ export default function PlaylistDetailView() {
     return <div className="flex-1 flex items-center justify-center">{t('views.unknown_playlist', 'Unknown Playlist')}</div>;
   }
 
-  const coverUrl = playlist.coverArt ? getCoverArtUrl(playlist.coverArt, 600) : null;
-
   const tracks = playlist.entry || [];
 
   return (
@@ -183,11 +187,14 @@ export default function PlaylistDetailView() {
           </button>
           
           <div className="w-48 h-48 md:w-64 md:h-64 rounded-xl shadow-2xl bg-black/20 flex items-center justify-center overflow-hidden shrink-0 mx-auto md:mx-0">
-            {coverUrl ? (
-              <img src={coverUrl} alt="Playlist Cover" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-white/20 text-4xl">{t('common.playlists', 'Playlist')}</span>
-            )}
+            <PlaylistCover
+              coverArt={playlist.coverArt}
+              trackIds={playlist.trackIds}
+              tracks={playlist.entry}
+              alt={playlist.name}
+              size={600}
+              className="w-full h-full object-cover"
+            />
           </div>
           
           <div className="flex flex-col gap-2 flex-1 w-full items-center md:items-start">

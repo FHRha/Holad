@@ -66,7 +66,7 @@ export default function ContextMenu() {
       id: cp.id,
       name: cp.name,
       songCount: cp.trackIds.length,
-      coverArt: null,
+      coverArt: cp.trackIds.length > 0 ? cp.trackIds[0] : null,
       isCustom: true
     }));
     
@@ -101,7 +101,7 @@ export default function ContextMenu() {
         id: cp.id,
         name: cp.name,
         songCount: cp.trackIds.length,
-        coverArt: null,
+        coverArt: cp.trackIds.length > 0 ? cp.trackIds[0] : null,
         isCustom: true
       }));
       setPlaylists([...mappedCustomPlaylists, ...(updated || [])]);

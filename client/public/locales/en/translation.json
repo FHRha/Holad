@@ -634,7 +634,13 @@
     "friend_added": "Friend added",
     "already_friends": "Already friends",
     "no_users_found": "No users found",
-    "searching": "Searching..."
+    "searching": "Searching...",
+    "incoming_requests": "Incoming requests",
+    "outgoing_requests": "Outgoing requests",
+    "cancel": "Cancel",
+    "tab_jam": "Jam Session",
+    "remove_friend": "Remove friend",
+    "remove_friend_confirm": "Are you sure you want to remove {{name}} from friends?"
   },
   "deeplink": {
     "open_in_app": "Open in Holad App",

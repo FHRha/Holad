@@ -21,6 +21,7 @@ import MobileSettingsView from './components/views/MobileSettingsView';
 import SyncConflictModal from './components/common/SyncConflictModal';
 import HistoryView from './components/views/HistoryView';
 import DownloadsView from './components/views/DownloadsView';
+import FriendsView from './components/views/FriendsView';
 import PlaylistsView from './components/views/PlaylistsView';
 import PlaylistDetailView from './components/views/PlaylistDetailView';
 import TopBar from './components/layout/TopBar';
@@ -260,6 +261,7 @@ function AppContent() {
                         <Route path="/history" element={<HistoryView />} />
                         <Route path="/downloads" element={<DownloadsView />} />
                         <Route path="/radio" element={<RadioView />} />
+                        <Route path="/friends" element={<FriendsView />} />
                         <Route path="/settings" element={<MobileSettingsView />} />
                         <Route path="*" element={<MainContent />} />
                       </Routes>
