@@ -16,13 +16,52 @@
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+            </intent-filter>
+        </activity>
 
+        <activity-alias
+            android:name=".MainActivityWaveDark"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_wave_dark"
+            android:roundIcon="@mipmap/ic_launcher_wave_dark_round"
+            android:label="@string/title_activity_main"
+            android:enabled="true"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity-alias>
 
-        </activity>
+        <activity-alias
+            android:name=".MainActivityWaveLight"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_wave_light"
+            android:roundIcon="@mipmap/ic_launcher_wave_light_round"
+            android:label="@string/title_activity_main"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".MainActivityCassette"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_cassette"
+            android:roundIcon="@mipmap/ic_launcher_cassette_round"
+            android:label="@string/title_activity_main"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <provider
             android:name="androidx.core.content.FileProvider"

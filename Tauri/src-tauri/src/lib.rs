@@ -32,6 +32,31 @@ fn show_main_window(app: tauri::AppHandle) {
     }
 }
 
+const ICON_WAVE_DARK: &[u8] = include_bytes!("../../../client/public/icons/favicon_dark.png");
+const ICON_WAVE_LIGHT: &[u8] = include_bytes!("../../../client/public/icons/favicon_light.png");
+const ICON_CASSETTE: &[u8] = include_bytes!("../../../client/public/icons/logo_cassette.png");
+
+#[tauri::command]
+fn set_app_icon(app: tauri::AppHandle, icon: String) -> Result<(), String> {
+    let bytes = match icon.as_str() {
+        "wave_light" => ICON_WAVE_LIGHT,
+        "cassette" => ICON_CASSETTE,
+        _ => ICON_WAVE_DARK,
+    };
+    let img = tauri::image::Image::from_bytes(bytes).map_err(|e| e.to_string())?;
+
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_icon(img.clone());
+    }
+    if let Some(window) = app.get_webview_window("tray_menu") {
+        let _ = window.set_icon(img.clone());
+    }
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_icon(Some(img));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn set_tray_menu_size(window: tauri::Window, width: f64, height: f64) {
     let scale_factor = window.scale_factor().unwrap_or(1.0);
@@ -80,7 +105,8 @@ pub fn run() {
         set_close_to_tray,
         quit_app,
         show_main_window,
-        set_tray_menu_size
+        set_tray_menu_size,
+        set_app_icon
     ])
     .setup(|app| {
       let is_autostart = std::env::args().any(|arg| arg == "--autostart");

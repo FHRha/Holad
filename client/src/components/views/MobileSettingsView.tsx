@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil, Info, DownloadCloud, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil, Info, DownloadCloud, Eye, EyeOff, RefreshCw, Moon } from 'lucide-react';
 import { UpdateService } from '../../services/UpdateService';
 import { useSettingsStore } from '../../store/settingsStore';
-import type { AppTheme, AccentColor } from '../../store/settingsStore';
+import type { AccentColor } from '../../store/settingsStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
@@ -29,17 +29,6 @@ function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode,
       }`}
     >
       {icon}
-      {label}
-    </button>
-  );
-}
-
-function ThemeOption({ label, value, current, onSelect }: { label: string, value: AppTheme, current: AppTheme, onSelect: (v: AppTheme) => void }) {
-  return (
-    <button 
-      onClick={() => onSelect(value)}
-      className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium shadow-sm transition-colors ${current === value ? 'border-primary text-primary bg-primary/5' : 'border-foreground/10 text-secondary hover:border-foreground/30 hover:text-foreground'}`}
-    >
       {label}
     </button>
   );
@@ -316,11 +305,18 @@ export default function MobileSettingsView() {
       content: (
         <div className="flex flex-col gap-6 mt-4">
           <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_theme')}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_theme')}</span>
+              <span className="text-xs text-secondary font-medium">{t('settings.mobile_dark_only', 'Только тёмная тема')}</span>
+            </div>
             <div className="flex gap-2">
-              <ThemeOption label={t('settings.theme_dark', 'Dark')} value="dark" current={settings.theme} onSelect={settings.setTheme} />
-              <ThemeOption label={t('settings.theme_light', 'Light')} value="light" current={settings.theme} onSelect={settings.setTheme} />
-              <ThemeOption label={t('settings.theme_system', 'System')} value="system" current={settings.theme} onSelect={settings.setTheme} />
+              <button 
+                disabled
+                className="flex-1 py-3 px-4 rounded-lg border text-sm font-medium shadow-sm border-primary text-primary bg-primary/5 cursor-default flex items-center justify-center gap-2"
+              >
+                <Moon size={16} />
+                <span>{t('settings.theme_dark', 'Dark')}</span>
+              </button>
             </div>
           </div>
           

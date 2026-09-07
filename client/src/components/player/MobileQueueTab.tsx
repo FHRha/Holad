@@ -56,7 +56,7 @@ export default function MobileQueueTab() {
     // Scroll to the active track when the tab opens
     if (listRef.current && currentIndex >= 0 && currentIndex < queue.length) {
       const activeElement = document.getElementById(`mobile-queue-item-${currentIndex}`);
-      if (activeElement) {
+      if (activeElement && typeof activeElement.scrollIntoView === 'function') {
         activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }

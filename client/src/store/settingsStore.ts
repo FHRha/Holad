@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import i18n from 'i18next';
 import type { CrossfadeCurve } from '../audio/types';
 import { setImageCacheLimit } from '../utils/imageCache';
+import { applyAppIcon } from '../utils/appIconHelper';
 
 export type AppTheme = 'dark' | 'light' | 'system';
 export type AppIcon = 'wave_dark' | 'wave_light' | 'cassette';
@@ -114,9 +115,13 @@ export const useSettingsStore = create<SettingsState>()(
           if (theme === 'dark') nextAppIcon = 'wave_dark';
           else if (theme === 'light') nextAppIcon = 'wave_light';
         }
+        applyAppIcon(nextAppIcon);
         return { theme, appIcon: nextAppIcon };
       }),
-      setAppIcon: (appIcon) => set({ appIcon }),
+      setAppIcon: (appIcon) => {
+        applyAppIcon(appIcon);
+        set({ appIcon });
+      },
       setAccentColor: (accentColor) => set({ accentColor }),
       setCustomColor: (index, color) => set((state) => {
         const newColors = [...state.customColors] as [string, string, string];

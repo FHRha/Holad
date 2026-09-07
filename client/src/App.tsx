@@ -39,8 +39,15 @@ import TrayMenu from './components/player/TrayMenu';
 import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
 import { useEffect, useState } from 'react';
-import { isTauri } from './utils/StorageManager';
+import { isTauri, isCapacitor } from './utils/StorageManager';
+import { applyAppIcon } from './utils/appIconHelper';
 import ServerConnectionView from './components/views/ServerConnectionView';
+
+export const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  if (isTauri()) return false;
+  return isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+};
 import { useDownloadStore } from './store/downloadStore';
 import { Toaster } from 'sonner';
 import UpdateModal from './components/modals/UpdateModal';
@@ -125,7 +132,84 @@ function AppContent() {
   useDocumentTitle();
 
   const isLoginRoute = location.pathname === '/login';
-  
+
+  const [isMobile, setIsMobile] = useState(isMobileDevice);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(isMobileDevice());
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const theme = useSettingsStore(state => state.theme);
+  const accentColor = useSettingsStore(state => state.accentColor);
+  const appIcon = useSettingsStore(state => state.appIcon);
+
+  useEffect(() => {
+    applyAppIcon(appIcon);
+  }, [appIcon]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const applyTheme = () => {
+      if (isMobile && !isLoginRoute) {
+        root.classList.add('dark');
+        root.classList.remove('light');
+        return;
+      }
+
+      if (theme === 'dark') {
+        root.classList.add('dark');
+        root.classList.remove('light');
+      } else if (theme === 'light') {
+        root.classList.remove('dark');
+        root.classList.add('light');
+      } else {
+        if (mediaQuery.matches) {
+          root.classList.add('dark');
+          root.classList.remove('light');
+        } else {
+          root.classList.remove('dark');
+          root.classList.add('light');
+        }
+      }
+    };
+
+    applyTheme();
+
+    if (!isMobile || isLoginRoute) {
+      if (theme === 'system' || !theme) {
+        const handleChange = () => applyTheme();
+        mediaQuery.addEventListener('change', handleChange);
+        return () => mediaQuery.removeEventListener('change', handleChange);
+      }
+    }
+  }, [theme, isMobile, isLoginRoute]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const colors: Record<string, string> = {
+      green: '#1db954',
+      blue: '#3b82f6',
+      purple: '#a855f7',
+      red: '#ef4444',
+      orange: '#f97316',
+      pink: '#ec4899',
+      yellow: '#eab308'
+    };
+    
+    const hexColor = colors[accentColor] || (accentColor.startsWith('#') ? accentColor : colors.green);
+    const rgbStr = hexToRgb(hexColor);
+    const rgbSpaceStr = rgbStr.replace(/,/g, '');
+    
+    root.style.setProperty('--color-primary', rgbSpaceStr); 
+    root.style.setProperty('--color-primary-rgb', rgbStr);
+  }, [accentColor]);
+
   const searchParams = new URLSearchParams(location.search);
   const validStandalone = (searchParams.has('track') && !!searchParams.get('track')) || (searchParams.has('album') && !!searchParams.get('album'));
 
@@ -136,8 +220,11 @@ function AppContent() {
 
   const showMobileNav = !isLoginRoute && !isJamRoute && isAuthenticated;
 
+  const effectiveToastTheme = isMobile && !isLoginRoute ? 'dark' : (theme === 'dark' ? 'dark' : 'light');
+
   return (
     <GlobalDndProvider>
+      <Toaster theme={effectiveToastTheme} position="bottom-center" richColors />
       <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden font-sans relative">
         <MobileBackground />
         <div className="flex flex-1 overflow-hidden relative z-10">
@@ -318,7 +405,6 @@ function App() {
 
   return (
     <Router>
-      <Toaster theme={theme === 'dark' ? 'dark' : 'light'} position="bottom-center" richColors />
       <Routes>
         <Route path="/*" element={<AppContent />} />
       </Routes>
