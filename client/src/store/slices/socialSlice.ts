@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import type { PlayerState } from '../playerStore';
 import { setItemRating } from '../../api/subsonic';
 import { syncToggleExclusion } from '../../api/exclusions';
+import { useHoladStore } from '../holadStore';
 import type { Track } from '../../types';
 
 export interface SocialSlice {
@@ -52,27 +53,49 @@ export const createSocialSlice: StateCreator<
   }),
 
   toggleTrackExclude: (id) => {
-    syncToggleExclusion(id, 'track').catch(err => console.error(err));
+    let nextExcluded = false;
     set((state) => {
       const isExcluded = state.excludedTrackIds.includes(id);
+      nextExcluded = !isExcluded;
       return {
         excludedTrackIds: isExcluded
           ? state.excludedTrackIds.filter(t => t !== id)
           : [...state.excludedTrackIds, id]
       };
     });
+    try {
+      useHoladStore.getState().sendRemoteCommand('exclusionToggled', {
+        entityId: id,
+        entityType: 'track',
+        isExcluded: nextExcluded
+      });
+    } catch (e) {
+      console.error('[Holad] Failed to send exclusionToggled over socket:', e);
+    }
+    syncToggleExclusion(id, 'track').catch(err => console.error(err));
   },
 
   toggleAlbumExclude: (id) => {
-    syncToggleExclusion(id, 'album').catch(err => console.error(err));
+    let nextExcluded = false;
     set((state) => {
       const isExcluded = state.excludedAlbumIds.includes(id);
+      nextExcluded = !isExcluded;
       return {
         excludedAlbumIds: isExcluded
           ? state.excludedAlbumIds.filter(a => a !== id)
           : [...state.excludedAlbumIds, id]
       };
     });
+    try {
+      useHoladStore.getState().sendRemoteCommand('exclusionToggled', {
+        entityId: id,
+        entityType: 'album',
+        isExcluded: nextExcluded
+      });
+    } catch (e) {
+      console.error('[Holad] Failed to send exclusionToggled over socket:', e);
+    }
+    syncToggleExclusion(id, 'album').catch(err => console.error(err));
   },
 
   setTrackRating: (id, rating) => set((state) => {

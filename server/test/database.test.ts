@@ -110,3 +110,103 @@ describe('Database Social & Friend Functions', () => {
     expect(friendsOfB.some(f => f.user_id === userA)).toBe(false);
   });
 });
+
+describe('Database Navidrome Accounts Storage & Migration', () => {
+  it('saves, retrieves, and deletes navidrome accounts', () => {
+    const testUrl = 'http://test-navidrome-server.local:4533';
+    const testUser = 'db_test_user';
+
+    database.saveNavidromeAccount({
+      url: testUrl,
+      user: testUser,
+      token: 'tok123',
+      salt: 'salt123'
+    });
+
+    const accounts = database.getNavidromeAccounts();
+    const found = accounts.find(a => a.user === testUser && a.url === testUrl);
+    expect(found).toBeDefined();
+    expect(found?.token).toBe('tok123');
+    expect(found?.salt).toBe('salt123');
+
+    // Update account
+    database.saveNavidromeAccount({
+      url: testUrl,
+      user: testUser,
+      token: 'newtok',
+      salt: 'newsalt'
+    });
+    const updated = database.getNavidromeAccounts().find(a => a.user === testUser && a.url === testUrl);
+    expect(updated?.token).toBe('newtok');
+    expect(updated?.salt).toBe('newsalt');
+
+    // Delete account
+    database.deleteNavidromeAccount(testUser, testUrl);
+    const deleted = database.getNavidromeAccounts().find(a => a.user === testUser && a.url === testUrl);
+    expect(deleted).toBeUndefined();
+  });
+
+  it('encrypts sensitive fields at rest in SQLite database', () => {
+    const testUrl = 'http://encrypted-navidrome.local:4533';
+    const testUser = 'enc_user';
+    const plainToken = 'secret-token-abc';
+    const plainSalt = 'secret-salt-xyz';
+    const plainPass = 'super-secret-password';
+
+    database.saveNavidromeAccount({
+      url: testUrl,
+      user: testUser,
+      token: plainToken,
+      salt: plainSalt,
+      pass: plainPass
+    });
+
+    // API retrieves decrypted values transparently
+    const accounts = database.getNavidromeAccounts();
+    const account = accounts.find(a => a.user === testUser);
+    expect(account?.token).toBe(plainToken);
+    expect(account?.salt).toBe(plainSalt);
+    expect(account?.pass).toBe(plainPass);
+
+    // Verify encryption helper produces ciphertext with IV format and decrypts back
+    const encrypted = database.safeEncrypt(plainPass);
+    expect(encrypted).not.toBe(plainPass);
+    expect(encrypted).toContain(':');
+    expect(database.safeDecrypt(encrypted)).toBe(plainPass);
+
+    // Cleanup
+    database.deleteNavidromeAccount(testUser, testUrl);
+  });
+
+  it('migrates accounts from process.env', () => {
+    const origAccounts = process.env.NAVIDROME_ACCOUNTS;
+    const origUrl = process.env.NAVIDROME_URL;
+
+    const mockAccounts = [
+      { url: 'http://env-navidrome-1.local', user: 'env_user_1', token: 't1', salt: 's1' },
+      { url: 'http://env-navidrome-2.local', user: 'env_user_2', token: 't2', salt: 's2' }
+    ];
+    process.env.NAVIDROME_ACCOUNTS = JSON.stringify(mockAccounts);
+
+    const result = database.migrateAccountsFromEnv();
+    expect(result.migratedCount).toBeGreaterThanOrEqual(1);
+
+    const accounts = database.getNavidromeAccounts();
+    expect(accounts.some(a => a.user === 'env_user_1')).toBe(true);
+    expect(accounts.some(a => a.user === 'env_user_2')).toBe(true);
+
+    // Cleanup
+    database.deleteNavidromeAccount('env_user_1', 'http://env-navidrome-1.local');
+    database.deleteNavidromeAccount('env_user_2', 'http://env-navidrome-2.local');
+    if (origAccounts !== undefined) {
+      process.env.NAVIDROME_ACCOUNTS = origAccounts;
+    } else {
+      delete process.env.NAVIDROME_ACCOUNTS;
+    }
+    if (origUrl !== undefined) {
+      process.env.NAVIDROME_URL = origUrl;
+    } else {
+      delete process.env.NAVIDROME_URL;
+    }
+  });
+});

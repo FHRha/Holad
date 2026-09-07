@@ -16,6 +16,7 @@ Options:
   --skip-tauri     Skip building Tauri desktop app
   --skip-android   Skip building Capacitor Android app
   --skip-archive   Skip creating web server .tar.gz archive (alias: --no-archive)
+  --force-install  Force re-running pnpm install even if node_modules exists
   --help, -h       Show this help message
 `);
   process.exit(0);
@@ -26,6 +27,15 @@ const skipClient = args.includes('--skip-client');
 const skipServer = args.includes('--skip-server');
 const skipTauri = args.includes('--skip-tauri');
 const skipAndroid = args.includes('--skip-android');
+const forceInstall = args.includes('--force-install') || args.includes('--install');
+
+let pnpmCmd = 'pnpm';
+try {
+  const { execSync } = require('child_process');
+  execSync('pnpm --version', { stdio: 'ignore' });
+} catch {
+  pnpmCmd = 'npx pnpm@10.28.2';
+}
 
 const ROOT_DIR = __dirname;
 const ARTIFACTS_DIR = path.join(ROOT_DIR, 'artifacts');
@@ -201,6 +211,15 @@ function runCommand(taskName, command, cwd, envOverrides = {}) {
   });
 }
 
+async function ensureDependencies(taskName, dir) {
+  const nodeModulesPath = path.join(dir, 'node_modules');
+  if (!forceInstall && fs.existsSync(nodeModulesPath)) {
+    console.log(`[${taskName}] ✔ Dependencies already installed in ${path.basename(dir)}/node_modules, skipping install.`);
+    return;
+  }
+  await runCommand(taskName, `${pnpmCmd} install --reporter=silent`, dir);
+}
+
 function checkCommand(command, envOverrides = {}) {
   return new Promise(resolve => {
     const env = getEnv(envOverrides);
@@ -261,24 +280,27 @@ async function main() {
     fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
   }
 
-  const webTasks = [];
-
-  // 1. Build Client (Base: /Holad/ for Web Release)
+  // 1. Ensure dependencies sequentially (avoids concurrent pnpm store lock deadlocks)
   if (!skipClient) {
-    console.log("\n--- Scheduling Web Client Build (Base: /Holad/) ---");
-    webTasks.push((async () => {
-      await runCommand('Web Client Install', 'npx pnpm@10.28.2 install --reporter=silent', path.join(ROOT_DIR, 'client'));
-      await runCommand('Web Client Build', 'npx pnpm@10.28.2 run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: '/Holad/' });
-    })());
+    console.log("\n--- Checking Web Client Dependencies ---");
+    await ensureDependencies('Web Client Install', path.join(ROOT_DIR, 'client'));
   }
 
-  // 2. Build Server
+  if (!skipServer) {
+    console.log("\n--- Checking Server Dependencies ---");
+    await ensureDependencies('Server Install', path.join(ROOT_DIR, 'server'));
+  }
+
+  // 2. Build Client and Server in parallel
+  const webTasks = [];
+  if (!skipClient) {
+    console.log("\n--- Scheduling Web Client Build (Base: /Holad/) ---");
+    webTasks.push(runCommand('Web Client Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: '/Holad/' }));
+  }
+
   if (!skipServer) {
     console.log("\n--- Scheduling Server Build ---");
-    webTasks.push((async () => {
-      await runCommand('Server Install', 'npx pnpm@10.28.2 install --reporter=silent', path.join(ROOT_DIR, 'server'));
-      await runCommand('Server Build', 'npx pnpm@10.28.2 run build', path.join(ROOT_DIR, 'server'));
-    })());
+    webTasks.push(runCommand('Server Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'server')));
   }
 
   if (webTasks.length > 0) {
@@ -297,6 +319,9 @@ async function main() {
     if (fs.existsSync(path.join(ROOT_DIR, 'server', 'dist'))) {
       copyRecursiveSync(path.join(ROOT_DIR, 'server', 'dist'), path.join(RELEASE_DIR, 'server', 'dist'));
       fs.copyFileSync(path.join(ROOT_DIR, 'server', 'package.json'), path.join(RELEASE_DIR, 'server', 'package.json'));
+      if (fs.existsSync(path.join(ROOT_DIR, 'server', 'migrate.js'))) {
+        fs.copyFileSync(path.join(ROOT_DIR, 'server', 'migrate.js'), path.join(RELEASE_DIR, 'server', 'migrate.js'));
+      }
     }
 
     // Create .env.example
@@ -344,11 +369,8 @@ node dist/index.js
   // Rebuild Client for Native Apps (Base: ./) if Tauri or Android is enabled
   if (!skipTauri || !skipAndroid) {
     console.log("\n--- Rebuilding Client for Native Apps (Base: ./) ---");
-    if (!fs.existsSync(path.join(ROOT_DIR, 'client', 'node_modules'))) {
-      console.log("node_modules missing, installing dependencies...");
-      await runCommand('Native Client Install', 'npx pnpm@10.28.2 install --reporter=silent', path.join(ROOT_DIR, 'client'));
-    }
-    await runCommand('Native Client Build', 'npx pnpm@10.28.2 run build', path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: './' });
+    await ensureDependencies('Native Client Install', path.join(ROOT_DIR, 'client'));
+    await runCommand('Native Client Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: './' });
   }
 
   // 3. Build Tauri Desktop Apps and Capacitor Android App in parallel
@@ -454,8 +476,8 @@ node dist/index.js
 
         console.log("\n--- Scheduling Capacitor Build (Android App) ---");
         try {
-          // Install dependencies first
-          await runCommand('Capacitor Install', 'npx pnpm@10.28.2 install --reporter=silent', path.join(ROOT_DIR, 'Capacitor'));
+          // Install dependencies first if missing
+          await ensureDependencies('Capacitor Install', path.join(ROOT_DIR, 'Capacitor'));
           
           // Sync
           await runCommand('Capacitor Sync', 'npx @capacitor/cli sync', path.join(ROOT_DIR, 'Capacitor'));

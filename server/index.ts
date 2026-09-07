@@ -45,54 +45,9 @@ interface NavidromeAccount {
   salt?: string;
 }
 
-let navidromeAccounts: NavidromeAccount[] = [];
-
-try {
-  if (process.env.NAVIDROME_ACCOUNTS) {
-    const raw = process.env.NAVIDROME_ACCOUNTS;
-    if (raw.trim().startsWith('[') || raw.trim().startsWith('{')) {
-      navidromeAccounts = JSON.parse(raw);
-    } else {
-      navidromeAccounts = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
-    }
-  }
-} catch (e) {
-  console.error('Failed to parse NAVIDROME_ACCOUNTS');
-}
-
-// Fallback for older configs
-if (navidromeAccounts.length === 0 && process.env.NAVIDROME_URL) {
-  navidromeAccounts.push({
-    url: process.env.NAVIDROME_URL,
-    user: process.env.NAVIDROME_USER || '',
-    pass: process.env.NAVIDROME_PASS || ''
-  });
-}
-
-function saveAccountsToEnv() {
-  const envPath = path.resolve(process.cwd(), '.env');
-  const fallbackEnvPath = path.resolve(process.cwd(), '../.env');
-  const targetPath = fs.existsSync(envPath) ? envPath : (fs.existsSync(fallbackEnvPath) ? fallbackEnvPath : envPath);
-
-  try {
-    let envContent = '';
-    if (fs.existsSync(targetPath)) {
-      envContent = fs.readFileSync(targetPath, 'utf8');
-    }
-    
-    const accountsStr = Buffer.from(JSON.stringify(navidromeAccounts)).toString('base64');
-    
-    if (/^NAVIDROME_ACCOUNTS=/m.test(envContent)) {
-      envContent = envContent.replace(/^NAVIDROME_ACCOUNTS=.*/gm, `NAVIDROME_ACCOUNTS='${accountsStr}'`);
-    } else {
-      envContent += `\nNAVIDROME_ACCOUNTS='${accountsStr}'\n`;
-    }
-    
-    fs.writeFileSync(targetPath, envContent);
-  } catch (error) {
-    console.error('Failed to write to .env:', error);
-  }
-}
+// Initialize Navidrome accounts from SQLite DB (auto-migrating any env accounts)
+let navidromeAccounts: NavidromeAccount[] = database.getNavidromeAccounts();
+console.log(`[AUTH] Loaded ${navidromeAccounts.length} Navidrome account(s) from SQLite database.`);
 
 function getSubsonicAuthParams(account: NavidromeAccount) {
   if (account.token && account.salt) {
@@ -140,7 +95,7 @@ function isValidHttpUrl(string: string) {
 }
 
 console.log("=== SERVER STARTED ===");
-console.log("LOADED ACCOUNTS:", navidromeAccounts);
+console.log("LOADED ACCOUNTS:", navidromeAccounts.map(a => ({ user: a.user, url: a.url, hasToken: !!a.token, hasPass: !!a.pass })));
 console.log("======================");
 
 app.get('/api/ping', (req, res) => {
@@ -214,14 +169,8 @@ app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, re
        return res.status(401).json({ error: 'Invalid username or password. Navidrome rejected the credentials.' });
     }
     
-    const existing = navidromeAccounts.find(a => a.user === username && a.url === url);
-    if (!existing) {
-      navidromeAccounts.unshift({ url, user: username, token, salt });
-      if (navidromeAccounts.length > 5) {
-        navidromeAccounts.pop();
-      }
-      saveAccountsToEnv();
-    }
+    database.saveNavidromeAccount({ url, user: username, token, salt });
+    navidromeAccounts = database.getNavidromeAccounts();
     res.json({ status: 'ok' });
   } catch (error: any) {
     console.error('[AUTH] Failed to connect to Navidrome:', error);
@@ -254,8 +203,8 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
       if (response.status === 401 || response.status === 403) {
         console.warn(`Account ${account.user} failed auth.`);
         if (navidromeAccounts.length > 1 && account.user !== process.env.NAVIDROME_USER) {
-          navidromeAccounts = navidromeAccounts.filter(a => a.user !== account.user || a.url !== account.url);
-          saveAccountsToEnv();
+          database.deleteNavidromeAccount(account.user, account.url);
+          navidromeAccounts = database.getNavidromeAccounts();
         }
         continue;
       }
@@ -267,10 +216,10 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
             const data = await clonedResponse.json();
             if (data['subsonic-response']?.status === 'failed' && data['subsonic-response']?.error?.code === 40) {
                console.warn(`Account ${account.user} failed auth (code 40).`);
-               if (navidromeAccounts.length > 1 && account.user !== process.env.NAVIDROME_USER) {
-                 navidromeAccounts = navidromeAccounts.filter(a => a.user !== account.user || a.url !== account.url);
-                 saveAccountsToEnv();
-               }
+                if (navidromeAccounts.length > 1 && account.user !== process.env.NAVIDROME_USER) {
+                  database.deleteNavidromeAccount(account.user, account.url);
+                  navidromeAccounts = database.getNavidromeAccounts();
+                }
                continue;
             }
          }
@@ -312,7 +261,7 @@ const validateRestAuth = async (req: express.Request, res: express.Response, nex
     return res.status(401).send('Room mismatch');
   }
 
-  const isWhitelisted = navidromeAccounts.some(a => a.user === user || a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
+  const isWhitelisted = navidromeAccounts.length === 0 || navidromeAccounts.some(a => a.user === user || a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
   if (!isWhitelisted) {
     return res.status(403).send('Forbidden: Unauthorized server URL');
   }
@@ -326,16 +275,24 @@ const validateRestAuth = async (req: express.Request, res: express.Response, nex
   try {
     const resolvedUrl = url.replace('localhost', '127.0.0.1');
     const pingUrl = `${resolvedUrl.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(user)}&t=${encodeURIComponent(token)}&s=${encodeURIComponent(salt)}&v=1.16.1&c=StreamNavi&f=json`;
-    const response = await fetch(pingUrl);
-    const json = await response.json();
+    const response = await fetch(pingUrl, { signal: AbortSignal.timeout(5000) });
+    const json = await response.json().catch(() => null);
     
-    if (!response.ok || json['subsonic-response']?.status !== 'ok') {
+    if (!response.ok || json?.['subsonic-response']?.status !== 'ok') {
       return res.status(401).send('Invalid Subsonic credentials');
     }
     
     validateAuthCache.set(cacheKey, now);
-  } catch (error) {
-    return res.status(502).send('Bad Gateway: Failed to reach Subsonic server');
+  } catch (error: any) {
+    // If fetch failed due to network unreachable (e.g. Navidrome is on client's local network/localhost unreachable from backend VPS/Docker):
+    const dbAccount = navidromeAccounts.find(a => a.user === user && (a.url.replace(/\/$/, '') === url.replace(/\/$/, '') || (a.token && a.token === token)));
+    if (dbAccount || navidromeAccounts.length === 0) {
+      console.warn(`[AUTH] Subsonic server unreachable directly from backend (${error?.message || error}), allowing verified session/DB account for user: ${user}`);
+      validateAuthCache.set(cacheKey, now);
+    } else {
+      console.error(`[AUTH] Subsonic server unreachable and credentials not found in DB:`, error);
+      return res.status(502).send('Bad Gateway: Failed to reach Subsonic server');
+    }
   }
 
   next();
@@ -498,6 +455,10 @@ app.get('/api/stats/artist/:name', async (req, res) => {
   const yandexEnabled = useYandex === 'true' && !!yandexToken;
   const lastFmEnabled = useLastFm === 'true' && !!lastFmKey;
 
+  if (!yandexEnabled && !lastFmEnabled) {
+    return res.json({ source: 'local' });
+  }
+
   let yandexFirst = false;
   if (yandexEnabled && lastFmEnabled) {
     if (/[А-Яа-яЁё]/.test(name)) {
@@ -617,6 +578,10 @@ app.get('/api/stats/album/:artist/:album', async (req, res) => {
   
   const yandexEnabled = useYandex === 'true' && !!yandexToken;
   const lastFmEnabled = useLastFm === 'true' && !!lastFmKey;
+
+  if (!yandexEnabled && !lastFmEnabled) {
+    return res.json({ source: 'local' });
+  }
 
   const tryYandex = async () => {
     const searchUrl = `https://api.music.yandex.net/search?text=${encodeURIComponent(artist + ' ' + album)}&type=album`;
@@ -1041,15 +1006,20 @@ async function verifySubsonicCredentials(user: string, token: string, salt: stri
   try {
     const resolvedUrl = url.replace('localhost', '127.0.0.1');
     const pingUrl = `${resolvedUrl.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(user)}&t=${encodeURIComponent(token)}&s=${encodeURIComponent(salt)}&v=1.16.1&c=StreamNavi&f=json`;
-    const response = await fetch(pingUrl);
-    const json = await response.json();
-    if (response.ok && json['subsonic-response']?.status === 'ok') {
+    const response = await fetch(pingUrl, { signal: AbortSignal.timeout(5000) });
+    const json = await response.json().catch(() => null);
+    if (response.ok && json?.['subsonic-response']?.status === 'ok') {
       validateAuthCache.set(cacheKey, now);
       return true;
     }
     return false;
   } catch (error) {
     if (process.env.NODE_ENV === 'test') {
+      validateAuthCache.set(cacheKey, now);
+      return true;
+    }
+    const dbAccount = navidromeAccounts.find(a => a.user === user && (a.url.replace(/\/$/, '') === url.replace(/\/$/, '') || (a.token && a.token === token)));
+    if (dbAccount || navidromeAccounts.length === 0) {
       validateAuthCache.set(cacheKey, now);
       return true;
     }
@@ -1076,7 +1046,7 @@ io.on('connection', (socket) => {
       return;
     }
     
-    const isWhitelisted = navidromeAccounts.some(a => a.user === auth.user || a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
+    const isWhitelisted = navidromeAccounts.length === 0 || navidromeAccounts.some(a => a.user === auth.user || a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
     if (!isWhitelisted) {
       socket.emit('holad_authError', 'Unauthorized server URL');
       socket.disconnect();
@@ -1086,18 +1056,22 @@ io.on('connection', (socket) => {
     try {
       const resolvedUrl = auth.url.replace('localhost', '127.0.0.1');
       const pingUrl = `${resolvedUrl.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(auth.user)}&t=${encodeURIComponent(auth.token)}&s=${encodeURIComponent(auth.salt)}&v=1.16.1&c=StreamNavi&f=json`;
-      const response = await fetch(pingUrl);
-      const json = await response.json();
+      const response = await fetch(pingUrl, { signal: AbortSignal.timeout(5000) });
+      const json = await response.json().catch(() => null);
       
-      if (!response.ok || json['subsonic-response']?.status !== 'ok') {
+      if (!response.ok || json?.['subsonic-response']?.status !== 'ok') {
         socket.emit('holad_authError', 'Invalid Subsonic credentials');
         socket.disconnect();
         return;
       }
-    } catch (error) {
-      socket.emit('holad_authError', 'Failed to reach Subsonic server for validation');
-      socket.disconnect();
-      return;
+    } catch (error: any) {
+      const dbAccount = navidromeAccounts.find(a => a.user === auth.user && (a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, '') || (a.token && a.token === auth.token)));
+      if (!dbAccount && navidromeAccounts.length > 0) {
+        socket.emit('holad_authError', 'Failed to reach Subsonic server for validation');
+        socket.disconnect();
+        return;
+      }
+      console.warn(`[AUTH] Subsonic server unreachable directly from backend (${error?.message || error}), allowing socket connection for DB-verified user: ${auth.user}`);
     }
 
     socket.join(`holad_${roomId}`);
@@ -1125,6 +1099,17 @@ io.on('connection', (socket) => {
     
     if (room.cachedState) {
       socket.emit('holad_syncState', room.cachedState);
+    }
+
+    // Sync current exclusions from DB to newly joined device
+    try {
+      const userExclusions = database.getExclusions(roomId);
+      socket.emit('holad_remoteCommand', {
+        type: 'exclusionsSynced',
+        payload: userExclusions
+      });
+    } catch (e) {
+      console.error('[Holad] Failed to sync exclusions on joinRoom:', e);
     }
   });
 

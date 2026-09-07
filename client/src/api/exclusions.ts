@@ -16,10 +16,10 @@ export interface ExclusionsResponse {
   excludedAlbumIds: string[];
 }
 
-export const fetchExclusions = async (): Promise<ExclusionsResponse> => {
+export const fetchExclusions = async (): Promise<ExclusionsResponse | null> => {
   const { user, isAuthenticated } = useAuthStore.getState();
   if (!isAuthenticated || !user) {
-    return { excludedTrackIds: [], excludedAlbumIds: [] };
+    return null;
   }
 
   try {
@@ -37,7 +37,7 @@ export const fetchExclusions = async (): Promise<ExclusionsResponse> => {
     };
   } catch (error) {
     console.error('Failed to fetch exclusions:', error);
-    return { excludedTrackIds: [], excludedAlbumIds: [] };
+    return null;
   }
 };
 

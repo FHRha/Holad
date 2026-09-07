@@ -46,7 +46,9 @@ export function useAppInitialization() {
       }).catch(e => console.error("Failed to fetch starred items", e));
 
       fetchExclusions().then(exclusions => {
-        setExcludedItems(exclusions.excludedTrackIds, exclusions.excludedAlbumIds);
+        if (exclusions) {
+          setExcludedItems(exclusions.excludedTrackIds, exclusions.excludedAlbumIds);
+        }
       }).catch(e => console.error("Failed to fetch exclusions", e));
     }
 

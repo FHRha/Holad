@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DB_PATH = path.resolve(__dirname, '../holad.sqlite');
+const DB_PATH = process.env.DATABASE_PATH || path.resolve(__dirname, '../holad.sqlite');
 const db = new Database(DB_PATH);
 
 db.pragma('journal_mode = WAL');
@@ -85,6 +85,18 @@ db.exec(`
     PRIMARY KEY(user_id, integration_name),
     FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS navidrome_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT NOT NULL,
+    user TEXT NOT NULL,
+    token TEXT,
+    salt TEXT,
+    pass TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(url, user)
+  );
 `);
 
 // Safely migrate existing users table if columns are missing
@@ -142,6 +154,27 @@ export function decrypt(text: string): string | null {
     console.error('Decryption failed', e);
     return null;
   }
+}
+
+export function safeEncrypt(val: string | null | undefined): string | null {
+  if (!val) return null;
+  const parts = val.split(':');
+  const iv = parts[0];
+  if (parts.length === 2 && iv && iv.length === 32 && /^[0-9a-f]+$/i.test(iv)) {
+    return val;
+  }
+  return encrypt(val);
+}
+
+export function safeDecrypt(val: string | null | undefined): string | undefined {
+  if (!val) return undefined;
+  const parts = val.split(':');
+  const iv = parts[0];
+  if (parts.length === 2 && iv && iv.length === 32 && /^[0-9a-f]+$/i.test(iv)) {
+    const decrypted = decrypt(val);
+    if (decrypted !== null) return decrypted;
+  }
+  return val;
 }
 
 // Ensure user exists before inserting related data
@@ -532,5 +565,175 @@ export function removeFriend(userId: string, friendId: string): void {
     WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)
   `).run(userId, friendId, friendId, userId);
 }
+
+// Navidrome Accounts Storage and Migration
+export interface NavidromeAccountRecord {
+  url: string;
+  user: string;
+  pass?: string;
+  token?: string;
+  salt?: string;
+}
+
+export function getNavidromeAccounts(): NavidromeAccountRecord[] {
+  try {
+    const rows = db.prepare('SELECT url, user, token, salt, pass FROM navidrome_accounts ORDER BY id ASC').all() as any[];
+    return rows.map(r => {
+      const token = safeDecrypt(r.token);
+      const salt = safeDecrypt(r.salt);
+      const pass = safeDecrypt(r.pass);
+      return {
+        url: r.url,
+        user: r.user,
+        ...(token ? { token } : {}),
+        ...(salt ? { salt } : {}),
+        ...(pass ? { pass } : {})
+      };
+    });
+  } catch (err) {
+    console.error('Failed to get Navidrome accounts from DB:', err);
+    return [];
+  }
+}
+
+export function saveNavidromeAccount(account: NavidromeAccountRecord): void {
+  if (!account.url || !account.user) return;
+  const cleanUrl = account.url.trim().replace(/\/$/, '');
+  const cleanUser = account.user.trim();
+  
+  const stmt = db.prepare(`
+    INSERT INTO navidrome_accounts (url, user, token, salt, pass, updated_at)
+    VALUES (@url, @user, @token, @salt, @pass, CURRENT_TIMESTAMP)
+    ON CONFLICT(url, user) DO UPDATE SET
+      token = excluded.token,
+      salt = excluded.salt,
+      pass = excluded.pass,
+      updated_at = CURRENT_TIMESTAMP
+  `);
+
+  stmt.run({
+    url: cleanUrl,
+    user: cleanUser,
+    token: safeEncrypt(account.token),
+    salt: safeEncrypt(account.salt),
+    pass: safeEncrypt(account.pass)
+  });
+}
+
+export function deleteNavidromeAccount(user: string, url: string): void {
+  const cleanUrl = url.trim().replace(/\/$/, '');
+  const cleanUser = user.trim();
+  db.prepare('DELETE FROM navidrome_accounts WHERE user = ? AND url = ?').run(cleanUser, cleanUrl);
+}
+
+export function migrateAccountsFromEnv(): { migratedCount: number } {
+  let migratedCount = 0;
+  const accountsToMigrate: NavidromeAccountRecord[] = [];
+
+  try {
+    if (process.env.NAVIDROME_ACCOUNTS) {
+      const raw = process.env.NAVIDROME_ACCOUNTS.trim();
+      let parsed: any[] = [];
+      if (raw.startsWith('[') || raw.startsWith('{')) {
+        parsed = JSON.parse(raw);
+      } else {
+        parsed = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+      }
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (item && item.url && item.user) {
+            accountsToMigrate.push({
+              url: item.url,
+              user: item.user,
+              pass: item.pass,
+              token: item.token,
+              salt: item.salt
+            });
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[DB Migration] Failed to parse NAVIDROME_ACCOUNTS from env:', e);
+  }
+
+  if (process.env.NAVIDROME_URL) {
+    accountsToMigrate.push({
+      url: process.env.NAVIDROME_URL,
+      user: process.env.NAVIDROME_USER || '',
+      pass: process.env.NAVIDROME_PASS || ''
+    });
+  }
+
+  if (accountsToMigrate.length > 0) {
+    const insertStmt = db.prepare(`
+      INSERT OR IGNORE INTO navidrome_accounts (url, user, token, salt, pass, updated_at)
+      VALUES (@url, @user, @token, @salt, @pass, CURRENT_TIMESTAMP)
+    `);
+    const transaction = db.transaction(() => {
+      for (const acc of accountsToMigrate) {
+        if (!acc.url || !acc.user) continue;
+        const res = insertStmt.run({
+          url: acc.url.trim().replace(/\/$/, ''),
+          user: acc.user.trim(),
+          token: safeEncrypt(acc.token),
+          salt: safeEncrypt(acc.salt),
+          pass: safeEncrypt(acc.pass)
+        });
+        if (res.changes > 0) {
+          migratedCount++;
+        }
+      }
+    });
+    transaction();
+    if (migratedCount > 0) {
+      console.log(`[DB Migration] Successfully migrated ${migratedCount} Navidrome account(s) from environment to SQLite.`);
+    }
+  }
+
+  // Ensure any existing unencrypted legacy rows are encrypted at rest
+  try {
+    const isEncrypted = (val: string) => {
+      const parts = val.split(':');
+      const iv = parts[0];
+      return parts.length === 2 && !!iv && iv.length === 32 && /^[0-9a-f]+$/i.test(iv);
+    };
+    const rows = db.prepare('SELECT id, token, salt, pass FROM navidrome_accounts').all() as any[];
+    const updateStmt = db.prepare('UPDATE navidrome_accounts SET token = ?, salt = ?, pass = ? WHERE id = ?');
+    for (const row of rows) {
+      let changed = false;
+      let encToken = row.token;
+      let encSalt = row.salt;
+      let encPass = row.pass;
+      if (row.token && !isEncrypted(row.token)) {
+        encToken = encrypt(row.token);
+        changed = true;
+      }
+      if (row.salt && !isEncrypted(row.salt)) {
+        encSalt = encrypt(row.salt);
+        changed = true;
+      }
+      if (row.pass && !isEncrypted(row.pass)) {
+        encPass = encrypt(row.pass);
+        changed = true;
+      }
+      if (changed) {
+        updateStmt.run(encToken, encSalt, encPass, row.id);
+      }
+    }
+  } catch (err) {
+    console.error('[DB Migration] Failed to re-encrypt legacy navidrome accounts:', err);
+  }
+
+  return { migratedCount };
+}
+
+// Automatically migrate environment variables on boot if present
+try {
+  migrateAccountsFromEnv();
+} catch (err) {
+  console.error('[DB Migration] Error during initial environment migration:', err);
+}
+
 
 
