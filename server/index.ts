@@ -46,6 +46,11 @@ interface NavidromeAccount {
 }
 
 // Initialize Navidrome accounts from SQLite DB (auto-migrating any env accounts)
+try {
+  database.migrateAccountsFromEnv();
+} catch (e) {
+  console.error('[AUTH] Failed to run initial env accounts migration:', e);
+}
 let navidromeAccounts: NavidromeAccount[] = database.getNavidromeAccounts();
 console.log(`[AUTH] Loaded ${navidromeAccounts.length} Navidrome account(s) from SQLite database.`);
 
@@ -179,6 +184,15 @@ app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, re
 });
 
 async function executeWithFailover(req: express.Request, res: express.Response, buildUrlFn: (account: NavidromeAccount) => string, handleResponseFn: (response: Response) => Promise<any>) {
+  if (navidromeAccounts.length === 0) {
+    navidromeAccounts = database.getNavidromeAccounts();
+  }
+  if (navidromeAccounts.length === 0) {
+    try {
+      database.migrateAccountsFromEnv();
+      navidromeAccounts = database.getNavidromeAccounts();
+    } catch (e) {}
+  }
   if (navidromeAccounts.length === 0) {
     if (process.env.NAVIDROME_URL) {
       navidromeAccounts.push({
@@ -665,6 +679,42 @@ app.get(['/api/cover/:id', '/Holad/api/cover/:id'], async (req, res) => {
   const rawSize = parseInt(req.query.size as string, 10);
   const size = (!isNaN(rawSize) && rawSize > 0) ? Math.min(1200, Math.max(50, rawSize)) : 300;
 
+  const { u, t, s, serverUrl } = req.query;
+
+  // Direct fetch using client credentials if provided
+  if (u && t && s) {
+    let targetServer = navidromeAccounts[0]?.url || '';
+    if (serverUrl) {
+      const decodedUrl = decodeURIComponent(serverUrl as string).replace(/\/$/, '');
+      if (isValidHttpUrl(decodedUrl) && !decodedUrl.includes('#') && !decodedUrl.includes('?')) {
+        targetServer = decodedUrl;
+      }
+    }
+    if (targetServer) {
+      try {
+        const authParams = `u=${encodeURIComponent(u as string)}&t=${encodeURIComponent(t as string)}&s=${encodeURIComponent(s as string)}&v=1.16.1&c=StreamNavi&f=json`;
+        const coverUrl = `${targetServer.replace(/\/$/, '')}/rest/getCoverArt?id=${encodeURIComponent(id)}&size=${size}&${authParams}`;
+        const response = await fetch(coverUrl);
+        if (response.ok) {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('image/')) {
+            // Auto-persist account if not in DB
+            if (!navidromeAccounts.some(a => a.user === u && a.url.replace(/\/$/, '') === targetServer.replace(/\/$/, ''))) {
+              database.saveNavidromeAccount({ url: targetServer, user: u as string, token: t as string, salt: s as string });
+              navidromeAccounts = database.getNavidromeAccounts();
+            }
+            res.set('Content-Type', contentType);
+            res.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+            const arrayBuffer = await response.arrayBuffer();
+            return res.send(Buffer.from(arrayBuffer));
+          }
+        }
+      } catch (err) {
+        console.warn(`[CoverArt] Direct fetch with client credentials failed:`, err);
+      }
+    }
+  }
+
   await executeWithFailover(req, res,
     (account) => {
       const authParams = getSubsonicAuthParams(account);
@@ -700,6 +750,43 @@ app.get(['/api/subsonic/:endpoint', '/api/subsonic/rest/:endpoint'], async (req,
   if (!ALLOWED_GUEST_ENDPOINTS.has(endpoint)) {
     console.warn(`Blocked unauthorized access attempt to endpoint: ${endpoint}`);
     return res.status(403).send('Forbidden: Endpoint not allowed for guest access');
+  }
+
+  const { u, t, s, serverUrl } = req.query;
+
+  // If client provided its own credentials, proxy directly
+  if (u && t && s) {
+    let targetServer = navidromeAccounts[0]?.url || '';
+    if (serverUrl) {
+      const decodedUrl = decodeURIComponent(serverUrl as string).replace(/\/$/, '');
+      if (isValidHttpUrl(decodedUrl) && !decodedUrl.includes('#') && !decodedUrl.includes('?')) {
+        targetServer = decodedUrl;
+      }
+    }
+    if (targetServer) {
+      const query = new URLSearchParams(req.query as any).toString();
+      try {
+        const fullUrl = `${targetServer.replace(/\/$/, '')}/rest/${endpoint}?${query}`;
+        const response = await fetch(fullUrl);
+        if (response.ok || response.status === 206) {
+          if (!navidromeAccounts.some(a => a.user === u && a.url.replace(/\/$/, '') === targetServer.replace(/\/$/, ''))) {
+            database.saveNavidromeAccount({ url: targetServer, user: u as string, token: t as string, salt: s as string });
+            navidromeAccounts = database.getNavidromeAccounts();
+          }
+          const contentType = response.headers.get('content-type');
+          if (contentType && (contentType.includes('image/') || contentType.includes('audio/'))) {
+            res.set('Content-Type', contentType);
+            const arrayBuffer = await response.arrayBuffer();
+            return res.send(Buffer.from(arrayBuffer));
+          } else {
+            const data = await response.json();
+            return res.json(data);
+          }
+        }
+      } catch (err) {
+        console.warn(`[Subsonic Proxy] Direct fetch with client credentials failed:`, err);
+      }
+    }
   }
   
   const query = new URLSearchParams(req.query as any).toString();
@@ -747,17 +834,30 @@ app.get('/api/stream/:id', async (req, res) => {
       if (serverUrl) {
         const decodedUrl = decodeURIComponent(serverUrl as string);
         if (isValidHttpUrl(decodedUrl) && !decodedUrl.includes('#') && !decodedUrl.includes('?')) {
-          if (navidromeAccounts.some(a => a.url.replace(/\/$/, '') === decodedUrl.replace(/\/$/, ''))) {
+          const cleanUrl = decodedUrl.replace(/\/$/, '');
+          const isAllowed = navidromeAccounts.length === 0 || navidromeAccounts.some(a => a.url.replace(/\/$/, '') === cleanUrl || a.user === u);
+          if (isAllowed) {
             targetServer = decodedUrl;
+            if (!navidromeAccounts.some(a => a.url.replace(/\/$/, '') === cleanUrl && a.user === u)) {
+              database.saveNavidromeAccount({ url: cleanUrl, user: u as string, token: t as string, salt: s as string });
+              navidromeAccounts = database.getNavidromeAccounts();
+            }
           } else {
             return res.status(403).send('Target server is not in the allowed proxy pool.');
           }
         } else {
           return res.status(400).send('Invalid Server URL');
         }
+      } else if (!targetServer && navidromeAccounts.length > 0) {
+        targetServer = navidromeAccounts[0]!.url;
       }
+
+      if (!targetServer) {
+        return res.status(400).send('Missing target server URL for stream');
+      }
+
       const safeId = encodeURIComponent(id as string);
-      const streamUrl = `${targetServer}/rest/stream?id=${safeId}&${authParams}`;
+      const streamUrl = `${targetServer.replace(/\/$/, '')}/rest/stream?id=${safeId}&${authParams}`;
       
       const headers: Record<string, string> = {};
       if (req.headers.range) headers['Range'] = req.headers.range;
@@ -1010,6 +1110,10 @@ async function verifySubsonicCredentials(user: string, token: string, salt: stri
     const json = await response.json().catch(() => null);
     if (response.ok && json?.['subsonic-response']?.status === 'ok') {
       validateAuthCache.set(cacheKey, now);
+      try {
+        database.saveNavidromeAccount({ url: url.replace(/\/$/, ''), user, token, salt });
+        navidromeAccounts = database.getNavidromeAccounts();
+      } catch (e) {}
       return true;
     }
     return false;
@@ -1072,6 +1176,20 @@ io.on('connection', (socket) => {
         return;
       }
       console.warn(`[AUTH] Subsonic server unreachable directly from backend (${error?.message || error}), allowing socket connection for DB-verified user: ${auth.user}`);
+    }
+
+    // Register or refresh account in DB so covers and streams can immediately use it
+    try {
+      const cleanAuthUrl = auth.url.replace(/\/$/, '');
+      database.saveNavidromeAccount({
+        url: cleanAuthUrl,
+        user: auth.user,
+        token: auth.token,
+        salt: auth.salt
+      });
+      navidromeAccounts = database.getNavidromeAccounts();
+    } catch (e) {
+      console.warn('[Holad] Failed to auto-save account on joinRoom:', e);
     }
 
     socket.join(`holad_${roomId}`);

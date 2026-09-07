@@ -1,5 +1,6 @@
 import { buildUrl, fetchWithRetry } from '../subsonic-core';
 import { getHoladServerUrl } from '../../utils/serverConfig';
+import { useAuthStore } from '../../store/authStore';
 
 export const fetchAlbums = async (offset = 0, size = 50) => {
   const url = buildUrl('getAlbumList2', { type: 'newest', size: size.toString(), offset: offset.toString() });
@@ -67,6 +68,17 @@ export const getCoverArtUrl = (id?: string | null, size?: number): string => {
   }
 
   const proxyUrl = getHoladServerUrl();
-  const sizeParam = size && size > 0 ? `?size=${size}` : '';
-  return `${proxyUrl}/api/cover/${encodeURIComponent(rawId)}${sizeParam}`;
+  const { url, user, token, salt, isAuthenticated } = useAuthStore.getState();
+  const params = new URLSearchParams();
+  if (size && size > 0) {
+    params.set('size', size.toString());
+  }
+  if (isAuthenticated && user && token && salt && url) {
+    params.set('u', user);
+    params.set('t', token);
+    params.set('s', salt);
+    params.set('serverUrl', url.replace(/\/$/, ''));
+  }
+  const queryStr = params.toString();
+  return `${proxyUrl}/api/cover/${encodeURIComponent(rawId)}${queryStr ? `?${queryStr}` : ''}`;
 };

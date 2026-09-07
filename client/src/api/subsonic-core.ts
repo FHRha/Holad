@@ -48,7 +48,15 @@ export const buildUrl = (endpoint: string, params: Record<string, string> = {}) 
     return `${baseUrl}/${endpoint}?${query}`;
   }
   
-  const queryString = query ? `${query}&${auth}` : auth;
+  let authWithServer = auth;
+  if (baseUrl.endsWith('/api/subsonic')) {
+    const { url } = useAuthStore.getState();
+    if (url) {
+      authWithServer += `&serverUrl=${encodeURIComponent(url.replace(/\/$/, ''))}`;
+    }
+  }
+
+  const queryString = query ? `${query}&${authWithServer}` : authWithServer;
   if (baseUrl.endsWith('/api/subsonic')) {
     return `${baseUrl}/${endpoint}?${queryString}`;
   }
