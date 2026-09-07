@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
+import { useUIStore } from '../../store/uiStore';
 import * as exclusionsApi from '../../api/exclusions';
 
 vi.mock('../../api/exclusions', () => ({
@@ -108,5 +109,53 @@ describe('Exclusions Persistence & Real-Time Sync', () => {
     });
 
     sendRemoteCommandSpy.mockRestore();
+  });
+
+  it('setQueueAndPlay automatically skips excluded track at startIndex=0 and plays first available track', () => {
+    usePlayerStore.setState({
+      excludedTrackIds: ['t1'],
+      excludedAlbumIds: [],
+      queue: [],
+      currentIndex: -1,
+      isPlaying: false
+    });
+
+    const albumTracks = [
+      { id: 't1', title: 'Ignored Intro', artist: 'Artist', duration: 100 },
+      { id: 't2', title: 'Main Hit', artist: 'Artist', duration: 200 },
+      { id: 't3', title: 'Outro', artist: 'Artist', duration: 150 }
+    ] as any;
+
+    // Playing the album (startIndex = 0)
+    usePlayerStore.getState().setQueueAndPlay(albumTracks, 0);
+
+    const state = usePlayerStore.getState();
+    // Excluded t1 must be filtered out
+    expect(state.queue.map(t => t.id)).toEqual(['t2', 't3']);
+    // Playback must start from t2 (first non-ignored track)
+    expect(state.currentIndex).toBe(0);
+    expect(state.queue[state.currentIndex].id).toBe('t2');
+    expect(state.isPlaying).toBe(true);
+  });
+
+  it('uiStore manages unignoreModal state and callbacks properly', () => {
+    const onConfirmMock = vi.fn();
+    const testTrack = { id: 't-99', title: 'Banned Track' } as any;
+
+    // Initially closed
+    expect(useUIStore.getState().unignoreModal.isOpen).toBe(false);
+
+    // Open modal
+    useUIStore.getState().openUnignoreModal(testTrack, onConfirmMock);
+    expect(useUIStore.getState().unignoreModal.isOpen).toBe(true);
+    expect(useUIStore.getState().unignoreModal.track).toEqual(testTrack);
+
+    // Call onConfirm and close
+    useUIStore.getState().unignoreModal.onConfirm?.();
+    expect(onConfirmMock).toHaveBeenCalledTimes(1);
+
+    useUIStore.getState().closeUnignoreModal();
+    expect(useUIStore.getState().unignoreModal.isOpen).toBe(false);
+    expect(useUIStore.getState().unignoreModal.track).toBeNull();
   });
 });

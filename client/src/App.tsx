@@ -36,6 +36,7 @@ import { useTrayIntegration } from './hooks/useTrayIntegration';
 import { useWindowVisibility } from './hooks/useWindowVisibility';
 import SettingsModal from './components/modals/SettingsModal';
 import OfflineModeModal from './components/modals/OfflineModeModal';
+import UnignoreTrackModal from './components/modals/UnignoreTrackModal';
 import TrayMenu from './components/player/TrayMenu';
 import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
@@ -281,6 +282,7 @@ function AppContent() {
           {isSettingsOpen && <SettingsModal />}
           {isOfflineModalOpen && <OfflineModeModal isOpen={isOfflineModalOpen} onClose={() => setOfflineModalOpen(false)} />}
           <UpdateModal />
+          <UnignoreTrackModal />
         </div>
         
         {showBottomPlayer && <BottomPlayer />}

@@ -47,6 +47,14 @@ interface UIState {
   
   isJamModalOpen: boolean;
   setIsJamModalOpen: (open: boolean) => void;
+  
+  unignoreModal: {
+    isOpen: boolean;
+    track: any | null;
+    onConfirm?: () => void;
+  };
+  openUnignoreModal: (track: any, onConfirm: () => void) => void;
+  closeUnignoreModal: () => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -94,6 +102,17 @@ export const useUIStore = create<UIState>()(
       
       isJamModalOpen: false,
       setIsJamModalOpen: (open) => set({ isJamModalOpen: open }),
+      
+      unignoreModal: {
+        isOpen: false,
+        track: null,
+      },
+      openUnignoreModal: (track, onConfirm) => set({
+        unignoreModal: { isOpen: true, track, onConfirm }
+      }),
+      closeUnignoreModal: () => set({
+        unignoreModal: { isOpen: false, track: null }
+      }),
     }),
     {
       name: 'ui-storage',

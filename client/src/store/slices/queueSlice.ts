@@ -1,4 +1,3 @@
-import i18n from '../../i18n';
 import type { StateCreator } from 'zustand';
 import type { PlayerState } from '../playerStore';
 import type { Track } from '../../types';
@@ -99,39 +98,31 @@ export const createQueueSlice: StateCreator<
   setQueueAndPlay: (tracks, startIndex = 0) => {
     const state = get();
     const sanitized = sanitizeTracks(tracks);
-    const targetTrack = sanitized[startIndex];
-    if (targetTrack && (state.excludedTrackIds.includes(targetTrack.id) || (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)))) {
-      if (window.confirm(i18n.t('common.unignore_and_play', { defaultValue: 'Этот трек находится в игноре. Хотите убрать его из игнора и начать воспроизведение?' }))) {
-        if (state.excludedTrackIds.includes(targetTrack.id)) state.toggleTrackExclude(targetTrack.id);
-        if (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)) state.toggleAlbumExclude(targetTrack.albumId);
-      } else {
-        return;
+    const isJamGuest = state.roomId && state.role !== 'host';
+    const isExcluded = (t: any) => !isJamGuest && (state.excludedTrackIds.includes(t.id) || (t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+
+    // If startIndex points to an excluded track (e.g. playing an album whose first track is ignored),
+    // automatically start from the first playable non-excluded track.
+    let effectiveIndex = startIndex;
+    if (sanitized[effectiveIndex] && isExcluded(sanitized[effectiveIndex])) {
+      const firstPlayable = sanitized.findIndex(t => !isExcluded(t));
+      if (firstPlayable !== -1) {
+        effectiveIndex = firstPlayable;
       }
     }
     
     set((state) => {
       triggerPlay();
-      const targetTrackId = sanitized[startIndex]?.id;
-      const isJamGuest = state.roomId && state.role !== 'host';
+      const targetTrackId = sanitized[effectiveIndex]?.id;
       const filtered = isJamGuest ? sanitized : sanitized.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+      if (filtered.length === 0) return state;
       let newIndex = filtered.findIndex(t => t.id === targetTrackId);
       if (newIndex === -1) newIndex = 0;
       return { queue: filtered, originalQueue: filtered, currentIndex: newIndex, isPlaying: true, isShuffle: false, playActionId: state.playActionId + 1 };
     });
   },
   playNext: (tracks) => {
-    let state = get();
     const sanitized = sanitizeTracks(tracks);
-    // Assuming tracks[0] is the target since playNext often takes an array of 1
-    const targetTrack = sanitized[0];
-    if (targetTrack && (state.excludedTrackIds.includes(targetTrack.id) || (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)))) {
-      if (window.confirm(i18n.t('common.unignore_and_queue', { defaultValue: 'Этот трек находится в игноре. Хотите убрать его из игнора и добавить в очередь?' }))) {
-        if (state.excludedTrackIds.includes(targetTrack.id)) state.toggleTrackExclude(targetTrack.id);
-        if (targetTrack.albumId && state.excludedAlbumIds.includes(targetTrack.albumId)) state.toggleAlbumExclude(targetTrack.albumId);
-      } else {
-        return;
-      }
-    }
     
     set((state) => {
       triggerPlay();

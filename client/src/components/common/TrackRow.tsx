@@ -3,6 +3,7 @@ import { Play, Pause, Heart, Ban, Download } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import { useUIStore } from '../../store/uiStore';
 import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { formatTime } from '../../utils/timeFormat';
 import { formatArtistName } from '../../utils/formatters';
@@ -37,6 +38,7 @@ const TrackRow = memo(function TrackRow({
   const isPlaying = usePlayerStore(s => s.isPlaying && isCurrentPlaying);
   const isTrackLiked = usePlayerStore(s => s.likedTrackIds.includes(track.id));
   const isExcluded = usePlayerStore(s => s.excludedTrackIds.includes(track.id));
+  const openUnignoreModal = useUIStore(s => s.openUnignoreModal);
 
   const toggleTrackLike = usePlayerStore(s => s.toggleTrackLike);
   const toggleTrackExclude = usePlayerStore(s => s.toggleTrackExclude);
@@ -45,12 +47,22 @@ const TrackRow = memo(function TrackRow({
   const openMenu = useContextMenuStore(s => s.openMenu);
 
   const handlePlay = useCallback((e?: React.MouseEvent) => {
+    if (isExcluded) {
+      openUnignoreModal(track, () => {
+        if (onClick) {
+          onClick(e);
+        } else if (onPlay) {
+          onPlay(index);
+        }
+      });
+      return;
+    }
     if (onClick) {
       onClick(e);
     } else if (onPlay) {
       onPlay(index);
     }
-  }, [onClick, onPlay, index]);
+  }, [onClick, onPlay, index, isExcluded, track, openUnignoreModal]);
 
   const handleContextMenu = useCallback((e: any) => {
     e?.preventDefault?.();

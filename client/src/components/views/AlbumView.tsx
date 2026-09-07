@@ -10,6 +10,7 @@ import { useAlbumData } from '../../hooks/useAlbumData';
 import ArtistLinks from '../common/ArtistLinks';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import { useUIStore } from '../../store/uiStore';
 
 export default function AlbumView() {
   const { t } = useTranslation();
@@ -19,6 +20,7 @@ export default function AlbumView() {
   
   const { queue, currentIndex, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, toggleTrackExclude, toggleAlbumExclude, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
+  const openUnignoreModal = useUIStore(state => state.openUnignoreModal);
   const downloads = useDownloadStore(state => state.downloads);
   const isGuest = usePlayerStore(state => !!state.roomId && state.role !== 'host');
 
@@ -173,11 +175,13 @@ export default function AlbumView() {
                   }}
                   onClick={() => {
                     if (excludedTrackIds.includes(track.id) || (track.albumId && excludedAlbumIds.includes(track.albumId))) {
-                      if (window.confirm(t('common.unignore_prompt', { defaultValue: 'Убрать ли из игнора трек?' }))) {
-                        if (excludedTrackIds.includes(track.id)) toggleTrackExclude(track.id);
-                        if (track.albumId && excludedAlbumIds.includes(track.albumId)) toggleAlbumExclude(track.albumId);
+                      openUnignoreModal({
+                        ...track,
+                        coverArt: track.coverArt || album.coverArt || album.id,
+                        artist: track.artist || album.artist
+                      }, () => {
                         handlePlaySong(index);
-                      }
+                      });
                     } else {
                       handlePlaySong(index);
                     }

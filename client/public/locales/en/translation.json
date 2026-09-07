@@ -514,7 +514,10 @@
     "unignore_prompt": "Remove track from ignore?",
     "restore_queue_from_server": "Restore queue from server",
     "unignore_and_play": "This track is ignored. Do you want to unignore it and start playing?",
-    "unignore_and_queue": "This track is ignored. Do you want to unignore it and add to queue?"
+    "unignore_and_queue": "This track is ignored. Do you want to unignore it and add to queue?",
+    "unignore_track_title": "Track is ignored",
+    "unignore_track_desc": "This track is in the ignored list. Do you want to unignore it and start playing?",
+    "unignore_and_play_btn": "Unignore and play"
   },
   "jam": {
     "jam_error": "Session error",
