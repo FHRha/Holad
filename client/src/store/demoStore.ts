@@ -9,11 +9,12 @@ interface DemoState {
   isPoolExhausted: boolean;
   retryAfter: number;
   sessionId: string | null;
+  slotId: number | null;
   guestUserId: string | null;
   heartbeatIntervalId: any | null;
   setDemoMode: (isDemo: boolean) => void;
   setPoolExhausted: (exhausted: boolean, retryAfter?: number) => void;
-  setSession: (sessionId: string, guestUserId: string) => void;
+  setSession: (sessionId: string, guestUserId: string, slotId?: number) => void;
   checkDemoSession: () => Promise<{ isDemo: boolean; success: boolean }>;
   startHeartbeat: () => void;
   stopHeartbeat: () => void;
@@ -25,12 +26,13 @@ export const useDemoStore = create<DemoState>((set, get) => ({
   isPoolExhausted: false,
   retryAfter: 60,
   sessionId: null,
+  slotId: null,
   guestUserId: null,
   heartbeatIntervalId: null,
 
   setDemoMode: (isDemoMode) => set({ isDemoMode }),
   setPoolExhausted: (isPoolExhausted, retryAfter = 60) => set({ isPoolExhausted, retryAfter }),
-  setSession: (sessionId, guestUserId) => set({ sessionId, guestUserId }),
+  setSession: (sessionId, guestUserId, slotId) => set({ sessionId, guestUserId, slotId: slotId ?? null }),
 
   checkDemoSession: async () => {
     // Only web client supports demo mode (desktop/mobile always use direct login)
@@ -41,14 +43,26 @@ export const useDemoStore = create<DemoState>((set, get) => ({
 
     set({ isCheckingDemo: true });
     try {
+      // Clear legacy localStorage key to prevent leaking across browser windows
+      try { localStorage.removeItem('holad_demo_session_id'); } catch (_) {}
+
       const serverUrl = getHoladServerUrl();
-      const existingSessionId = get().sessionId || localStorage.getItem('holad_demo_session_id') || '';
+      const existingSessionId = get().sessionId || sessionStorage.getItem('holad_demo_session_id') || '';
       const res = await fetch(`${serverUrl}/api/demo/session?sessionId=${encodeURIComponent(existingSessionId)}`);
 
       if (!res.ok) {
         if (res.status === 429 || res.status === 503) {
           const data = await res.json().catch(() => ({ retryAfter: 60 }));
-          set({ isDemoMode: true, isPoolExhausted: true, retryAfter: data.retryAfter || 60 });
+          try { sessionStorage.removeItem('holad_demo_session_id'); } catch (_) {}
+          useAuthStore.getState().logout();
+          set({
+            isDemoMode: true,
+            isPoolExhausted: true,
+            retryAfter: data.retryAfter || 60,
+            sessionId: null,
+            slotId: null,
+            guestUserId: null
+          });
           return { isDemo: true, success: false };
         }
         return { isDemo: false, success: false };
@@ -65,11 +79,12 @@ export const useDemoStore = create<DemoState>((set, get) => ({
           isDemoMode: true,
           isPoolExhausted: false,
           sessionId: data.sessionId,
+          slotId: data.slotId ?? null,
           guestUserId: data.guestUserId,
         });
 
         if (data.sessionId) {
-          localStorage.setItem('holad_demo_session_id', data.sessionId);
+          try { sessionStorage.setItem('holad_demo_session_id', data.sessionId); } catch (_) {}
         }
 
         // Seamless transparent login into useAuthStore

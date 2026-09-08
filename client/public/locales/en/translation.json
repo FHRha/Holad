@@ -691,6 +691,8 @@
   },
   "demo": {
     "badge": "Holad Demo Mode",
+    "guest": "Guest",
+    "demo_account": "Demo Account",
     "capacity_title": "Demo Server at Full Capacity",
     "capacity_desc": "The demo player is currently being tested by the maximum number of concurrent visitors. Please wait a moment for a slot to become available.",
     "auto_retry": "Auto retry in:",

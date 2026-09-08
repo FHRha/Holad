@@ -1,6 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { DemoManager } from '../src/demoManager.js';
 
+process.env.PORT = '0';
+
 describe('DemoManager Core Logic', () => {
   let manager: DemoManager | null = null;
 

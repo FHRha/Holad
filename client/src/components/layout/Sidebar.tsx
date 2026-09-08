@@ -22,6 +22,7 @@ export default function Sidebar() {
   const { user, url, setAuthenticated, setCredentials } = useAuthStore();
   const { role, roomId } = usePlayerStore();
   const isDemoMode = useDemoStore(state => state.isDemoMode);
+  const slotId = useDemoStore(state => state.slotId);
   const isJamRoute = location.pathname.startsWith('/jam');
   const isJamGuest = isJamRoute && (role === 'listener' || role === 'cohost');
   const basePath = isJamRoute ? '/jam' : '/Holad';
@@ -133,14 +134,14 @@ export default function Sidebar() {
                   <User className="text-primary" size={20} />
                 </div>
                 <div className="flex flex-col overflow-hidden">
-                  <span className="font-bold text-sm truncate">{user || t('sidebar.user')}</span>
+                  <span className="font-bold text-sm truncate">{isDemoMode && slotId ? `${t('demo.guest', 'Гость')} #${slotId}` : (user || t('sidebar.user'))}</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <img 
                       src={`${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/navidrome.png`} 
                       alt="Navidrome" 
                       className="w-3.5 h-3.5 object-contain opacity-80 shrink-0" 
                     />
-                    <span className="text-xs text-secondary truncate">{url ? new URL(url).hostname : t('sidebar.local_server')}</span>
+                    <span className="text-xs text-secondary truncate">{isDemoMode ? `${t('demo.demo_account', 'Демо-аккаунт')} (${user})` : (url ? new URL(url).hostname : t('sidebar.local_server'))}</span>
                   </div>
                 </div>
               </div>

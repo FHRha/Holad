@@ -334,6 +334,7 @@ app.get(['/api/demo/session', '/Holad/api/demo/session'], (req, res) => {
     demoMode: true,
     available: true,
     sessionId: result.session!.sessionId,
+    slotId: result.session!.slotId,
     guestUserId: result.session!.guestUserId,
     account: {
       url: result.session!.account.url,
