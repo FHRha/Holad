@@ -8,6 +8,7 @@ on:
 env:
   NODE_OPTIONS: "--no-deprecation"
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  RELEASE_VERSION: ${{ github.ref_name }}
 
 jobs:
   build-web:

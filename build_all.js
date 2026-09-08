@@ -43,8 +43,10 @@ const RELEASE_DIR = path.join(ARTIFACTS_DIR, 'holad-release');
 
 // Version injection
 const rawVersion = process.env.GITHUB_REF_NAME || process.env.RELEASE_VERSION;
+let appVersion = null;
 if (rawVersion) {
   const version = rawVersion.startsWith('v') ? rawVersion.substring(1) : rawVersion;
+  appVersion = version;
   console.log(`Injecting version ${version} into project files...`);
   
   [
@@ -90,6 +92,19 @@ if (rawVersion) {
       console.warn(`Could not update versionName in build.gradle:`, e.message);
     }
   }
+}
+
+function getAppVersion() {
+  if (appVersion) return appVersion;
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'Capacitor', 'package.json'), 'utf8'));
+    if (pkg.version) return pkg.version;
+  } catch (e) {}
+  try {
+    const tauriConfig = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'tauri.conf.json'), 'utf8'));
+    if (tauriConfig.version) return tauriConfig.version;
+  } catch (e) {}
+  return null;
 }
 
 function getEnv(envOverrides = {}) {
@@ -505,8 +520,11 @@ node dist/index.js
           let copiedApk = false;
           const targetApk = process.env.ANDROID_KEYSTORE_FILE ? (fs.existsSync(releaseApk) ? releaseApk : releaseUnsignedApk) : debugApk;
 
+          const currentVersion = getAppVersion();
+          const releaseApkName = currentVersion ? `Holad-Android-${currentVersion}.apk` : 'Holad-Android-Release.apk';
+
           if (fs.existsSync(targetApk)) {
-            const artifactName = buildType === 'assembleRelease' ? 'Holad-Android-Release.apk' : 'Holad-Android-Debug.apk';
+            const artifactName = buildType === 'assembleRelease' ? releaseApkName : 'Holad-Android-Debug.apk';
             console.log(`Copying Android APK to artifacts/${artifactName}...`);
             fs.copyFileSync(targetApk, path.join(ARTIFACTS_DIR, artifactName));
             copiedApk = true;
@@ -519,7 +537,7 @@ node dist/index.js
                 if (file.isDirectory()) {
                   findAndCopyApk(full);
                 } else if (file.isFile() && file.name.endsWith('.apk')) {
-                  const name = file.name.includes('release') ? 'Holad-Android-Release.apk' : 'Holad-Android-Debug.apk';
+                  const name = file.name.includes('release') ? releaseApkName : 'Holad-Android-Debug.apk';
                   console.log(`Copying Android APK ${file.name} to artifacts/${name}...`);
                   fs.copyFileSync(full, path.join(ARTIFACTS_DIR, name));
                   copiedApk = true;
