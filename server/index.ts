@@ -2173,6 +2173,12 @@ app.get('/favicon.ico', handleFavicon);
 app.get('/Holad/favicon.ico', handleFavicon);
 
 if (fs.existsSync(clientPath)) {
+  const basePath = process.env.BASE_PATH || '/Holad/';
+  if (basePath === '/Holad/' || basePath.startsWith('/Holad')) {
+    app.get(['/', '/index.html'], (_req, res) => {
+      res.redirect('/Holad/');
+    });
+  }
   app.use(express.static(clientPath));
   app.use('/Holad', express.static(clientPath));
   
