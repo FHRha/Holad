@@ -89,6 +89,19 @@ const ALLOWED_GUEST_ENDPOINTS = new Set([
   'getLyricsBySongId'
 ]);
 
+const ALLOWED_AUTH_ENDPOINTS = new Set([
+  ...ALLOWED_GUEST_ENDPOINTS,
+  'createPlaylist',
+  'updatePlaylist',
+  'deletePlaylist',
+  'star',
+  'unstar',
+  'setRating',
+  'scrobble',
+  'savePlayQueue',
+  'getPlayQueue'
+]);
+
 function isValidHttpUrl(string: string) {
   try {
     const url = new URL(string);
@@ -130,6 +143,105 @@ app.post('/api/sync/pull', express.json(), (req, res) => {
     res.json({ ok: true, data });
   } catch (error) {
     console.error('Error fetching sync data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+const PLAYLIST_ID_REGEX = /^[a-zA-Z0-9_\-\:]{1,128}$/;
+
+app.post(['/api/custom-playlists', '/Holad/api/custom-playlists'], express.json(), (req, res) => {
+  try {
+    const { id, name, description, trackIds, userId, tracks } = req.body || {};
+
+    if (!id || typeof id !== 'string' || !PLAYLIST_ID_REGEX.test(id)) {
+      return res.status(400).json({ error: 'Invalid or missing ID' });
+    }
+
+    if (!name || typeof name !== 'string' || name.trim().length < 1 || name.length > 256) {
+      return res.status(400).json({ error: 'Invalid name (1-256 characters required)' });
+    }
+
+    if (description !== undefined && description !== null) {
+      if (typeof description !== 'string' || description.length > 2000) {
+        return res.status(400).json({ error: 'Description exceeds 2000 characters limit' });
+      }
+    }
+
+    if (!Array.isArray(trackIds)) {
+      return res.status(400).json({ error: 'trackIds must be an array' });
+    }
+
+    if (trackIds.length > 200) {
+      return res.status(400).json({ error: 'trackIds exceeds maximum limit of 200 tracks' });
+    }
+
+    for (const trackId of trackIds) {
+      if (!trackId || typeof trackId !== 'string' || !PLAYLIST_ID_REGEX.test(trackId)) {
+        return res.status(400).json({ error: 'Invalid track ID in trackIds' });
+      }
+    }
+
+    let validTracks: any[] | undefined = undefined;
+    if (tracks !== undefined && tracks !== null) {
+      if (!Array.isArray(tracks) || tracks.length > 200) {
+        return res.status(400).json({ error: 'tracks must be an array with up to 200 items' });
+      }
+      validTracks = tracks;
+    }
+
+    if (userId !== undefined && userId !== null) {
+      if (typeof userId !== 'string' || !PLAYLIST_ID_REGEX.test(userId)) {
+        return res.status(400).json({ error: 'Invalid userId format' });
+      }
+    }
+
+    database.saveCustomPlaylist(
+      id,
+      name.trim(),
+      typeof description === 'string' ? description : '',
+      trackIds,
+      userId,
+      validTracks
+    );
+    res.status(200).json({ success: true, id });
+  } catch (error) {
+    console.error('Error saving custom playlist:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get(['/api/custom-playlists/:id', '/Holad/api/custom-playlists/:id'], (req, res) => {
+  const id = req.params.id as string;
+  if (!id || typeof id !== 'string' || !PLAYLIST_ID_REGEX.test(id)) {
+    return res.status(400).json({ error: 'Invalid ID format' });
+  }
+  try {
+    const playlist = database.getCustomPlaylist(id);
+    if (playlist) {
+      res.status(200).json({ playlist });
+    } else {
+      res.status(404).json({ error: 'Playlist not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching custom playlist:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete(['/api/custom-playlists/:id', '/Holad/api/custom-playlists/:id'], (req, res) => {
+  const id = req.params.id as string;
+  if (!id || typeof id !== 'string' || !PLAYLIST_ID_REGEX.test(id)) {
+    return res.status(400).json({ error: 'Invalid ID format' });
+  }
+  try {
+    const deleted = database.deleteCustomPlaylist(id);
+    if (deleted) {
+      res.status(200).json({ success: true, id });
+    } else {
+      res.status(404).json({ error: 'Playlist not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting custom playlist:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -737,7 +849,7 @@ app.get(['/api/cover/:id', '/Holad/api/cover/:id'], async (req, res) => {
   );
 });
 
-app.get(['/api/subsonic/:endpoint', '/api/subsonic/rest/:endpoint'], async (req, res) => {
+app.all(['/api/subsonic/:endpoint', '/api/subsonic/rest/:endpoint', '/Holad/api/subsonic/:endpoint', '/Holad/api/subsonic/rest/:endpoint'], async (req, res) => {
   const endpoint = req.params.endpoint as string;
 
   if (endpoint === 'getCoverArt') {
@@ -746,16 +858,15 @@ app.get(['/api/subsonic/:endpoint', '/api/subsonic/rest/:endpoint'], async (req,
       return res.status(404).send('Cover art not found');
     }
   }
-  
-  if (!ALLOWED_GUEST_ENDPOINTS.has(endpoint)) {
-    console.warn(`Blocked unauthorized access attempt to endpoint: ${endpoint}`);
-    return res.status(403).send('Forbidden: Endpoint not allowed for guest access');
-  }
 
   const { u, t, s, serverUrl } = req.query;
 
-  // If client provided its own credentials, proxy directly
+  // If client provided its own credentials, proxy directly with authenticated whitelist
   if (u && t && s) {
+    if (!ALLOWED_AUTH_ENDPOINTS.has(endpoint)) {
+      console.warn(`Blocked unauthorized access attempt to endpoint: ${endpoint}`);
+      return res.status(403).send('Forbidden: Endpoint not allowed');
+    }
     let targetServer = navidromeAccounts[0]?.url || '';
     if (serverUrl) {
       const decodedUrl = decodeURIComponent(serverUrl as string).replace(/\/$/, '');
@@ -789,6 +900,11 @@ app.get(['/api/subsonic/:endpoint', '/api/subsonic/rest/:endpoint'], async (req,
     }
   }
   
+  if (!ALLOWED_GUEST_ENDPOINTS.has(endpoint)) {
+    console.warn(`Blocked unauthorized access attempt to endpoint: ${endpoint}`);
+    return res.status(403).send('Forbidden: Endpoint not allowed for guest access');
+  }
+
   const query = new URLSearchParams(req.query as any).toString();
   
   await executeWithFailover(req, res, 
@@ -1822,6 +1938,33 @@ for (const p of possibleClientPaths) {
   }
 }
 
+// Safe favicon endpoint
+const getFaviconPath = (): string | null => {
+  const candidates = [
+    path.join(clientPath, 'favicon.ico'),
+    path.resolve(process.cwd(), '../client/public/favicon.ico'),
+    path.resolve(process.cwd(), 'client/public/favicon.ico'),
+    path.resolve(process.cwd(), '../../client/public/favicon.ico')
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+};
+
+const handleFavicon = (_req: express.Request, res: express.Response) => {
+  const faviconFile = getFaviconPath();
+  if (faviconFile) {
+    res.setHeader('Content-Type', 'image/x-icon');
+    res.sendFile(faviconFile);
+  } else {
+    res.status(404).end();
+  }
+};
+
+app.get('/favicon.ico', handleFavicon);
+app.get('/Holad/favicon.ico', handleFavicon);
+
 if (fs.existsSync(clientPath)) {
   app.use(express.static(clientPath));
   app.use('/Holad', express.static(clientPath));
@@ -1829,6 +1972,10 @@ if (fs.existsSync(clientPath)) {
   // SPA fallback (using regex for Express 5 compatibility)
   app.get(/^(.*)$/, (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/socket.io') || req.path.startsWith('/Holad/api') || req.path.startsWith('/Holad/socket.io')) {
+      return next();
+    }
+    // Exclude static assets with file extensions from SPA fallback so they return 404 instead of index.html
+    if (path.extname(req.path)) {
       return next();
     }
     // Prevent caching of index.html so users don't get white screens after deployments

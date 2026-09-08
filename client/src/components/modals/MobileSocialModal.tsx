@@ -740,7 +740,7 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
               {/* Audio Mode Selectors */}
               <div className="space-y-2 bg-[#1e1e1e] border border-white/5 rounded-2xl p-3.5">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-secondary px-1">
-                  Режим воспроизведения Jam
+                  {t('social.mode_jam_playback', 'Режим воспроизведения Jam')}
                 </span>
 
                 <div className="space-y-2 pt-1">

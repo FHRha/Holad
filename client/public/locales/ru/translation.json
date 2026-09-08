@@ -176,7 +176,13 @@
     "theme_dark": "Темная",
     "theme_light": "Светлая",
     "theme_system": "Системная",
+    "audio_compressor_threshold": "Порог срабатывания (Threshold)",
+    "audio_compressor_ratio": "Степень сжатия (Ratio)",
+    "audio_compressor_attack": "Атака (Attack)",
     "audio_compressor_release": "Восстановление (Release)",
+    "storage_error": "Ошибка хранилища",
+    "mobile_dark_only": "Только тёмная тема",
+    "storage_unlimited": "Безлимитно",
     "error_open": "Ошибка открытия",
     "lastfm_vpn_warning": "Внимание: В РФ доступ к Last.fm заблокирован, для работы требуется VPN."
   },
@@ -434,6 +440,10 @@
     "unknown_playlist": "Неизвестный плейлист",
     "playlist_empty": "Плейлист пуст",
     "playlist": "Плейлист",
+    "artist_radio": "Радио артиста",
+    "new_releases": "Новые релизы",
+    "manual_sync": "Синхронизировать вручную",
+    "loading_playlists": "Загрузка плейлистов...",
     "hour_1": "час",
     "hour_2": "часа",
     "hour_5": "часов",
@@ -517,7 +527,16 @@
     "unignore_and_queue": "Этот трек находится в игноре. Хотите убрать его из игнора и добавить в очередь?",
     "unignore_track_title": "Трек в игноре",
     "unignore_track_desc": "Этот трек находится в списке игнорируемых. Хотите убрать его из игнора и начать воспроизведение?",
-    "unignore_and_play_btn": "Убрать из игнора и включить"
+    "unignore_and_play_btn": "Убрать из игнора и включить",
+    "open": "Открыть",
+    "delete_playlist_confirm": "Вы уверены, что хотите удалить плейлист?",
+    "playlist_deleted": "Плейлист удален",
+    "error_deleting_playlist": "Не удалось удалить плейлист",
+    "share_album_track": "Поделиться альбомом трека",
+    "album_link_copied": "Ссылка на альбом скопирована!",
+    "remove_from_playlist": "Убрать из плейлиста",
+    "close": "Закрыть",
+    "cancel": "Отмена"
   },
   "jam": {
     "jam_error": "Ошибка сессии",
@@ -640,7 +659,9 @@
     "cancel": "Отменить",
     "tab_jam": "Jam-сессия",
     "remove_friend": "Удалить из друзей",
-    "remove_friend_confirm": "Вы уверены, что хотите удалить {{name}} из друзей?"
+    "remove_friend_confirm": "Вы уверены, что хотите удалить {{name}} из друзей?",
+    "mode_jam_playback": "Режим воспроизведения Jam",
+    "friends_listen_together": "Слушайте музыку вместе с друзьями в реальном времени"
   },
   "deeplink": {
     "open_in_app": "Открыть в приложении Holad",
@@ -656,5 +677,16 @@
     "style_wave": "Плавная волна",
     "style_radial": "Круговой",
     "style_peaks": "Студийный эквалайзер"
+  },
+  "empty_state": {
+    "title": "Здесь пока пусто",
+    "description": "Добавьте музыку на сервер или загрузите для оффлайна"
+  },
+  "update": {
+    "available": "Доступно обновление",
+    "new_version_desc": "Доступна новая версия Holad.",
+    "auto_update": "Автообновление",
+    "download_github": "Скачать с GitHub",
+    "skip": "Пропустить"
   }
 }

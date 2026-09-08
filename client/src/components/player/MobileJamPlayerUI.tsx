@@ -38,7 +38,13 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
   // Check if standalone
   const searchParams = new URLSearchParams(window.location.search);
   const isJamRoute = window.location.pathname.startsWith('/jam');
-  const isStandalone = isJamRoute && (!!searchParams.get('track') || !!searchParams.get('album')) && !roomId;
+  const isStandaloneQuery = (searchParams.has('track') && !!searchParams.get('track')) ||
+                            (searchParams.has('album') && !!searchParams.get('album')) ||
+                            (searchParams.has('playlist') && !!searchParams.get('playlist'));
+  const isStandalonePath = window.location.pathname.startsWith('/jam/track/') ||
+                           window.location.pathname.startsWith('/jam/album/') ||
+                           window.location.pathname.startsWith('/jam/playlist/');
+  const isStandalone = isJamRoute && (isStandaloneQuery || isStandalonePath) && !roomId;
 
   const handleRewind = () => {
     if (currentTrack) {

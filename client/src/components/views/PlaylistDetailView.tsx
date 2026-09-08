@@ -9,6 +9,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../store/downloadStore';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { getHoladServerUrl } from '../../utils/serverConfig';
 import TrackRow from '../common/TrackRow';
 import PlaylistCover from '../common/PlaylistCover';
 import { Virtuoso } from 'react-virtuoso';
@@ -29,42 +30,77 @@ export default function PlaylistDetailView() {
   const { isOffline } = useNetworkStatus();
 
   useEffect(() => {
+    let isMounted = true;
     const fetchPlaylistData = async () => {
       if (!id) return;
       try {
         const customPlaylists = usePlaylistStore.getState().playlists;
-        const customPlaylist = customPlaylists.find(p => p.id === id);
+        let customPlaylist = customPlaylists.find(p => p.id === id);
         
+        // If not in local state, query Holad server before Subsonic API
+        if (!customPlaylist && !isOffline) {
+          try {
+            const res = await fetch(`${getHoladServerUrl()}/api/custom-playlists/${encodeURIComponent(id)}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.playlist) {
+                customPlaylist = {
+                  id: data.playlist.id,
+                  name: data.playlist.name,
+                  description: data.playlist.description || '',
+                  trackIds: Array.isArray(data.playlist.trackIds)
+                    ? data.playlist.trackIds
+                    : (Array.isArray(data.playlist.tracks) ? data.playlist.tracks.map((t: any) => typeof t === 'string' ? t : t.id) : []),
+                  tracks: Array.isArray(data.playlist.tracks) ? data.playlist.tracks : undefined
+                };
+              }
+            }
+          } catch (e) {
+            console.error('Failed to fetch custom playlist from server:', e);
+          }
+        }
+
+        if (!isMounted) return;
+
+        const isJamPath = window.location.pathname.startsWith('/jam');
+
         if (customPlaylist) {
            const offlineTracks = getOfflineTracks();
+           const rawTrackIds = Array.isArray(customPlaylist.trackIds) ? customPlaylist.trackIds : [];
            
-           // Resolve tracks
+           // Resolve tracks: prefer embedded metadata if available
            const resolvedEntries = [];
-           for (const trackId of customPlaylist.trackIds) {
-             let track = offlineTracks.find(t => t.id === trackId);
-             
-             // If online and not found in offline tracks, try to fetch from server
-             if (!track && !isOffline) {
-               try {
-                  const { getSong } = await import('../../api/subsonic/tracks');
-                  track = await getSong(trackId);
-               } catch (e) {
-                  console.error('Failed to fetch song info for custom playlist', e);
+           if (Array.isArray((customPlaylist as any).tracks) && (customPlaylist as any).tracks.length > 0) {
+             resolvedEntries.push(...(customPlaylist as any).tracks);
+           } else {
+             for (const trackId of rawTrackIds) {
+               let track = offlineTracks.find(t => t.id === trackId);
+               
+               // If online and not found in offline tracks, try to fetch from server
+               if (!track && !isOffline) {
+                 try {
+                    const { getSong } = await import('../../api/subsonic/tracks');
+                    track = await getSong(trackId);
+                 } catch (e) {
+                    console.error('Failed to fetch song info for custom playlist', e);
+                 }
+               }
+               
+               if (track) {
+                  // If offline, ensure it's downloaded
+                  if (isOffline) {
+                     const { downloads } = useDownloadStore.getState();
+                     if (isItemDownloaded(downloads, track.id, track.albumId)) {
+                        resolvedEntries.push(track);
+                     }
+                  } else {
+                     resolvedEntries.push(track);
+                  }
                }
              }
-             
-             if (track) {
-                // If offline, ensure it's downloaded
-                if (isOffline) {
-                   const { downloads } = useDownloadStore.getState();
-                   if (isItemDownloaded(downloads, track.id, track.albumId)) {
-                      resolvedEntries.push(track);
-                   }
-                } else {
-                   resolvedEntries.push(track);
-                }
-             }
            }
+           
+           if (!isMounted) return;
            
            const firstCover = resolvedEntries.length > 0 
              ? (resolvedEntries[0].coverArt || resolvedEntries[0].albumId || resolvedEntries[0].id) 
@@ -77,30 +113,75 @@ export default function PlaylistDetailView() {
              songCount: resolvedEntries.length,
              duration: resolvedEntries.reduce((acc, t) => acc + (t.duration || 0), 0),
              coverArt: firstCover,
-             trackIds: customPlaylist.trackIds,
+             trackIds: rawTrackIds,
              entry: resolvedEntries,
              isCustom: true
            });
            setEditName(customPlaylist.name || '');
            setEditDesc(customPlaylist.description || '');
         } else {
-           const data = await getPlaylist(id);
-           setPlaylist(data);
-           setEditName(data?.name || '');
-           setEditDesc(data?.comment || '');
+           const isCustomId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || id.startsWith('custom_');
+           if (isCustomId) {
+             if (isMounted) {
+               if (!isJamPath) {
+                 navigate('/Holad/playlists', { replace: true });
+               } else {
+                 setPlaylist(null);
+               }
+             }
+             return;
+           }
+
+           try {
+             const data = await getPlaylist(id);
+             if (!isMounted) return;
+             if (data && data.id) {
+               setPlaylist(data);
+               setEditName(data?.name || '');
+               setEditDesc(data?.comment || '');
+             } else {
+               if (!isJamPath) {
+                 navigate('/Holad/playlists', { replace: true });
+               } else {
+                 setPlaylist(null);
+               }
+             }
+           } catch (e) {
+             if (!isMounted) return;
+             console.error('Failed to fetch Subsonic playlist:', e);
+             if (!isJamPath) {
+               navigate('/Holad/playlists', { replace: true });
+             } else {
+               setPlaylist(null);
+             }
+           }
         }
       } catch (err) {
+        if (!isMounted) return;
         console.error('Failed to fetch playlist:', err);
+        const isJamPath = window.location.pathname.startsWith('/jam');
+        if (!isJamPath) {
+          navigate('/Holad/playlists', { replace: true });
+        } else {
+          setPlaylist(null);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     fetchPlaylistData();
     
-    const handleUpdate = () => fetchPlaylistData();
+    const handleUpdate = () => {
+      if (isMounted) fetchPlaylistData();
+    };
     window.addEventListener('playlists-updated', handleUpdate);
-    return () => window.removeEventListener('playlists-updated', handleUpdate);
-  }, [id, isOffline]);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('playlists-updated', handleUpdate);
+    };
+  }, [id, isOffline, navigate]);
 
   const handleSave = async () => {
     if (!id || !playlist) return;

@@ -719,7 +719,7 @@ export default function SettingsModal({
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
                             <span>{t('settings.crossfade_duration') || 'Длительность кроссфейда'}</span>
-                            <span>{settings.crossfadeDuration} сек</span>
+                            <span>{settings.crossfadeDuration} {t('common.seconds_short', 'сек')}</span>
                           </div>
                           <input 
                             type="range" 
@@ -793,7 +793,7 @@ export default function SettingsModal({
                         {/* Threshold */}
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>{t('settings.audio.compressor_threshold', 'Порог срабатывания (Threshold)')}</span>
+                            <span>{t('settings.audio_compressor_threshold', 'Порог срабатывания (Threshold)')}</span>
                             <span>{settings.compressorThreshold} dB</span>
                           </div>
                           <input 
@@ -813,7 +813,7 @@ export default function SettingsModal({
                         {/* Ratio */}
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>{t('settings.audio.compressor_ratio', 'Степень сжатия (Ratio)')}</span>
+                            <span>{t('settings.audio_compressor_ratio', 'Степень сжатия (Ratio)')}</span>
                             <span>{settings.compressorRatio}:1</span>
                           </div>
                           <input 
@@ -834,7 +834,7 @@ export default function SettingsModal({
                         {/* Attack */}
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>{t('settings.audio.compressor_attack', 'Атака (Attack)')}</span>
+                            <span>{t('settings.audio_compressor_attack', 'Атака (Attack)')}</span>
                             <span>{settings.compressorAttack} s</span>
                           </div>
                           <input 

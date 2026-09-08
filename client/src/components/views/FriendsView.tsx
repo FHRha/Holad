@@ -95,7 +95,7 @@ export default function FriendsView() {
               {t('social.tab_friends', 'Jam & Друзья')}
             </h1>
             <p className="text-xs md:text-sm text-secondary">
-              Слушайте музыку вместе с друзьями в реальном времени
+              {t('social.friends_listen_together', 'Слушайте музыку вместе с друзьями в реальном времени')}
             </p>
           </div>
         </div>
@@ -528,7 +528,7 @@ export default function FriendsView() {
           <div className="space-y-4">
             <div className="space-y-3 bg-card border border-border rounded-2xl p-4 shadow-sm">
               <span className="text-xs font-bold uppercase tracking-wider text-secondary px-1">
-                Режим воспроизведения Jam
+                {t('social.mode_jam_playback', 'Режим воспроизведения Jam')}
               </span>
 
               <div className="space-y-2.5 pt-1">

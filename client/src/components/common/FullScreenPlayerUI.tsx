@@ -50,7 +50,14 @@ export default function FullScreenPlayerUI({
   
   const isJamRoute = window.location.pathname.startsWith('/jam');
   const searchParams = new URLSearchParams(window.location.search);
-  const isStandalone = isJamRoute && (!!searchParams.get('track') || !!searchParams.get('album'));
+  const isStandaloneQuery = (searchParams.has('track') && !!searchParams.get('track')) ||
+                            (searchParams.has('album') && !!searchParams.get('album')) ||
+                            (searchParams.has('playlist') && !!searchParams.get('playlist'));
+  const isStandalonePath = window.location.pathname.startsWith('/jam/track/') ||
+                           window.location.pathname.startsWith('/jam/album/') ||
+                           window.location.pathname.startsWith('/jam/playlist/');
+  const isStandalone = isJamRoute && (isStandaloneQuery || isStandalonePath);
+  const isListenerPage = isStandalone || (isJamRoute && role !== 'host');
   const readOnlyControls = isJamRoute && role === 'listener';
   
   const queueContainerRef = useRef<HTMLDivElement>(null);
@@ -110,7 +117,7 @@ export default function FullScreenPlayerUI({
       {/* Top Bar for close button & extra controls */}
       <div className="absolute top-0 left-0 right-0 p-6 z-50 flex justify-between items-start pointer-events-none">
         <div className="flex-1 pointer-events-auto flex items-center gap-4">
-          {onClose && (
+          {onClose && !isListenerPage && (
             <button 
               onClick={onClose}
               className="p-2 bg-black/20 hover:bg-black/40 rounded-full backdrop-blur-md transition-colors border border-white/10 shadow-lg"

@@ -8,12 +8,13 @@ import { usePlayerStore } from '../../store/playerStore';
 import { starItem, unstarItem, setItemRating, getAlbum } from '../../api/subsonic';
 import { getShareUrl } from '../../utils/serverConfig';
 import { handleDownload } from '../../utils/downloadHelper';
-import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../store/downloadStore';
 import { StorageManager } from '../../utils/StorageManager';
+import { toast } from 'sonner';
 import type { Track } from '../../store/playerStore';
 import { getCoverArtUrl } from '../../api/subsonic';
 import { getPlaylists, createPlaylist, updatePlaylistTracks, updatePlaylist } from '../../api/subsonic/playlists';
-import { usePlaylistStore } from '../../store/playlistStore';
+import { usePlaylistStore, syncCustomPlaylistToServer } from '../../store/playlistStore';
 import AddToPlaylistModal from './AddToPlaylistModal';
 import { ListMusic, Plus, ChevronRight } from 'lucide-react';
 import { networkManager } from '../../utils/networkStatus';
@@ -326,13 +327,111 @@ export default function ContextMenu() {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const handleSharePlaylist = async (playlistItem: any) => {
+    try {
+      const customPl = usePlaylistStore.getState().playlists.find(p => p.id === playlistItem.id);
+      if (customPl) {
+        const offlineTracks = getOfflineTracks();
+        const trackIds = (customPl.trackIds || []).slice(0, 200);
+        const tracks = trackIds.map(tid => offlineTracks.find(t => t.id === tid)).filter(Boolean);
+        await syncCustomPlaylistToServer({
+          id: customPl.id,
+          name: customPl.name,
+          description: customPl.description || '',
+          trackIds,
+          tracks: tracks.length > 0 ? tracks : undefined
+        });
+      } else {
+        try {
+          const { getPlaylist } = await import('../../api/subsonic/playlists');
+          const plData = await getPlaylist(playlistItem.id);
+          if (plData) {
+            const songs = Array.isArray(plData.entry) ? plData.entry.slice(0, 200) : (plData.entry ? [plData.entry] : []);
+            const trackIds = songs.map((s: any) => s.id).filter(Boolean);
+            const mappedTracks = songs.map((s: any) => ({
+              id: s.id,
+              title: s.title || s.name,
+              artist: s.artist,
+              album: s.album,
+              albumId: s.albumId,
+              coverArt: getCoverArtUrl(s.coverArt || s.albumId || s.id, 300),
+              duration: s.duration,
+              bitRate: s.bitRate,
+              suffix: s.suffix
+            }));
+            await syncCustomPlaylistToServer({
+              id: playlistItem.id,
+              name: plData.name || playlistItem.name || 'Shared Playlist',
+              description: plData.comment || '',
+              trackIds,
+              tracks: mappedTracks
+            });
+          }
+        } catch (err) {
+          console.warn('Could not snapshot Subsonic playlist to server:', err);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to sync shared playlist snapshot:', err);
+    }
+    const shareUrl = `${getShareUrl()}/jam/?playlist=${playlistItem.id}`;
+    await navigator.clipboard.writeText(shareUrl);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleDeletePlaylist = async (playlistItem: any) => {
+    if (!window.confirm(t('common.delete_playlist_confirm', 'Вы уверены, что хотите удалить плейлист?'))) {
+      return;
+    }
+    try {
+      const playlistIdStr = String(playlistItem?.id || '');
+      const isCustom = Boolean(
+        playlistItem?.isCustom ||
+        playlistIdStr.startsWith('custom_') ||
+        usePlaylistStore.getState().playlists.some(p => String(p.id) === playlistIdStr)
+      );
+      if (isCustom) {
+        usePlaylistStore.getState().deletePlaylist(playlistItem.id);
+      } else {
+        const { deletePlaylist } = await import('../../api/subsonic/playlists');
+        await deletePlaylist(playlistItem.id);
+      }
+      window.dispatchEvent(new CustomEvent('playlists-updated'));
+      if (window.location.pathname.includes(playlistItem.id)) {
+        navigate('/Holad/playlists', { replace: true });
+      }
+      toast.success(t('common.playlist_deleted', 'Плейлист удален'));
+    } catch (e: any) {
+      console.error('Failed to delete playlist:', e);
+      let errMsg = t('common.error_deleting_playlist', 'Не удалось удалить плейлист');
+      if (e && typeof e.message === 'string' && e.message.trim() && e.message !== 'undefined') {
+        errMsg = e.message;
+      } else if (typeof e === 'string' && e.trim() && e !== 'undefined') {
+        errMsg = e;
+      }
+      toast.error(errMsg);
+    } finally {
+      closeMenu();
+    }
+  };
+
   const ItemBtn = ({ icon: Icon, label, onClick, color = 'text-foreground' }: any) => (
     <button 
+      type="button"
+      onClick={(e) => { 
+        e.preventDefault(); 
+        e.stopPropagation(); 
+        onClick(); 
+      }}
       onMouseDown={(e) => { 
         if (e.button !== 0) return; // only left click
         e.preventDefault(); 
         e.stopPropagation(); 
-        onClick(); 
+      }}
+      onMouseUp={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
       }}
       className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-foreground/10 transition-colors text-sm font-semibold ${color}`}
     >
@@ -343,7 +442,12 @@ export default function ContextMenu() {
 
   const MobileIconBtn = ({ icon: Icon, label, onClick, color = 'text-foreground', activeColor = '' }: any) => (
     <button 
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      type="button"
+      onClick={(e) => { 
+        e.preventDefault(); 
+        e.stopPropagation(); 
+        onClick(); 
+      }}
       className={`flex flex-col items-center justify-center gap-1.5 p-2 active:bg-foreground/10 rounded-xl transition-colors`}
     >
       <Icon size={22} className={activeColor || color} />
@@ -475,7 +579,7 @@ export default function ContextMenu() {
                     placeholder={t('common.new_playlist')} 
                     value={newPlaylistName}
                     onChange={(e) => setNewPlaylistName(e.target.value)}
-                    className="flex-1 bg-background/40 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors"
+                    className="flex-1 bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors"
                   />
                   <button 
                     type="submit"
@@ -514,12 +618,12 @@ export default function ContextMenu() {
                     />
                   )}
                   {!isGuest && (item.playlistId ? (
-                    <MobileIconBtn icon={ListMinus} label={t('common.remove_from_playlist', 'Убрать из плейлиста')} onClick={handleRemoveFromPlaylist} color="text-red-500" />
+                    <MobileIconBtn icon={ListMinus} label={t('common.remove_from_playlist')} onClick={handleRemoveFromPlaylist} color="text-red-500" />
                   ) : (
                     <MobileIconBtn icon={ListMusic} label={t('common.add_to_playlist')} onClick={onShowPlaylists} />
                   ))}
                   {!isGuest && <MobileIconBtn icon={Heart} label={t('common.favorite')} onClick={() => handleAction(onLike)} activeColor={isLiked ? "text-primary" : "text-foreground"} />}
-                  {!isGuest && <MobileIconBtn icon={Ban} label={t('common.ignore', 'В игнор')} onClick={() => handleAction(onExclude)} activeColor={isExcluded ? "text-red-500" : "text-foreground"} />}
+                  {!isGuest && <MobileIconBtn icon={Ban} label={t('common.ignore')} onClick={() => handleAction(onExclude)} activeColor={isExcluded ? "text-red-500" : "text-foreground"} />}
                   {!isGuest && (isDownloaded ? (
                     <MobileIconBtn icon={Trash2} color="text-primary" label={t('common.remove_download')} onClick={() => handleAction(onRemoveDownload)} />
                   ) : (
@@ -558,28 +662,9 @@ export default function ContextMenu() {
 
             {type === 'playlist' && (
               <div className="grid grid-cols-3 gap-2">
-                <MobileIconBtn icon={Play} label={t('common.open', 'Открыть')} onClick={() => handleAction(() => { navigate(`/Holad/playlist/${item.id}`); })} />
-                <MobileIconBtn icon={Share2} label={isCopied ? t('common.copied') : t('common.share')} onClick={() => handleAction(() => {
-                  const shareUrl = `${getShareUrl()}/jam/?playlist=${item.id}`;
-                  navigator.clipboard.writeText(shareUrl);
-                  setIsCopied(true);
-                  setTimeout(() => setIsCopied(false), 2000);
-                }, false)} activeColor={isCopied ? "text-primary" : "text-foreground"} />
-                <MobileIconBtn icon={Trash2} color="text-red-500" label={t('common.delete', 'Удалить')} onClick={async () => {
-                  if (window.confirm(t('common.delete_playlist_confirm', 'Вы уверены, что хотите удалить плейлист?'))) {
-                    try {
-                      if (item.isCustom) {
-                        usePlaylistStore.getState().deletePlaylist(item.id);
-                      } else {
-                        const { deletePlaylist } = await import('../../api/subsonic/playlists');
-                        await deletePlaylist(item.id);
-                      }
-                      window.dispatchEvent(new CustomEvent('playlists-updated'));
-                      setTimeout(() => window.location.reload(), 300);
-                    } catch(e) { console.error(e); }
-                    closeMenu();
-                  }
-                }} />
+                <MobileIconBtn icon={Play} label={t('common.open')} onClick={() => handleAction(() => { navigate(`/Holad/playlist/${item.id}`); })} />
+                <MobileIconBtn icon={Share2} label={isCopied ? t('common.copied') : t('common.share')} onClick={() => handleAction(() => handleSharePlaylist(item), false)} activeColor={isCopied ? "text-primary" : "text-foreground"} />
+                <MobileIconBtn icon={Trash2} color="text-red-500" label={t('common.delete')} onClick={() => handleDeletePlaylist(item)} />
               </div>
             )}
 
@@ -604,6 +689,20 @@ export default function ContextMenu() {
         isOpen={isPlaylistModalOpen} 
         onClose={() => { setIsPlaylistModalOpen(false); closeMenu(); }}
         trackIds={modalTrackIds}
+      />
+      {/* Desktop Backdrop: shield against click-through and handle outside clicks */}
+      <div 
+        className="fixed inset-0 z-[9998] bg-transparent"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closeMenu();
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closeMenu();
+        }}
       />
       <div 
         ref={menuRef}
@@ -668,7 +767,7 @@ export default function ContextMenu() {
               placeholder={t('common.new_playlist')} 
               value={newPlaylistName}
               onChange={(e) => setNewPlaylistName(e.target.value)}
-              className="flex-1 bg-background/40 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors min-w-0"
+              className="flex-1 bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs text-foreground placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors min-w-0"
             />
             <button 
               type="submit"
@@ -704,7 +803,7 @@ export default function ContextMenu() {
               />
             )}
             {!isGuest && (item.playlistId ? (
-              <ItemBtn icon={ListMinus} label={t('common.remove_from_playlist', 'Убрать из плейлиста')} onClick={handleRemoveFromPlaylist} color="text-red-500 hover:text-red-400" />
+              <ItemBtn icon={ListMinus} label={t('common.remove_from_playlist')} onClick={handleRemoveFromPlaylist} color="text-red-500 hover:text-red-400" />
             ) : (
               <ItemBtn icon={ListMusic} label={t('common.add_to_playlist')} onClick={onShowPlaylists} />
             ))}
@@ -727,7 +826,7 @@ export default function ContextMenu() {
                 />
                 <ItemBtn 
                   icon={Ban} 
-                  label={isExcluded ? t('common.unignore', 'Убрать из игнора') : t('common.ignore', 'В игнор')} 
+                  label={isExcluded ? t('common.unignore') : t('common.ignore')} 
                   onClick={() => handleAction(onExclude)} 
                   color={isExcluded ? "text-red-500" : "text-foreground"} 
                 />
@@ -784,29 +883,10 @@ export default function ContextMenu() {
 
       {type === 'playlist' && (
         <div className="py-1">
-          <ItemBtn icon={Play} label={t('common.open', 'Открыть')} onClick={() => handleAction(() => { navigate(`/Holad/playlist/${item.id}`); })} />
-          <ItemBtn icon={Share2} label={isCopied ? t('common.copied') : t('common.share')} onClick={() => handleAction(() => {
-            const shareUrl = `${getShareUrl()}/jam/?playlist=${item.id}`;
-            navigator.clipboard.writeText(shareUrl);
-            setIsCopied(true);
-            setTimeout(() => setIsCopied(false), 2000);
-          }, false)} color={isCopied ? "text-primary font-bold" : "text-foreground"} />
+          <ItemBtn icon={Play} label={t('common.open')} onClick={() => handleAction(() => { navigate(`/Holad/playlist/${item.id}`); })} />
+          <ItemBtn icon={Share2} label={isCopied ? t('common.copied') : t('common.share')} onClick={() => handleAction(() => handleSharePlaylist(item), false)} color={isCopied ? "text-primary font-bold" : "text-foreground"} />
           <div className="py-1 border-t border-border">
-            <ItemBtn icon={Trash2} label={t('common.delete', 'Удалить')} onClick={async () => {
-              if (window.confirm(t('common.delete_playlist_confirm', 'Вы уверены, что хотите удалить плейлист?'))) {
-                try {
-                  if (item.isCustom) {
-                    usePlaylistStore.getState().deletePlaylist(item.id);
-                  } else {
-                    const { deletePlaylist } = await import('../../api/subsonic/playlists');
-                    await deletePlaylist(item.id);
-                  }
-                  window.dispatchEvent(new CustomEvent('playlists-updated'));
-                  setTimeout(() => window.location.reload(), 300);
-                } catch(e) { console.error(e); }
-                closeMenu();
-              }
-            }} color="text-red-500 hover:text-red-400" />
+            <ItemBtn icon={Trash2} label={t('common.delete')} onClick={() => handleDeletePlaylist(item)} color="text-red-500 hover:text-red-400" />
           </div>
         </div>
       )}

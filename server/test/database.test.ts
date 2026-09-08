@@ -210,3 +210,68 @@ describe('Database Navidrome Accounts Storage & Migration', () => {
     }
   });
 });
+
+describe('Custom Playlists Functions', () => {
+  const playlistId = 'custom_pl_' + Date.now();
+  const userId = 'pl_user_' + Date.now();
+
+  it('saveCustomPlaylist and getCustomPlaylist without userId', () => {
+    database.saveCustomPlaylist(playlistId, 'My Test Playlist', 'A description', ['track1', 'track2', 'track3']);
+    const pl = database.getCustomPlaylist(playlistId);
+    expect(pl).toEqual({
+      id: playlistId,
+      name: 'My Test Playlist',
+      description: 'A description',
+      trackIds: ['track1', 'track2', 'track3'],
+      tracks: [{ id: 'track1' }, { id: 'track2' }, { id: 'track3' }]
+    });
+  });
+
+  it('saveCustomPlaylist updates existing playlist and replaces trackIds', () => {
+    database.saveCustomPlaylist(playlistId, 'Updated Playlist', 'New description', ['trackA', 'trackB'], userId);
+    const pl = database.getCustomPlaylist(playlistId);
+    expect(pl).toEqual({
+      id: playlistId,
+      name: 'Updated Playlist',
+      description: 'New description',
+      trackIds: ['trackA', 'trackB'],
+      tracks: [{ id: 'trackA' }, { id: 'trackB' }]
+    });
+  });
+
+  it('saveCustomPlaylist preserves full track metadata in songs JSON and getCustomPlaylist returns it', () => {
+    const metaPlaylistId = 'custom_meta_pl_' + Date.now();
+    const trackMetadata = [
+      { id: 'track1', title: 'Song 1', artist: 'Artist 1' },
+      { id: 'track2', title: 'Song 2', artist: 'Artist 2' }
+    ];
+    database.saveCustomPlaylist(metaPlaylistId, 'Meta Playlist', 'With metadata', ['track1', 'track2'], undefined, trackMetadata);
+    const pl = database.getCustomPlaylist(metaPlaylistId);
+    expect(pl).toEqual({
+      id: metaPlaylistId,
+      name: 'Meta Playlist',
+      description: 'With metadata',
+      trackIds: ['track1', 'track2'],
+      tracks: trackMetadata
+    });
+  });
+
+  it('deleteCustomPlaylist removes playlist and tracks from database and returns true', () => {
+    const toDeleteId = 'del_pl_' + Date.now();
+    database.saveCustomPlaylist(toDeleteId, 'To Delete', '', ['track1', 'track2']);
+    expect(database.getCustomPlaylist(toDeleteId)).not.toBeNull();
+
+    const result = database.deleteCustomPlaylist(toDeleteId);
+    expect(result).toBe(true);
+    expect(database.getCustomPlaylist(toDeleteId)).toBeNull();
+
+    // Deleting again should return false
+    const deleteAgain = database.deleteCustomPlaylist(toDeleteId);
+    expect(deleteAgain).toBe(false);
+  });
+
+  it('getCustomPlaylist returns null for nonexistent playlist', () => {
+    const pl = database.getCustomPlaylist('nonexistent_pl_id_9999');
+    expect(pl).toBeNull();
+  });
+});

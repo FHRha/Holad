@@ -9,23 +9,36 @@ const AppIconPlugin = isCapacitor()
   ? registerPlugin<AppIconPluginType>('AppIcon')
   : null;
 
+export function getAssetUrl(path: string): string {
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${cleanPath}`;
+}
+
 export async function applyAppIcon(icon: string) {
   // 1. Browser favicon update
   try {
-    const faviconHref =
+    const rawPath =
       icon === 'cassette'
         ? '/icons/logo_cassette.png'
         : icon === 'wave_light'
         ? '/icons/favicon_light.png'
         : '/icons/favicon_dark.png';
 
-    let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
-    if (!link) {
-      link = document.createElement('link');
+    const faviconHref = getAssetUrl(rawPath);
+
+    const links = document.querySelectorAll<HTMLLinkElement>("link[rel*='icon']");
+    if (links.length > 0) {
+      links.forEach((l) => {
+        l.removeAttribute('media');
+        l.href = faviconHref;
+      });
+    } else {
+      const link = document.createElement('link');
       link.rel = 'icon';
+      link.href = faviconHref;
       document.head.appendChild(link);
     }
-    link.href = faviconHref;
   } catch (e) {
     console.error('Failed to update browser favicon:', e);
   }

@@ -216,7 +216,13 @@ function AppContent() {
   }, [accentColor]);
 
   const searchParams = new URLSearchParams(location.search);
-  const validStandalone = (searchParams.has('track') && !!searchParams.get('track')) || (searchParams.has('album') && !!searchParams.get('album'));
+  const isStandaloneQuery = (searchParams.has('track') && !!searchParams.get('track')) ||
+                            (searchParams.has('album') && !!searchParams.get('album')) ||
+                            (searchParams.has('playlist') && !!searchParams.get('playlist'));
+  const isStandalonePath = location.pathname.startsWith('/jam/track/') ||
+                           location.pathname.startsWith('/jam/album/') ||
+                           location.pathname.startsWith('/jam/playlist/');
+  const validStandalone = isStandaloneQuery || isStandalonePath;
 
   const showBottomPlayer = !isLoginRoute && (
     (!isJamRoute && isAuthenticated) ||

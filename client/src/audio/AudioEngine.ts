@@ -290,6 +290,9 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
     public async resume(): Promise<void> {
         this.isPlaying = true;
+        if (this.deckTrackIds[this.activeIndex] === null && this.currentTrack?.id) {
+            this.deckTrackIds[this.activeIndex] = this.currentTrack.id;
+        }
         if (this.pipeline) {
             await this.pipeline.unlockContext();
         }
@@ -398,6 +401,13 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         return this.deckTrackIds[this.activeIndex];
     }
 
+    public setDeckTrackId(deckIndex: 0 | 1, trackId: string | null): void {
+        this.deckTrackIds[deckIndex] = trackId;
+        if (trackId && (!this.currentTrack || this.currentTrack.id !== trackId)) {
+            this.currentTrack = { ...(this.currentTrack || {}), id: trackId };
+        }
+    }
+
     public getWebAudioPipeline(): IWebAudioPipeline | undefined {
         return this.pipeline || undefined;
     }
@@ -412,6 +422,10 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
     public getState(): AudioState {
         return this.getActiveDeck().getState();
+    }
+
+    public isTransitioning(): boolean {
+        return this.transitionManager.getIsTransitioning();
     }
 
     public on(event: string, listener: (...args: any[]) => void): void {

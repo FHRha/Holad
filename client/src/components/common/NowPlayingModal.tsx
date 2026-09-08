@@ -28,7 +28,13 @@ export default function NowPlayingModal() {
 
   const isJamRoute = window.location.pathname.startsWith('/jam');
   const searchParams = new URLSearchParams(window.location.search);
-  const validStandalone = (searchParams.has('track') && !!searchParams.get('track')) || (searchParams.has('album') && !!searchParams.get('album'));
+  const isStandaloneQuery = (searchParams.has('track') && !!searchParams.get('track')) ||
+                            (searchParams.has('album') && !!searchParams.get('album')) ||
+                            (searchParams.has('playlist') && !!searchParams.get('playlist'));
+  const isStandalonePath = window.location.pathname.startsWith('/jam/track/') ||
+                           window.location.pathname.startsWith('/jam/album/') ||
+                           window.location.pathname.startsWith('/jam/playlist/');
+  const validStandalone = isStandaloneQuery || isStandalonePath;
 
   const isControlledByMinimization = isJamRoute && role !== 'host' && (!!roomId || validStandalone);
   const showPlayer = isControlledByMinimization ? !isMinimized : isNowPlayingOpen;

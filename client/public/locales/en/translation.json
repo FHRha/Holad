@@ -176,7 +176,13 @@
     "theme_dark": "Dark",
     "theme_light": "Light",
     "theme_system": "System",
+    "audio_compressor_threshold": "Threshold",
+    "audio_compressor_ratio": "Ratio",
+    "audio_compressor_attack": "Attack",
     "audio_compressor_release": "Release",
+    "storage_error": "Storage error",
+    "mobile_dark_only": "Dark theme only",
+    "storage_unlimited": "Unlimited",
     "error_open": "Error opening",
     "lastfm_vpn_warning": "Note: Access to Last.fm is blocked in your region, a VPN is required."
   },
@@ -434,6 +440,10 @@
     "unknown_playlist": "Unknown Playlist",
     "playlist_empty": "Playlist is empty",
     "playlist": "Playlist",
+    "artist_radio": "Artist Radio",
+    "new_releases": "New Releases",
+    "manual_sync": "Sync manually",
+    "loading_playlists": "Loading playlists...",
     "hour_1": "hour",
     "hour_2": "hours",
     "hour_5": "hours",
@@ -517,7 +527,16 @@
     "unignore_and_queue": "This track is ignored. Do you want to unignore it and add to queue?",
     "unignore_track_title": "Track is ignored",
     "unignore_track_desc": "This track is in the ignored list. Do you want to unignore it and start playing?",
-    "unignore_and_play_btn": "Unignore and play"
+    "unignore_and_play_btn": "Unignore and play",
+    "open": "Open",
+    "delete_playlist_confirm": "Are you sure you want to delete this playlist?",
+    "playlist_deleted": "Playlist deleted",
+    "error_deleting_playlist": "Failed to delete playlist",
+    "share_album_track": "Share track's album",
+    "album_link_copied": "Album link copied!",
+    "remove_from_playlist": "Remove from playlist",
+    "close": "Close",
+    "cancel": "Cancel"
   },
   "jam": {
     "jam_error": "Session error",
@@ -640,7 +659,9 @@
     "cancel": "Cancel",
     "tab_jam": "Jam Session",
     "remove_friend": "Remove friend",
-    "remove_friend_confirm": "Are you sure you want to remove {{name}} from friends?"
+    "remove_friend_confirm": "Are you sure you want to remove {{name}} from friends?",
+    "mode_jam_playback": "Jam Playback Mode",
+    "friends_listen_together": "Listen to music together with friends in real time"
   },
   "deeplink": {
     "open_in_app": "Open in Holad App",
@@ -656,5 +677,16 @@
     "style_wave": "Smooth Waveform",
     "style_radial": "Radial Spectrum",
     "style_peaks": "Studio Peaks"
+  },
+  "empty_state": {
+    "title": "It's empty here",
+    "description": "Add music to the server or download for offline"
+  },
+  "update": {
+    "available": "Update Available",
+    "new_version_desc": "A new version of Holad is available.",
+    "auto_update": "Auto-Update",
+    "download_github": "Download from GitHub",
+    "skip": "Skip for now"
   }
 }

@@ -218,6 +218,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     if (prevTrackIdRef.current === currentTrack.id && !didDeviceBecomeActive && !hasPlayActionChanged) return;
 
     const isAutoSkip = crossfadeTriggeredRef.current === prevTrackIdRef.current;
+    crossfadeTriggeredRef.current = null;
     prevTrackIdRef.current = currentTrack.id;
 
     const isPlayingStore = usePlayerStore.getState().isPlaying;
@@ -227,10 +228,12 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     // Check if the engine was actually playing previously to avoid crossfading when resuming/unpausing
     // Use prevIsPlayingRef to avoid being tricked by queueSlice's triggerPlay() which calls .play() blindly
     const wasPlayingEngine = prevIsPlayingRef.current;
+    const isMidTransition = engineRef.current.isTransitioning();
 
     if (isPlayingStore && isActiveDevice && !isSpeakerDj) {
       const activeDeckIdx = engineRef.current.getActiveDeckIndex();
-      const nextDeckIdx = (isCrossfade ? (1 - activeDeckIdx) : activeDeckIdx) as 0 | 1;
+      const shouldCrossfade = isCrossfade && wasPlayingEngine && !didDeviceBecomeActive && !isMidTransition;
+      const nextDeckIdx = (shouldCrossfade ? (1 - activeDeckIdx) : activeDeckIdx) as 0 | 1;
       setActiveIndex(nextDeckIdx);
       const targetEl = audioRefs[nextDeckIdx]?.current;
       if (targetEl) setAudioElement(targetEl);
@@ -239,7 +242,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         { ...currentTrack, streamUrl: audioSrc },
         {
           startTime: initialPosition > 0 ? initialPosition / 1000 : 0,
-          immediate: !isCrossfade || !wasPlayingEngine || didDeviceBecomeActive,
+          immediate: !shouldCrossfade,
           transitionDuration: durationSec,
         }
       ).then(() => {
@@ -259,6 +262,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       setActiveIndex(activeDeckIdx as 0 | 1);
       const activeEl = audioRefs[activeDeckIdx]?.current;
       if (activeEl) setAudioElement(activeEl);
+
+      engineRef.current.setDeckTrackId(activeDeckIdx as 0 | 1, currentTrack.id);
 
       const deck = engineRef.current.getActiveDeck();
       deck.load(audioSrc, initialPosition > 0 ? initialPosition / 1000 : 0).catch(() => {});
@@ -337,7 +342,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       engineRef.current.getWebAudioPipeline()?.unlockContext();
       // Force unlock HTML Audio elements on mobile by playing and immediately pausing them
       // BUT only if they are not actively playing a track, otherwise we break the user's first play action.
-      // oxlint-disable-next-line
+      const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+      if (audioRefs[1].current && !audioRefs[1].current.src) {
+        audioRefs[1].current.src = silentWav;
+      }
       audioRefs[0].current?.play().then(() => {
          if (!usePlayerStore.getState().isPlaying) audioRefs[0].current?.pause();
       }).catch(() => {});
@@ -438,7 +446,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
           isEngineOnCurrentTrack &&
           effectiveSettings.isCrossfadeEnabled &&
           actualDur > 0 &&
-          currentTrack.id !== crossfadeTriggeredRef.current
+          currentTrack.id !== crossfadeTriggeredRef.current &&
+          !engine.isTransitioning()
         ) {
           const remaining = actualDur - currentTime;
           if (remaining > 0 && remaining <= effectiveSettings.crossfadeDuration && currentTime > 0) {
@@ -455,7 +464,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
     const handleEnded = (emittedTrackId?: string) => {
       flushPositionToLocalStorage();
-      if (emittedTrackId && currentTrack && emittedTrackId !== currentTrack.id) return;
+      if (!currentTrack) return;
+      if (emittedTrackId && emittedTrackId !== currentTrack.id) return;
       const pStore = usePlayerStore.getState();
       const isJamSession = Boolean(pStore.roomId);
       if (isJamSession && pStore.role !== 'host' && pStore.role !== 'cohost') return;
@@ -466,10 +476,11 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         return;
       }
 
-      if (crossfadeTriggeredRef.current === currentTrack?.id) return;
+      if (engine.isTransitioning()) return;
+      if (crossfadeTriggeredRef.current === currentTrack.id) return;
       
       if (isJamSession) {
-        jamSocket.trackEnded(currentTrack?.id, pStore.currentIndex, pStore.repeatMode);
+        jamSocket.trackEnded(currentTrack.id, pStore.currentIndex, pStore.repeatMode);
       } else {
         nextTrack();
       }

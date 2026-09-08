@@ -125,7 +125,7 @@ export default function AddToPlaylistModal({ isOpen, onClose, trackIds }: Props)
               placeholder={t('common.search_playlists')} 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-background/40 border border-border rounded-xl py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors"
+              className="w-full bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors"
             />
           </div>
         </div>
@@ -174,7 +174,7 @@ export default function AddToPlaylistModal({ isOpen, onClose, trackIds }: Props)
               placeholder={t('common.new_playlist')} 
               value={newPlaylistName}
               onChange={(e) => setNewPlaylistName(e.target.value)}
-              className="flex-1 bg-background/40 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors"
+              className="flex-1 bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-secondary focus:outline-none focus:border-primary/50 transition-colors"
             />
             <button 
               type="submit"

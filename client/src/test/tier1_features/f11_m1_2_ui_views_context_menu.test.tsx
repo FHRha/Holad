@@ -510,4 +510,37 @@ describe('Milestone 1 UI Adversarial Suite: Context Menu & Downloads Integration
     });
   });
 
+  // ==========================================
+  // VIEW 10: Playlist Context Menu Deletion
+  // ==========================================
+  describe('10. Playlist Context Menu Deletion', () => {
+    it('deleting a custom playlist removes it from playlistStore without throwing', async () => {
+      const { usePlaylistStore } = await import('../../store/playlistStore');
+      usePlaylistStore.setState({
+        playlists: [
+          { id: 'custom-pl-1', name: 'My Custom Playlist', description: 'Test', trackIds: ['track-1'] }
+        ]
+      });
+
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      render(
+        <MemoryRouter>
+          <ContextMenu />
+        </MemoryRouter>
+      );
+
+      useContextMenuStore.getState().openMenu(200, 200, { id: 'custom-pl-1', name: 'My Custom Playlist', isCustom: true }, 'playlist');
+
+      const deleteBtn = await screen.findByRole('button', { name: /delete|удалить/i });
+      expect(deleteBtn).toBeTruthy();
+
+      fireEvent.click(deleteBtn);
+
+      expect(confirmSpy).toHaveBeenCalled();
+      expect(usePlaylistStore.getState().playlists.find(p => p.id === 'custom-pl-1')).toBeUndefined();
+      expect(useContextMenuStore.getState().isOpen).toBe(false);
+    });
+  });
+
 });

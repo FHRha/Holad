@@ -18,6 +18,7 @@ export default function PlaylistsView() {
   const { isOffline } = useNetworkStatus();
 
   useEffect(() => {
+    let isMounted = true;
     const fetchAllPlaylists = async () => {
       try {
         let serverPlaylists: any[] = [];
@@ -28,27 +29,41 @@ export default function PlaylistsView() {
             console.error('Failed to fetch server playlists:', e);
           }
         }
+        if (!isMounted) return;
         
         // Map custom playlists to match subsonic playlist structure
-        const mappedCustomPlaylists = customPlaylists.map(cp => ({
-          id: cp.id,
-          name: cp.name,
-          comment: cp.description,
-          songCount: cp.trackIds.length,
-          duration: 0,
-          coverArt: cp.trackIds.length > 0 ? cp.trackIds[0] : null, 
-          trackIds: cp.trackIds,
-          isCustom: true
-        }));
+        const curCustomPlaylists = usePlaylistStore.getState().playlists;
+        const mappedCustomPlaylists = curCustomPlaylists.map(cp => {
+          const trackIds = Array.isArray(cp.trackIds) ? cp.trackIds : [];
+          return {
+            id: cp.id,
+            name: cp.name,
+            comment: cp.description,
+            songCount: trackIds.length,
+            duration: 0,
+            coverArt: trackIds.length > 0 ? trackIds[0] : null, 
+            trackIds: trackIds,
+            isCustom: true
+          };
+        });
 
-        setPlaylists([...mappedCustomPlaylists, ...(serverPlaylists || [])]);
+        if (isMounted) {
+          setPlaylists([...mappedCustomPlaylists, ...(serverPlaylists || [])]);
+        }
       } catch (err) {
         console.error('Failed to process playlists:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     fetchAllPlaylists();
+    window.addEventListener('playlists-updated', fetchAllPlaylists);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('playlists-updated', fetchAllPlaylists);
+    };
   }, [isOffline, customPlaylists]);
 
   const handlePlaylistClick = (id: string) => {

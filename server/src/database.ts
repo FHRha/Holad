@@ -100,6 +100,7 @@ db.exec(`
     user_id TEXT,
     name TEXT,
     description TEXT,
+    songs TEXT,
     FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
   );
 
@@ -151,6 +152,20 @@ try {
   db.exec('CREATE INDEX IF NOT EXISTS idx_users_username_tag ON users(username, tag)');
 } catch (err) {
   console.error('Failed to migrate users table columns:', err);
+}
+
+// Safely migrate existing playlists table if description or songs column is missing
+try {
+  const playlistColumns = db.prepare("PRAGMA table_info(playlists)").all() as { name: string }[];
+  const playlistColNames = new Set(playlistColumns.map(c => c.name));
+  if (!playlistColNames.has('description')) {
+    db.exec('ALTER TABLE playlists ADD COLUMN description TEXT');
+  }
+  if (!playlistColNames.has('songs')) {
+    db.exec('ALTER TABLE playlists ADD COLUMN songs TEXT');
+  }
+} catch (err) {
+  console.error('Failed to migrate playlists table columns:', err);
 }
 
 // Helper to generate user_id
@@ -347,6 +362,86 @@ export function removeTrackFromPlaylist(userId: string, playlistId: string, trac
   if (pl) {
     db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?').run(playlistId, trackId);
   }
+}
+
+export function deleteCustomPlaylist(id: string): boolean {
+  const transaction = db.transaction(() => {
+    db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(id);
+    const res = db.prepare('DELETE FROM playlists WHERE id = ?').run(id);
+    return res.changes > 0;
+  });
+  return transaction();
+}
+
+export function saveCustomPlaylist(
+  id: string,
+  name: string,
+  description: string,
+  trackIds: string[],
+  userId?: string,
+  tracks?: any[]
+): void {
+  if (userId) {
+    ensureUserExists(userId);
+  }
+  const songsJson = tracks !== undefined && tracks !== null
+    ? JSON.stringify(tracks)
+    : (Array.isArray(trackIds) ? JSON.stringify(trackIds.map(tid => ({ id: tid }))) : null);
+
+  const transaction = db.transaction(() => {
+    const upsertStmt = db.prepare(`
+      INSERT INTO playlists (id, user_id, name, description, songs) 
+      VALUES (?, ?, ?, ?, ?) 
+      ON CONFLICT(id) DO UPDATE SET 
+        name = excluded.name, 
+        description = excluded.description, 
+        songs = excluded.songs,
+        user_id = COALESCE(excluded.user_id, playlists.user_id)
+    `);
+    upsertStmt.run(id, userId || null, name, description, songsJson);
+
+    db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(id);
+
+    const trackStmt = db.prepare('INSERT OR IGNORE INTO playlist_tracks (playlist_id, track_id) VALUES (?, ?)');
+    for (const trackId of trackIds) {
+      trackStmt.run(id, trackId);
+    }
+  });
+
+  transaction();
+}
+
+export function getCustomPlaylist(id: string): { id: string; name: string; description: string; trackIds: string[]; tracks: any[] } | null {
+  const pl = db.prepare('SELECT id, user_id, name, description, songs FROM playlists WHERE id = ?').get(id) as { id: string; user_id?: string; name: string; description?: string; songs?: string } | undefined;
+  if (!pl) {
+    return null;
+  }
+  const trackRows = db.prepare('SELECT track_id FROM playlist_tracks WHERE playlist_id = ? ORDER BY added_at ASC').all(id) as { track_id: string }[];
+  const trackIds = trackRows.map(t => t.track_id);
+
+  let tracks: any[] | null = null;
+  if (pl.songs) {
+    try {
+      const parsed = JSON.parse(pl.songs);
+      if (Array.isArray(parsed)) {
+        tracks = parsed;
+      }
+    } catch (e) {
+      tracks = null;
+    }
+  }
+
+  if (!tracks) {
+    tracks = trackIds.map(tId => ({ id: tId }));
+  }
+
+  return {
+    id: pl.id,
+    name: pl.name,
+    description: pl.description || '',
+    trackIds,
+    tracks
+  };
 }
 
 export function getExclusions(userId: string): { excludedTrackIds: string[], excludedAlbumIds: string[] } {

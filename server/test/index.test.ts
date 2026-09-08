@@ -42,6 +42,114 @@ describe('API Endpoints', () => {
     expect(res.body).toEqual({ ok: true, server: 'holad' });
   });
 
+  it('should save, validate, retrieve, and delete custom playlists via /api/custom-playlists and /Holad/api/custom-playlists', async () => {
+    const customId = 'test_api_pl_' + Date.now();
+
+    // 1. Validation error on missing id or name
+    const failRes = await request(app)
+      .post('/api/custom-playlists')
+      .send({ name: 'No ID', trackIds: [] });
+    expect(failRes.status).toBe(400);
+
+    // 2. Validation: invalid ID regex
+    const badIdRes = await request(app)
+      .post('/api/custom-playlists')
+      .send({ id: 'invalid id with spaces!', name: 'Valid Name', trackIds: [] });
+    expect(badIdRes.status).toBe(400);
+
+    // 3. Validation: name empty or > 256
+    const emptyNameRes = await request(app)
+      .post('/api/custom-playlists')
+      .send({ id: customId, name: '   ', trackIds: [] });
+    expect(emptyNameRes.status).toBe(400);
+
+    const longNameRes = await request(app)
+      .post('/api/custom-playlists')
+      .send({ id: customId, name: 'a'.repeat(257), trackIds: [] });
+    expect(longNameRes.status).toBe(400);
+
+    // 4. Validation: description > 2000
+    const longDescRes = await request(app)
+      .post('/api/custom-playlists')
+      .send({ id: customId, name: 'Valid Name', description: 'a'.repeat(2001), trackIds: [] });
+    expect(longDescRes.status).toBe(400);
+
+    // 5. Validation: trackIds must be an array
+    const notArrayRes = await request(app)
+      .post('/api/custom-playlists')
+      .send({ id: customId, name: 'Valid Name', trackIds: 'not-an-array' });
+    expect(notArrayRes.status).toBe(400);
+
+    // 6. Validation: trackIds exceeds 200 limit
+    const tooManyTracks = Array.from({ length: 201 }, (_, i) => `track_${i}`);
+    const limitRes = await request(app)
+      .post('/api/custom-playlists')
+      .send({ id: customId, name: 'Valid Name', trackIds: tooManyTracks });
+    expect(limitRes.status).toBe(400);
+
+    // 7. Validation: invalid track ID regex in trackIds
+    const badTrackIdRes = await request(app)
+      .post('/api/custom-playlists')
+      .send({ id: customId, name: 'Valid Name', trackIds: ['valid_1', 'bad id with spaces!'] });
+    expect(badTrackIdRes.status).toBe(400);
+
+    // 8. Successful creation via /api/custom-playlists
+    const postRes = await request(app)
+      .post('/api/custom-playlists')
+      .send({
+        id: customId,
+        name: 'Shared Vibes',
+        description: 'Testing shared playlist',
+        trackIds: ['tr-10', 'tr-20']
+      });
+    expect(postRes.status).toBe(200);
+    expect(postRes.body).toEqual({ success: true, id: customId });
+
+    // 9. Retrieval via /api/custom-playlists/:id
+    const getRes = await request(app).get(`/api/custom-playlists/${customId}`);
+    expect(getRes.status).toBe(200);
+    expect(getRes.body).toEqual({
+      playlist: {
+        id: customId,
+        name: 'Shared Vibes',
+        description: 'Testing shared playlist',
+        trackIds: ['tr-10', 'tr-20'],
+        tracks: [{ id: 'tr-10' }, { id: 'tr-20' }]
+      }
+    });
+
+    // 10. Retrieval via /Holad/api/custom-playlists/:id
+    const getHoladRes = await request(app).get(`/Holad/api/custom-playlists/${customId}`);
+    expect(getHoladRes.status).toBe(200);
+    expect(getHoladRes.body.playlist.id).toBe(customId);
+
+    // 11. Invalid ID in GET request
+    const badGetIdRes = await request(app).get('/api/custom-playlists/invalid%20id!');
+    expect(badGetIdRes.status).toBe(400);
+
+    // 12. Non-existent playlist in GET
+    const notFoundRes = await request(app).get('/api/custom-playlists/nonexistent_id_123');
+    expect(notFoundRes.status).toBe(404);
+    expect(notFoundRes.body).toEqual({ error: 'Playlist not found' });
+
+    // 13. Invalid ID in DELETE request
+    const badDeleteIdRes = await request(app).delete('/api/custom-playlists/invalid%20id!');
+    expect(badDeleteIdRes.status).toBe(400);
+
+    // 14. Delete via /Holad/api/custom-playlists/:id
+    const deleteRes = await request(app).delete(`/Holad/api/custom-playlists/${customId}`);
+    expect(deleteRes.status).toBe(200);
+    expect(deleteRes.body).toEqual({ success: true, id: customId });
+
+    // 15. Verify deleted from DB
+    const afterDeleteGet = await request(app).get(`/api/custom-playlists/${customId}`);
+    expect(afterDeleteGet.status).toBe(404);
+
+    // 16. Deleting already deleted returns 404
+    const deleteAgain = await request(app).delete(`/api/custom-playlists/${customId}`);
+    expect(deleteAgain.status).toBe(404);
+  });
+
   it('should reject guest access to unauthorized subsonic endpoints', async () => {
     const res = await request(app).get('/api/subsonic/getUsers');
     expect(res.status).toBe(403);

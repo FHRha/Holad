@@ -49,7 +49,6 @@ export class TransitionManager {
 
         // Reset and pause outgoing deck
         outgoingDeck.pause();
-        outgoingDeck.seek(0);
         this.isTransitioning = false;
         this.abortController = null;
     }
@@ -78,10 +77,16 @@ export class TransitionManager {
         this.abortController = new AbortController();
         const signal = this.abortController.signal;
 
-        // Start incoming deck silent
+        // Ensure outgoingDeck is audible (not reset to 0) and incoming deck starts silent
         if (usePipeline) {
+            if (pipeline.getDeckGain(outgoingIndex) === 0) {
+                pipeline.setDeckGain(outgoingIndex, 1.0, 0);
+            }
             pipeline.setDeckGain(incomingIndex, 0.0, 0);
         } else {
+            if (outgoingDeck.element && outgoingDeck.element.volume === 0) {
+                outgoingDeck.setVolume(1.0 * masterVolume);
+            }
             // oxlint-disable-next-line
             incomingDeck.setVolume(0.0 * masterVolume);
         }
@@ -92,16 +97,13 @@ export class TransitionManager {
             console.warn('Crossfade incoming deck play error:', e);
             
             if (usePipeline) {
-                pipeline.setDeckGain(outgoingIndex, 0.0, 0);
-                pipeline.setDeckGain(incomingIndex, 1.0, 0);
+                pipeline.setDeckGain(outgoingIndex, 1.0, 0);
+                pipeline.setDeckGain(incomingIndex, 0.0, 0);
             } else {
+                outgoingDeck.setVolume(1.0 * masterVolume);
                 // oxlint-disable-next-line
-                outgoingDeck.setVolume(0.0 * masterVolume);
+                incomingDeck.setVolume(0.0 * masterVolume);
             }
-            incomingDeck.setVolume(1.0 * masterVolume);
-            
-            outgoingDeck.pause();
-            outgoingDeck.seek(0);
             
             if (this.abortController) {
                 this.abortController.abort();
@@ -180,7 +182,6 @@ export class TransitionManager {
                 incomingDeck.setVolume(1.0 * masterVolume);
 
                 outgoingDeck.pause();
-                outgoingDeck.seek(0);
                 resolve();
             }, durationSeconds * 1000);
         });

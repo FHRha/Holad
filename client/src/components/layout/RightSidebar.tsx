@@ -26,7 +26,7 @@ export default function RightSidebar() {
   const { rightSidebarWidth, setRightSidebarWidth } = useUIStore();
   const [visibleCount, setVisibleCount] = useState(50);
   const [showShareMenu, setShowShareMenu] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const shareRef = useRef<HTMLDivElement>(null);
   const downloads = useDownloadStore(state => state.downloads);
 
@@ -142,7 +142,7 @@ export default function RightSidebar() {
     setShowShareMenu(false);
   };
 
-  const handleShareItem = () => {
+  const handleShareAlbum = async () => {
     if (queue.length === 0 || currentIndex === -1) return;
     const currentTrack = queue[currentIndex];
     if (!currentTrack) return;
@@ -150,10 +150,11 @@ export default function RightSidebar() {
     const origin = getShareUrl();
     const url = `${origin}/jam/?album=${currentTrack.albumId || currentTrack.album}`;
       
-    navigator.clipboard.writeText(url);
-    setIsCopied(true);
+    await navigator.clipboard.writeText(url);
+    setCopiedKey('album');
+    toast.success(t('common.album_link_copied', 'Ссылка на альбом скопирована!'));
     setTimeout(() => {
-      setIsCopied(false);
+      setCopiedKey(null);
       setShowShareMenu(false);
     }, 2000);
   };
@@ -259,8 +260,8 @@ export default function RightSidebar() {
                         <button onClick={handleDownloadAlbum} className="text-left px-4 py-2 hover:bg-foreground/10 text-sm text-foreground font-medium transition-colors flex items-center gap-3 whitespace-nowrap">
                           <Download size={18} className="shrink-0" /> {t('common.download_album')}
                         </button>
-                        <button onClick={handleShareItem} className={`text-left px-4 py-2 hover:bg-foreground/10 text-sm font-medium transition-colors border-t border-neutral-200 dark:border-white/10 flex items-center gap-3 whitespace-nowrap ${isCopied ? 'text-primary' : 'text-foreground'}`}>
-                          <Share size={18} className="shrink-0" /> {isCopied ? t('common.copied') : t('common.share_album')}
+                        <button onClick={handleShareAlbum} className={`text-left px-4 py-2 hover:bg-foreground/10 text-sm font-medium transition-colors border-t border-neutral-200 dark:border-white/10 flex items-center gap-3 whitespace-nowrap ${copiedKey === 'album' ? 'text-primary' : 'text-foreground'}`}>
+                          {copiedKey === 'album' ? <Check size={18} className="shrink-0 text-primary" /> : <Share size={18} className="shrink-0" />} {copiedKey === 'album' ? t('common.copied') : t('common.share_album_track', 'Поделиться альбомом трека')}
                         </button>
                       </div>
                     )}

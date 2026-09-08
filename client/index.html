@@ -2,8 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/Holad/icons/favicon_light.png" media="(prefers-color-scheme: light)" />
-    <link rel="icon" type="image/png" href="/Holad/icons/favicon_dark.png" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" href="/icons/favicon_light.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/png" href="/icons/favicon_dark.png" media="(prefers-color-scheme: dark)" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Holad</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,16 +12,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
   </head>
   <body style="background-color: transparent; color: #fff;">
-    <script>
-      window.addEventListener('error', (e) => {
-        const msg = (e.error && e.error.stack) ? e.error.stack : (e.error ? e.error.message : e.message);
-        document.body.insertAdjacentHTML('beforeend', '<div style="position:absolute;top:0;left:0;z-index:9999;background:red;color:white;font-size:24px;">' + msg + '</div>');
-      });
-      window.addEventListener('unhandledrejection', (e) => {
-        const msg = (e.reason && e.reason.stack) ? e.reason.stack : (e.reason ? e.reason.message : e.reason);
-        document.body.insertAdjacentHTML('beforeend', '<div style="position:absolute;top:0;left:0;z-index:9999;background:red;color:white;font-size:24px;">' + msg + '</div>');
-      });
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

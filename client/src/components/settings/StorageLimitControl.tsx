@@ -8,7 +8,7 @@ export const STORAGE_PRESETS = [
   { label: '5 GB', value: 5 },
   { label: '10 GB', value: 10 },
   { label: '50 GB', value: 50 },
-  { label: 'Безлимитно', value: 0 },
+  { label: 'Unlimited', value: 0 },
 ];
 
 export interface StorageLimitControlProps {

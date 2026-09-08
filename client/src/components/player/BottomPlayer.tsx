@@ -95,7 +95,13 @@ export default function BottomPlayer() {
 
   const searchParams = new URLSearchParams(window.location.search);
   const isJamRoute = window.location.pathname.startsWith('/jam');
-  const isStandalone = isJamRoute && (!!searchParams.get('track') || !!searchParams.get('album'));
+  const isStandaloneQuery = (searchParams.has('track') && !!searchParams.get('track')) ||
+                            (searchParams.has('album') && !!searchParams.get('album')) ||
+                            (searchParams.has('playlist') && !!searchParams.get('playlist'));
+  const isStandalonePath = window.location.pathname.startsWith('/jam/track/') ||
+                           window.location.pathname.startsWith('/jam/album/') ||
+                           window.location.pathname.startsWith('/jam/playlist/');
+  const isStandalone = isJamRoute && (isStandaloneQuery || isStandalonePath);
   const hideSocialActions = isJamRoute && role !== 'host';
   const hideAutoDJ = isJamRoute && isStandalone;
 
@@ -234,15 +240,7 @@ export default function BottomPlayer() {
           {/* Bottom row: Expand & Volume */}
           <div className="flex items-center gap-4 w-full justify-end">
             {/* Expand Now Playing View or Maximize Jam */}
-            {(isJamRoute && role !== 'host') ? (
-              <button 
-                onClick={() => setIsMinimized(!isMinimized)}
-                className={`transition-colors flex items-center justify-center w-5 mr-auto ${!isMinimized ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
-                title={isMinimized ? t('player.expand') : t('player.minimize_session')}
-              >
-                <Maximize2 size={16} />
-              </button>
-            ) : (
+            {!(isJamRoute && role !== 'host') && (
               <div className="flex items-center gap-4 mr-auto">
                 <HoladConnectMenu />
                 <button 

@@ -268,9 +268,48 @@ class JamSocketService {
     });
   }
 
-  createRoom(name?: string) {
-    const userName = name || useAuthStore.getState().user || usePlayerStore.getState().userName || 'Host';
-    this.socket?.emit('createRoom', { name: userName, sessionId: this.getSessionId() });
+  createRoom(name?: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      this.connect();
+      if (!this.socket) {
+        return reject(new Error('Failed to initialize socket'));
+      }
+
+      const onCreated = ({ roomId }: { roomId: string }) => {
+        cleanup();
+        resolve(roomId);
+      };
+
+      const onError = (err: any) => {
+        cleanup();
+        reject(err instanceof Error ? err : new Error(String(err)));
+      };
+
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error('Timeout creating room'));
+      }, 10000);
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.socket?.off('roomCreated', onCreated);
+        this.socket?.off('error', onError);
+      };
+
+      this.socket.once('roomCreated', onCreated);
+      this.socket.once('error', onError);
+
+      const emitCreate = () => {
+        const userName = name || useAuthStore.getState().user || usePlayerStore.getState().userName || 'Host';
+        this.socket?.emit('createRoom', { name: userName, sessionId: this.getSessionId() });
+      };
+
+      if (this.socket.connected) {
+        emitCreate();
+      } else {
+        this.socket.once('connect', emitCreate);
+      }
+    });
   }
 
   private getSessionId() {

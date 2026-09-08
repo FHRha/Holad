@@ -37,6 +37,17 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const activeDeviceId = useHoladStore(s => s.activeDeviceId);
   const localDeviceId = useHoladStore(s => s.deviceId);
   
+  const isJamRoute = window.location.pathname.startsWith('/jam');
+  const searchParams = new URLSearchParams(window.location.search);
+  const isStandaloneQuery = (searchParams.has('track') && !!searchParams.get('track')) ||
+                            (searchParams.has('album') && !!searchParams.get('album')) ||
+                            (searchParams.has('playlist') && !!searchParams.get('playlist'));
+  const isStandalonePath = window.location.pathname.startsWith('/jam/track/') ||
+                           window.location.pathname.startsWith('/jam/album/') ||
+                           window.location.pathname.startsWith('/jam/playlist/');
+  const isStandalone = isJamRoute && (isStandaloneQuery || isStandalonePath);
+  const isListenerPage = isStandalone || (isJamRoute && role !== 'host');
+  
   const currentTrack = queue[currentIndex];
   
   const [activeTab, setActiveTab] = useState<'player' | 'queue' | 'info' | 'lyrics'>('player');
@@ -165,7 +176,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
       {/* Top Bar */}
       <div className="relative z-10 flex items-center justify-between px-4 py-4 w-full">
-        {role !== 'listener' ? (
+        {!isListenerPage ? (
           <button 
             onClick={onClose}
             className="p-2 text-secondary hover:bg-foreground/10 rounded-full transition-colors active:scale-95"

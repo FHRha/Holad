@@ -94,6 +94,8 @@ export interface IAudioEngine {
     preloadNextTrack(track: any): Promise<void>;
     getDeck(index: number): IAudioDeck | undefined;
     getActiveDeckIndex(): number;
+    getActiveTrackId?(): string | null;
+    setDeckTrackId?(deckIndex: 0 | 1, trackId: string | null): void;
     getWebAudioPipeline(): IWebAudioPipeline | undefined;
     destroy(): void;
 }

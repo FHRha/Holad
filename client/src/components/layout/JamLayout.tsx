@@ -1,10 +1,12 @@
-import { useSearchParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { jamSocket } from '../../api/socket';
 import { usePlayerStore } from '../../store/playerStore';
-import { getAudioEngine } from '../../audio/AudioEngine';
 import { getSong, getCoverArtUrl, getAlbumFull } from '../../api/subsonic';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { getPlaylist } from '../../api/subsonic/playlists';
+import { usePlaylistStore } from '../../store/playlistStore';
+import { getOfflineTracks } from '../../store/downloadStore';
+import { getHoladServerUrl } from '../../utils/serverConfig';
 import TopBar from './TopBar';
 import AlbumsView from '../views/AlbumsView';
 import ArtistsView from '../views/ArtistsView';
@@ -19,19 +21,77 @@ import { useTranslation } from 'react-i18next';
 import ThemeSelector from '../common/ThemeSelector';
 import LanguageSelector from '../common/LanguageSelector';
 
+async function resolveTracksFromIds(trackIds: string[]) {
+  const offlineTracks = getOfflineTracks();
+  const resolvedEntries = [];
+  for (const tid of trackIds) {
+    let track = offlineTracks.find(t => t.id === tid);
+    if (!track) {
+      try {
+        track = await getSong(tid);
+      } catch (e) {
+        console.error('Failed to fetch song for custom playlist', e);
+      }
+    }
+    if (track) {
+      resolvedEntries.push(track);
+    }
+  }
+  return resolvedEntries.map((t: any) => ({
+    id: t.id,
+    title: t.title || t.name,
+    artist: t.artist,
+    album: t.album,
+    albumId: t.albumId,
+    artistId: t.artistId,
+    coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
+    duration: t.duration,
+    bitRate: t.bitRate,
+    suffix: t.suffix
+  }));
+}
+
 export default function JamLayout() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
-  const roomToJoin = searchParams.get('room');
-  const trackId = searchParams.get('track');
-  const albumId = searchParams.get('album');
-  const playlistId = searchParams.get('playlist');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const searchRoom = searchParams.get('room');
+  const searchTrack = searchParams.get('track');
+  const searchAlbum = searchParams.get('album');
+  const searchPlaylist = searchParams.get('playlist');
+  const searchQueue = searchParams.get('queue');
+
+  const matchTrack = location.pathname.match(/\/jam\/track\/([^/?#]+)/i);
+  const matchAlbum = location.pathname.match(/\/jam\/(?:library\/)?album\/([^/?#]+)/i);
+  const matchPlaylist = location.pathname.match(/\/jam\/(?:library\/)?playlist\/([^/?#]+)/i);
+
+  const roomToJoin = searchRoom;
+  const trackId = searchTrack || (matchTrack ? matchTrack[1] : null);
+  const albumId = searchAlbum || (matchAlbum ? matchAlbum[1] : null);
+  const playlistId = searchPlaylist || (matchPlaylist ? matchPlaylist[1] : null);
+
+  const queueIds = searchQueue
+    ? searchQueue
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean)
+        .slice(0, 200)
+    : [];
+
+  const isValidStandaloneTrack = Boolean(trackId && trackId.trim() !== '');
+  const isValidStandaloneAlbum = Boolean(albumId && albumId.trim() !== '');
+  const isValidStandalonePlaylist = Boolean(playlistId && playlistId.trim() !== '');
+  const isValidStandaloneQueue = Boolean(searchQueue && searchQueue.trim() !== '');
+  const isStandalone = !roomToJoin && (isValidStandaloneTrack || isValidStandaloneAlbum || isValidStandalonePlaylist || isValidStandaloneQueue);
+
   const { setQueueAndPlay, jamError, userName, setUserName } = usePlayerStore();
   const role = usePlayerStore(state => state.role);
-  const navigate = useNavigate();
   
   const [localName, setLocalName] = useState('');
   const hasJoined = useRef(false);
+  const loadedTargetRef = useRef<string | null>(null);
 
   useEffect(() => {
     // If it's a room and we have a username or we are the host, connect
@@ -43,77 +103,220 @@ export default function JamLayout() {
     }
   }, [roomToJoin, userName]);
 
-  // Force fullscreen player open for listeners
+  // Force fullscreen player open for listeners and standalone users
   useEffect(() => {
-      if (role === 'listener') {
-          usePlayerStore.getState().setIsMinimized(false);
-      }
-  }, [role]);
+    if (role === 'listener' || isStandalone) {
+      usePlayerStore.getState().setIsMinimized(false);
+    }
+  }, [role, isStandalone]);
 
-  // Standalone Track/Album initialization
+  // Standalone Track/Album/Playlist initialization
   useEffect(() => {
-    let ignore = false;
-
     if (roomToJoin) {
-      if (albumId) {
-        navigate(`/jam/library/album/${albumId}?room=${roomToJoin}`, { replace: true });
-      } else if (playlistId) {
-        navigate(`/jam/library/playlist/${playlistId}?room=${roomToJoin}`, { replace: true });
+      if (albumId && !location.pathname.includes(`/album/${albumId}`)) {
+        navigate(`/jam/album/${albumId}?room=${roomToJoin}`, { replace: true });
+      } else if (playlistId && !location.pathname.includes(`/playlist/${playlistId}`)) {
+        navigate(`/jam/playlist/${playlistId}?room=${roomToJoin}`, { replace: true });
       } else if (trackId && trackId.trim() !== '') {
-        getSong(trackId).then(t => {
-          if (ignore) return;
-          if (t && t.albumId) {
-            navigate(`/jam/library/album/${t.albumId}?room=${roomToJoin}`, { replace: true });
-          }
-        });
+        if (!location.pathname.includes(`/track/${trackId}`)) {
+          navigate(`/jam/track/${trackId}?room=${roomToJoin}`, { replace: true });
+        }
       }
-      return () => { ignore = true; };
+      return;
     }
 
     if (trackId && trackId.trim() !== '') {
-      usePlayerStore.setState({ queue: [], currentIndex: 0, isAutoDjEnabled: false });
-      getSong(trackId).then(t => {
-        if (ignore) return;
-        if (t) {
-          getAudioEngine().seek(0);
-          setQueueAndPlay([{
-            id: t.id,
-            title: t.title,
-            artist: t.artist,
-            album: t.album,
-            albumId: t.albumId,
-            artistId: t.artistId,
-            coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
-            duration: t.duration,
-            bitRate: t.bitRate,
-            suffix: t.suffix
-          }], 0);
+      const targetKey = `track:${trackId}`;
+      if (loadedTargetRef.current !== targetKey) {
+        loadedTargetRef.current = targetKey;
+        usePlayerStore.setState({ queue: [], currentIndex: 0, isAutoDjEnabled: false });
+        getSong(trackId).then((t) => {
+          if (loadedTargetRef.current !== targetKey) return;
+          if (t) {
+            const singleTrack = {
+              id: t.id,
+              title: t.title,
+              artist: t.artist,
+              album: t.album,
+              albumId: t.albumId,
+              artistId: t.artistId,
+              coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
+              duration: t.duration,
+              bitRate: t.bitRate,
+              suffix: t.suffix
+            };
+            setQueueAndPlay([singleTrack], 0);
+            if (!location.pathname.includes(`/track/${trackId}`)) {
+              navigate(`/jam/track/${trackId}`, { replace: true });
+            }
+          }
+        }).catch((err) => {
+          console.error('Failed to load standalone track:', err);
+        });
+      }
+    } else if (albumId && albumId.trim() !== '') {
+      const targetKey = `album:${albumId}`;
+      if (loadedTargetRef.current !== targetKey) {
+        loadedTargetRef.current = targetKey;
+        getAlbumFull(albumId).then(a => {
+          if (loadedTargetRef.current !== targetKey) return;
+          if (a && a.song) {
+            const songs = Array.isArray(a.song) ? a.song : [a.song];
+            const tracks = songs.map((t: any) => ({
+              id: t.id,
+              title: t.title,
+              artist: t.artist,
+              album: t.album,
+              albumId: t.albumId || a.id,
+              artistId: t.artistId || a.artistId,
+              coverArt: getCoverArtUrl(t.coverArt || a.coverArt || a.id, 300),
+              duration: t.duration,
+              bitRate: t.bitRate,
+              suffix: t.suffix
+            }));
+            setQueueAndPlay(tracks, 0);
+          }
+        }).catch((err) => {
+          console.error('Failed to load standalone album:', err);
+        });
+        if (!location.pathname.includes(`/album/${albumId}`)) {
+          navigate(`/jam/album/${albumId}`, { replace: true });
         }
-      });
-    } else if (albumId) {
-      getAlbumFull(albumId).then(a => {
-        if (ignore) return;
-        if (a && a.song) {
-          getAudioEngine().seek(0);
-          const songs = Array.isArray(a.song) ? a.song : [a.song];
-          const tracks = songs.map((t: any) => ({
-            id: t.id,
-            title: t.title,
-            artist: t.artist,
-            album: t.album,
-            albumId: t.albumId || a.id,
-            artistId: t.artistId || a.artistId,
-            coverArt: getCoverArtUrl(t.coverArt || a.coverArt || a.id, 300),
-            duration: t.duration,
-            bitRate: t.bitRate,
-            suffix: t.suffix
-          }));
-          setQueueAndPlay(tracks, 0);
-        }
-      }).catch(() => {});
+      }
+    } else if (playlistId && playlistId.trim() !== '') {
+      const targetKey = `playlist:${playlistId}`;
+      if (loadedTargetRef.current !== targetKey) {
+        loadedTargetRef.current = targetKey;
+        (async () => {
+          const customPlaylists = usePlaylistStore.getState().playlists;
+          const custom = customPlaylists.find(p => p.id === playlistId);
+          if (custom) {
+            const tracks = await resolveTracksFromIds(custom.trackIds);
+            if (loadedTargetRef.current !== targetKey) return;
+            if (tracks.length > 0) {
+              setQueueAndPlay(tracks, 0);
+            }
+            if (!location.pathname.includes(`/playlist/${playlistId}`)) {
+              navigate(`/jam/playlist/${playlistId}`, { replace: true });
+            }
+            return;
+          }
+
+          // If not found locally, try fetching from server
+          try {
+            const baseUrl = getHoladServerUrl();
+            const res = await fetch(`${baseUrl}/api/custom-playlists/${encodeURIComponent(playlistId)}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.playlist) {
+                let tracks: any[] = [];
+                if (Array.isArray(data.playlist.tracks) && data.playlist.tracks.length > 0) {
+                  tracks = data.playlist.tracks;
+                } else if (Array.isArray(data.playlist.trackIds)) {
+                  tracks = await resolveTracksFromIds(data.playlist.trackIds);
+                }
+                if (loadedTargetRef.current !== targetKey) return;
+                if (tracks.length > 0) {
+                  setQueueAndPlay(tracks, 0);
+                }
+                const curPlaylists = usePlaylistStore.getState().playlists;
+                if (!curPlaylists.some(p => p.id === data.playlist.id)) {
+                  usePlaylistStore.setState({
+                    playlists: [
+                      ...curPlaylists,
+                      {
+                        id: data.playlist.id,
+                        name: data.playlist.name,
+                        description: data.playlist.description || '',
+                        trackIds: data.playlist.trackIds || tracks.map(t => t.id),
+                        tracks: data.playlist.tracks
+                      }
+                    ]
+                  });
+                }
+                if (!location.pathname.includes(`/playlist/${playlistId}`)) {
+                  navigate(`/jam/playlist/${playlistId}`, { replace: true });
+                }
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn('Failed to fetch custom playlist from server, falling back to Subsonic:', e);
+          }
+
+          // Fall back to Subsonic getPlaylist
+          try {
+            const p = await getPlaylist(playlistId);
+            if (loadedTargetRef.current !== targetKey) return;
+            if (p && p.entry) {
+              const songs = Array.isArray(p.entry) ? p.entry : [p.entry];
+              const tracks = songs.map((t: any) => ({
+                id: t.id,
+                title: t.title || t.name,
+                artist: t.artist,
+                album: t.album,
+                albumId: t.albumId,
+                artistId: t.artistId,
+                coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
+                duration: t.duration,
+                bitRate: t.bitRate,
+                suffix: t.suffix
+              }));
+              setQueueAndPlay(tracks, 0);
+            }
+          } catch (err) {
+            console.error('Failed to load standalone playlist:', err);
+          }
+          if (!location.pathname.includes(`/playlist/${playlistId}`)) {
+            navigate(`/jam/playlist/${playlistId}`, { replace: true });
+          }
+        })();
+      }
+    } else if (isValidStandaloneQueue && searchQueue) {
+      const targetKey = `queue:${searchQueue}`;
+      if (loadedTargetRef.current !== targetKey) {
+        loadedTargetRef.current = targetKey;
+        (async () => {
+          try {
+            // 1. Check if it's a short ID saved on server
+            const baseUrl = getHoladServerUrl();
+            const res = await fetch(`${baseUrl}/api/custom-playlists/${encodeURIComponent(searchQueue)}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.playlist) {
+                let tracks: any[] = [];
+                if (Array.isArray(data.playlist.tracks) && data.playlist.tracks.length > 0) {
+                  tracks = data.playlist.tracks;
+                } else if (Array.isArray(data.playlist.trackIds)) {
+                  tracks = await resolveTracksFromIds(data.playlist.trackIds);
+                }
+                if (loadedTargetRef.current !== targetKey) return;
+                if (tracks.length > 0) {
+                  setQueueAndPlay(tracks, 0);
+                  return;
+                }
+              }
+            }
+          } catch (err) {
+            console.warn('Failed to fetch queue by short ID from server, trying comma-separated fallback:', err);
+          }
+
+          // 2. Fallback: comma-separated list of IDs
+          if (queueIds.length > 0) {
+            try {
+              const tracks = await resolveTracksFromIds(queueIds);
+              if (loadedTargetRef.current !== targetKey) return;
+              if (tracks.length > 0) {
+                setQueueAndPlay(tracks, 0);
+              }
+            } catch (err) {
+              console.error('Failed to load standalone queue from IDs:', err);
+            }
+          }
+        })();
+      }
     }
-    return () => { ignore = true; };
-  }, [trackId, albumId, playlistId, roomToJoin, setQueueAndPlay, navigate]);
+  }, [trackId, albumId, playlistId, searchQueue, roomToJoin, setQueueAndPlay, navigate, location.pathname]);
 
   // Handle unmounting of JamLayout (leaving /jam/ routes entirely)
   useEffect(() => {
@@ -151,10 +354,7 @@ export default function JamLayout() {
     );
   }
 
-  const isValidStandaloneTrack = trackId && trackId.trim() !== '';
-  const isValidStandaloneAlbum = albumId && albumId.trim() !== '';
-
-  if (!roomToJoin && !isValidStandaloneTrack && !isValidStandaloneAlbum) {
+  if (!roomToJoin && !isValidStandaloneTrack && !isValidStandaloneAlbum && !isValidStandalonePlaylist && !isValidStandaloneQueue) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background">
         <h2 className="text-2xl font-bold mb-4">{t('jam.invalid_link')}</h2>
@@ -163,7 +363,7 @@ export default function JamLayout() {
     );
   }
 
-  if (!hasJoined.current && !userName && !jamError && (usePlayerStore.getState().role !== 'host')) {
+  if (!isStandalone && !hasJoined.current && !userName && !jamError && (usePlayerStore.getState().role !== 'host')) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6 relative">
         <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
@@ -205,7 +405,7 @@ export default function JamLayout() {
     );
   }
 
-  if (hasJoined.current || usePlayerStore.getState().role === 'host') {
+  if (isStandalone || hasJoined.current || usePlayerStore.getState().role === 'host') {
     return (
       <>
         <Sidebar />
@@ -216,13 +416,18 @@ export default function JamLayout() {
             </div>
             <div className="flex-1 overflow-hidden flex flex-col relative hide-scrollbar">
               <Routes>
-                <Route path="/" element={<Navigate to={`/jam/albums?room=${roomToJoin}`} replace />} />
+                <Route path="/" element={<Navigate to={isStandalone ? (isValidStandaloneTrack ? `/jam/track/${trackId}` : isValidStandaloneAlbum ? `/jam/album/${albumId}` : isValidStandalonePlaylist ? `/jam/playlist/${playlistId}` : '/jam/albums') : `/jam/albums?room=${roomToJoin}`} replace />} />
                 <Route path="/albums" element={<AlbumsView />} />
                 <Route path="/artists" element={<ArtistsView />} />
                 <Route path="/artist/:id" element={<ArtistView />} />
+                <Route path="/library/artist/:id" element={<ArtistView />} />
                 <Route path="/tracks" element={<TracksView />} />
+                <Route path="/track/:id" element={<TracksView />} />
+                <Route path="/library/track/:id" element={<TracksView />} />
                 <Route path="/album/:id" element={<AlbumView />} />
+                <Route path="/library/album/:id" element={<AlbumView />} />
                 <Route path="/playlist/:id" element={<PlaylistDetailView />} />
+                <Route path="/library/playlist/:id" element={<PlaylistDetailView />} />
                 <Route path="*" element={<MainContent />} />
               </Routes>
             </div>
