@@ -4,14 +4,15 @@
 </div>
 
 <div align="center">
-  <img src="client/public/icons/logo_cassette.png" alt="Holad Classic Logo" width="150" height="150" style="border-radius: 30px; margin-right: 15px;">
-  <img src="client/public/icons/favicon_tab.png" alt="Holad Logo" width="150" height="150" style="border-radius: 30px;">
+  <img src="client/public/icons/favicon_dark.png" alt="Holad Dark Logo" width="150" height="150" style="border-radius: 30px; margin-right: 15px;">
+  <img src="client/public/icons/favicon_light.png" alt="Holad Light Logo" width="150" height="150" style="border-radius: 30px; margin-right: 15px;">
+  <img src="client/public/icons/logo_cassette.png" alt="Holad Classic Logo" width="150" height="150" style="border-radius: 30px;">
   
   # Holad
   
   **Your Next-Generation Audio Experience.** 
   A modern, highly customizable streaming platform and player. Holad acts as an elegant and lightning-fast client for your Subsonic/Navidrome servers.
-  While building this project, I was heavily inspired by **Spotify**, **Feishin**, and **Substream**. A massive thank you to their developers for their hard work and ideas!
+  While building this project, I was heavily inspired by **Spotify**, **Feishin**, and **Substreamer**. A massive thank you to their developers for their hard work and ideas!
 
   [![GitHub release (latest by date)](https://img.shields.io/github/v/release/FHRha/Holad)](https://github.com/FHRha/Holad/releases)
   [![License: Non-Commercial](https://img.shields.io/badge/License-Non_Commercial-red.svg)](LICENSE)
@@ -42,13 +43,16 @@
 
 ## Features
 
-- **Subsonic / Navidrome Integration**: Holad securely proxies requests to your server, hiding credentials while providing seamless playback.
-- **Modern UI/UX**: A visually stunning interface with smooth animations, light/dark themes, and customizable drag-and-drop elements.
-- **HoladConnect**: Instant synchronization of player state across all your devices. Start listening on your PC and continue seamlessly on your phone!
-- **Local SQLite Database**: Automatic synchronization of settings, listening history, playlists, and integration data between your devices, securely encrypted and stored locally on your server (in `holad.sqlite`).
-- **Jam Sessions**: Listen to music together with friends in real-time. Create rooms and manage the playback queue collaboratively.
+- **Subsonic / Navidrome Integration**: Holad securely proxies requests to your server, encrypts credentials with AES-256-GCM, and provides instant, seamless playback.
+- **Modern UI/UX & Customization**: A visually stunning interface with light/dark themes, intuitive gestures (Drag-and-Drop, Pull-to-Dismiss), and customizable app icons (Classic Cassette, Wave Dark, Wave Light).
+- **Custom Playlists & Offline Mode**: Create custom playlists with dynamic 2x2 mosaic covers. Native clients (Desktop & Android) support downloading tracks and albums for full offline playback.
+- **Advanced Audio Engine**: Smooth Crossfade track transitions, hardware-accelerated Audio Visualizer, backpressure buffering, volume multiplier, and track exclusions (Ignore-list).
+- **HoladConnect**: Real-time synchronization of playback state across all your devices. Start listening on PC and pick up seamlessly on mobile!
+- **Social Hub & Jam Sessions**: Listen along with friends in real-time. Join rooms, share tracks, and manage a collaborative playback queue.
+- **Local Encrypted SQLite Database**: Automatic synchronization of settings, history, playlists, and exclusions across devices. Credentials and tokens are securely encrypted using AES-256-GCM and stored locally in `holad.sqlite`.
+- **Deep OS Integration**: Rich system tray menu (Windows/Linux) with album artwork preview, native Android Media Session support (lock screen and notification shade controls), and taskbar integration.
 - **Localization**: Built-in multi-language support (currently **Russian** and **English** are available).
-- **Self-Hosted**: Full control over your data. Deploy it easily on your own Linux or Windows server.
+- **Self-Hosted**: Full control over your data. Deploy easily on your own Linux or Windows server.
 
 ## Interface Demo
 
@@ -119,7 +123,9 @@ echo "127.0.0.1 YOUR_DOMAIN" | sudo tee -a /etc/hosts
 ## Architecture
 
 - **Frontend**: React 19, Vite, TailwindCSS, Zustand, Framer Motion, Socket.io-client, dnd-kit.
-- **Backend**: Node.js, Express, Socket.io (for HoladConnect and Jam sessions), TypeScript.
+- **Backend**: Node.js, Express, Socket.io (for HoladConnect and Jam sessions), SQLite (better-sqlite3), AES-256-GCM, TypeScript.
+- **Desktop**: Tauri v2 (Rust).
+- **Mobile**: Capacitor 8 (Android).
 
 ## License
 
