@@ -1859,13 +1859,15 @@ io.on('connection', (socket) => {
     if (typeof callback === 'function') callback({ success: true, friendId: data.friendId, roomId: data.roomId });
   });
 
-  socket.on('createRoom', (data: { name?: string; sessionId?: string } | string | undefined) => {
+  socket.on('createRoom', (data: { name?: string; sessionId?: string; demoSessionId?: string } | string | undefined) => {
     let name: string | undefined;
     let sessionId: string | undefined;
+    let demoSessionId: string | undefined;
     
     if (typeof data === 'object' && data !== null) {
       name = data.name;
       sessionId = data.sessionId;
+      demoSessionId = (data as any).demoSessionId;
     } else if (typeof data === 'string') {
       name = data;
     }
@@ -1879,8 +1881,21 @@ io.on('connection', (socket) => {
     }
     socket.join(roomId);
     
-    const hostUser = socketToUser.get(socket.id);
-    const hostName = name || hostUser?.username || 'Host';
+    let hostUser = socketToUser.get(socket.id);
+    if (demoManager.isEnabled()) {
+      const dSession = demoSessionId ? demoManager.getSession(demoSessionId) : null;
+      if (dSession) {
+        const guestName = `Гость #${dSession.slotId}`;
+        const userRecord = database.ensureUserWithTag(dSession.guestUserId, guestName);
+        registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
+        hostUser = { userId: userRecord.user_id, username: userRecord.username, tag: userRecord.tag };
+      }
+    }
+
+    const hostName = (demoManager.isEnabled() && hostUser?.username)
+      ? hostUser.username 
+      : (name || hostUser?.username || 'Host');
+
     const newRoom: Room = { 
       hostId: socket.id, 
       currentTrackId: null, 
@@ -1897,22 +1912,28 @@ io.on('connection', (socket) => {
     
     socket.emit('roomCreated', { roomId, role: 'host' });
     broadcastParticipants(roomId);
-    console.log(`Room ${roomId} created by host ${socket.id}`);
+    console.log(`Room ${roomId} created by host ${socket.id} (${hostName})`);
   });
 
-  socket.on('joinRoom', async (data: { roomId: string; name?: string; sessionId?: string; auth?: any }) => {
-    const { roomId, name, sessionId, auth } = data;
+  socket.on('joinRoom', async (data: { roomId: string; name?: string; sessionId?: string; auth?: any; demoSessionId?: string }) => {
+    const { roomId, name, sessionId, auth, demoSessionId } = data;
     const room = rooms.get(roomId);
     if (!room) {
       socket.emit('error', 'Room not found');
       return;
     }
 
+    const demoSession = (demoManager.isEnabled() && demoSessionId)
+      ? demoManager.getSession(demoSessionId)
+      : null;
+
     if (auth && typeof auth.user === 'string' && typeof auth.token === 'string' && typeof auth.salt === 'string' && typeof auth.url === 'string') {
       try {
         const isValid = await verifySubsonicCredentials(auth.user, auth.token, auth.salt, auth.url);
         if (isValid) {
-          const userRecord = database.ensureUserWithTag(auth.user, auth.user);
+          const socialUserId = demoSession ? demoSession.guestUserId : auth.user;
+          const socialUsername = demoSession ? `Гость #${demoSession.slotId}` : auth.user;
+          const userRecord = database.ensureUserWithTag(socialUserId, socialUsername);
           registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
         }
       } catch (e) {
@@ -1922,8 +1943,17 @@ io.on('connection', (socket) => {
 
     socket.join(roomId);
     
-    const currentUser = socketToUser.get(socket.id);
-    const guestName = name || currentUser?.username || 'Guest';
+    let currentUser = socketToUser.get(socket.id);
+    if (demoSession && (!currentUser || currentUser.username !== `Гость #${demoSession.slotId}`)) {
+      const guestName = `Гость #${demoSession.slotId}`;
+      const userRecord = database.ensureUserWithTag(demoSession.guestUserId, guestName);
+      registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
+      currentUser = { userId: userRecord.user_id, username: userRecord.username, tag: userRecord.tag };
+    }
+
+    const guestName = (demoSession && currentUser?.username) 
+      ? currentUser.username 
+      : (name || currentUser?.username || 'Guest');
     const existingIndex = room.participants.findIndex(p => p.sessionId === sessionId && sessionId !== undefined);
     if (existingIndex !== -1) {
       const oldId = room.participants[existingIndex]!.id;

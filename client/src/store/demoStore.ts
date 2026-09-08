@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getHoladServerUrl } from '../utils/serverConfig';
 import { useAuthStore } from './authStore';
+import { usePlayerStore } from './playerStore';
 import { useHoladStore } from './holadStore';
 import { useSocialStore } from './socialStore';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
@@ -94,6 +95,9 @@ export const useDemoStore = create<DemoState>((set, get) => ({
         const { setCredentials, setAuthenticated } = useAuthStore.getState();
         setCredentials(data.account.url, data.account.user, data.account.token, data.account.salt);
         setAuthenticated(true);
+
+        const guestNick = data.slotId ? `Гость #${data.slotId}` : 'Гость';
+        usePlayerStore.setState({ userName: guestNick });
 
         // Connect Holad Connect and Social to isolated guest room
         if (data.guestUserId) {

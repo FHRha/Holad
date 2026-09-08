@@ -8,6 +8,7 @@ import { useSocialStore } from '../store/socialStore';
 import { useAuthStore } from '../store/authStore';
 import i18n from '../i18n';
 import { useSettingsStore } from '../store/settingsStore';
+import { useDemoStore } from '../store/demoStore';
 
 import { getSocketUrl } from '../utils/serverConfig';
 import { getAudioEngine } from '../audio/AudioEngine';
@@ -40,7 +41,8 @@ class JamSocketService {
       }
       const { user, token, salt, url, isAuthenticated } = useAuthStore.getState();
       if (isAuthenticated && user && token && salt && url) {
-        this.socket?.emit('social_init', { user, token, salt, url });
+        const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
+        this.socket?.emit('social_init', { user, token, salt, url, demoSessionId });
       }
     });
 
@@ -125,7 +127,13 @@ class JamSocketService {
 
     this.socket.on('social_init_success', (data: any) => {
       if (data) {
-        const username = data.username || useAuthStore.getState().user || 'User';
+        const { isDemoMode, slotId } = useDemoStore.getState();
+        const guestNick = slotId ? `${i18n.t('demo.guest', 'Гость')} #${slotId}` : i18n.t('demo.guest', 'Гость');
+        const fallbackName = isDemoMode ? guestNick : (useAuthStore.getState().user || 'User');
+        const authUser = useAuthStore.getState().user;
+        const username = (isDemoMode && authUser && data.username?.toLowerCase() === authUser.toLowerCase())
+          ? fallbackName
+          : (data.username || fallbackName);
         useSocialStore.getState().setUserData(username, data.tag || null);
         if (data.friends) useSocialStore.getState().setFriends(data.friends);
         if (data.pendingRequests) useSocialStore.getState().setPendingRequests(data.pendingRequests);
@@ -300,8 +308,12 @@ class JamSocketService {
       this.socket.once('error', onError);
 
       const emitCreate = () => {
-        const userName = name || useAuthStore.getState().user || usePlayerStore.getState().userName || 'Host';
-        this.socket?.emit('createRoom', { name: userName, sessionId: this.getSessionId() });
+        const { isDemoMode, slotId } = useDemoStore.getState();
+        const guestNick = slotId ? `${i18n.t('demo.guest', 'Гость')} #${slotId}` : i18n.t('demo.guest', 'Гость');
+        const defaultNick = isDemoMode ? guestNick : (useAuthStore.getState().user || usePlayerStore.getState().userName || 'Host');
+        const userName = name || defaultNick;
+        const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
+        this.socket?.emit('createRoom', { name: userName, sessionId: this.getSessionId(), demoSessionId });
       };
 
       if (this.socket.connected) {
@@ -313,19 +325,31 @@ class JamSocketService {
   }
 
   private getSessionId() {
-    let sid = localStorage.getItem('jam_session_id');
+    if (typeof window === 'undefined') return 'server';
+    let sid = sessionStorage.getItem('jam_session_id');
     if (!sid) {
       sid = typeof crypto.randomUUID === 'function' 
         ? crypto.randomUUID() 
         : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
-      localStorage.setItem('jam_session_id', sid);
+      sessionStorage.setItem('jam_session_id', sid);
     }
     return sid;
   }
 
   joinRoom(roomId: string, name?: string) {
-    const userName = name || useAuthStore.getState().user || usePlayerStore.getState().userName || 'Guest';
-    this.socket?.emit('joinRoom', { roomId, name: userName, sessionId: this.getSessionId() });
+    const { isDemoMode, slotId } = useDemoStore.getState();
+    const guestNick = slotId ? `${i18n.t('demo.guest', 'Гость')} #${slotId}` : i18n.t('demo.guest', 'Гость');
+    const defaultNick = isDemoMode ? guestNick : (useAuthStore.getState().user || usePlayerStore.getState().userName || 'Guest');
+    const userName = name || defaultNick;
+    const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
+    const { user, token, salt, url } = useAuthStore.getState();
+    this.socket?.emit('joinRoom', { 
+      roomId, 
+      name: userName, 
+      sessionId: this.getSessionId(),
+      demoSessionId,
+      auth: { user, token, salt, url }
+    });
   }
 
   grantRole(userId: string, role: 'host' | 'cohost' | 'listener') {

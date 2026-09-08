@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { jamSocket } from '../../api/socket';
 import { useAuthStore } from '../../store/authStore';
+import { useDemoStore } from '../../store/demoStore';
 import { getShareUrl } from '../../utils/serverConfig';
 import { copyToClipboard } from '../../utils/clipboard';
 
@@ -16,8 +17,10 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
   const navigate = useNavigate();
 
   const handleCreate = () => {
-    const { user } = useAuthStore.getState();
-    jamSocket.createRoom(user || 'Host');
+    const { isDemoMode, slotId } = useDemoStore.getState();
+    const guestNick = slotId ? `${t('demo.guest', 'Гость')} #${slotId}` : t('demo.guest', 'Гость');
+    const nick = isDemoMode ? guestNick : (useAuthStore.getState().user || 'Host');
+    jamSocket.createRoom(nick);
   };
 
   const handleLeave = () => {

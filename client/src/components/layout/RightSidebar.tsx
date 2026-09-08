@@ -8,6 +8,7 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useUIStore } from '../../store/uiStore';
 import { useSocialStore } from '../../store/socialStore';
 import { useAuthStore } from '../../store/authStore';
+import { useDemoStore } from '../../store/demoStore';
 import { jamSocket } from '../../api/socket';
 import { toast } from 'sonner';
 import { getShareUrl } from '../../utils/serverConfig';
@@ -53,14 +54,19 @@ export default function RightSidebar() {
   } = useSocialStore();
 
   const authUser = useAuthStore((s) => s.user);
-  const currentNick = userName || authUser || usePlayerStore.getState().userName || 'User';
+  const isDemoMode = useDemoStore((s) => s.isDemoMode);
+  const slotId = useDemoStore((s) => s.slotId);
+  const guestNick = slotId ? `${t('demo.guest', 'Гость')} #${slotId}` : t('demo.guest', 'Гость');
+  const currentNick = isDemoMode
+    ? (userName && !userName.toLowerCase().includes(authUser?.toLowerCase() || 'fhr') ? userName : guestNick)
+    : (userName || authUser || usePlayerStore.getState().userName || 'User');
   const displayTag = userTag
     ? (userTag.includes('#') ? userTag : `${currentNick}#${userTag}`)
     : `${currentNick}#0000`;
 
   const isUserInJam = (targetUserId?: string, targetUsername?: string, targetTag?: string) => {
     if (!roomId) return false;
-    const myName = userName || authUser;
+    const myName = isDemoMode ? currentNick : (userName || authUser);
     if (targetUsername && myName && targetUsername.toLowerCase() === myName.toLowerCase()) {
       return true;
     }
@@ -417,7 +423,7 @@ export default function RightSidebar() {
             ) : (
               <div className="bg-neutral-100 dark:bg-[#141414] rounded-2xl p-3.5 shadow-sm space-y-3">
                 <button
-                  onClick={() => jamSocket.createRoom()}
+                  onClick={() => jamSocket.createRoom(currentNick)}
                   className="w-full py-2.5 px-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.25)] hover:scale-[1.01] active:scale-[0.99]"
                 >
                   <Radio size={16} />
@@ -516,7 +522,7 @@ export default function RightSidebar() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => {
-                          const joinNick = userName || authUser || usePlayerStore.getState().userName || 'User';
+                          const joinNick = currentNick;
                           jamSocket.joinRoom(inv.roomId, joinNick);
                           removeInvite(inv.roomId);
                         }}
