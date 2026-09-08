@@ -241,7 +241,12 @@ function AppContent() {
 
   const effectiveToastTheme = isMobile && !isLoginRoute ? 'dark' : (theme === 'dark' ? 'dark' : 'light');
 
-  if (isPoolExhausted) {
+  const isJamUrl = location.pathname.startsWith('/jam') ||
+                   location.pathname.startsWith('/join') ||
+                   Boolean(searchParams.get('room')) ||
+                   Boolean(searchParams.get('jam'));
+
+  if (isPoolExhausted && !isJamUrl) {
     return (
       <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden font-sans relative">
         <DemoCapacityView />

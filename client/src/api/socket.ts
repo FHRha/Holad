@@ -233,24 +233,29 @@ class JamSocketService {
     this.socket?.emit(event, data);
   }
 
-  initSocial(payload: { user: string; token: string; salt: string; url: string }) {
-    this.socket?.emit('social_init', payload);
+  initSocial(payload: { user: string; token?: string; salt?: string; url?: string; demoSessionId?: string }) {
+    const demoSessionId = payload.demoSessionId || (typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined);
+    this.socket?.emit('social_init', { ...payload, demoSessionId });
   }
 
   sendFriendRequest(target: string) {
-    this.socket?.emit('social_sendFriendRequest', { target });
+    const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
+    this.socket?.emit('social_sendFriendRequest', { target, demoSessionId });
   }
 
   respondFriendRequest(requesterId: string, action: 'accept' | 'reject') {
-    this.socket?.emit('social_respondFriendRequest', { requesterId, action });
+    const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
+    this.socket?.emit('social_respondFriendRequest', { requesterId, action, demoSessionId });
   }
 
   removeFriend(friendId: string) {
-    this.socket?.emit('social_removeFriend', { friendId });
+    const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
+    this.socket?.emit('social_removeFriend', { friendId, demoSessionId });
   }
 
   inviteFriendToJam(friendId: string, roomId: string, track?: any) {
-    this.socket?.emit('jam_inviteFriend', { friendId, roomId, track });
+    const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
+    this.socket?.emit('jam_inviteFriend', { friendId, roomId, track, demoSessionId });
   }
 
   searchUsers(query: string): Promise<any[]> {
@@ -259,7 +264,8 @@ class JamSocketService {
         resolve([]);
         return;
       }
-      this.socket.emit('social_searchUsers', { query }, (res: any) => {
+      const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
+      this.socket.emit('social_searchUsers', { query, demoSessionId }, (res: any) => {
         if (Array.isArray(res)) {
           resolve(res);
         } else if (res && Array.isArray(res.results)) {

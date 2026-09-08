@@ -189,6 +189,17 @@ export class DemoManager {
     return undefined;
   }
 
+  public findSession(identifier?: string): DemoSession | undefined {
+    if (!identifier) return undefined;
+    if (this.sessions.has(identifier)) return this.sessions.get(identifier);
+    for (const session of this.sessions.values()) {
+      if (session.guestUserId === identifier || session.sessionId === identifier) {
+        return session;
+      }
+    }
+    return undefined;
+  }
+
   public releaseSession(sessionId: string) {
     const session = this.sessions.get(sessionId);
     if (!session) return;

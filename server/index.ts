@@ -1595,23 +1595,44 @@ io.on('connection', (socket) => {
   // --- End Holad Connect Events ---
 
   // --- Social & Presence Events ---
-  const handleSocialInit = async (payload: { user: string, token: string, salt: string, url: string, demoSessionId?: string }, callback?: Function) => {
-    if (!payload || !payload.user || !payload.token || !payload.salt || !payload.url) {
+  const resolveUserForSocket = (providedDemoId?: string) => {
+    let user = socketToUser.get(socket.id);
+    if (!user && demoManager.isEnabled() && providedDemoId) {
+      const session = demoManager.findSession(providedDemoId);
+      if (session) {
+        const socialUserId = session.guestUserId;
+        const socialUsername = `Гость #${session.slotId}`;
+        const userRecord = database.ensureUserWithTag(socialUserId, socialUsername);
+        registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
+        user = socketToUser.get(socket.id);
+      }
+    }
+    return user;
+  };
+
+  const handleSocialInit = async (payload: { user: string, token?: string, salt?: string, url?: string, demoSessionId?: string }, callback?: Function) => {
+    if (!payload || !payload.user) {
       socket.emit('social_error', 'Missing authentication payload');
       if (typeof callback === 'function') callback({ error: 'Missing authentication payload' });
       return;
     }
 
-    const isValid = await verifySubsonicCredentials(payload.user, payload.token, payload.salt, payload.url);
+    const demoSession = demoManager.isEnabled()
+      ? (demoManager.getSession(payload.demoSessionId || '') || demoManager.getSessionByGuestUserId(payload.user) || demoManager.findSession(payload.demoSessionId || payload.user))
+      : null;
+
+    let isValid = false;
+    if (demoSession) {
+      isValid = true;
+    } else if (payload.token && payload.salt && payload.url) {
+      isValid = await verifySubsonicCredentials(payload.user, payload.token, payload.salt, payload.url);
+    }
+
     if (!isValid) {
       socket.emit('social_authError', 'Invalid Subsonic credentials');
       if (typeof callback === 'function') callback({ error: 'Invalid Subsonic credentials' });
       return;
     }
-
-    const demoSession = (demoManager.isEnabled() && payload.demoSessionId)
-      ? demoManager.getSession(payload.demoSessionId)
-      : null;
 
     const socialUserId = demoSession ? demoSession.guestUserId : payload.user;
     const socialUsername = demoSession ? `Гость #${demoSession.slotId}` : payload.user;
@@ -1637,20 +1658,22 @@ io.on('connection', (socket) => {
   socket.on('social_init', handleSocialInit);
   socket.on('social_auth', handleSocialInit);
 
-  socket.on('social_getFriends', (callback?: Function) => {
-    const user = socketToUser.get(socket.id);
+  socket.on('social_getFriends', (dataOrCallback?: any, callback?: Function) => {
+    const cb = typeof dataOrCallback === 'function' ? dataOrCallback : callback;
+    const demoId = typeof dataOrCallback === 'object' ? dataOrCallback?.demoSessionId : undefined;
+    const user = resolveUserForSocket(demoId);
     if (!user) {
       socket.emit('social_error', 'Not authenticated');
-      if (typeof callback === 'function') callback({ error: 'Not authenticated' });
+      if (typeof cb === 'function') cb({ error: 'Not authenticated' });
       return;
     }
     const friends = getFriendsWithPresence(user.userId);
     socket.emit('social_friendsList', friends);
-    if (typeof callback === 'function') callback(friends);
+    if (typeof cb === 'function') cb(friends);
   });
 
-  socket.on('social_sendFriendRequest', (data: { target: string }, callback?: Function) => {
-    const user = socketToUser.get(socket.id);
+  socket.on('social_sendFriendRequest', (data: { target: string, demoSessionId?: string }, callback?: Function) => {
+    const user = resolveUserForSocket(data?.demoSessionId);
     if (!user) {
       socket.emit('social_error', 'Not authenticated');
       if (typeof callback === 'function') callback({ error: 'Not authenticated' });
@@ -1681,8 +1704,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('social_respondFriendRequest', (data: { requesterId: string, action: 'accept' | 'reject' }, callback?: Function) => {
-    const user = socketToUser.get(socket.id);
+  socket.on('social_respondFriendRequest', (data: { requesterId: string, action: 'accept' | 'reject', demoSessionId?: string }, callback?: Function) => {
+    const user = resolveUserForSocket(data?.demoSessionId);
     if (!user) {
       socket.emit('social_error', 'Not authenticated');
       if (typeof callback === 'function') callback({ error: 'Not authenticated' });
@@ -1728,8 +1751,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('social_removeFriend', (data: { friendId: string }, callback?: Function) => {
-    const user = socketToUser.get(socket.id);
+  socket.on('social_removeFriend', (data: { friendId: string, demoSessionId?: string }, callback?: Function) => {
+    const user = resolveUserForSocket(data?.demoSessionId);
     if (!user) {
       socket.emit('social_error', 'Not authenticated');
       if (typeof callback === 'function') callback({ error: 'Not authenticated' });
@@ -1765,8 +1788,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('social_searchUsers', (data: { query: string } | string, callback?: Function) => {
-    const user = socketToUser.get(socket.id);
+  socket.on('social_searchUsers', (data: { query: string, demoSessionId?: string } | string, callback?: Function) => {
+    const demoId = typeof data === 'object' ? data?.demoSessionId : undefined;
+    const user = resolveUserForSocket(demoId);
     if (!user) {
       socket.emit('social_error', 'Authentication required to search users');
       if (typeof callback === 'function') callback({ error: 'Authentication required' });
@@ -1825,8 +1849,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('jam_inviteFriend', (data: { friendId: string, roomId: string, track?: any }, callback?: Function) => {
-    const user = socketToUser.get(socket.id);
+  socket.on('jam_inviteFriend', (data: { friendId: string, roomId: string, track?: any, demoSessionId?: string }, callback?: Function) => {
+    const user = resolveUserForSocket(data?.demoSessionId);
     if (!user) {
       socket.emit('social_error', 'Not authenticated');
       if (typeof callback === 'function') callback({ error: 'Not authenticated' });

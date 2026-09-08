@@ -847,13 +847,20 @@ export function searchUsers(query: string, currentUserId: string): Array<{ user_
   if (!query || !query.trim()) return [];
   const trimmed = query.trim();
   const pattern = `%${trimmed}%`;
+  const cleanTag = trimmed.startsWith('#') ? trimmed.substring(1) : trimmed;
   return db.prepare(`
     SELECT user_id, COALESCE(username, user_id) AS username, tag, avatar_url 
     FROM users 
     WHERE user_id != ? 
-      AND (LOWER(COALESCE(username, user_id)) LIKE LOWER(?) OR LOWER(COALESCE(username, user_id) || '#' || tag) LIKE LOWER(?))
+      AND (
+        LOWER(COALESCE(username, user_id)) LIKE LOWER(?) 
+        OR LOWER(COALESCE(username, user_id) || '#' || tag) LIKE LOWER(?)
+        OR LOWER(tag) LIKE LOWER(?)
+        OR LOWER('#' || tag) LIKE LOWER(?)
+        OR tag = ?
+      )
     LIMIT 20
-  `).all(currentUserId, pattern, pattern) as any[];
+  `).all(currentUserId, pattern, pattern, pattern, pattern, cleanTag) as any[];
 }
 
 export function getFriends(userId: string): FriendRecord[] {
@@ -915,9 +922,13 @@ export function sendFriendRequest(userId: string, targetTagOrName: string): User
     const hashIndex = trimmed.lastIndexOf('#');
     const uname = trimmed.substring(0, hashIndex).trim();
     const tag = trimmed.substring(hashIndex + 1).trim();
-    targetUser = db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE username = ? COLLATE NOCASE AND tag = ?').get(uname, tag) as UserRecord | undefined;
+    if (uname) {
+      targetUser = db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE username = ? COLLATE NOCASE AND tag = ?').get(uname, tag) as UserRecord | undefined;
+    } else {
+      targetUser = db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE tag = ?').get(tag) as UserRecord | undefined;
+    }
   } else {
-    targetUser = db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE username = ? COLLATE NOCASE OR user_id = ?').get(trimmed, trimmed) as UserRecord | undefined;
+    targetUser = db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE username = ? COLLATE NOCASE OR user_id = ? OR tag = ?').get(trimmed, trimmed, trimmed) as UserRecord | undefined;
   }
 
   if (!targetUser) {

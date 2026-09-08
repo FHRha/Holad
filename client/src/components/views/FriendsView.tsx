@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSocialStore } from '../../store/socialStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAuthStore } from '../../store/authStore';
+import { useDemoStore } from '../../store/demoStore';
 import { jamSocket } from '../../api/socket';
 import { toast } from 'sonner';
 import { getCoverArtUrl } from '../../api/subsonic';
@@ -43,7 +44,12 @@ export default function FriendsView() {
   const currentTrack = queue[currentIndex];
 
   const authUser = useAuthStore((s) => s.user);
-  const currentNick = userName || authUser || usePlayerStore.getState().userName || 'User';
+  const isDemoMode = useDemoStore((s) => s.isDemoMode);
+  const slotId = useDemoStore((s) => s.slotId);
+  const guestNick = slotId ? `${t('demo.guest', 'Гость')} #${slotId}` : t('demo.guest', 'Гость');
+  const currentNick = isDemoMode
+    ? (userName && !userName.toLowerCase().includes(authUser?.toLowerCase() || 'fhr') ? userName : guestNick)
+    : (userName || authUser || usePlayerStore.getState().userName || 'User');
   const displayTag = userTag
     ? (userTag.includes('#') ? userTag : `${currentNick}#${userTag}`)
     : `${currentNick}#0000`;
@@ -63,6 +69,10 @@ export default function FriendsView() {
 
   const isUserInJam = (friendId: string, username: string, tag?: string) => {
     if (!roomId) return false;
+    const myName = isDemoMode ? currentNick : (userName || authUser);
+    if (username && myName && username.toLowerCase() === myName.toLowerCase()) {
+      return true;
+    }
     return participants.some(
       (p) => (p.userId && p.userId === friendId) || (p.name === username && (!tag || p.tag === tag))
     );

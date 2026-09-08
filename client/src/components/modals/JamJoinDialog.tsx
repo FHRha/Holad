@@ -47,7 +47,7 @@ export default function JamJoinDialog() {
       jamSocket.joinRoom(roomId, typeof user === 'string' ? user : undefined);
       navigate('/Holad', { replace: true });
     } else {
-      navigate(`/login?redirect=${encodeURIComponent(`/Holad?jam=${roomId}`)}`, { replace: true });
+      navigate(`/jam/?room=${encodeURIComponent(roomId)}`, { replace: true });
     }
   };
 

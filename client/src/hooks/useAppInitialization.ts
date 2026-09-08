@@ -103,16 +103,19 @@ export function useAppInitialization() {
   }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute, isDemoMode, guestUserId]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
     const jamParam = searchParams.get('jam');
     const isJoinRoute = location.pathname.startsWith('/join');
-    const roomParam = isJoinRoute ? searchParams.get('room') : null;
+    const roomParam = isJoinRoute ? searchParams.get('room') : (searchParams.get('room') || null);
     const targetRoom = jamParam || roomParam;
 
     if (targetRoom) {
-      const userName = typeof user === 'string' ? user : undefined;
-      jamSocket.joinRoom(targetRoom, userName);
-      navigate('/Holad', { replace: true });
+      if (isAuthenticated) {
+        const userName = typeof user === 'string' ? user : undefined;
+        jamSocket.joinRoom(targetRoom, userName);
+        navigate('/Holad', { replace: true });
+      } else if (!location.pathname.startsWith('/jam') && !location.pathname.startsWith('/join')) {
+        navigate(`/jam/?room=${encodeURIComponent(targetRoom)}`, { replace: true });
+      }
     }
   }, [isAuthenticated, searchParams, location.pathname, user, navigate]);
 
