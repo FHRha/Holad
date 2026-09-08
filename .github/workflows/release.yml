@@ -273,9 +273,10 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
-      - name: Generate SHA256 Checksums
+      - name: Clean up internal artifacts and generate SHA256 Checksums
         run: |
-          sha256sum holad-*.tar.gz *.tar.gz *.apk *.exe *.msi *.AppImage *.deb *.zip 2>/dev/null > SHA256SUMS || true
+          rm -f control.tar.gz data.tar.gz 2>/dev/null || true
+          sha256sum holad-web-release.tar.gz Holad*.tar.gz *.apk *.exe *.msi *.AppImage *.deb *.zip 2>/dev/null > SHA256SUMS || true
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -283,7 +284,7 @@ jobs:
           files: |
             holad-web-release.tar.gz
             SHA256SUMS
-            *.tar.gz
+            Holad*.tar.gz
             *.apk
             *.exe
             *.msi
@@ -301,7 +302,7 @@ jobs:
           vt_api_key: ${{ secrets.VT_API_KEY }}
           files: |
             holad-web-release.tar.gz
-            *.tar.gz
+            Holad*.tar.gz
             *.apk
             *.exe
             *.msi

@@ -461,6 +461,10 @@ node dist/index.js
             } else if (entry.isFile()) {
               const ext = path.extname(entry.name).toLowerCase();
               if (['.msi', '.exe', '.deb', '.appimage', '.rpm', '.dmg', '.pkg', '.zip', '.sig', '.gz'].includes(ext)) {
+                // Ignore internal Debian package intermediate archives
+                if (entry.name === 'control.tar.gz' || entry.name === 'data.tar.gz' || entry.name.endsWith('.tar.gz.gz')) {
+                  continue;
+                }
                 console.log(`Copying bundle installer ${entry.name} to artifacts...`);
                 fs.copyFileSync(fullPath, path.join(ARTIFACTS_DIR, entry.name));
 
