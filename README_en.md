@@ -55,7 +55,7 @@
 - **Local Encrypted SQLite Database**: Automatic synchronization of settings, history, playlists, and exclusions across devices. Credentials and tokens are securely encrypted using AES-256-GCM and stored locally in `holad.sqlite`.
 - **Deep OS Integration**: Rich system tray menu (Windows/Linux) with album artwork preview, native Android Media Session support (lock screen and notification shade controls), and taskbar integration.
 - **Localization**: Built-in multi-language support (currently **Russian** and **English** are available).
-- **Self-Hosted**: Full control over your data. Deploy easily on your own Linux or Windows server.
+- **Self-Hosted & Demo Mode**: Full control over your data. Deploy easily on your own Linux or Windows server, or run a turnkey public showcase using Managed Demo Mode (`DEMO_MODE=true`) with an automated guest lease pool and capacity protection.
 
 ## Interface Demo
 
