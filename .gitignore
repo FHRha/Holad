@@ -21,7 +21,7 @@ pnpm-debug.log*
 *.sln
 *.sw?
 
-docs/
+docs/internal/
 artifacts/
 rustup-init.exe
 scratch/

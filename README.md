@@ -34,6 +34,9 @@
   <a href="https://github.com/FHRha/Holad/releases/latest">
     <img src="https://img.shields.io/badge/Web_Server-Self--Hosted_.tar.gz-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Web Server Download" style="border-radius: 8px;" />
   </a>
+  <a href="docs/docker.md">
+    <img src="https://img.shields.io/badge/Docker-GHCR-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Container" style="border-radius: 8px;" />
+  </a>
 
   <br />
   <p><i>* P.S. Код и заготовки для продукции Apple (macOS и iOS) уже есть, но так как автор бедный студент без продукции Apple, возможности скомпилировать и выложить их пока нет </i></p>
@@ -58,9 +61,21 @@
 
 <img src=".github/assets/Holad-ru.gif" alt="Демонстрация" style="border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;" />
 
-## Быстрый старт (Linux)
+## Быстрый старт
 
-Чтобы установить Holad на ваш сервер одной командой, выполните:
+### 🐳 Развёртывание в Docker
+
+Для Holad доступен официальный multi-arch Docker-образ (`ghcr.io/fhrha/holad:latest`) с поддержкой x86_64 и ARM64 (Raspberry Pi), автообновлениями через Watchtower и онлайн-бэкапами базы данных.
+
+Подробное руководство по настройке, параметры окружения и готовые рецепты (связка с Navidrome, Caddy, Nginx):
+- <a href="docs/docker.md"><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/ru.svg" alt="Русский" width="20" style="border-radius: 2px; vertical-align: middle; margin-right: 4px;" /></a> [**Руководство по Docker на русском**](docs/docker.md)
+- <a href="docs/docker_en.md"><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/gb.svg" alt="English" width="20" style="border-radius: 2px; vertical-align: middle; margin-right: 4px;" /></a> [**Docker Deployment Guide (English)**](docs/docker_en.md)
+
+---
+
+### 📦 Установка на хост без Docker (Linux)
+
+Если вы предпочитаете классическую установку напрямую на сервер:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash

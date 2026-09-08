@@ -34,6 +34,9 @@
   <a href="https://github.com/FHRha/Holad/releases/latest">
     <img src="https://img.shields.io/badge/Web_Server-Self--Hosted_.tar.gz-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Web Server Download" style="border-radius: 8px;" />
   </a>
+  <a href="docs/docker_en.md">
+    <img src="https://img.shields.io/badge/Docker-GHCR-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Container" style="border-radius: 8px;" />
+  </a>
 
   <br />
   <p><i>* P.S. The codebase and build scripts for Apple devices (macOS and iOS) are fully ready, but since the author is a poor student without any Apple products, there's currently no way to compile and publish them </i></p>
@@ -58,9 +61,21 @@
 
 <img src=".github/assets/Holad-en.gif" alt="Interface Demo" style="border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;" />
 
-## Quick Start (Linux)
+## Quick Start
 
-To install Holad on your server in one command, run:
+### 🐳 Deploying with Docker
+
+Holad provides an official multi-arch Docker image (`ghcr.io/fhrha/holad:latest`) with support for x86_64 and ARM64 (Raspberry Pi), auto-updates via Watchtower, and online database backups.
+
+Detailed configuration guides, environment parameters, and ready-to-use recipes (stacks with Navidrome, Caddy, Nginx):
+- <a href="docs/docker_en.md"><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/gb.svg" alt="English" width="20" style="border-radius: 2px; vertical-align: middle; margin-right: 4px;" /></a> [**Docker Deployment Guide (English)**](docs/docker_en.md)
+- <a href="docs/docker.md"><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/ru.svg" alt="Русский" width="20" style="border-radius: 2px; vertical-align: middle; margin-right: 4px;" /></a> [**Руководство по Docker на русском**](docs/docker.md)
+
+---
+
+### 📦 Bare-metal Installation without Docker (Linux)
+
+If you prefer installing directly onto your host OS:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash

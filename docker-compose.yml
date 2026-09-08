@@ -1,0 +1,42 @@
+services:
+  holad:
+    image: ghcr.io/fhrha/holad:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - VITE_APP_BASE=/Holad/
+    container_name: holad
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - PORT=4000
+      # [Optional] Web client base path (default: /Holad/). Set to / if hosting at the root of a domain.
+      - BASE_PATH=/Holad/
+      # [Optional] Master AES-256-GCM encryption key.
+      # If omitted, a persistent key is automatically generated and saved in /data/.encryption_key
+      # - ENCRYPTION_KEY=replace_with_a_secure_random_key
+
+      # [Optional] Automatic SQLite Online Backup
+      - BACKUP_ENABLED=false
+      - BACKUP_INTERVAL_HOURS=24
+      - BACKUP_RETENTION_DAYS=7
+
+      # [Optional] Headless pre-configuration for Navidrome / Subsonic server
+      # - NAVIDROME_URL=https://music.example.com
+      # - NAVIDROME_USER=your_user
+      # - NAVIDROME_PASS=your_password
+    volumes:
+      - ./data:/data
+
+  # [Optional] Watchtower automatically checks for new releases on GHCR and updates Holad seamlessly
+  watchtower:
+    image: containrrr/watchtower
+    container_name: holad_updater
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 86400 --cleanup holad
