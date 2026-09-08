@@ -6,20 +6,20 @@
  */
 
 export interface TrackMetadataInput {
-  id?: string | null;
-  title?: string | null;
-  artist?: string | null;
-  album?: string | null;
-  albumId?: string | null;
-  artistId?: string | null;
-  track?: number | string | null;
-  trackNumber?: number | string | null;
-  duration?: number | null;
-  path?: string | null;
-  fileName?: string | null;
-  lyrics?: string | null;
-  lyricsHash?: string | null;
-  fingerprint?: string | null;
+  id?: string | null | undefined;
+  title?: string | null | undefined;
+  artist?: string | null | undefined;
+  album?: string | null | undefined;
+  albumId?: string | null | undefined;
+  artistId?: string | null | undefined;
+  track?: number | string | null | undefined;
+  trackNumber?: number | string | null | undefined;
+  duration?: number | null | undefined;
+  path?: string | null | undefined;
+  fileName?: string | null | undefined;
+  lyrics?: string | null | undefined;
+  lyricsHash?: string | null | undefined;
+  fingerprint?: string | null | undefined;
 }
 
 /**
@@ -44,7 +44,7 @@ export function stableHash(str: string): string {
 /**
  * Normalizes text for comparison: lowercases, trims, removes punctuation and extra spaces.
  */
-export function cleanText(text?: string | null): string {
+export function cleanText(text?: string | null | undefined): string {
   if (!text || typeof text !== 'string') return '';
   return text
     .toLowerCase()
@@ -58,7 +58,7 @@ export function cleanText(text?: string | null): string {
  * Strips common release/version tags (e.g. "(Remastered 2011)", "[Bonus Track]").
  * Useful for soft semantic matching.
  */
-export function stripVersionTags(text?: string | null): string {
+export function stripVersionTags(text?: string | null | undefined): string {
   if (!text || typeof text !== 'string') return '';
   return text
     .replace(/\s*[\(\[](?:remaster(?:ed)?|bonus|deluxe|expanded|anniversary|edit|mono|stereo|re-recorded|live|session).*?[\)\]]/gi, '')
@@ -69,7 +69,7 @@ export function stripVersionTags(text?: string | null): string {
  * Normalizes lyrics by stripping LRC timestamps, metadata tags, and punctuation.
  * Produces identical output regardless of whether the source is .lrc or plain text!
  */
-export function normalizeLyrics(rawLyrics?: string | null): string {
+export function normalizeLyrics(rawLyrics?: string | null | undefined): string {
   if (!rawLyrics || typeof rawLyrics !== 'string') return '';
 
   return rawLyrics
@@ -91,7 +91,7 @@ export function normalizeLyrics(rawLyrics?: string | null): string {
  * Generates a stable hash of the song's lyrics.
  * Returns null if lyrics are empty or too short (< 10 chars).
  */
-export function generateLyricsHash(rawLyrics?: string | null): string | null {
+export function generateLyricsHash(rawLyrics?: string | null | undefined): string | null {
   const normalized = normalizeLyrics(rawLyrics);
   if (normalized.length < 10) {
     return null;
@@ -103,7 +103,7 @@ export function generateLyricsHash(rawLyrics?: string | null): string | null {
 /**
  * Extracts raw file name from path (e.g. "Music/Artist/01 Track.mp3" -> "01 Track").
  */
-export function extractFileName(pathOrName?: string | null): string | null {
+export function extractFileName(pathOrName?: string | null | undefined): string | null {
   if (!pathOrName || typeof pathOrName !== 'string') return null;
   const basename = pathOrName.replace(/^.*[\\\/]/, '');
   const withoutExt = basename.replace(/\.[a-zA-Z0-9]{2,5}$/, '');
@@ -114,11 +114,11 @@ export function extractFileName(pathOrName?: string | null): string | null {
 /**
  * Normalizes track number (handles string "01", 1, "1/12", etc.)
  */
-export function parseTrackNumber(val?: number | string | null): number | null {
+export function parseTrackNumber(val?: number | string | null | undefined): number | null {
   if (val === undefined || val === null) return null;
   if (typeof val === 'number') return isNaN(val) || val <= 0 ? null : val;
   const match = String(val).match(/^\s*(\d+)/);
-  if (match) {
+  if (match && match[1]) {
     const num = parseInt(match[1], 10);
     return isNaN(num) || num <= 0 ? null : num;
   }
@@ -153,7 +153,7 @@ export function generateTrackFingerprint(track: TrackMetadataInput): string {
 /**
  * Generates an album fingerprint for album-level entities.
  */
-export function generateAlbumFingerprint(artist?: string | null, album?: string | null): string {
+export function generateAlbumFingerprint(artist?: string | null | undefined, album?: string | null | undefined): string {
   const a = cleanText(artist);
   const al = cleanText(album);
   return 'alb_' + stableHash(`${a}|${al}`);
@@ -225,7 +225,7 @@ export function matchTrackConfidence(saved: TrackMetadataInput, candidate: Track
  * Checks whether a track is excluded by its ID, albumId, or fingerprint.
  */
 export function isTrackExcluded(
-  t?: TrackMetadataInput | null,
+  t?: TrackMetadataInput | null | undefined,
   excludedTrackIds: string[] = [],
   excludedAlbumIds: string[] = [],
   excludedFingerprints: string[] = []

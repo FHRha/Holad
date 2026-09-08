@@ -6,20 +6,20 @@
  */
 
 export interface TrackMetadataInput {
-  id?: string | null;
-  title?: string | null;
-  artist?: string | null;
-  album?: string | null;
-  albumId?: string | null;
-  artistId?: string | null;
-  track?: number | string | null;
-  trackNumber?: number | string | null;
-  duration?: number | null;
-  path?: string | null;
-  fileName?: string | null;
-  lyrics?: string | null;
-  lyricsHash?: string | null;
-  fingerprint?: string | null;
+  id?: string | null | undefined;
+  title?: string | null | undefined;
+  artist?: string | null | undefined;
+  album?: string | null | undefined;
+  albumId?: string | null | undefined;
+  artistId?: string | null | undefined;
+  track?: number | string | null | undefined;
+  trackNumber?: number | string | null | undefined;
+  duration?: number | null | undefined;
+  path?: string | null | undefined;
+  fileName?: string | null | undefined;
+  lyrics?: string | null | undefined;
+  lyricsHash?: string | null | undefined;
+  fingerprint?: string | null | undefined;
 }
 
 /**
@@ -115,11 +115,11 @@ export function extractFileName(pathOrName?: string | null): string | null {
 /**
  * Normalizes track number (handles string "01", 1, "1/12", etc.)
  */
-export function parseTrackNumber(val?: number | string | null): number | null {
+export function parseTrackNumber(val?: number | string | null | undefined): number | null {
   if (val === undefined || val === null) return null;
   if (typeof val === 'number') return isNaN(val) || val <= 0 ? null : val;
   const match = String(val).match(/^\s*(\d+)/);
-  if (match) {
+  if (match && match[1]) {
     const num = parseInt(match[1], 10);
     return isNaN(num) || num <= 0 ? null : num;
   }
