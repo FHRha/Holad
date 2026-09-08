@@ -47,7 +47,7 @@ export function useAppInitialization() {
 
       fetchExclusions().then(exclusions => {
         if (exclusions) {
-          setExcludedItems(exclusions.excludedTrackIds, exclusions.excludedAlbumIds);
+          setExcludedItems(exclusions.excludedTrackIds, exclusions.excludedAlbumIds, exclusions.excludedFingerprints);
         }
       }).catch(e => console.error("Failed to fetch exclusions", e));
     }

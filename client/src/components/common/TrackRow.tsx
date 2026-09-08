@@ -10,6 +10,7 @@ import { formatArtistName } from '../../utils/formatters';
 import TrackImage from './TrackImage';
 import ArtistLinks from './ArtistLinks';
 import LongPressWrapper from './LongPressWrapper';
+import { isTrackExcluded } from '../../utils/trackFingerprint';
 
 export interface TrackRowProps {
   track: any;
@@ -37,7 +38,7 @@ const TrackRow = memo(function TrackRow({
   const isCurrentPlaying = usePlayerStore(s => s.queue[s.currentIndex]?.id === track.id);
   const isPlaying = usePlayerStore(s => s.isPlaying && isCurrentPlaying);
   const isTrackLiked = usePlayerStore(s => s.likedTrackIds.includes(track.id));
-  const isExcluded = usePlayerStore(s => s.excludedTrackIds.includes(track.id));
+  const isExcluded = usePlayerStore(s => isTrackExcluded(track, s.excludedTrackIds, s.excludedAlbumIds, s.excludedFingerprints));
   const openUnignoreModal = useUIStore(s => s.openUnignoreModal);
 
   const toggleTrackLike = usePlayerStore(s => s.toggleTrackLike);
@@ -47,6 +48,9 @@ const TrackRow = memo(function TrackRow({
   const openMenu = useContextMenuStore(s => s.openMenu);
 
   const handlePlay = useCallback((e?: React.MouseEvent) => {
+    if (track.isUnavailable) {
+      return;
+    }
     if (isExcluded) {
       openUnignoreModal(track, () => {
         if (onClick) {
@@ -88,8 +92,8 @@ const TrackRow = memo(function TrackRow({
 
   const handleExclude = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    toggleTrackExclude(track.id);
-  }, [track.id, toggleTrackExclude]);
+    toggleTrackExclude(track.id, track);
+  }, [track, toggleTrackExclude]);
 
   // Playlist view variant
   if (variant === 'playlist') {

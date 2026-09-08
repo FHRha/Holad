@@ -42,6 +42,7 @@ export const usePlayerStore = create<PlayerState>()(
             userName: state.userName,
             excludedTrackIds: state.excludedTrackIds,
             excludedAlbumIds: state.excludedAlbumIds,
+            excludedFingerprints: state.excludedFingerprints,
           };
         }
 
@@ -58,6 +59,7 @@ export const usePlayerStore = create<PlayerState>()(
           userName: state.userName,
           excludedTrackIds: state.excludedTrackIds,
           excludedAlbumIds: state.excludedAlbumIds,
+          excludedFingerprints: state.excludedFingerprints,
         };
       },
       version: 1,

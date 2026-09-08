@@ -4,6 +4,13 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import {
+  generateTrackFingerprint,
+  generateAlbumFingerprint,
+  extractFileName,
+  parseTrackNumber,
+  generateLyricsHash
+} from './utils/trackFingerprint.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -84,6 +91,15 @@ db.exec(`
     user_id TEXT,
     entity_id TEXT,
     entity_type TEXT,
+    fingerprint TEXT,
+    title TEXT,
+    artist TEXT,
+    album TEXT,
+    track_number INTEGER,
+    duration INTEGER,
+    file_name TEXT,
+    lyrics_hash TEXT,
+    updated_at DATETIME,
     PRIMARY KEY(user_id, entity_id, entity_type),
     FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
   );
@@ -166,6 +182,42 @@ try {
   }
 } catch (err) {
   console.error('Failed to migrate playlists table columns:', err);
+}
+
+// Safely migrate existing exclusions table if metadata columns are missing
+try {
+  const exclusionColumns = db.prepare("PRAGMA table_info(exclusions)").all() as { name: string }[];
+  const exclColNames = new Set(exclusionColumns.map(c => c.name));
+  if (!exclColNames.has('fingerprint')) {
+    db.exec('ALTER TABLE exclusions ADD COLUMN fingerprint TEXT');
+  }
+  if (!exclColNames.has('title')) {
+    db.exec('ALTER TABLE exclusions ADD COLUMN title TEXT');
+  }
+  if (!exclColNames.has('artist')) {
+    db.exec('ALTER TABLE exclusions ADD COLUMN artist TEXT');
+  }
+  if (!exclColNames.has('album')) {
+    db.exec('ALTER TABLE exclusions ADD COLUMN album TEXT');
+  }
+  if (!exclColNames.has('track_number')) {
+    db.exec('ALTER TABLE exclusions ADD COLUMN track_number INTEGER');
+  }
+  if (!exclColNames.has('duration')) {
+    db.exec('ALTER TABLE exclusions ADD COLUMN duration INTEGER');
+  }
+  if (!exclColNames.has('file_name')) {
+    db.exec('ALTER TABLE exclusions ADD COLUMN file_name TEXT');
+  }
+  if (!exclColNames.has('lyrics_hash')) {
+    db.exec('ALTER TABLE exclusions ADD COLUMN lyrics_hash TEXT');
+  }
+  if (!exclColNames.has('updated_at')) {
+    db.exec('ALTER TABLE exclusions ADD COLUMN updated_at DATETIME');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_exclusions_fingerprint ON exclusions(user_id, fingerprint)');
+} catch (err) {
+  console.error('Failed to migrate exclusions table columns:', err);
 }
 
 // Helper to generate user_id
@@ -416,8 +468,7 @@ export function getCustomPlaylist(id: string): { id: string; name: string; descr
   if (!pl) {
     return null;
   }
-  const trackRows = db.prepare('SELECT track_id FROM playlist_tracks WHERE playlist_id = ? ORDER BY added_at ASC').all(id) as { track_id: string }[];
-  const trackIds = trackRows.map(t => t.track_id);
+  const trackRows = db.prepare('SELECT track_id FROM playlist_tracks WHERE playlist_id = ? ORDER BY rowid ASC').all(id) as { track_id: string }[];
 
   let tracks: any[] | null = null;
   if (pl.songs) {
@@ -430,6 +481,10 @@ export function getCustomPlaylist(id: string): { id: string; name: string; descr
       tracks = null;
     }
   }
+
+  const trackIds = tracks && tracks.length > 0 
+    ? tracks.map((t: any) => typeof t === 'string' ? t : t.id).filter(Boolean)
+    : trackRows.map(t => t.track_id);
 
   if (!tracks) {
     tracks = trackIds.map(tId => ({ id: tId }));
@@ -444,19 +499,70 @@ export function getCustomPlaylist(id: string): { id: string; name: string; descr
   };
 }
 
-export function getExclusions(userId: string): { excludedTrackIds: string[], excludedAlbumIds: string[] } {
+export interface ExclusionMeta {
+  title?: string;
+  artist?: string;
+  album?: string;
+  trackNumber?: number | string;
+  duration?: number;
+  fileName?: string;
+  path?: string;
+  lyrics?: string;
+  lyricsHash?: string;
+  fingerprint?: string;
+}
+
+export interface DetailedExclusion {
+  entityId: string;
+  entityType: 'track' | 'album';
+  fingerprint: string | null;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  trackNumber: number | null;
+  duration: number | null;
+  fileName: string | null;
+  lyricsHash: string | null;
+  updatedAt: string | null;
+}
+
+export function getExclusions(userId: string): { 
+  excludedTrackIds: string[]; 
+  excludedAlbumIds: string[]; 
+  excludedFingerprints: string[];
+  details: DetailedExclusion[];
+} {
   ensureUserExists(userId);
-  const rows = db.prepare('SELECT entity_id, entity_type FROM exclusions WHERE user_id = ?').all(userId) as { entity_id: string; entity_type: string }[];
+  const rows = db.prepare('SELECT entity_id, entity_type, fingerprint, title, artist, album, track_number, duration, file_name, lyrics_hash, updated_at FROM exclusions WHERE user_id = ?').all(userId) as any[];
   const excludedTrackIds: string[] = [];
   const excludedAlbumIds: string[] = [];
+  const excludedFingerprints: string[] = [];
+  const details: DetailedExclusion[] = [];
+
   for (const row of rows) {
     if (row.entity_type === 'track') {
       excludedTrackIds.push(row.entity_id);
     } else if (row.entity_type === 'album') {
       excludedAlbumIds.push(row.entity_id);
     }
+    if (row.fingerprint) {
+      excludedFingerprints.push(row.fingerprint);
+    }
+    details.push({
+      entityId: row.entity_id,
+      entityType: row.entity_type,
+      fingerprint: row.fingerprint || null,
+      title: row.title || null,
+      artist: row.artist || null,
+      album: row.album || null,
+      trackNumber: row.track_number || null,
+      duration: row.duration || null,
+      fileName: row.file_name || null,
+      lyricsHash: row.lyrics_hash || null,
+      updatedAt: row.updated_at || null,
+    });
   }
-  return { excludedTrackIds, excludedAlbumIds };
+  return { excludedTrackIds, excludedAlbumIds, excludedFingerprints, details };
 }
 
 export function setExclusions(userId: string, excludedTrackIds: string[], excludedAlbumIds: string[]): void {
@@ -474,16 +580,144 @@ export function setExclusions(userId: string, excludedTrackIds: string[], exclud
   transaction();
 }
 
-export function toggleExclusion(userId: string, entityId: string, entityType: 'track' | 'album'): boolean {
+export function toggleExclusion(
+  userId: string, 
+  entityId: string, 
+  entityType: 'track' | 'album',
+  meta?: ExclusionMeta
+): boolean {
   ensureUserExists(userId);
   const existing = db.prepare('SELECT 1 FROM exclusions WHERE user_id = ? AND entity_id = ? AND entity_type = ?').get(userId, entityId, entityType);
   if (existing) {
     db.prepare('DELETE FROM exclusions WHERE user_id = ? AND entity_id = ? AND entity_type = ?').run(userId, entityId, entityType);
     return false;
   } else {
-    db.prepare('INSERT OR IGNORE INTO exclusions (user_id, entity_id, entity_type) VALUES (?, ?, ?)').run(userId, entityId, entityType);
+    let fp = meta?.fingerprint;
+    if (!fp) {
+      if (entityType === 'track') {
+        fp = generateTrackFingerprint({
+          id: entityId,
+          title: meta?.title,
+          artist: meta?.artist,
+          album: meta?.album,
+          track: meta?.trackNumber,
+          duration: meta?.duration,
+          path: meta?.path || meta?.fileName,
+          lyrics: meta?.lyrics,
+          lyricsHash: meta?.lyricsHash
+        });
+      } else {
+        fp = generateAlbumFingerprint(meta?.artist, meta?.album || meta?.title);
+      }
+    }
+
+    const title = meta?.title || null;
+    const artist = meta?.artist || null;
+    const album = meta?.album || null;
+    const trackNumber = parseTrackNumber(meta?.trackNumber) ?? null;
+    const duration = meta?.duration !== undefined && meta?.duration !== null ? Math.round(Number(meta.duration)) : null;
+    const fileName = extractFileName(meta?.path || meta?.fileName) || null;
+    const lyricsHash = meta?.lyricsHash || (meta?.lyrics ? generateLyricsHash(meta.lyrics) : null);
+
+    db.prepare(`
+      INSERT OR REPLACE INTO exclusions (
+        user_id, entity_id, entity_type, fingerprint, title, artist, album, track_number, duration, file_name, lyrics_hash, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(userId, entityId, entityType, fp || null, title, artist, album, trackNumber, duration, fileName, lyricsHash);
     return true;
   }
+}
+
+export function reconcileExclusion(
+  userId: string, 
+  oldEntityId: string, 
+  newEntityId: string, 
+  entityType: 'track' | 'album' = 'track',
+  fingerprint?: string
+): boolean {
+  ensureUserExists(userId);
+  let existing: any = null;
+  if (oldEntityId) {
+    existing = db.prepare('SELECT * FROM exclusions WHERE user_id = ? AND entity_id = ? AND entity_type = ?').get(userId, oldEntityId, entityType) as any;
+  }
+  if (!existing && fingerprint) {
+    existing = db.prepare('SELECT * FROM exclusions WHERE user_id = ? AND fingerprint = ? AND entity_type = ?').get(userId, fingerprint, entityType) as any;
+  }
+  if (!existing) {
+    return false;
+  }
+  const prevId = existing.entity_id;
+  db.transaction(() => {
+    db.prepare('DELETE FROM exclusions WHERE user_id = ? AND entity_id = ? AND entity_type = ?').run(userId, prevId, entityType);
+    db.prepare(`
+      INSERT OR REPLACE INTO exclusions (
+        user_id, entity_id, entity_type, fingerprint, title, artist, album, track_number, duration, file_name, lyrics_hash, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(
+      userId, 
+      newEntityId, 
+      entityType, 
+      existing.fingerprint, 
+      existing.title, 
+      existing.artist, 
+      existing.album, 
+      existing.track_number, 
+      existing.duration, 
+      existing.file_name, 
+      existing.lyrics_hash
+    );
+  })();
+  return true;
+}
+
+export function reconcilePlaylistTracks(
+  playlistId: string,
+  replacements: { oldId: string; newId: string }[]
+): boolean {
+  const pl = db.prepare('SELECT id, songs FROM playlists WHERE id = ?').get(playlistId) as { id: string; songs?: string } | undefined;
+  if (!pl || !Array.isArray(replacements) || replacements.length === 0) {
+    return false;
+  }
+
+  const repMap = new Map<string, string>();
+  for (const r of replacements) {
+    if (r.oldId && r.newId && r.oldId !== r.newId) {
+      repMap.set(r.oldId, r.newId);
+    }
+  }
+
+  if (repMap.size === 0) return false;
+
+  db.transaction(() => {
+    const updateTrackStmt = db.prepare('UPDATE playlist_tracks SET track_id = ? WHERE playlist_id = ? AND track_id = ?');
+    for (const [oldId, newId] of repMap.entries()) {
+      try {
+        updateTrackStmt.run(newId, playlistId, oldId);
+      } catch (e) {
+        db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?').run(playlistId, oldId);
+      }
+    }
+
+    if (pl.songs) {
+      try {
+        const parsed = JSON.parse(pl.songs);
+        if (Array.isArray(parsed)) {
+          let modified = false;
+          for (const item of parsed) {
+            if (item && item.id && repMap.has(item.id)) {
+              item.id = repMap.get(item.id)!;
+              modified = true;
+            }
+          }
+          if (modified) {
+            db.prepare('UPDATE playlists SET songs = ? WHERE id = ?').run(JSON.stringify(parsed), playlistId);
+          }
+        }
+      } catch {}
+    }
+  })();
+
+  return true;
 }
 
 // Social & Friends Types and Functions

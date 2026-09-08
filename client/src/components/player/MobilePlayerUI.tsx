@@ -21,12 +21,13 @@ import HoladConnectMenu from './HoladConnectMenu';
 import { getAudioEngine } from '../../audio/AudioEngine';
 import { useBookmark } from '../../hooks/useBookmark';
 import { jamSocket } from '../../api/socket';
+import { isTrackExcluded } from '../../utils/trackFingerprint';
 
 export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const { 
     queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, 
-    role, likedTrackIds, toggleTrackLike, excludedTrackIds, toggleTrackExclude, isShuffle, toggleShuffle, 
+    role, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, excludedFingerprints, toggleTrackExclude, isShuffle, toggleShuffle, 
     repeatMode, cycleRepeatMode, playbackRate, cyclePlaybackRate, 
     sleepTimer, setSleepTimer
   } = usePlayerStore();
@@ -238,8 +239,8 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                   <Heart size={24} fill={isLiked ? 'currentColor' : 'none'} />
                 </button>
                 <button 
-                  onClick={() => toggleTrackExclude(currentTrack.id)}
-                  className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${excludedTrackIds.includes(currentTrack.id) ? 'text-red-500' : 'text-secondary'}`}
+                  onClick={() => toggleTrackExclude(currentTrack.id, currentTrack)}
+                  className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${isTrackExcluded(currentTrack, excludedTrackIds, excludedAlbumIds, excludedFingerprints) ? 'text-red-500' : 'text-secondary'}`}
                 >
                   <Ban size={24} />
                 </button>

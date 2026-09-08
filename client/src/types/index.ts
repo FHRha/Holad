@@ -10,6 +10,14 @@ export interface Track {
   userRating?: number;
   bitRate?: number;
   suffix?: string;
+  track?: number | string;
+  trackNumber?: number | string;
+  path?: string;
+  fileName?: string;
+  lyrics?: string;
+  lyricsHash?: string;
+  fingerprint?: string;
+  isUnavailable?: boolean;
 }
 
 export interface Playlist {

@@ -3,6 +3,7 @@ import type { PlayerState } from '../playerStore';
 import type { Track } from '../../types';
 import { useHoladStore } from '../holadStore';
 import { useAudioStore } from '../audioStore';
+import { isTrackExcluded } from '../../utils/trackFingerprint';
 
 const triggerPlay = () => {
   const store = useHoladStore.getState();
@@ -93,14 +94,14 @@ export const createQueueSlice: StateCreator<
   setQueue: (tracks) => set((state) => {
     const sanitized = sanitizeTracks(tracks);
     const isJamGuest = state.roomId && state.role !== 'host';
-    const filtered = isJamGuest ? sanitized : sanitized.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+    const filtered = isJamGuest ? sanitized : sanitized.filter(t => !isTrackExcluded(t, state.excludedTrackIds, state.excludedAlbumIds, state.excludedFingerprints));
     return { queue: filtered, originalQueue: filtered, currentIndex: filtered.length > 0 ? 0 : -1, isShuffle: false };
   }),
   setQueueAndPlay: (tracks, startIndex = 0) => {
     const state = get();
     const sanitized = sanitizeTracks(tracks);
     const isJamGuest = state.roomId && state.role !== 'host';
-    const isExcluded = (t: any) => !isJamGuest && (state.excludedTrackIds.includes(t.id) || (t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+    const isExcluded = (t: any) => !isJamGuest && isTrackExcluded(t, state.excludedTrackIds, state.excludedAlbumIds, state.excludedFingerprints);
 
     // If startIndex points to an excluded track (e.g. playing an album whose first track is ignored),
     // automatically start from the first playable non-excluded track.
@@ -115,7 +116,7 @@ export const createQueueSlice: StateCreator<
     set((state) => {
       triggerPlay();
       const targetTrackId = sanitized[effectiveIndex]?.id;
-      const filtered = isJamGuest ? sanitized : sanitized.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+      const filtered = isJamGuest ? sanitized : sanitized.filter(t => !isExcluded(t));
       if (filtered.length === 0) return state;
       let newIndex = filtered.findIndex(t => t.id === targetTrackId);
       if (newIndex === -1) newIndex = 0;
@@ -128,7 +129,7 @@ export const createQueueSlice: StateCreator<
     set((state) => {
       triggerPlay();
       const isJamGuest = state.roomId && state.role !== 'host';
-      const filtered = isJamGuest ? sanitized : sanitized.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+      const filtered = isJamGuest ? sanitized : sanitized.filter(t => !isTrackExcluded(t, state.excludedTrackIds, state.excludedAlbumIds, state.excludedFingerprints));
       if (filtered.length === 0) return state;
 
       let newQueue = [...state.queue];
@@ -165,7 +166,7 @@ export const createQueueSlice: StateCreator<
   addToQueue: (tracks) => set((state) => {
     const sanitized = sanitizeTracks(tracks);
     const isJamGuest = state.roomId && state.role !== 'host';
-    const filtered = isJamGuest ? sanitized : sanitized.filter(t => !state.excludedTrackIds.includes(t.id) && !(t.albumId && state.excludedAlbumIds.includes(t.albumId)));
+    const filtered = isJamGuest ? sanitized : sanitized.filter(t => !isTrackExcluded(t, state.excludedTrackIds, state.excludedAlbumIds, state.excludedFingerprints));
     if (filtered.length === 0) return state;
     return { 
       queue: [...state.queue, ...filtered],
@@ -201,9 +202,21 @@ export const createQueueSlice: StateCreator<
         return { currentIndex: state.currentIndex, initialPosition: 0, isPlaying: true };
       }
       if (state.currentIndex < state.queue.length - 1) {
-        return { currentIndex: state.currentIndex + 1, isPlaying: true };
+        let nextIdx = state.currentIndex + 1;
+        while (nextIdx < state.queue.length && state.queue[nextIdx]?.isUnavailable) {
+          nextIdx++;
+        }
+        if (nextIdx < state.queue.length) {
+          return { currentIndex: nextIdx, isPlaying: true };
+        }
       } else if (state.repeatMode === 'all') {
-        return { currentIndex: 0, isPlaying: true };
+        let firstIdx = 0;
+        while (firstIdx < state.queue.length && state.queue[firstIdx]?.isUnavailable) {
+          firstIdx++;
+        }
+        if (firstIdx < state.queue.length) {
+          return { currentIndex: firstIdx, isPlaying: true };
+        }
       }
       return state;
     });
@@ -213,7 +226,13 @@ export const createQueueSlice: StateCreator<
     triggerPlay();
     set((state) => {
       if (state.currentIndex > 0) {
-        return { currentIndex: state.currentIndex - 1, isPlaying: true };
+        let prevIdx = state.currentIndex - 1;
+        while (prevIdx >= 0 && state.queue[prevIdx]?.isUnavailable) {
+          prevIdx--;
+        }
+        if (prevIdx >= 0) {
+          return { currentIndex: prevIdx, isPlaying: true };
+        }
       }
       return state;
     });

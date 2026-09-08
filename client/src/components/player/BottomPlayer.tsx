@@ -21,6 +21,7 @@ import { useAudioStore } from '../../store/audioStore';
 import { useBookmark } from '../../hooks/useBookmark';
 import { Bookmark } from 'lucide-react';
 import PlayerProgressControl from './PlayerProgressControl';
+import { isTrackExcluded } from '../../utils/trackFingerprint';
 
 const MiniProgressBar = React.memo(function MiniProgressBar() {
   const progress = useAudioStore(s => s.progress);
@@ -45,7 +46,7 @@ export default function BottomPlayer() {
   const navigate = useNavigate();
   const { openMenu } = useContextMenuStore();
   const { t } = useTranslation();
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, excludedTrackIds, toggleTrackExclude, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, excludedFingerprints, toggleTrackExclude, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized } = usePlayerStore();
   const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
   const audioRef0 = useRef<HTMLAudioElement>(null);
   const audioRef1 = useRef<HTMLAudioElement>(null);
@@ -207,11 +208,11 @@ export default function BottomPlayer() {
                   <Heart size={18} fill={likedTrackIds.includes(currentTrack.id) ? "currentColor" : "none"} className={likedTrackIds.includes(currentTrack.id) ? "text-primary" : ""} />
                 </button>
                 <button 
-                  onClick={() => toggleTrackExclude(currentTrack.id)} 
+                  onClick={() => toggleTrackExclude(currentTrack.id, currentTrack)} 
                   disabled={role === 'listener'}
                   className="hover:text-red-500 transition-colors flex items-center justify-center w-5 disabled:opacity-50"
                 >
-                  <Ban size={18} className={excludedTrackIds.includes(currentTrack.id) ? "text-red-500" : ""} />
+                  <Ban size={18} className={isTrackExcluded(currentTrack, excludedTrackIds, excludedAlbumIds, excludedFingerprints) ? "text-red-500" : ""} />
                 </button>
                 
                 {/* Star Rating */}

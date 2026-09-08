@@ -11,6 +11,7 @@ import ArtistLinks from '../common/ArtistLinks';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { useUIStore } from '../../store/uiStore';
+import { isTrackExcluded } from '../../utils/trackFingerprint';
 
 export default function AlbumView() {
   const { t } = useTranslation();
@@ -18,7 +19,7 @@ export default function AlbumView() {
   const navigate = useNavigate();
   const observerTarget = useRef<HTMLDivElement>(null);
   
-  const { queue, currentIndex, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, toggleTrackExclude, toggleAlbumExclude, isPlaying } = usePlayerStore();
+  const { queue, currentIndex, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, excludedFingerprints, toggleTrackExclude, toggleAlbumExclude, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const openUnignoreModal = useUIStore(state => state.openUnignoreModal);
   const downloads = useDownloadStore(state => state.downloads);
@@ -165,6 +166,7 @@ export default function AlbumView() {
               const currentPlaying = queue[currentIndex]?.id === track.id;
               const isTrackLiked = likedTrackIds.includes(track.id);
               const isTrackDownloaded = isItemDownloaded(downloads, track.id, track.albumId || album.id);
+              const isExcluded = isTrackExcluded(track, excludedTrackIds, excludedAlbumIds, excludedFingerprints);
               
               return (
                 <LongPressWrapper 
@@ -174,7 +176,7 @@ export default function AlbumView() {
                     openMenu(e.clientX, e.clientY, { ...track, artistId: track.artistId || album.artistId, coverArt: getCoverArtUrl(track.coverArt || album.id, 300), albumId: album.id }, 'track'); 
                   }}
                   onClick={() => {
-                    if (excludedTrackIds.includes(track.id) || (track.albumId && excludedAlbumIds.includes(track.albumId))) {
+                    if (isExcluded) {
                       openUnignoreModal({
                         ...track,
                         coverArt: track.coverArt || album.coverArt || album.id,
@@ -198,7 +200,7 @@ export default function AlbumView() {
                       </>
                     )}
                   </div>
-                  <div className={`flex-1 flex flex-col min-w-0 pr-2 sm:pr-4 ${excludedTrackIds.includes(track.id) ? 'opacity-50 grayscale' : ''}`}>
+                  <div className={`flex-1 flex flex-col min-w-0 pr-2 sm:pr-4 ${isExcluded ? 'opacity-50 grayscale' : ''}`}>
                     <span className={`flex items-center gap-2 text-sm sm:text-base font-semibold truncate ${currentPlaying ? 'text-primary' : 'text-foreground'}`}>
                       <span className="truncate">{track.title}</span>
                       {isTrackDownloaded && <Download size={14} className="text-primary shrink-0" />}
@@ -220,10 +222,10 @@ export default function AlbumView() {
                       />
                       <Ban
                         size={16}
-                        className={`opacity-0 group-hover:opacity-100 transition-opacity ${excludedTrackIds.includes(track.id) ? 'opacity-100 text-red-500' : 'text-[#b3b3b3]/50 hover:text-red-400'}`}
+                        className={`opacity-0 group-hover:opacity-100 transition-opacity ${isExcluded ? 'opacity-100 text-red-500' : 'text-[#b3b3b3]/50 hover:text-red-400'}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleTrackExclude(track.id);
+                          toggleTrackExclude(track.id, track);
                         }}
                       />
                     </div>

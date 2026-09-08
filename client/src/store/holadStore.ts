@@ -219,14 +219,20 @@ export const useHoladStore = create<HoladState>((set, get) => {
 
       socket.on('holad_remoteCommand', (command: { type: string, payload?: any }) => {
         if (command.type === 'exclusionToggled') {
-          const { entityId, entityType, isExcluded } = command.payload || {};
+          const { entityId, entityType, isExcluded, fingerprint } = command.payload || {};
           const playerStore = usePlayerStore.getState();
           if (entityType === 'track') {
             const current = playerStore.excludedTrackIds;
             const updated = isExcluded
               ? [...new Set([...current, entityId])]
               : current.filter(id => id !== entityId);
-            usePlayerStore.setState({ excludedTrackIds: updated });
+            const currentFps = playerStore.excludedFingerprints || [];
+            const updatedFps = fingerprint
+              ? (isExcluded
+                  ? [...new Set([...currentFps, fingerprint])]
+                  : currentFps.filter(f => f !== fingerprint))
+              : currentFps;
+            usePlayerStore.setState({ excludedTrackIds: updated, excludedFingerprints: updatedFps });
           } else if (entityType === 'album') {
             const current = playerStore.excludedAlbumIds;
             const updated = isExcluded
@@ -238,10 +244,11 @@ export const useHoladStore = create<HoladState>((set, get) => {
         }
 
         if (command.type === 'exclusionsSynced') {
-          const { excludedTrackIds, excludedAlbumIds } = command.payload || {};
+          const { excludedTrackIds, excludedAlbumIds, excludedFingerprints } = command.payload || {};
           usePlayerStore.setState({
             excludedTrackIds: Array.isArray(excludedTrackIds) ? excludedTrackIds : [],
-            excludedAlbumIds: Array.isArray(excludedAlbumIds) ? excludedAlbumIds : []
+            excludedAlbumIds: Array.isArray(excludedAlbumIds) ? excludedAlbumIds : [],
+            excludedFingerprints: Array.isArray(excludedFingerprints) ? excludedFingerprints : []
           });
           return;
         }

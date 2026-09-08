@@ -3,10 +3,12 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
 import { useUIStore } from '../../store/uiStore';
 import * as exclusionsApi from '../../api/exclusions';
+import { generateTrackFingerprint } from '../../utils/trackFingerprint';
 
 vi.mock('../../api/exclusions', () => ({
   fetchExclusions: vi.fn(),
   syncToggleExclusion: vi.fn().mockResolvedValue(true),
+  syncReconcileExclusion: vi.fn().mockResolvedValue(true),
   syncSetExclusions: vi.fn().mockResolvedValue(true)
 }));
 
@@ -68,20 +70,20 @@ describe('Exclusions Persistence & Real-Time Sync', () => {
     usePlayerStore.getState().toggleTrackExclude('track-999');
 
     expect(usePlayerStore.getState().excludedTrackIds).toContain('track-999');
-    expect(sendRemoteCommandSpy).toHaveBeenCalledWith('exclusionToggled', {
+    expect(sendRemoteCommandSpy).toHaveBeenCalledWith('exclusionToggled', expect.objectContaining({
       entityId: 'track-999',
       entityType: 'track',
       isExcluded: true
-    });
+    }));
 
     // Toggle unban on track
     usePlayerStore.getState().toggleTrackExclude('track-999');
     expect(usePlayerStore.getState().excludedTrackIds).not.toContain('track-999');
-    expect(sendRemoteCommandSpy).toHaveBeenCalledWith('exclusionToggled', {
+    expect(sendRemoteCommandSpy).toHaveBeenCalledWith('exclusionToggled', expect.objectContaining({
       entityId: 'track-999',
       entityType: 'track',
       isExcluded: false
-    });
+    }));
 
     sendRemoteCommandSpy.mockRestore();
   });
@@ -93,22 +95,81 @@ describe('Exclusions Persistence & Real-Time Sync', () => {
     usePlayerStore.getState().toggleAlbumExclude('album-42');
 
     expect(usePlayerStore.getState().excludedAlbumIds).toContain('album-42');
-    expect(sendRemoteCommandSpy).toHaveBeenCalledWith('exclusionToggled', {
+    expect(sendRemoteCommandSpy).toHaveBeenCalledWith('exclusionToggled', expect.objectContaining({
       entityId: 'album-42',
       entityType: 'album',
       isExcluded: true
-    });
+    }));
 
     // Toggle unban on album
     usePlayerStore.getState().toggleAlbumExclude('album-42');
     expect(usePlayerStore.getState().excludedAlbumIds).not.toContain('album-42');
-    expect(sendRemoteCommandSpy).toHaveBeenCalledWith('exclusionToggled', {
+    expect(sendRemoteCommandSpy).toHaveBeenCalledWith('exclusionToggled', expect.objectContaining({
       entityId: 'album-42',
       entityType: 'album',
       isExcluded: false
-    });
+    }));
 
     sendRemoteCommandSpy.mockRestore();
+  });
+
+  it('filters tracks by fingerprint even if track ID changed after a library rescan', () => {
+    const originalTrack = {
+      id: 'old-subsonic-id-100',
+      title: 'пых-пых (mashup)',
+      artist: 'FHR',
+      album: 'пых-пых generational',
+      duration: 185,
+      track: 2
+    };
+    const fp = generateTrackFingerprint(originalTrack);
+
+    // Set excluded fingerprints with only the old track's fingerprint
+    usePlayerStore.setState({
+      excludedTrackIds: ['old-subsonic-id-100'],
+      excludedAlbumIds: [],
+      excludedFingerprints: [fp],
+      queue: []
+    });
+
+    // A rescanned track in library now has a completely new ID 'new-subsonic-id-200'
+    const rescannedTrack = {
+      id: 'new-subsonic-id-200',
+      title: 'пых-пых (mashup)',
+      artist: 'FHR',
+      album: 'пых-пых generational',
+      duration: 185,
+      track: 2
+    };
+
+    const allowedTrack = {
+      id: 'fresh-id-300',
+      title: 'Different Track',
+      artist: 'FHR',
+      album: 'пых-пых generational',
+      duration: 210,
+      track: 3
+    };
+
+    usePlayerStore.getState().setQueue([rescannedTrack as any, allowedTrack as any]);
+
+    const state = usePlayerStore.getState();
+    // rescannedTrack must be excluded by fingerprint even though its ID changed!
+    expect(state.queue.map(t => t.id)).toEqual(['fresh-id-300']);
+  });
+
+  it('reconcileTrackExclusion updates track IDs and retains fingerprint', () => {
+    usePlayerStore.setState({
+      excludedTrackIds: ['old-track-id'],
+      excludedFingerprints: ['trk_fingerprint_test']
+    });
+
+    usePlayerStore.getState().reconcileTrackExclusion('new-reindexed-id', 'trk_fingerprint_test', 'old-track-id');
+
+    const state = usePlayerStore.getState();
+    expect(state.excludedTrackIds).toContain('new-reindexed-id');
+    expect(state.excludedTrackIds).not.toContain('old-track-id');
+    expect(state.excludedFingerprints).toContain('trk_fingerprint_test');
   });
 
   it('setQueueAndPlay automatically skips excluded track at startIndex=0 and plays first available track', () => {

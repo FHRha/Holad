@@ -19,12 +19,13 @@ import AddToPlaylistModal from './AddToPlaylistModal';
 import { ListMusic, Plus, ChevronRight } from 'lucide-react';
 import { networkManager } from '../../utils/networkStatus';
 import { jamSocket } from '../../api/socket';
+import { isTrackExcluded } from '../../utils/trackFingerprint';
 
 export default function ContextMenu() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isOpen, x, y, item, type, closeMenu } = useContextMenuStore();
-  const { setQueueAndPlay, playNext, addToQueue, queue, setQueue, likedTrackIds, likedAlbumIds, toggleTrackLike, toggleAlbumLike, role, toggleTrackExclude, toggleAlbumExclude, excludedTrackIds, excludedAlbumIds, roomId } = usePlayerStore();
+  const { setQueueAndPlay, playNext, addToQueue, queue, setQueue, likedTrackIds, likedAlbumIds, toggleTrackLike, toggleAlbumLike, role, toggleTrackExclude, toggleAlbumExclude, excludedTrackIds, excludedAlbumIds, excludedFingerprints, roomId } = usePlayerStore();
   const isJamActive = roomId !== null;
   const isJamRoute = window.location.pathname.startsWith('/jam');
   const isGuest = isJamRoute && role !== 'host';
@@ -248,18 +249,20 @@ export default function ContextMenu() {
     }
   };
 
-  const isExcluded = isAlbum ? (excludedAlbumIds || []).includes(item?.id) : (excludedTrackIds || []).includes(item?.id);
+  const isExcluded = isAlbum 
+    ? (excludedAlbumIds || []).includes(item?.id) 
+    : isTrackExcluded(item, excludedTrackIds, excludedAlbumIds, excludedFingerprints);
 
   const onExclude = () => {
     if (isAlbum) {
-      toggleAlbumExclude(item.id);
+      toggleAlbumExclude(item.id, { album: item.name || item.title, artist: item.artist });
       const state = usePlayerStore.getState();
       const currentTrack = state.queue[state.currentIndex];
       if (!isExcluded && currentTrack?.albumId === item.id) {
         state.nextTrack();
       }
     } else {
-      toggleTrackExclude(item.id);
+      toggleTrackExclude(item.id, item);
       const state = usePlayerStore.getState();
       const currentTrack = state.queue[state.currentIndex];
       if (!isExcluded && currentTrack?.id === item.id) {

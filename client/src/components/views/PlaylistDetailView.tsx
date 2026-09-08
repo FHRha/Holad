@@ -13,6 +13,7 @@ import { getHoladServerUrl } from '../../utils/serverConfig';
 import TrackRow from '../common/TrackRow';
 import PlaylistCover from '../common/PlaylistCover';
 import { Virtuoso } from 'react-virtuoso';
+import { matchTrackConfidence } from '../../utils/trackFingerprint';
 
 export default function PlaylistDetailView() {
   const { t } = useTranslation();
@@ -66,38 +67,102 @@ export default function PlaylistDetailView() {
 
         if (customPlaylist) {
            const offlineTracks = getOfflineTracks();
-           const rawTrackIds = Array.isArray(customPlaylist.trackIds) ? customPlaylist.trackIds : [];
+           const rawTrackIds: string[] = Array.isArray(customPlaylist.trackIds) ? customPlaylist.trackIds : [];
+           const embeddedTracks: any[] = Array.isArray((customPlaylist as any).tracks) ? (customPlaylist as any).tracks : [];
            
-           // Resolve tracks: prefer embedded metadata if available
-           const resolvedEntries = [];
-           if (Array.isArray((customPlaylist as any).tracks) && (customPlaylist as any).tracks.length > 0) {
-             resolvedEntries.push(...(customPlaylist as any).tracks);
-           } else {
-             for (const trackId of rawTrackIds) {
-               let track = offlineTracks.find(t => t.id === trackId);
-               
-               // If online and not found in offline tracks, try to fetch from server
-               if (!track && !isOffline) {
-                 try {
-                    const { getSong } = await import('../../api/subsonic/tracks');
-                    track = await getSong(trackId);
-                 } catch (e) {
-                    console.error('Failed to fetch song info for custom playlist', e);
-                 }
-               }
-               
-               if (track) {
-                  // If offline, ensure it's downloaded
-                  if (isOffline) {
-                     const { downloads } = useDownloadStore.getState();
-                     if (isItemDownloaded(downloads, track.id, track.albumId)) {
-                        resolvedEntries.push(track);
-                     }
-                  } else {
-                     resolvedEntries.push(track);
-                  }
+           const resolvedEntries: any[] = [];
+           const replacementsToSync: Array<{ oldId: string; newId: string }> = [];
+
+           const allItems: Array<{ id: string; cached?: any }> = [];
+           if (rawTrackIds.length > 0) {
+             rawTrackIds.forEach((tId, idx) => {
+               const cached = embeddedTracks.find((e: any) => (typeof e === 'string' ? e : e?.id) === tId) || embeddedTracks[idx];
+               allItems.push({ id: tId, cached });
+             });
+           } else if (embeddedTracks.length > 0) {
+             embeddedTracks.forEach((e: any) => {
+               const tId = typeof e === 'string' ? e : e?.id;
+               if (tId) allItems.push({ id: tId, cached: typeof e === 'object' ? e : undefined });
+             });
+           }
+
+           for (const item of allItems) {
+             let track = offlineTracks.find(t => t.id === item.id);
+             
+             // If online and not found in offline tracks, try to fetch from server
+             if (!track && !isOffline) {
+               try {
+                 const { getSong } = await import('../../api/subsonic/tracks');
+                 track = await getSong(item.id);
+               } catch (e) {
+                 console.error('Failed to fetch song info for custom playlist', e);
                }
              }
+
+             // Fuzzy reconciliation fallback if track not found
+             if (!track && !isOffline && item.cached && (item.cached.title || item.cached.name)) {
+               try {
+                 const { searchTracks } = await import('../../api/subsonic/tracks');
+                 const query = [item.cached.artist, item.cached.title || item.cached.name].filter(Boolean).join(' ') || (item.cached.title || item.cached.name);
+                 const candidates = await searchTracks(query, 10);
+                 let bestCand: any = null;
+                 let bestScore = 0;
+                 for (const cand of candidates) {
+                   const score = matchTrackConfidence(item.cached, cand);
+                   if (score > bestScore && score >= 0.75) {
+                     bestScore = score;
+                     bestCand = cand;
+                   }
+                 }
+                 if (bestCand) {
+                   track = bestCand;
+                   replacementsToSync.push({ oldId: item.id, newId: bestCand.id });
+                 }
+               } catch (e) {
+                 console.error('Failed to fuzzy reconcile track in playlist:', e);
+               }
+             }
+
+             if (track) {
+               // If offline, ensure it's downloaded
+               if (isOffline) {
+                 const { downloads } = useDownloadStore.getState();
+                 if (isItemDownloaded(downloads, track.id, track.albumId)) {
+                   resolvedEntries.push(track);
+                 }
+               } else {
+                 resolvedEntries.push(track);
+               }
+             } else if (item.cached) {
+               resolvedEntries.push({ ...item.cached, id: item.id, isUnavailable: true });
+             } else {
+               resolvedEntries.push({ id: item.id, title: 'Unavailable track', isUnavailable: true });
+             }
+           }
+
+           if (replacementsToSync.length > 0 && !isOffline) {
+             fetch(`${getHoladServerUrl()}/api/custom-playlists/${encodeURIComponent(customPlaylist.id)}/reconcile`, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ replacements: replacementsToSync })
+             }).catch(e => console.error('Failed to sync playlist reconciliation to server:', e));
+
+             const curPlaylists = usePlaylistStore.getState().playlists;
+             const updatedPlaylists = curPlaylists.map(pl => {
+               if (pl.id === customPlaylist!.id) {
+                 const updatedTrackIds = (pl.trackIds || []).map(id => {
+                   const rep = replacementsToSync.find(r => r.oldId === id);
+                   return rep ? rep.newId : id;
+                 });
+                 const updatedTracks = (pl.tracks || []).map(t => {
+                   const rep = replacementsToSync.find(r => r.oldId === t.id);
+                   return rep ? { ...t, id: rep.newId } : t;
+                 });
+                 return { ...pl, trackIds: updatedTrackIds, tracks: updatedTracks };
+               }
+               return pl;
+             });
+             usePlaylistStore.setState({ playlists: updatedPlaylists });
            }
            
            if (!isMounted) return;
@@ -208,8 +273,10 @@ export default function PlaylistDetailView() {
 
   const handlePlayAll = useCallback(() => {
     if (!playlist || !playlist.entry) return;
+    const playableEntries = playlist.entry.filter((t: any) => !t.isUnavailable);
+    if (playableEntries.length === 0) return;
     setIsProcessing(true);
-    setQueueAndPlay(playlist.entry.map((t: any) => ({
+    setQueueAndPlay(playableEntries.map((t: any) => ({
       id: t.id,
       title: t.title || t.name,
       artist: t.artist,
@@ -219,13 +286,19 @@ export default function PlaylistDetailView() {
       coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
       duration: t.duration,
       bitRate: t.bitRate,
-      suffix: t.suffix
+      suffix: t.suffix,
+      track: t.track,
+      fileName: t.fileName,
+      path: t.path,
+      fingerprint: t.fingerprint,
+      isUnavailable: t.isUnavailable
     })), 0);
     setIsProcessing(false);
   }, [playlist, setIsProcessing, setQueueAndPlay]);
 
   const handlePlaySong = useCallback((index: number) => {
     if (!playlist || !playlist.entry) return;
+    if (playlist.entry[index]?.isUnavailable) return;
     setIsProcessing(true);
     setQueueAndPlay(playlist.entry.map((t: any) => ({
       id: t.id,
@@ -237,7 +310,12 @@ export default function PlaylistDetailView() {
       coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
       duration: t.duration,
       bitRate: t.bitRate,
-      suffix: t.suffix
+      suffix: t.suffix,
+      track: t.track,
+      fileName: t.fileName,
+      path: t.path,
+      fingerprint: t.fingerprint,
+      isUnavailable: t.isUnavailable
     })), index);
     setIsProcessing(false);
   }, [playlist, setIsProcessing, setQueueAndPlay]);

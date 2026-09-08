@@ -548,11 +548,13 @@ app.post('/api/holad/exclusions/:roomId', validateRestAuth, express.json(), (req
   const roomId = req.params.roomId as string;
   try {
     if (req.body && 'entityId' in req.body && 'entityType' in req.body) {
-      const { entityId, entityType } = req.body;
-      const isExcluded = database.toggleExclusion(roomId, entityId, entityType);
+      const { entityId, entityType, title, artist, album, trackNumber, duration, fileName, path, lyrics, lyricsHash, fingerprint } = req.body;
+      const isExcluded = database.toggleExclusion(roomId, entityId, entityType, {
+        title, artist, album, trackNumber, duration, fileName, path, lyrics, lyricsHash, fingerprint
+      });
       io.to(`holad_${roomId}`).emit('holad_remoteCommand', {
         type: 'exclusionToggled',
-        payload: { entityId, entityType, isExcluded }
+        payload: { entityId, entityType, isExcluded, fingerprint }
       });
       return res.json({ ok: true, isExcluded });
     } else if (req.body && ('excludedTrackIds' in req.body || 'excludedAlbumIds' in req.body)) {
@@ -570,6 +572,44 @@ app.post('/api/holad/exclusions/:roomId', validateRestAuth, express.json(), (req
   } catch (error) {
     console.error('Error modifying exclusions:', error);
     return res.status(500).send('Error modifying exclusions');
+  }
+});
+
+app.post('/api/holad/exclusions/:roomId/reconcile', validateRestAuth, express.json(), (req, res) => {
+  const roomId = req.params.roomId as string;
+  try {
+    const { oldId, newId, entityType, fingerprint } = req.body || {};
+    if (!newId || (!oldId && !fingerprint)) {
+      return res.status(400).json({ error: 'newId and either oldId or fingerprint required' });
+    }
+    const reconciled = database.reconcileExclusion(roomId, oldId ? String(oldId) : '', String(newId), entityType || 'track', fingerprint);
+    if (reconciled) {
+      const exclusions = database.getExclusions(roomId);
+      io.to(`holad_${roomId}`).emit('holad_remoteCommand', {
+        type: 'exclusionsSynced',
+        payload: exclusions
+      });
+      return res.json({ ok: true, reconciled, exclusions });
+    }
+    return res.status(404).json({ ok: false, error: 'Exclusion not found' });
+  } catch (error) {
+    console.error('Error reconciling exclusion:', error);
+    return res.status(500).send('Error reconciling exclusion');
+  }
+});
+
+app.post(['/api/custom-playlists/:id/reconcile', '/Holad/api/custom-playlists/:id/reconcile'], express.json(), (req, res) => {
+  const id = req.params.id as string;
+  try {
+    const { replacements } = req.body || {};
+    if (!Array.isArray(replacements)) {
+      return res.status(400).json({ error: 'replacements must be an array' });
+    }
+    const reconciled = database.reconcilePlaylistTracks(id, replacements);
+    return res.json({ ok: true, reconciled });
+  } catch (error) {
+    console.error('Error reconciling playlist tracks:', error);
+    return res.status(500).send('Error reconciling playlist tracks');
   }
 });
 
