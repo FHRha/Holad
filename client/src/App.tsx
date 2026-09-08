@@ -41,6 +41,8 @@ import UnignoreTrackModal from './components/modals/UnignoreTrackModal';
 import TrayMenu from './components/player/TrayMenu';
 import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
+import { useDemoStore } from './store/demoStore';
+import DemoCapacityView from './components/views/DemoCapacityView';
 import { useEffect, useState } from 'react';
 import { isTauri, isCapacitor, StorageManager } from './utils/StorageManager';
 import { getCoverArtUrl } from './api/subsonic';
@@ -85,6 +87,11 @@ function AppContent() {
   const { startPage } = useSettingsStore();
   // oxlint-disable-next-line
   const { isSettingsOpen, isOfflineModalOpen, setOfflineModalOpen } = useUIStore();
+  const { isDemoMode, isPoolExhausted, checkDemoSession } = useDemoStore();
+
+  useEffect(() => {
+    checkDemoSession();
+  }, [checkDemoSession]);
   
   // oxlint-disable-next-line
   useTaskbarControls();
@@ -234,6 +241,14 @@ function AppContent() {
 
   const effectiveToastTheme = isMobile && !isLoginRoute ? 'dark' : (theme === 'dark' ? 'dark' : 'light');
 
+  if (isPoolExhausted) {
+    return (
+      <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden font-sans relative">
+        <DemoCapacityView />
+      </div>
+    );
+  }
+
   return (
     <GlobalDndProvider>
       <Toaster theme={effectiveToastTheme} position="bottom-center" richColors />
@@ -242,7 +257,7 @@ function AppContent() {
         <div className="flex flex-1 overflow-hidden relative z-10">
           <Routes>
             <Route path="/" element={<Navigate to={startPage} replace />} />
-            <Route path="/login" element={!isAuthenticated ? <LoginView /> : <Navigate to="/Holad" replace />} />
+            <Route path="/login" element={isDemoMode ? <Navigate to="/Holad" replace /> : (!isAuthenticated ? <LoginView /> : <Navigate to="/Holad" replace />)} />
             
             <Route path="/Holad/*" element={
               isAuthenticated ? (
@@ -277,7 +292,13 @@ function AppContent() {
                 </div>
                 <RightSidebar />
               </>
-              ) : <Navigate to="/login" replace />
+              ) : (isDemoMode ? (
+                <div className="flex flex-col h-full w-full items-center justify-center bg-background text-foreground">
+                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <Navigate to="/login" replace />
+              ))
             } />
             
             <Route path="/jam/*" element={<JamLayout />} />

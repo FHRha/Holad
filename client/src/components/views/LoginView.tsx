@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useDemoStore } from '../../store/demoStore';
 // pingServer removed as it's no longer needed
 import { Server, User, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +12,11 @@ import LanguageSelector from '../common/LanguageSelector';
 import ThemeSelector from '../common/ThemeSelector';
 
 export default function LoginView() {
+  const isDemoMode = useDemoStore(state => state.isDemoMode);
+  if (isDemoMode) {
+    return <Navigate to="/Holad" replace />;
+  }
+
   const { t } = useTranslation();
   const [url, setUrl] = useState(useAuthStore.getState().url || 'https://');
   const [username, setUsername] = useState(useAuthStore.getState().user || '');

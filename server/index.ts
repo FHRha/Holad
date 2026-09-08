@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import * as database from './src/database.js';
+import { demoManager } from './src/demoManager.js';
 
 dotenv.config();
 // Fallback to root .env if running from server directory
@@ -303,6 +304,54 @@ app.delete(['/api/custom-playlists/:id', '/Holad/api/custom-playlists/:id'], (re
     console.error('Error deleting custom playlist:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// --- Demo Mode Endpoints ---
+app.get(['/api/demo/status', '/Holad/api/demo/status'], (_req, res) => {
+  res.json(demoManager.getPoolStats());
+});
+
+app.get(['/api/demo/session', '/Holad/api/demo/session'], (req, res) => {
+  if (!demoManager.isEnabled()) {
+    return res.json({ demoMode: false });
+  }
+
+  const existingSessionId = (req.query.sessionId as string) || (req.headers['x-demo-session'] as string);
+  const result = demoManager.acquireSession(existingSessionId);
+
+  if (!result.available) {
+    return res.status(429).json({
+      demoMode: true,
+      available: false,
+      retryAfter: result.retryAfter || 60
+    });
+  }
+
+  // Ensure accounts list in server memory includes the active demo account
+  navidromeAccounts = database.getNavidromeAccounts();
+
+  res.json({
+    demoMode: true,
+    available: true,
+    sessionId: result.session!.sessionId,
+    guestUserId: result.session!.guestUserId,
+    account: {
+      url: result.session!.account.url,
+      user: result.session!.account.user,
+      token: result.session!.account.token,
+      salt: result.session!.account.salt
+    },
+    expiresIn: Math.ceil((result.session!.expiresAt - Date.now()) / 1000)
+  });
+});
+
+app.post(['/api/demo/heartbeat', '/Holad/api/demo/heartbeat'], express.json(), (req, res) => {
+  if (!demoManager.isEnabled()) {
+    return res.json({ demoMode: false });
+  }
+  const sessionId = req.body?.sessionId || (req.headers['x-demo-session'] as string);
+  const refreshed = demoManager.heartbeat(sessionId);
+  res.json({ success: refreshed });
 });
 
 app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, res) => {

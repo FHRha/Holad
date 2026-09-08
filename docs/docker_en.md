@@ -98,6 +98,9 @@ docker compose up -d
 | `NAVIDROME_URL` | *(empty)* | Optional: Navidrome server URL for headless pre-authentication |
 | `NAVIDROME_USER` | *(empty)* | Optional: Navidrome username for headless pre-authentication |
 | `NAVIDROME_PASS` | *(empty)* | Optional: Navidrome password for headless pre-authentication |
+| `DEMO_MODE` | `false` | Enable public interactive demo mode (transparent zero-click login, hidden logout, managed guest pool) |
+| `DEMO_POOL_SIZE` | `25` | Maximum number of concurrent demo visitors |
+| `DEMO_SESSION_MINUTES` | `30` | Guest session lease TTL in minutes (extended automatically via background heartbeat) |
 
 ---
 
@@ -224,6 +227,42 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
+```
+
+---
+
+### Recipe 4: Public Demo Stand (Demo Mode)
+
+If you want to host a public interactive showcase of Holad for visitors:
+- **Instant zero-click entry**: visitors are directly placed inside the player without seeing a login form;
+- **Suppressed Logout button**: prevents visitors from accidentally invalidating the shared demo session;
+- **Managed guest pool**: limits concurrent active guests (default: `25`), protecting both Navidrome and the host machine from load spikes;
+- **Full capacity waiting room**: if all slots are taken, a branded waiting screen with live countdown timer and automatic retries is shown;
+- **Isolation and automatic cleanup**: temporary guest sessions and SQLite records are purged upon expiration.
+
+```yaml
+services:
+  holad-demo:
+    image: ghcr.io/fhrha/holad:latest
+    container_name: holad-demo
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - PORT=4000
+      - BASE_PATH=/
+      # Enable demo mode:
+      - DEMO_MODE=true
+      - DEMO_POOL_SIZE=25
+      - DEMO_SESSION_MINUTES=30
+      # Navidrome demo showcase credentials:
+      - NAVIDROME_URL=https://music.yourdomain.com
+      - NAVIDROME_USER=demo_visitor
+      - NAVIDROME_PASS=demo_password
+    volumes:
+      - ./demo_data:/data
 ```
 
 ---

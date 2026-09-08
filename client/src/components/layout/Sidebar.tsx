@@ -11,6 +11,7 @@ import { isTauri, isCapacitor } from '../../utils/StorageManager';
 import { openExternalLink } from '../../utils/linkHelper';
 import { useSettingsStore } from '../../store/settingsStore';
 import { usePlayerStore } from '../../store/playerStore';
+import { useDemoStore } from '../../store/demoStore';
 
 
 export default function Sidebar() {
@@ -20,6 +21,7 @@ export default function Sidebar() {
   const { leftSidebarWidth, setLeftSidebarWidth } = useUIStore();
   const { user, url, setAuthenticated, setCredentials } = useAuthStore();
   const { role, roomId } = usePlayerStore();
+  const isDemoMode = useDemoStore(state => state.isDemoMode);
   const isJamRoute = location.pathname.startsWith('/jam');
   const isJamGuest = isJamRoute && (role === 'listener' || role === 'cohost');
   const basePath = isJamRoute ? '/jam' : '/Holad';
@@ -190,7 +192,7 @@ export default function Sidebar() {
                 )}
               </div>
 
-              {!isJamGuest && (
+              {!isJamGuest && !isDemoMode && (
                 <div className="px-2 pt-2 border-t border-border">
                   <button 
                     onClick={handleLogout}

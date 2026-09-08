@@ -19,6 +19,7 @@ import ImageMemoryLimitControl from '../settings/ImageMemoryLimitControl';
 import StorageDangerZone from '../settings/StorageDangerZone';
 import DownloadedMusicGrid from '../settings/DownloadedMusicGrid';
 import { openExternalLink } from '../../utils/linkHelper';
+import { useDemoStore } from '../../store/demoStore';
 
 function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
   return (
@@ -96,6 +97,7 @@ function hslToHex(h: number, s: number, l: number) {
 
 export default function MobileSettingsView() {
   const { t } = useTranslation();
+  const isDemoMode = useDemoStore(state => state.isDemoMode);
   const { setAuthenticated, setCredentials } = useAuthStore();
   const { setSearchOpen, setOfflineModalOpen } = useUIStore();
   const { isOffline } = useNetworkStatus();
@@ -184,7 +186,7 @@ export default function MobileSettingsView() {
         </div>
       )
     },
-    {
+    ...(!isDemoMode ? [{
       id: 'server',
       title: t('views.settings_server_account'),
       subtitle: t('views.settings_server_desc'),
@@ -196,7 +198,7 @@ export default function MobileSettingsView() {
           </button>
         </div>
       )
-    },
+    }] : []),
     {
       id: 'datasources',
       title: t('settings.data_sources') || 'Источники информации',
