@@ -13,7 +13,7 @@
       "launchShowDuration": 0,
       "launchAutoHide": true,
       "androidSplashResourceName": "splash",
-      "androidScaleType": "CENTER_CROP"
+      "androidScaleType": "CENTER_INSIDE"
     }
   }
 }
