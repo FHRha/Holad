@@ -1444,8 +1444,8 @@ io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
   // --- Holad Connect Events ---
-  socket.on('holad_joinRoom', async (data: { roomId: string, deviceId: string, deviceName: string, auth?: { user: string, salt: string, token: string, url: string } }) => {
-    const { roomId, deviceId, deviceName, auth } = data;
+  socket.on('holad_joinRoom', async (data: { roomId: string, deviceId: string, deviceName: string, auth?: { user: string, salt: string, token: string, url: string }, demoSessionId?: string }) => {
+    const { roomId, deviceId, deviceName, auth, demoSessionId } = data;
     
     if (!auth || typeof auth.user !== 'string' || typeof auth.salt !== 'string' || typeof auth.token !== 'string' || typeof auth.url !== 'string') {
       socket.emit('holad_authError', 'Missing or invalid authentication credentials');
@@ -1453,7 +1453,13 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (auth.user !== roomId) {
+    const demoSession = demoManager.isEnabled()
+      ? (demoSessionId ? demoManager.getSession(demoSessionId) : demoManager.getSessionByGuestUserId(roomId))
+      : null;
+
+    const isDemoMatch = !!demoSession && (roomId === demoSession.guestUserId || (auth.user === demoSession.account.user && roomId === demoSession.guestUserId));
+
+    if (!isDemoMatch && auth.user !== roomId) {
       socket.emit('holad_authError', 'Room mismatch: You can only join your own room');
       socket.disconnect();
       return;
@@ -1519,7 +1525,9 @@ io.on('connection', (socket) => {
     (socket as any).holadData = { roomId, deviceId };
     
     // Register user presence for social features
-    const userRecord = database.ensureUserWithTag(auth.user, auth.user);
+    const socialUserId = demoSession ? demoSession.guestUserId : auth.user;
+    const socialUsername = demoSession ? `Гость #${demoSession.slotId}` : auth.user;
+    const userRecord = database.ensureUserWithTag(socialUserId, socialUsername);
     registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
     
     io.to(`holad_${roomId}`).emit('holad_devices', { devices: room.devices, activeDeviceId: room.activeDeviceId });
@@ -1587,7 +1595,7 @@ io.on('connection', (socket) => {
   // --- End Holad Connect Events ---
 
   // --- Social & Presence Events ---
-  const handleSocialInit = async (payload: { user: string, token: string, salt: string, url: string }, callback?: Function) => {
+  const handleSocialInit = async (payload: { user: string, token: string, salt: string, url: string, demoSessionId?: string }, callback?: Function) => {
     if (!payload || !payload.user || !payload.token || !payload.salt || !payload.url) {
       socket.emit('social_error', 'Missing authentication payload');
       if (typeof callback === 'function') callback({ error: 'Missing authentication payload' });
@@ -1601,7 +1609,14 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const userRecord = database.ensureUserWithTag(payload.user, payload.user);
+    const demoSession = (demoManager.isEnabled() && payload.demoSessionId)
+      ? demoManager.getSession(payload.demoSessionId)
+      : null;
+
+    const socialUserId = demoSession ? demoSession.guestUserId : payload.user;
+    const socialUsername = demoSession ? `Гость #${demoSession.slotId}` : payload.user;
+
+    const userRecord = database.ensureUserWithTag(socialUserId, socialUsername);
     registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
 
     const friends = getFriendsWithPresence(userRecord.user_id);

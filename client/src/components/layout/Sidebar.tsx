@@ -141,7 +141,7 @@ export default function Sidebar() {
                       alt="Navidrome" 
                       className="w-3.5 h-3.5 object-contain opacity-80 shrink-0" 
                     />
-                    <span className="text-xs text-secondary truncate">{isDemoMode ? `${t('demo.demo_account', 'Демо-аккаунт')} (${user})` : (url ? new URL(url).hostname : t('sidebar.local_server'))}</span>
+                    <span className="text-xs text-secondary truncate">{isDemoMode ? t('demo.demo_account', 'Демо-аккаунт') : (url ? new URL(url).hostname : t('sidebar.local_server'))}</span>
                   </div>
                 </div>
               </div>

@@ -55,7 +55,7 @@ export default function DemoCapacityView() {
       </div>
 
       {/* Main Glassmorphic Card */}
-      <div className="w-full max-w-md bg-card/60 backdrop-blur-xl border border-border/60 rounded-3xl p-8 shadow-2xl relative z-10 flex flex-col items-center text-center animate-fade-in">
+      <div className="w-full max-w-md bg-card/60 backdrop-blur-xl border border-neutral-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl relative z-10 flex flex-col items-center text-center animate-fade-in">
         
         {/* App Logo */}
         <div className="relative mb-6">
@@ -84,12 +84,12 @@ export default function DemoCapacityView() {
         </p>
 
         {/* Live Timer Card */}
-        <div className="w-full bg-background/50 border border-border/40 rounded-2xl p-4 flex items-center justify-between mb-6">
+        <div className="w-full bg-background/50 border border-neutral-200/60 dark:border-white/5 rounded-2xl p-4 flex items-center justify-between mb-6">
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <Clock size={18} className="text-primary animate-pulse" />
             <span>{t('demo.auto_retry', 'Автоматическая проверка:')}</span>
           </div>
-          <span className="font-mono text-base font-bold text-foreground bg-foreground/5 px-2.5 py-0.5 rounded-lg border border-border/30">
+          <span className="font-mono text-base font-bold text-foreground bg-foreground/5 px-2.5 py-0.5 rounded-lg border border-neutral-200/50 dark:border-white/5">
             {countdown}s
           </span>
         </div>

@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { getHoladServerUrl } from '../utils/serverConfig';
 import { useAuthStore } from './authStore';
+import { useHoladStore } from './holadStore';
+import { useSocialStore } from './socialStore';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
 
 interface DemoState {
@@ -54,6 +56,7 @@ export const useDemoStore = create<DemoState>((set, get) => ({
         if (res.status === 429 || res.status === 503) {
           const data = await res.json().catch(() => ({ retryAfter: 60 }));
           try { sessionStorage.removeItem('holad_demo_session_id'); } catch (_) {}
+          useHoladStore.getState().disconnect();
           useAuthStore.getState().logout();
           set({
             isDemoMode: true,
@@ -91,6 +94,12 @@ export const useDemoStore = create<DemoState>((set, get) => ({
         const { setCredentials, setAuthenticated } = useAuthStore.getState();
         setCredentials(data.account.url, data.account.user, data.account.token, data.account.salt);
         setAuthenticated(true);
+
+        // Connect Holad Connect and Social to isolated guest room
+        if (data.guestUserId) {
+          useHoladStore.getState().connect(data.guestUserId);
+          useSocialStore.getState().initSocial();
+        }
 
         // Start keep-alive heartbeat
         get().startHeartbeat();

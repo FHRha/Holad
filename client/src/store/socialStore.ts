@@ -117,8 +117,9 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   initSocial: () => {
     const { user, token, salt, url, isAuthenticated } = useAuthStore.getState();
     if (isAuthenticated && user && token && salt && url) {
+      const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
       jamSocket.connect();
-      jamSocket.emit('social_init', { user, token, salt, url });
+      jamSocket.emit('social_init', { user, token, salt, url, demoSessionId });
     }
   },
 

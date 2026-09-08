@@ -7,6 +7,7 @@ import { fetchExclusions } from '../api/exclusions';
 import { jamSocket } from '../api/socket';
 import { useHoladStore } from '../store/holadStore';
 import { useSocialStore } from '../store/socialStore';
+import { useDemoStore } from '../store/demoStore';
 import type { Track } from '../types';
 
 export function useAppInitialization() {
@@ -21,6 +22,8 @@ export function useAppInitialization() {
   const setExcludedItems = usePlayerStore(state => state.setExcludedItems);
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const user = useAuthStore(state => state.user);
+  const isDemoMode = useDemoStore(state => state.isDemoMode);
+  const guestUserId = useDemoStore(state => state.guestUserId);
   const isJamRoute = location.pathname.startsWith('/jam');
   const queueFetched = useRef(false);
 
@@ -31,7 +34,8 @@ export function useAppInitialization() {
     jamSocket.connect();
     
     if (isAuthenticated && typeof user === 'string') {
-      useHoladStore.getState().connect(user);
+      const targetRoom = (isDemoMode && guestUserId) ? guestUserId : user;
+      useHoladStore.getState().connect(targetRoom);
       useSocialStore.getState().initSocial();
     }
     
@@ -96,7 +100,7 @@ export function useAppInitialization() {
         }
       }).catch(e => console.error("Failed to fetch play queue", e));
     }
-  }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute]);
+  }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute, isDemoMode, guestUserId]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

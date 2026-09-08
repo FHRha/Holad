@@ -178,6 +178,17 @@ export class DemoManager {
     return true;
   }
 
+  public getSession(sessionId: string): DemoSession | undefined {
+    return this.sessions.get(sessionId);
+  }
+
+  public getSessionByGuestUserId(guestUserId: string): DemoSession | undefined {
+    for (const session of this.sessions.values()) {
+      if (session.guestUserId === guestUserId) return session;
+    }
+    return undefined;
+  }
+
   public releaseSession(sessionId: string) {
     const session = this.sessions.get(sessionId);
     if (!session) return;

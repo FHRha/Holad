@@ -98,7 +98,10 @@ export const useHoladStore = create<HoladState>((set, get) => {
     roomId: null,
 
     connect: (roomId: string) => {
-      if (socket) return;
+      if (socket) {
+        if (get().roomId === roomId) return;
+        get().disconnect();
+      }
 
       socket = io(getSocketUrl(), {
         path: '/Holad/socket.io',
@@ -109,11 +112,13 @@ export const useHoladStore = create<HoladState>((set, get) => {
 
       socket.on('connect', () => {
         const { user, salt, token, url } = useAuthStore.getState();
+        const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
         socket!.emit('holad_joinRoom', { 
           roomId, 
           deviceId, 
           deviceName,
-          auth: { user, salt, token, url } 
+          auth: { user, salt, token, url },
+          demoSessionId
         });
       });
 
