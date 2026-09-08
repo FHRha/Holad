@@ -209,10 +209,14 @@ function runCommand(taskName, command, cwd, envOverrides = {}) {
         console.error(`\n[ERROR] Task "${taskName}" failed in ${durationSec}s: ${command}`);
         if (process.env.GITHUB_ACTIONS) {
           console.log(`::group::${taskName} (FAILED)`);
-        }
-        console.error(output);
-        if (process.env.GITHUB_ACTIONS) {
+          console.log(output);
           console.log(`::endgroup::`);
+          const lines = output.trim().split('\n');
+          const tail = lines.slice(-40).join('\n');
+          console.error('\n--- Failure Summary (Last 40 lines) ---');
+          console.error(tail);
+        } else {
+          console.error(output);
         }
         reject(new Error(`Command failed with code ${code}: ${command}`));
       }

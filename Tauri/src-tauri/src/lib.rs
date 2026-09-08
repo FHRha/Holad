@@ -221,7 +221,7 @@ pub fn run() {
               TrayIconEvent::Click {
                   button: MouseButton::Right,
                   button_state: MouseButtonState::Up,
-                  position: _,
+                  position: _position,
                   ..
               } => {
                   let app = tray.app_handle();
@@ -244,7 +244,7 @@ pub fn run() {
                               tauri::PhysicalPosition::new(point.x as f64, point.y as f64)
                           };
                           #[cfg(not(target_os = "windows"))]
-                          let cursor_pos = window.cursor_position().unwrap_or(position);
+                          let cursor_pos = window.cursor_position().unwrap_or(_position);
                           
                           let scale_factor = window.scale_factor().unwrap_or(1.0);
                           let logical_pos = cursor_pos.to_logical::<f64>(scale_factor);
