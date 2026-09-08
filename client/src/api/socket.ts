@@ -315,7 +315,9 @@ class JamSocketService {
   private getSessionId() {
     let sid = localStorage.getItem('jam_session_id');
     if (!sid) {
-      sid = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      sid = typeof crypto.randomUUID === 'function' 
+        ? crypto.randomUUID() 
+        : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
       localStorage.setItem('jam_session_id', sid);
     }
     return sid;

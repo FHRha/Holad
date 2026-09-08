@@ -1,4 +1,3 @@
-import { fetchWithRetry } from '../api/subsonic-core';
 
 export interface ImageCacheEntry {
   blobUrl: string;
@@ -106,7 +105,10 @@ export class LRUImageMemoryManager {
 
     const fetchPromise = (async () => {
       try {
-        const response = await fetchWithRetry(originalUrl);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        const response = await fetch(originalUrl, { signal: controller.signal });
+        clearTimeout(timer);
         if (!response.ok) throw new Error(`HTTP error ${response.status}`);
 
         const blob = await response.blob();

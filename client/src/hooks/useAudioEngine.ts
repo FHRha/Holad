@@ -1,7 +1,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { usePlayerStore } from '../store/playerStore';
-import { savePlayQueue } from '../api/subsonic';
+import { savePlayQueue, getCoverArtUrl } from '../api/subsonic';
+import { getCachedImageUrl } from '../utils/imageCache';
 import { useAudioStore } from '../store/audioStore';
 import { useHoladStore } from '../store/holadStore';
 import { useHistoryStore } from '../store/historyStore';
@@ -186,6 +187,13 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const nextTrk = q[nextIdx];
     if (nextTrk) {
       engineRef.current.preloadNextTrack(nextTrk).catch(() => {});
+      const nextCoverId = nextTrk.coverArt || nextTrk.albumId || nextTrk.id;
+      if (nextCoverId) {
+        const coverUrl = getCoverArtUrl(nextCoverId, 300);
+        if (coverUrl) {
+          getCachedImageUrl(coverUrl).catch(() => {});
+        }
+      }
     }
   }, [settings.preloadNextTrack]);
 

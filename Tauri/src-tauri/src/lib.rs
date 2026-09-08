@@ -94,6 +94,77 @@ fn set_tray_menu_size(window: tauri::Window, width: f64, height: f64) {
     let _ = window.set_position(tauri::LogicalPosition::new(new_x, new_y));
 }
 
+#[tauri::command]
+fn open_downloads_folder(app: tauri::AppHandle, path: Option<String>) -> Result<(), String> {
+    use std::path::PathBuf;
+
+    // Resolve target directory
+    let target_path = if let Some(ref p) = path {
+        let trimmed = p.trim();
+        if trimmed.is_empty() {
+            let download_dir = app.path().download_dir().map_err(|e| e.to_string())?;
+            download_dir.join("Holad")
+        } else {
+            PathBuf::from(trimmed)
+        }
+    } else {
+        let download_dir = app.path().download_dir().map_err(|e| e.to_string())?;
+        download_dir.join("Holad")
+    };
+
+    // Ensure directory exists if it's the default Holad folder
+    if !target_path.exists() {
+        std::fs::create_dir_all(&target_path).map_err(|e| e.to_string())?;
+    }
+
+    let canonical = target_path.canonicalize().map_err(|e| e.to_string())?;
+
+    // Security check 1: Must be a directory (NEVER an executable or file)
+    if !canonical.is_dir() {
+        return Err("Forbidden: Specified path is not a directory".into());
+    }
+
+    // Security check 2: Prevent opening critical OS system directories
+    #[cfg(target_os = "windows")]
+    {
+        let path_str = canonical.to_string_lossy().to_lowercase();
+        let win_dir = std::env::var("SystemRoot").unwrap_or_else(|_| "c:\\windows".into()).to_lowercase();
+        let prog_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "c:\\program files".into()).to_lowercase();
+        let prog_files_x86 = std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| "c:\\program files (x86)".into()).to_lowercase();
+
+        if path_str.starts_with(&win_dir) || path_str.starts_with(&prog_files) || path_str.starts_with(&prog_files_x86) {
+            return Err("Access to system directory is restricted".into());
+        }
+    }
+
+    // Strip extended-length prefix on Windows (\\?\C:\...) so explorer.exe handles it reliably
+    #[cfg(target_os = "windows")]
+    {
+        let canonical_str = canonical.to_string_lossy();
+        let clean_path = canonical_str.strip_prefix(r"\\?\").unwrap_or(&canonical_str);
+        std::process::Command::new("explorer")
+            .arg(clean_path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&canonical)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&canonical)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -122,7 +193,8 @@ pub fn run() {
         show_main_window,
         set_tray_menu_size,
         set_app_icon,
-        sync_audio_session
+        sync_audio_session,
+        open_downloads_folder
     ])
     .setup(|app| {
       let is_autostart = std::env::args().any(|arg| arg == "--autostart");

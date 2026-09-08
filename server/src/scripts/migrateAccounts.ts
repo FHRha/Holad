@@ -1,11 +1,15 @@
 import 'dotenv/config';
-import { getNavidromeAccounts, migrateAccountsFromEnv } from '../database.js';
+import { getNavidromeAccounts, migrateAccountsFromEnv, migrateLegacySecurityData } from '../database.js';
 
-console.log('=== Navidrome Accounts Migration Script ===');
+console.log('=== Navidrome Accounts & Security Migration Script ===');
 console.log('Reading accounts from environment variables...');
 
 const result = migrateAccountsFromEnv();
 console.log(`Migration completed. New accounts inserted: ${result.migratedCount}`);
+
+console.log('Migrating legacy data to new security standards (AES-256-GCM)...');
+const secResult = migrateLegacySecurityData();
+console.log(`Re-encrypted accounts: ${secResult.migratedAccounts}, Re-encrypted integrations: ${secResult.migratedIntegrations}, Migrated playlists: ${secResult.migratedPlaylists}`);
 
 const accounts = getNavidromeAccounts();
 console.log(`Total accounts currently in SQLite database: ${accounts.length}`);

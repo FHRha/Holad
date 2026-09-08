@@ -42,7 +42,8 @@ import TrayMenu from './components/player/TrayMenu';
 import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
 import { useEffect, useState } from 'react';
-import { isTauri, isCapacitor } from './utils/StorageManager';
+import { isTauri, isCapacitor, StorageManager } from './utils/StorageManager';
+import { getCoverArtUrl } from './api/subsonic';
 import { applyAppIcon } from './utils/appIconHelper';
 import ServerConnectionView from './components/views/ServerConnectionView';
 
@@ -307,13 +308,47 @@ function AppContent() {
 function MobileBackground() {
   const { queue, currentIndex } = usePlayerStore();
   const currentTrack = queue[currentIndex];
+  const [bgUrl, setBgUrl] = useState<string>('');
 
-  if (currentTrack?.coverArt) {
+  useEffect(() => {
+    let isMounted = true;
+    if (!currentTrack) {
+      setBgUrl('');
+      return;
+    }
+
+    const resolveBg = async () => {
+      // 1. Check local downloaded cover if available
+      try {
+        const localUri = await StorageManager.getLocalCoverUri(currentTrack.id);
+        if (localUri && isMounted) {
+          setBgUrl(localUri);
+          return;
+        }
+      } catch {}
+
+      // 2. Resolve via getCoverArtUrl
+      const coverId = currentTrack.coverArt || currentTrack.albumId || currentTrack.id;
+      if (coverId) {
+        const url = getCoverArtUrl(coverId, 800);
+        if (isMounted) setBgUrl(url);
+      } else if (isMounted) {
+        setBgUrl('');
+      }
+    };
+
+    resolveBg();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
+
+  if (bgUrl) {
     return (
       <div className="md:hidden absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
         <div 
           className="absolute inset-0 bg-cover bg-center blur-[40px] opacity-60 saturate-150 scale-[1.15] transition-all duration-1000 transform-gpu will-change-transform"
-          style={{ backgroundImage: `url(${currentTrack.coverArt})` }}
+          style={{ backgroundImage: `url("${bgUrl}")` }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black" />
       </div>

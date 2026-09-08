@@ -340,12 +340,14 @@ export default function BottomPlayer() {
         id="main-audio-player-0"
         className="main-audio-player"
         playsInline
+        preload="auto"
         ref={audioRef0}
       />
       <audio
         id="main-audio-player-1"
         className="main-audio-player"
         playsInline
+        preload="auto"
         ref={audioRef1}
       />
       {DesktopPlayer}

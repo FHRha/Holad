@@ -109,7 +109,7 @@ export default function FullScreenPlayerUI({
       {/* Blurred Background */}
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center blur-[80px] opacity-80 saturate-150 scale-110 transition-all duration-1000"
-        style={{ backgroundImage: `url(${coverArtLowRes})` }}
+        style={{ backgroundImage: coverArtLowRes ? `url("${coverArtLowRes}")` : undefined }}
       />
       
       <div className="absolute inset-0 z-0 bg-black/20" />

@@ -1,5 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { StorageManager } from '../utils/StorageManager';
 import { getStreamUrl } from '../api/subsonic';
 import { isOffline } from '../utils/networkStatus';
@@ -44,6 +43,7 @@ export function useTrackSource(track: any) {
   const [isLocal, setIsLocal] = useState<boolean>(false);
   const [isAvailable, setIsAvailable] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const currentBlobRef = useRef<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -55,6 +55,10 @@ export function useTrackSource(track: any) {
       setIsLocal(false);
       setIsAvailable(false);
       setIsLoading(false);
+      if (currentBlobRef.current) {
+        StorageManager.revokeBlobUrl(currentBlobRef.current);
+        currentBlobRef.current = null;
+      }
       return;
     }
 
@@ -63,6 +67,14 @@ export function useTrackSource(track: any) {
       try {
         const result = await resolveTrackAudioSource(track);
         if (!isMounted) return;
+
+        if (currentBlobRef.current && currentBlobRef.current !== result.src) {
+          StorageManager.revokeBlobUrl(currentBlobRef.current);
+          currentBlobRef.current = null;
+        }
+        if (result.src.startsWith('blob:')) {
+          currentBlobRef.current = result.src;
+        }
 
         setSrc(result.src);
         setTrackId(track.id);
@@ -87,11 +99,12 @@ export function useTrackSource(track: any) {
 
     return () => {
       isMounted = false;
-      if (src && src.startsWith('blob:')) {
-        StorageManager.revokeBlobUrl(src);
+      if (currentBlobRef.current) {
+        StorageManager.revokeBlobUrl(currentBlobRef.current);
+        currentBlobRef.current = null;
       }
     };
-  }, [track?.id, track?.title, track?.albumId, src]);
+  }, [track?.id, track?.title, track?.albumId]);
 
   return { src, trackId, isLocal, isLoading, isAvailable };
 }

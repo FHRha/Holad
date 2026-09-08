@@ -272,11 +272,16 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
+      - name: Generate SHA256 Checksums
+        run: |
+          sha256sum holad-*.tar.gz *.tar.gz *.apk *.exe *.msi *.AppImage *.deb *.zip 2>/dev/null > SHA256SUMS || true
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             holad-web-release.tar.gz
+            SHA256SUMS
             *.tar.gz
             *.apk
             *.exe
@@ -308,6 +313,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANALYSIS: ${{ steps.vt.outputs.analysis }}
+          TAG_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
           echo "" >> release-notes.md
           echo "### ![VirusTotal Scans](https://img.shields.io/badge/VirusTotal-Scans-blue?logo=virustotal&style=flat-square)" >> release-notes.md
@@ -320,8 +327,6 @@ jobs:
             URL="${i#*=}"
             echo "| \`$FILE\` | [View Analysis]($URL) |" >> release-notes.md
           done
-          TAG_NAME="${{ github.ref_name }}"
-          REPO="${{ github.repository }}"
           gh release view "$TAG_NAME" -R "$REPO" --json body -q .body > current_body.md || echo "" > current_body.md
           cat release-notes.md >> current_body.md
           gh release edit "$TAG_NAME" -R "$REPO" --notes-file current_body.md

@@ -106,34 +106,14 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
     let isMounted = true;
     if (!isVisible) return;
     
-    const loadCover = async () => {
-      let finalUrl = coverUrl;
-      try {
-
-        // Hack: We can use the same stats logic for albums if we update the backend, or we can just stick to getCoverArtUrl if not supported yet.
-        // Wait, Yandex has /search?type=album. Let's add getExternalAlbumStats to externalApi.ts.
-        const { getExternalAlbumStats } = await import('../../api/externalApi');
-        const stats = await getExternalAlbumStats(album.artist, album.name);
-        if (stats && stats.data && stats.data.image) {
-          finalUrl = stats.data.image;
-        }
-      } catch (e) {
-        console.warn("External album cover fetch failed, using navidrome cover", e);
-      }
-
-      if (!isMounted) return;
-
-      getCachedImageUrl(finalUrl).then((url: string) => {
-        if (isMounted) setFinalCoverUrl(url);
-      }).catch(() => {
-        if (isMounted) setFinalCoverUrl(finalUrl);
-      });
-    };
-
-    loadCover();
+    getCachedImageUrl(coverUrl).then((url: string) => {
+      if (isMounted) setFinalCoverUrl(url);
+    }).catch(() => {
+      if (isMounted) setFinalCoverUrl(coverUrl);
+    });
 
     return () => { isMounted = false; };
-  }, [coverUrl, isVisible, album.artist, album.name]);
+  }, [coverUrl, isVisible]);
 
   const mapTracks = (tracks: any[]): Track[] => {
     return tracks.map((t: any) => ({

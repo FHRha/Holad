@@ -9,6 +9,7 @@ import { useArtistData } from '../../hooks/useArtistData';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
+import { sanitizeHtml } from '../../utils/sanitize';
 
 export default function ArtistView() {
   const { t } = useTranslation();
@@ -155,7 +156,7 @@ export default function ArtistView() {
               <h3 className="text-sm font-bold uppercase tracking-widest text-secondary mb-4">{t('views.about_artist')}</h3>
               <div 
                 className="text-sm text-foreground/80 leading-relaxed line-clamp-12"
-                dangerouslySetInnerHTML={{ __html: artistInfo.biography }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(artistInfo.biography) }}
               />
             </div>
           )}

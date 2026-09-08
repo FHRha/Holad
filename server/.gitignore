@@ -10,3 +10,7 @@ pnpm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+*.sqlite*
+*.db*
+.env*
+.encryption_key

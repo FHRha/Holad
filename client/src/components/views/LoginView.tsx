@@ -35,7 +35,9 @@ export default function LoginView() {
     try {
       setLoading(true);
       const cleanUsername = username.trim();
-      const salt = Math.random().toString(36).substring(2, 15);
+      const saltBytes = new Uint8Array(16);
+      crypto.getRandomValues(saltBytes);
+      const salt = Array.from(saltBytes, b => b.toString(16).padStart(2, '0')).join('');
       const token = md5(password + salt);
 
       const proxyUrl = getHoladServerUrl();

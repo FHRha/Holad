@@ -38,12 +38,15 @@ interface HoladState {
 
 
 function generateDeviceId() {
+  const genId = () => typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
   if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') {
-    return Math.random().toString(36).substring(2, 15);
+    return genId();
   }
   let id = sessionStorage.getItem('holad_deviceId');
   if (!id) {
-    id = Math.random().toString(36).substring(2, 15);
+    id = genId();
     sessionStorage.setItem('holad_deviceId', id);
   }
   return id;
@@ -304,7 +307,13 @@ export const useHoladStore = create<HoladState>((set, get) => {
         }
 
         if (command.type === 'clearHistory') {
-          useHistoryStore.getState().clearHistory();
+          const fromUser = (command as any).fromUserId;
+          const currentRoom = get().roomId;
+          if (!fromUser || fromUser === currentRoom) {
+            useHistoryStore.getState().clearHistory();
+          } else {
+            console.warn('[Holad] Ignored unauthorized clearHistory command from external peer:', fromUser);
+          }
           return;
         }
 

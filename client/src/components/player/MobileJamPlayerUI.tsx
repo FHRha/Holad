@@ -111,7 +111,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
       {/* Blurred Background */}
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center blur-[60px] opacity-60 saturate-150 scale-110 transform-gpu will-change-transform"
-        style={{ backgroundImage: `url(${coverArtLowRes})` }}
+        style={{ backgroundImage: coverArtLowRes ? `url("${coverArtLowRes}")` : undefined }}
       />
       <div className="absolute inset-0 z-0 bg-background/40" />
 

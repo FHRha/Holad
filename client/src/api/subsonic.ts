@@ -8,6 +8,8 @@ import { buildUrl, getBaseUrl, getAuthParams, fetchWithRetry } from './subsonic-
 import { useAuthStore } from '../store/authStore';
 import { getHoladServerUrl } from '../utils/serverConfig';
 
+import { isCapacitor } from '../utils/StorageManager';
+
 export const getDownloadUrl = (id: string) => {
   return `${getBaseUrl()}/rest/download?id=${id}&${getAuthParams()}`;
 };
@@ -15,12 +17,20 @@ export const getDownloadUrl = (id: string) => {
 export const getStreamUrl = (id: string) => {
   const { isAuthenticated, url } = useAuthStore.getState();
   const proxyUrl = getHoladServerUrl();
+  const params = getAuthParams();
+  const targetServerUrl = url ? url.replace(/\/$/, '') : '';
+
   if (!isAuthenticated) {
     return `${proxyUrl}/api/stream/${id}`;
   }
-  const params = getAuthParams();
-  const targetServerUrl = url ? url.replace(/\/$/, '') : '';
-  return `${proxyUrl}/api/stream/${id}?serverUrl=${encodeURIComponent(targetServerUrl)}&${params}`;
+
+  // On mobile (Capacitor), stream directly from Subsonic server to avoid WebView proxy/CORS issues
+  // Add format=raw&estimateContentLength=true to bypass on-the-fly server transcoding and deliver instant playback
+  if (isCapacitor() && targetServerUrl) {
+    return `${targetServerUrl}/rest/stream?id=${id}&${params}&format=raw&estimateContentLength=true`;
+  }
+
+  return `${proxyUrl}/api/stream/${id}?serverUrl=${encodeURIComponent(targetServerUrl)}&${params}&format=raw&estimateContentLength=true`;
 };
 
 // Moved to social.ts

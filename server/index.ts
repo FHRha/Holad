@@ -4,6 +4,7 @@ import { Server, Socket } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import md5 from 'md5';
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import * as database from './src/database.js';
@@ -19,7 +20,7 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   path: '/Holad/socket.io',
   cors: {
-    origin: '*', // For development. In production, restrict this.
+    origin: '*',
     methods: ['GET', 'POST']
   },
   maxHttpBufferSize: 1e6 // 1 MB limit to prevent OOM DoS
@@ -31,6 +32,7 @@ app.use(cors());
 app.use((req, res, next) => {
   if (req.url.startsWith('/Holad/api/')) {
     req.url = req.url.replace('/Holad/api/', '/api/');
+    (req as any)._parsedUrl = undefined;
   }
   next();
 });
@@ -54,11 +56,60 @@ try {
 let navidromeAccounts: NavidromeAccount[] = database.getNavidromeAccounts();
 console.log(`[AUTH] Loaded ${navidromeAccounts.length} Navidrome account(s) from SQLite database.`);
 
+function safeTimingCompare(a: string | undefined, b: string | undefined): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+function isTargetServerAllowed(urlString: string): boolean {
+  try {
+    const parsed = new URL(urlString);
+    const host = parsed.hostname.toLowerCase();
+    // Always permit localhost / loopback
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
+      return true;
+    }
+    // If no accounts yet, allow for first-time configuration
+    if (navidromeAccounts.length === 0) {
+      return true;
+    }
+    // Check against authorized Navidrome account hosts
+    return navidromeAccounts.some(account => {
+      try {
+        const accountUrl = new URL(account.url);
+        const accountHost = accountUrl.hostname.toLowerCase();
+        if (accountHost === host) return true;
+
+        // Allow localhost <-> LAN IP (private network) interoperability for local servers
+        const isLoopback = (h: string) => h === 'localhost' || h === '127.0.0.1' || h === '::1';
+        const isPrivateIp = (h: string) => /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(h);
+        const accountPort = accountUrl.port || (accountUrl.protocol === 'https:' ? '443' : '80');
+        const targetPort = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
+
+        if (accountPort === targetPort) {
+          if ((isLoopback(accountHost) && (isLoopback(host) || isPrivateIp(host))) ||
+              (isPrivateIp(accountHost) && (isLoopback(host) || isPrivateIp(host)))) {
+            return true;
+          }
+        }
+        return false;
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return false;
+  }
+}
+
 function getSubsonicAuthParams(account: NavidromeAccount) {
   if (account.token && account.salt) {
     return `u=${encodeURIComponent(account.user)}&t=${account.token}&s=${account.salt}&v=1.16.1&c=StreamNavi&f=json`;
   }
-  const salt = Math.random().toString(36).substring(2, 15);
+  const salt = crypto.randomBytes(16).toString('hex');
   const token = md5((account.pass || '') + salt);
   return `u=${encodeURIComponent(account.user)}&t=${token}&s=${salt}&v=1.16.1&c=StreamNavi&f=json`;
 }
@@ -195,15 +246,22 @@ app.post(['/api/custom-playlists', '/Holad/api/custom-playlists'], express.json(
       }
     }
 
-    database.saveCustomPlaylist(
-      id,
-      name.trim(),
-      typeof description === 'string' ? description : '',
-      trackIds,
-      userId,
-      validTracks
-    );
-    res.status(200).json({ success: true, id });
+    try {
+      database.saveCustomPlaylist(
+        id,
+        name.trim(),
+        typeof description === 'string' ? description : '',
+        trackIds,
+        userId,
+        validTracks
+      );
+      res.status(200).json({ success: true, id });
+    } catch (e: any) {
+      if (e.message && e.message.includes('Forbidden')) {
+        return res.status(403).json({ error: e.message });
+      }
+      throw e;
+    }
   } catch (error) {
     console.error('Error saving custom playlist:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -233,12 +291,13 @@ app.delete(['/api/custom-playlists/:id', '/Holad/api/custom-playlists/:id'], (re
   if (!id || typeof id !== 'string' || !PLAYLIST_ID_REGEX.test(id)) {
     return res.status(400).json({ error: 'Invalid ID format' });
   }
+  const userId = (req.query.userId as string) || (req.headers['x-user-id'] as string) || undefined;
   try {
-    const deleted = database.deleteCustomPlaylist(id);
+    const deleted = database.deleteCustomPlaylist(id, userId);
     if (deleted) {
       res.status(200).json({ success: true, id });
     } else {
-      res.status(404).json({ error: 'Playlist not found' });
+      res.status(404).json({ error: 'Playlist not found or permission denied' });
     }
   } catch (error) {
     console.error('Error deleting custom playlist:', error);
@@ -255,8 +314,29 @@ app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, re
   
   const url = trimmedUrl.replace(/\/$/, '');
   
-  if (navidromeAccounts.length > 0 && navidromeAccounts[0]!.url.replace(/\/$/, '') !== url) {
-    return res.status(403).send('Proxy server is already bound to a different Navidrome URL.');
+  if (navidromeAccounts.length > 0) {
+    const existingUrl = navidromeAccounts[0]!.url.replace(/\/$/, '');
+    if (existingUrl !== url) {
+      try {
+        const existingParsed = new URL(existingUrl);
+        const newParsed = new URL(url);
+        const existingPort = existingParsed.port || (existingParsed.protocol === 'https:' ? '443' : '80');
+        const newPort = newParsed.port || (newParsed.protocol === 'https:' ? '443' : '80');
+        const isLoopback = (h: string) => h === 'localhost' || h === '127.0.0.1' || h === '::1';
+        const isPrivateIp = (h: string) => /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(h);
+        const existingHost = existingParsed.hostname.toLowerCase();
+        const newHost = newParsed.hostname.toLowerCase();
+        const isEquivalentLocal = existingPort === newPort && (
+          (isLoopback(existingHost) && (isLoopback(newHost) || isPrivateIp(newHost))) ||
+          (isPrivateIp(existingHost) && (isLoopback(newHost) || isPrivateIp(newHost)))
+        );
+        if (!isEquivalentLocal) {
+          return res.status(403).send('Proxy server is already bound to a different Navidrome URL.');
+        }
+      } catch {
+        return res.status(403).send('Proxy server is already bound to a different Navidrome URL.');
+      }
+    }
   }
   
   const authParams = `u=${encodeURIComponent(username)}&t=${token}&s=${salt}&v=1.16.1&c=StreamNavi&f=json`;
@@ -411,13 +491,13 @@ const validateRestAuth = async (req: express.Request, res: express.Response, nex
     validateAuthCache.set(cacheKey, now);
   } catch (error: any) {
     // If fetch failed due to network unreachable (e.g. Navidrome is on client's local network/localhost unreachable from backend VPS/Docker):
-    const dbAccount = navidromeAccounts.find(a => a.user === user && (a.url.replace(/\/$/, '') === url.replace(/\/$/, '') || (a.token && a.token === token)));
-    if (dbAccount || navidromeAccounts.length === 0) {
+    const dbAccount = navidromeAccounts.find(a => a.user === user && a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
+    if (dbAccount && dbAccount.token && safeTimingCompare(dbAccount.token, token)) {
       console.warn(`[AUTH] Subsonic server unreachable directly from backend (${error?.message || error}), allowing verified session/DB account for user: ${user}`);
       validateAuthCache.set(cacheKey, now);
     } else {
-      console.error(`[AUTH] Subsonic server unreachable and credentials not found in DB:`, error);
-      return res.status(502).send('Bad Gateway: Failed to reach Subsonic server');
+      console.error(`[AUTH] Subsonic server unreachable and token verification failed:`, error?.message || error);
+      return res.status(401).send('Unauthorized: Failed to verify credentials');
     }
   }
 
@@ -831,6 +911,11 @@ app.get(['/api/cover/:id', '/Holad/api/cover/:id'], async (req, res) => {
   const rawSize = parseInt(req.query.size as string, 10);
   const size = (!isNaN(rawSize) && rawSize > 0) ? Math.min(1200, Math.max(50, rawSize)) : 300;
 
+  const etag = `"${id}-${size}"`;
+  if (req.headers['if-none-match'] === etag) {
+    return res.status(304).end();
+  }
+
   const { u, t, s, serverUrl } = req.query;
 
   // Direct fetch using client credentials if provided
@@ -839,7 +924,11 @@ app.get(['/api/cover/:id', '/Holad/api/cover/:id'], async (req, res) => {
     if (serverUrl) {
       const decodedUrl = decodeURIComponent(serverUrl as string).replace(/\/$/, '');
       if (isValidHttpUrl(decodedUrl) && !decodedUrl.includes('#') && !decodedUrl.includes('?')) {
-        targetServer = decodedUrl;
+        if (isTargetServerAllowed(decodedUrl)) {
+          targetServer = decodedUrl;
+        } else {
+          return res.status(403).send('Forbidden: Proxy server is bound to authorized server URL');
+        }
       }
     }
     if (targetServer) {
@@ -850,13 +939,9 @@ app.get(['/api/cover/:id', '/Holad/api/cover/:id'], async (req, res) => {
         if (response.ok) {
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('image/')) {
-            // Auto-persist account if not in DB
-            if (!navidromeAccounts.some(a => a.user === u && a.url.replace(/\/$/, '') === targetServer.replace(/\/$/, ''))) {
-              database.saveNavidromeAccount({ url: targetServer, user: u as string, token: t as string, salt: s as string });
-              navidromeAccounts = database.getNavidromeAccounts();
-            }
             res.set('Content-Type', contentType);
-            res.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+            res.set('ETag', etag);
+            res.set('Cache-Control', 'public, max-age=2592000, stale-while-revalidate=604800');
             const arrayBuffer = await response.arrayBuffer();
             return res.send(Buffer.from(arrayBuffer));
           }
@@ -879,7 +964,8 @@ app.get(['/api/cover/:id', '/Holad/api/cover/:id'], async (req, res) => {
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('image/')) {
         res.set('Content-Type', contentType);
-        res.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+        res.set('ETag', etag);
+        res.set('Cache-Control', 'public, max-age=2592000, stale-while-revalidate=604800');
         const arrayBuffer = await response.arrayBuffer();
         res.send(Buffer.from(arrayBuffer));
       } else {
@@ -911,7 +997,11 @@ app.all(['/api/subsonic/:endpoint', '/api/subsonic/rest/:endpoint', '/Holad/api/
     if (serverUrl) {
       const decodedUrl = decodeURIComponent(serverUrl as string).replace(/\/$/, '');
       if (isValidHttpUrl(decodedUrl) && !decodedUrl.includes('#') && !decodedUrl.includes('?')) {
-        targetServer = decodedUrl;
+        if (isTargetServerAllowed(decodedUrl)) {
+          targetServer = decodedUrl;
+        } else {
+          return res.status(403).send('Forbidden: Proxy server is bound to authorized server URL');
+        }
       }
     }
     if (targetServer) {
@@ -920,13 +1010,12 @@ app.all(['/api/subsonic/:endpoint', '/api/subsonic/rest/:endpoint', '/Holad/api/
         const fullUrl = `${targetServer.replace(/\/$/, '')}/rest/${endpoint}?${query}`;
         const response = await fetch(fullUrl);
         if (response.ok || response.status === 206) {
-          if (!navidromeAccounts.some(a => a.user === u && a.url.replace(/\/$/, '') === targetServer.replace(/\/$/, ''))) {
-            database.saveNavidromeAccount({ url: targetServer, user: u as string, token: t as string, salt: s as string });
-            navidromeAccounts = database.getNavidromeAccounts();
-          }
           const contentType = response.headers.get('content-type');
           if (contentType && (contentType.includes('image/') || contentType.includes('audio/'))) {
             res.set('Content-Type', contentType);
+            if (contentType.includes('image/')) {
+              res.set('Cache-Control', 'public, max-age=2592000, stale-while-revalidate=604800');
+            }
             const arrayBuffer = await response.arrayBuffer();
             return res.send(Buffer.from(arrayBuffer));
           } else {
@@ -959,6 +1048,9 @@ app.all(['/api/subsonic/:endpoint', '/api/subsonic/rest/:endpoint', '/Holad/api/
       const contentType = response.headers.get('content-type');
       if (contentType && (contentType.includes('image/') || contentType.includes('audio/'))) {
         res.set('Content-Type', contentType);
+        if (contentType.includes('image/')) {
+          res.set('Cache-Control', 'public, max-age=2592000, stale-while-revalidate=604800');
+        }
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         res.send(buffer);
@@ -971,7 +1063,7 @@ app.all(['/api/subsonic/:endpoint', '/api/subsonic/rest/:endpoint', '/Holad/api/
 });
 
 // Proxy audio stream to protect Navidrome credentials
-app.get('/api/stream/:id', async (req, res) => {
+app.get(['/api/stream/:id', '/Holad/api/stream/:id'], async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
   
@@ -980,26 +1072,23 @@ app.get('/api/stream/:id', async (req, res) => {
     return res.status(400).send('Missing track ID');
   }
 
-  const { u, t, s, v, c, f, serverUrl } = req.query;
+  const { u, t, s, v, c, f, format, estimateContentLength, serverUrl } = req.query;
 
   // If client provided its own credentials, bypass failover
   if (u && t && s) {
     try {
-      const authParams = `u=${u}&t=${t}&s=${s}&v=${v||'1.16.1'}&c=${c||'StreamNavi'}&f=${f||'json'}`;
+      const streamFormat = format ? `&format=${encodeURIComponent(format as string)}` : '&format=raw';
+      const streamEstLen = estimateContentLength !== undefined ? `&estimateContentLength=${encodeURIComponent(estimateContentLength as string)}` : '&estimateContentLength=true';
+      const authParams = `u=${u}&t=${t}&s=${s}&v=${v||'1.16.1'}&c=${c||'StreamNavi'}&f=${f||'json'}${streamFormat}${streamEstLen}`;
       let targetServer = navidromeAccounts[0]?.url || '';
       if (serverUrl) {
         const decodedUrl = decodeURIComponent(serverUrl as string);
         if (isValidHttpUrl(decodedUrl) && !decodedUrl.includes('#') && !decodedUrl.includes('?')) {
           const cleanUrl = decodedUrl.replace(/\/$/, '');
-          const isAllowed = navidromeAccounts.length === 0 || navidromeAccounts.some(a => a.url.replace(/\/$/, '') === cleanUrl || a.user === u);
-          if (isAllowed) {
-            targetServer = decodedUrl;
-            if (!navidromeAccounts.some(a => a.url.replace(/\/$/, '') === cleanUrl && a.user === u)) {
-              database.saveNavidromeAccount({ url: cleanUrl, user: u as string, token: t as string, salt: s as string });
-              navidromeAccounts = database.getNavidromeAccounts();
-            }
+          if (isTargetServerAllowed(cleanUrl)) {
+            targetServer = cleanUrl;
           } else {
-            return res.status(403).send('Target server is not in the allowed proxy pool.');
+            return res.status(403).send('Forbidden: Proxy server is bound to authorized server URL');
           }
         } else {
           return res.status(400).send('Invalid Server URL');
@@ -1030,20 +1119,27 @@ app.get('/api/stream/:id', async (req, res) => {
       
       if (response.body) {
         const reader = response.body.getReader();
+        let isClosed = false;
+        req.on('close', () => {
+          isClosed = true;
+          try { reader.cancel(); } catch {}
+        });
         const pump = async () => {
           try {
-            while (true) {
+            while (!isClosed) {
               const { done, value } = await reader.read();
-              if (done) break;
+              if (done || isClosed) break;
               const canWrite = res.write(value);
               if (!canWrite) {
                 await new Promise<void>(resolve => res.once('drain', resolve));
               }
             }
-            res.end();
+            if (!isClosed) res.end();
           } catch (err) {
-            console.error('Stream error:', err);
-            res.end();
+            if (!isClosed) {
+              console.error('Stream error:', err);
+              res.end();
+            }
           }
         };
         pump();
@@ -1061,7 +1157,7 @@ app.get('/api/stream/:id', async (req, res) => {
   await executeWithFailover(req, res,
     (account) => {
       const authParams = getSubsonicAuthParams(account);
-      return `${account.url.replace(/\/$/, '')}/rest/stream?id=${id}&${authParams}`;
+      return `${account.url.replace(/\/$/, '')}/rest/stream?id=${id}&${authParams}&format=raw&estimateContentLength=true`;
     },
     async (response) => {
       if (!response.ok && response.status !== 206) {
@@ -1076,20 +1172,27 @@ app.get('/api/stream/:id', async (req, res) => {
       
       if (response.body) {
         const reader = response.body.getReader();
+        let isClosed = false;
+        req.on('close', () => {
+          isClosed = true;
+          try { reader.cancel(); } catch {}
+        });
         const pump = async () => {
           try {
-            while (true) {
+            while (!isClosed) {
               const { done, value } = await reader.read();
-              if (done) break;
+              if (done || isClosed) break;
               const canWrite = res.write(value);
               if (!canWrite) {
                 await new Promise<void>(resolve => res.once('drain', resolve));
               }
             }
-            res.end();
+            if (!isClosed) res.end();
           } catch (err) {
-            console.error('Stream error:', err);
-            res.end();
+            if (!isClosed) {
+              console.error('Stream error:', err);
+              res.end();
+            }
           }
         };
         pump();
@@ -1278,8 +1381,8 @@ async function verifySubsonicCredentials(user: string, token: string, salt: stri
       validateAuthCache.set(cacheKey, now);
       return true;
     }
-    const dbAccount = navidromeAccounts.find(a => a.user === user && (a.url.replace(/\/$/, '') === url.replace(/\/$/, '') || (a.token && a.token === token)));
-    if (dbAccount || navidromeAccounts.length === 0) {
+    const dbAccount = navidromeAccounts.find(a => a.user === user && a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
+    if (dbAccount && dbAccount.token && safeTimingCompare(dbAccount.token, token)) {
       validateAuthCache.set(cacheKey, now);
       return true;
     }
@@ -1325,8 +1428,8 @@ io.on('connection', (socket) => {
         return;
       }
     } catch (error: any) {
-      const dbAccount = navidromeAccounts.find(a => a.user === auth.user && (a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, '') || (a.token && a.token === auth.token)));
-      if (!dbAccount && navidromeAccounts.length > 0) {
+      const dbAccount = navidromeAccounts.find(a => a.user === auth.user && a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
+      if (!dbAccount || !dbAccount.token || !safeTimingCompare(dbAccount.token, auth.token)) {
         socket.emit('holad_authError', 'Failed to reach Subsonic server for validation');
         socket.disconnect();
         return;
@@ -1420,7 +1523,11 @@ io.on('connection', (socket) => {
   socket.on('holad_remoteCommand', (command: { type: string, payload?: any }) => {
     const data = (socket as any).holadData;
     if (!data) return;
-    io.to(`holad_${data.roomId}`).emit('holad_remoteCommand', command);
+    io.to(`holad_${data.roomId}`).emit('holad_remoteCommand', {
+      ...command,
+      fromUserId: data.roomId,
+      fromDeviceId: data.deviceId
+    });
   });
   socket.on('holad_syncTime', (data: any) => {
     const holadData = (socket as any).holadData;
@@ -1595,7 +1702,12 @@ io.on('connection', (socket) => {
 
   socket.on('social_searchUsers', (data: { query: string } | string, callback?: Function) => {
     const user = socketToUser.get(socket.id);
-    const currentUserId = user ? user.userId : '';
+    if (!user) {
+      socket.emit('social_error', 'Authentication required to search users');
+      if (typeof callback === 'function') callback({ error: 'Authentication required' });
+      return;
+    }
+    const currentUserId = user.userId;
     try {
       const q = typeof data === 'string' ? data : data?.query || '';
       const rawResults = database.searchUsers(q, currentUserId);
@@ -1693,7 +1805,13 @@ io.on('connection', (socket) => {
       name = data;
     }
 
-    const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const randBytes = crypto.randomBytes(6);
+    let roomId = '';
+    for (let i = 0; i < 6; i++) {
+      const b = randBytes[i] ?? 0;
+      roomId += chars.charAt(b % chars.length);
+    }
     socket.join(roomId);
     
     const hostUser = socketToUser.get(socket.id);

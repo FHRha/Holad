@@ -45,10 +45,15 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self' tauri: asset: http://asset.localhost; img-src 'self' tauri: asset: http://asset.localhost http: https: data: blob:; media-src 'self' tauri: asset: http://asset.localhost http: https: blob:; connect-src 'self' tauri: http: https: ws: wss:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; script-src 'self';",
       "assetProtocol": {
         "enable": true,
-        "scope": ["**"]
+        "scope": [
+          "$DOWNLOAD/Holad/**",
+          "$APPDATA/com.holad.desktop/**",
+          "$APPDATA/Holad/**",
+          "$TEMP/holad_icons/**"
+        ]
       }
     }
   },
@@ -76,7 +81,7 @@
       }
     },
     "shell": {
-      "open": "^.*$"
+      "open": "^https?://.*"
     },
     "updater": {
       "endpoints": [

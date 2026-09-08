@@ -5,6 +5,7 @@ import { formatArtistName } from '../../utils/formatters';
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from '../common/TrackImage';
 import type { Track } from '../../types';
+import { sanitizeHtml } from '../../utils/sanitize';
 
 interface MobileInfoTabProps {
   currentTrack: Track;
@@ -93,7 +94,7 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
         ) : artistBio ? (
           <div 
             className="text-sm text-foreground/70 leading-relaxed text-justify"
-            dangerouslySetInnerHTML={{ __html: artistBio }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(artistBio) }}
           />
         ) : (
           <p className="text-sm text-white/40">{t('player.no_biography')}</p>

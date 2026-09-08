@@ -13,18 +13,9 @@ export default function DownloadsView() {
   const handleOpenFolder = async () => {
     if (isTauri()) {
       try {
-        const { open: openNative } = await import('@tauri-apps/plugin-shell');
-        const { exists, mkdir } = await import('@tauri-apps/plugin-fs');
+        const { invoke } = await import('@tauri-apps/api/core');
         const dir = downloadDirectory || await StorageManager.getDefaultDownloadDir();
-        try {
-          const hasDir = await exists(dir);
-          if (!hasDir) {
-            await mkdir(dir, { recursive: true });
-          }
-        } catch (fsErr) {
-          console.warn("Skipping fs checks due to possible scope limits:", fsErr);
-        }
-        await openNative(dir);
+        await invoke('open_downloads_folder', { path: dir });
       } catch (e: any) {
         console.error('Failed to open downloads folder:', e);
         const { toast } = await import('sonner');

@@ -4,6 +4,9 @@
   "webDir": "../client/dist",
   "appendUserAgent": "Holad-Mobile",
   "backgroundColor": "#121212",
+  "server": {
+    "cleartext": true
+  },
   "plugins": {
     "SplashScreen": {
       "backgroundColor": "#121212",

@@ -9,7 +9,7 @@ export const getBaseUrl = () => {
     return `${proxyUrl}/api/subsonic`;
   }
   
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http:')) {
+  if (!isCapacitor() && !isTauri() && typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http:')) {
     const proxyUrl = getHoladServerUrl();
     return `${proxyUrl}/api/subsonic`;
   }

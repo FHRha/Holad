@@ -1,6 +1,7 @@
-import { buildUrl, fetchWithRetry } from '../subsonic-core';
+import { buildUrl, fetchWithRetry, getAuthParams } from '../subsonic-core';
 import { getHoladServerUrl } from '../../utils/serverConfig';
 import { useAuthStore } from '../../store/authStore';
+import { isCapacitor } from '../../utils/StorageManager';
 
 export const fetchAlbums = async (offset = 0, size = 50) => {
   const url = buildUrl('getAlbumList2', { type: 'newest', size: size.toString(), offset: offset.toString() });
@@ -69,10 +70,24 @@ export const getCoverArtUrl = (id?: string | null, size?: number): string => {
 
   const proxyUrl = getHoladServerUrl();
   const { url, user, token, salt, isAuthenticated } = useAuthStore.getState();
-  const params = new URLSearchParams();
-  if (size && size > 0) {
-    params.set('size', size.toString());
+
+  // Normalize size to standard buckets to maximize cache reuse and prevent Navidrome CPU thrashing
+  let normalizedSize = 300;
+  if (size && size <= 150) {
+    normalizedSize = 120;
+  } else if (size && size >= 500) {
+    normalizedSize = 800;
   }
+
+  // On mobile (Capacitor), fetch directly from Subsonic if authenticated
+  if (isCapacitor() && isAuthenticated && url && user && token && salt) {
+    const auth = getAuthParams();
+    return `${url.replace(/\/$/, '')}/rest/getCoverArt?id=${encodeURIComponent(rawId)}&size=${normalizedSize}&${auth}`;
+  }
+
+  const params = new URLSearchParams();
+  params.set('size', normalizedSize.toString());
+
   if (isAuthenticated && user && token && salt && url) {
     params.set('u', user);
     params.set('t', token);

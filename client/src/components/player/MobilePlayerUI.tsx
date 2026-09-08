@@ -22,6 +22,7 @@ import { getAudioEngine } from '../../audio/AudioEngine';
 import { useBookmark } from '../../hooks/useBookmark';
 import { jamSocket } from '../../api/socket';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
+import { StorageManager } from '../../utils/StorageManager';
 
 export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -99,6 +100,32 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     return getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
   }, [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
 
+  const [localCoverUrl, setLocalCoverUrl] = useState<string>('');
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!currentTrack?.id) {
+      setLocalCoverUrl('');
+      return;
+    }
+
+    StorageManager.getLocalCoverUri(currentTrack.id).then(uri => {
+      if (isMounted && uri) {
+        setLocalCoverUrl(uri);
+      } else if (isMounted) {
+        setLocalCoverUrl('');
+      }
+    }).catch(() => {
+      if (isMounted) setLocalCoverUrl('');
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentTrack?.id]);
+
+  const effectiveBgCover = localCoverUrl || coverArtLowRes;
+
   const handleLike = () => {
     if (!currentTrack) return;
     const isLiked = likedTrackIds.includes(currentTrack.id);
@@ -171,7 +198,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       {/* Blurred Background */}
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center blur-[30px] opacity-70 scale-110 transform-gpu will-change-transform"
-        style={{ backgroundImage: `url(${coverArtLowRes})` }}
+        style={{ backgroundImage: effectiveBgCover ? `url("${effectiveBgCover}")` : undefined }}
       />
       <div className="absolute inset-0 z-0 bg-black/40" />
 

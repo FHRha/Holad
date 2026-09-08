@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import nodeCrypto from 'crypto';
 import * as database from '../src/database.js';
 
 describe('Database Social & Friend Functions', () => {
@@ -273,5 +274,61 @@ describe('Custom Playlists Functions', () => {
   it('getCustomPlaylist returns null for nonexistent playlist', () => {
     const pl = database.getCustomPlaylist('nonexistent_pl_id_9999');
     expect(pl).toBeNull();
+  });
+});
+
+describe('Database Legacy Security Data Migration', () => {
+  const legacyKey = Buffer.from('default_secret_key_needs_change_');
+
+  function createLegacyCbc(text: string): string {
+    const iv = Buffer.from('0123456789abcdef0123456789abcdef', 'hex');
+    const cipher = nodeCrypto.createCipheriv('aes-256-cbc', legacyKey, iv);
+    let enc = cipher.update(text, 'utf8', 'hex');
+    enc += cipher.final('hex');
+    return `${iv.toString('hex')}:${enc}`;
+  }
+
+  it('decrypt can decrypt legacy aes-256-cbc format', () => {
+    const secret = 'my_legacy_super_secret_token';
+    const legacyCipher = createLegacyCbc(secret);
+    const decrypted = database.decrypt(legacyCipher);
+    expect(decrypted).toBe(secret);
+  });
+
+  it('migrateLegacySecurityData re-encrypts legacy navidrome accounts and integrations to AES-256-GCM', () => {
+    const testUser = 'mig_user_' + Date.now();
+    const testUrl = 'http://migration-test.local';
+    const originalToken = 'token_secret_123';
+    const originalSalt = 'salt_secret_456';
+    const originalPass = 'pass_secret_789';
+
+    const legacyToken = createLegacyCbc(originalToken);
+
+    // Insert legacy raw account (legacy CBC token, raw plaintext salt and pass)
+    database.insertRawAccountForTesting(testUser, testUrl, legacyToken, originalSalt, originalPass);
+
+    // Also seed a legacy integration with CBC token
+    database.insertRawIntegrationForTesting(testUser, 'lastfm', createLegacyCbc('lastfm_legacy_token_999'));
+
+    // Run security migration
+    const result = database.migrateLegacySecurityData();
+    expect(result.migratedAccounts).toBeGreaterThanOrEqual(1);
+    expect(result.migratedIntegrations).toBeGreaterThanOrEqual(1);
+
+    // Verify navidrome_accounts are now in GCM format
+    const accounts = database.getNavidromeAccounts();
+    const acc = accounts.find(a => a.user === testUser && a.url === testUrl);
+    expect(acc).toBeDefined();
+    expect(acc!.token).toBe(originalToken);
+    expect(acc!.salt).toBe(originalSalt);
+    expect(acc!.pass).toBe(originalPass);
+
+    // Running migration again must be idempotent and not re-encrypt
+    const result2 = database.migrateLegacySecurityData();
+    expect(result2.migratedAccounts).toBe(0);
+    expect(result2.migratedIntegrations).toBe(0);
+
+    // Clean up
+    database.deleteNavidromeAccount(testUser, testUrl);
   });
 });

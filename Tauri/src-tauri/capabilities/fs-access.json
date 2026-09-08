@@ -16,9 +16,10 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$DOWNLOAD/Holad/**" },
+        { "path": "$APPDATA/com.holad.desktop/**" },
+        { "path": "$APPDATA/Holad/**" },
+        { "path": "$TEMP/holad_icons/**" }
       ]
     }
   ]

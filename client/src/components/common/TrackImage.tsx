@@ -70,7 +70,7 @@ export default function TrackImage({ src: rawSrc, className, alt = '', trackId }
         return;
       }
 
-      if (trackId) {
+      if (trackId && (downloadItem?.status === 'completed' || downloadItem?.localCoverArtUri)) {
         try {
           const localCover = await StorageManager.getLocalCoverUri(trackId);
           if (localCover && isMounted) {

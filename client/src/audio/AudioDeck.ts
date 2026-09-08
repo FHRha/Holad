@@ -1,4 +1,5 @@
 import type { AudioState, BufferedRange, IAudioDeck } from './types';
+import { isCapacitor } from '../utils/StorageManager';
 
 export const isLocalMediaUrl = (url: string): boolean => {
     if (!url) return false;
@@ -40,7 +41,13 @@ export class AudioDeck implements IAudioDeck {
         
         this.primaryElement = this.element;
 
-        this.element.crossOrigin = 'anonymous';
+        if (isCapacitor()) {
+            this.element.removeAttribute('crossorigin');
+            this.element.crossOrigin = null;
+        } else {
+            this.element.crossOrigin = 'anonymous';
+        }
+        this.element.preload = 'auto';
         (this.element as any).playsInline = true;
         this.element.setAttribute('playsinline', 'true');
 
@@ -129,6 +136,14 @@ export class AudioDeck implements IAudioDeck {
                 const oldElement = this.element;
                 const newElement = new Audio();
                 newElement.crossOrigin = null;
+                newElement.preload = 'auto';
+                (newElement as any).playsInline = true;
+                newElement.setAttribute('playsinline', 'true');
+                newElement.style.display = 'none';
+                newElement.id = `audio-deck-${this.id}-fallback`;
+                if (typeof document !== 'undefined' && document.body) {
+                    document.body.appendChild(newElement);
+                }
                 
                 newElement.src = oldElement.src;
                 newElement.volume = oldElement.volume;
@@ -180,11 +195,22 @@ export class AudioDeck implements IAudioDeck {
                 this.element.removeAttribute('src');
                 this.element.load();
                 
+                if (this.element.parentNode) {
+                    try { this.element.parentNode.removeChild(this.element); } catch {}
+                }
+                
                 this.element = this.primaryElement;
                 (this as any).isTainted = false;
             }
             
-            this.element.crossOrigin = 'anonymous';
+            if (isLocalMediaUrl(src) || isCapacitor()) {
+                this.element.removeAttribute('crossorigin');
+                this.element.crossOrigin = null;
+            } else {
+                this.element.crossOrigin = 'anonymous';
+            }
+
+            this.element.preload = 'auto';
 
             if (this.element.src !== src) {
                 this.element.src = src;
@@ -194,17 +220,47 @@ export class AudioDeck implements IAudioDeck {
             // Force the UI to reset immediately
             this.emit('timeupdate', position);
             
-            await new Promise<void>((resolve) => {
+            await new Promise<void>((resolve, reject) => {
                 if (this.element.readyState >= 1) {
-                    this.element.currentTime = position;
+                    try {
+                        if (position > 0) this.element.currentTime = position;
+                    } catch {}
                     resolve();
                 } else {
+                    let cleanup = () => {};
+                    // Safety timeout: on mobile WebViews, if metadata takes >1500ms, resolve so play() can start immediately
+                    const timer = setTimeout(() => {
+                        cleanup();
+                        resolve();
+                    }, 1500);
+
                     const onReady = () => {
-                        this.element.currentTime = position;
-                        this.element.removeEventListener('loadedmetadata', onReady);
+                        cleanup();
+                        try {
+                            if (position > 0) this.element.currentTime = position;
+                        } catch {}
                         resolve();
                     };
+
+                    const onError = () => {
+                        cleanup();
+                        reject(this.element.error || new Error('Audio element load error'));
+                    };
+
+                    cleanup = () => {
+                        clearTimeout(timer);
+                        this.element.removeEventListener('loadedmetadata', onReady);
+                        this.element.removeEventListener('loadeddata', onReady);
+                        this.element.removeEventListener('canplay', onReady);
+                        this.element.removeEventListener('durationchange', onReady);
+                        this.element.removeEventListener('error', onError);
+                    };
+
                     this.element.addEventListener('loadedmetadata', onReady);
+                    this.element.addEventListener('loadeddata', onReady);
+                    this.element.addEventListener('canplay', onReady);
+                    this.element.addEventListener('durationchange', onReady);
+                    this.element.addEventListener('error', onError);
                 }
             });
         } catch (err) {

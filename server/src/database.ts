@@ -225,55 +225,97 @@ export function generateUserId(login: string, passwordHash: string): string {
   return crypto.createHash('sha256').update(`${login}:${passwordHash}`).digest('hex');
 }
 
-// Encryption helpers for integration tokens
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY 
-  ? crypto.createHash('sha256').update(String(process.env.ENCRYPTION_KEY)).digest('base64').substring(0, 32)
-  : 'default_secret_key_needs_change_'; // 32 bytes fallback
+// Secure Encryption helpers for integration tokens
+function getMasterEncryptionKey(): Buffer {
+  if (process.env.ENCRYPTION_KEY) {
+    return crypto.createHash('sha256').update(String(process.env.ENCRYPTION_KEY)).digest();
+  }
+  const keyFilePath = path.resolve(process.cwd(), '.encryption_key');
+  try {
+    if (fs.existsSync(keyFilePath)) {
+      const savedKey = fs.readFileSync(keyFilePath, 'utf8').trim();
+      if (savedKey.length === 64) {
+        return Buffer.from(savedKey, 'hex');
+      }
+    }
+    const newKey = crypto.randomBytes(32);
+    fs.writeFileSync(keyFilePath, newKey.toString('hex'), { mode: 0o600 });
+    return newKey;
+  } catch (err) {
+    return crypto.createHash('sha256').update('holad_persistent_machine_key_' + (process.env.COMPUTERNAME || process.env.HOSTNAME || 'default')).digest();
+  }
+}
 
-const ALGORITHM = 'aes-256-cbc';
-const IV_LENGTH = 16;
+const GCM_IV_LENGTH = 12;
 
 export function encrypt(text: string): string {
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
-  let encrypted = cipher.update(text);
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
-  return iv.toString('hex') + ':' + encrypted.toString('hex');
+  const key = getMasterEncryptionKey();
+  const iv = crypto.randomBytes(GCM_IV_LENGTH);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const authTag = cipher.getAuthTag().toString('hex');
+  return `gcm:${iv.toString('hex')}:${authTag}:${encrypted}`;
 }
 
 export function decrypt(text: string): string | null {
   try {
+    const key = getMasterEncryptionKey();
+    if (text.startsWith('gcm:')) {
+      const parts = text.split(':');
+      if (parts.length !== 4) return null;
+      const ivHex = parts[1];
+      const tagHex = parts[2];
+      const dataHex = parts[3];
+      if (!ivHex || !tagHex || !dataHex) return null;
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(ivHex, 'hex'));
+      decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+      let decryptedStr = decipher.update(dataHex, 'hex', 'utf8');
+      decryptedStr += decipher.final('utf8');
+      return decryptedStr;
+    }
+    // Backward compatibility with legacy aes-256-cbc format
     const textParts = text.split(':');
-    const iv = Buffer.from(textParts.shift()!, 'hex');
-    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
+    if (textParts.length < 2) return null;
+    const ivHex = textParts.shift()!;
+    if (ivHex.length !== 32 || !/^[0-9a-f]+$/i.test(ivHex)) return null;
+    const iv = Buffer.from(ivHex, 'hex');
+    const encryptedHex = textParts.join(':');
+    if (!/^[0-9a-f]+$/i.test(encryptedHex)) return null;
+    const encryptedText = Buffer.from(encryptedHex, 'hex');
+    try {
+      const decipher = crypto.createDecipheriv('aes-256-cbc', key.subarray(0, 32), iv);
+      let decrypted = decipher.update(encryptedText);
+      decrypted = Buffer.concat([decrypted, decipher.final()]);
+      return decrypted.toString('utf8');
+    } catch {
+      const legacyKey = Buffer.from('default_secret_key_needs_change_');
+      const decipher = crypto.createDecipheriv('aes-256-cbc', legacyKey, iv);
+      let decrypted = decipher.update(encryptedText);
+      decrypted = Buffer.concat([decrypted, decipher.final()]);
+      return decrypted.toString('utf8');
+    }
   } catch (e) {
-    console.error('Decryption failed', e);
     return null;
   }
 }
 
 export function safeEncrypt(val: string | null | undefined): string | null {
   if (!val) return null;
-  const parts = val.split(':');
-  const iv = parts[0];
-  if (parts.length === 2 && iv && iv.length === 32 && /^[0-9a-f]+$/i.test(iv)) {
-    return val;
-  }
-  return encrypt(val);
+  if (val.startsWith('gcm:')) return val;
+  const plain = safeDecrypt(val);
+  return encrypt(plain || val);
 }
 
 export function safeDecrypt(val: string | null | undefined): string | undefined {
   if (!val) return undefined;
-  const parts = val.split(':');
-  const iv = parts[0];
-  if (parts.length === 2 && iv && iv.length === 32 && /^[0-9a-f]+$/i.test(iv)) {
+  if (val.startsWith('gcm:')) {
     const decrypted = decrypt(val);
     if (decrypted !== null) return decrypted;
+    return val;
   }
+  const decrypted = decrypt(val);
+  if (decrypted !== null) return decrypted;
   return val;
 }
 
@@ -352,9 +394,14 @@ export function saveSyncData(userId: string, data: any) {
         ON CONFLICT(id) DO UPDATE SET 
           name = excluded.name, 
           description = excluded.description
+        WHERE playlists.user_id = excluded.user_id OR playlists.user_id IS NULL
       `);
       const trackStmt = db.prepare('INSERT OR IGNORE INTO playlist_tracks (playlist_id, track_id) VALUES (?, ?)');
       for (const pl of data.playlists) {
+        const existing = db.prepare('SELECT user_id FROM playlists WHERE id = ?').get(pl.id) as { user_id?: string } | undefined;
+        if (existing && existing.user_id && existing.user_id !== userId) {
+          continue; // Prevent deleting or modifying another user's playlist
+        }
         stmt.run(pl.id, userId, pl.name, pl.description || '');
         if (pl.trackIds && Array.isArray(pl.trackIds)) {
           db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(pl.id);
@@ -416,11 +463,21 @@ export function removeTrackFromPlaylist(userId: string, playlistId: string, trac
   }
 }
 
-export function deleteCustomPlaylist(id: string): boolean {
+export function deleteCustomPlaylist(id: string, userId?: string): boolean {
   const transaction = db.transaction(() => {
-    db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(id);
-    const res = db.prepare('DELETE FROM playlists WHERE id = ?').run(id);
-    return res.changes > 0;
+    if (userId) {
+      const owner = db.prepare('SELECT user_id FROM playlists WHERE id = ?').get(id) as { user_id?: string } | undefined;
+      if (owner && owner.user_id && owner.user_id !== userId) {
+        return false;
+      }
+      db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(id);
+      const res = db.prepare('DELETE FROM playlists WHERE id = ? AND (user_id = ? OR user_id IS NULL)').run(id, userId);
+      return res.changes > 0;
+    } else {
+      db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(id);
+      const res = db.prepare('DELETE FROM playlists WHERE id = ?').run(id);
+      return res.changes > 0;
+    }
   });
   return transaction();
 }
@@ -435,6 +492,10 @@ export function saveCustomPlaylist(
 ): void {
   if (userId) {
     ensureUserExists(userId);
+    const owner = db.prepare('SELECT user_id FROM playlists WHERE id = ?').get(id) as { user_id?: string } | undefined;
+    if (owner && owner.user_id && owner.user_id !== userId) {
+      throw new Error('Forbidden: Playlist belongs to another user');
+    }
   }
   const songsJson = tracks !== undefined && tracks !== null
     ? JSON.stringify(tracks)
@@ -449,6 +510,7 @@ export function saveCustomPlaylist(
         description = excluded.description, 
         songs = excluded.songs,
         user_id = COALESCE(excluded.user_id, playlists.user_id)
+      WHERE playlists.user_id = excluded.user_id OR playlists.user_id IS NULL
     `);
     upsertStmt.run(id, userId || null, name, description, songsJson);
 
@@ -755,18 +817,19 @@ export function ensureUserWithTag(userId: string, username: string, avatarUrl?: 
 
   let currentTag = user.tag;
   if (!currentTag) {
-    let attempts = 0;
-    while (attempts < 10000) {
-      const candidateTag = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      const collision = db.prepare('SELECT 1 FROM users WHERE username = ? AND tag = ? AND user_id != ?').get(finalUsername, candidateTag, userId);
-      if (!collision) {
+    const existingTags = new Set(
+      (db.prepare('SELECT tag FROM users WHERE username = ? AND tag IS NOT NULL AND user_id != ?').all(finalUsername, userId) as { tag: string }[])
+        .map(row => row.tag)
+    );
+    for (let attempts = 0; attempts < 50; attempts++) {
+      const candidateTag = crypto.randomInt(0, 10000).toString().padStart(4, '0');
+      if (!existingTags.has(candidateTag)) {
         currentTag = candidateTag;
         break;
       }
-      attempts++;
     }
     if (!currentTag) {
-      currentTag = Math.floor(1000 + Math.random() * 9000).toString();
+      currentTag = crypto.randomInt(1000, 10000).toString();
     }
   }
 
@@ -1053,48 +1116,123 @@ export function migrateAccountsFromEnv(): { migratedCount: number } {
     }
   }
 
-  // Ensure any existing unencrypted legacy rows are encrypted at rest
-  try {
-    const isEncrypted = (val: string) => {
-      const parts = val.split(':');
-      const iv = parts[0];
-      return parts.length === 2 && !!iv && iv.length === 32 && /^[0-9a-f]+$/i.test(iv);
-    };
-    const rows = db.prepare('SELECT id, token, salt, pass FROM navidrome_accounts').all() as any[];
-    const updateStmt = db.prepare('UPDATE navidrome_accounts SET token = ?, salt = ?, pass = ? WHERE id = ?');
-    for (const row of rows) {
-      let changed = false;
-      let encToken = row.token;
-      let encSalt = row.salt;
-      let encPass = row.pass;
-      if (row.token && !isEncrypted(row.token)) {
-        encToken = encrypt(row.token);
-        changed = true;
-      }
-      if (row.salt && !isEncrypted(row.salt)) {
-        encSalt = encrypt(row.salt);
-        changed = true;
-      }
-      if (row.pass && !isEncrypted(row.pass)) {
-        encPass = encrypt(row.pass);
-        changed = true;
-      }
-      if (changed) {
-        updateStmt.run(encToken, encSalt, encPass, row.id);
-      }
-    }
-  } catch (err) {
-    console.error('[DB Migration] Failed to re-encrypt legacy navidrome accounts:', err);
-  }
-
   return { migratedCount };
 }
 
-// Automatically migrate environment variables on boot if present
+export function migrateLegacySecurityData(): { migratedAccounts: number; migratedIntegrations: number; migratedPlaylists: number } {
+  let migratedAccounts = 0;
+  let migratedIntegrations = 0;
+  let migratedPlaylists = 0;
+
+  // 1. Migrate navidrome_accounts to AES-256-GCM
+  try {
+    const rows = db.prepare('SELECT id, token, salt, pass FROM navidrome_accounts').all() as any[];
+    const updateStmt = db.prepare('UPDATE navidrome_accounts SET token = ?, salt = ?, pass = ? WHERE id = ?');
+    const tx = db.transaction(() => {
+      for (const row of rows) {
+        let changed = false;
+        let encToken = row.token;
+        let encSalt = row.salt;
+        let encPass = row.pass;
+
+        if (row.token && !row.token.startsWith('gcm:')) {
+          const plain = safeDecrypt(row.token);
+          if (plain) {
+            encToken = encrypt(plain);
+            changed = true;
+          }
+        }
+        if (row.salt && !row.salt.startsWith('gcm:')) {
+          const plain = safeDecrypt(row.salt);
+          if (plain) {
+            encSalt = encrypt(plain);
+            changed = true;
+          }
+        }
+        if (row.pass && !row.pass.startsWith('gcm:')) {
+          const plain = safeDecrypt(row.pass);
+          if (plain) {
+            encPass = encrypt(plain);
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          updateStmt.run(encToken, encSalt, encPass, row.id);
+          migratedAccounts++;
+        }
+      }
+    });
+    tx();
+    if (migratedAccounts > 0) {
+      console.log(`[DB Migration] Re-encrypted ${migratedAccounts} legacy Navidrome account record(s) to AES-256-GCM.`);
+    }
+  } catch (err) {
+    console.error('[DB Migration] Failed to migrate navidrome_accounts encryption:', err);
+  }
+
+  // 2. Migrate integrations (Last.fm, Yandex, etc.) to AES-256-GCM
+  try {
+    const rows = db.prepare('SELECT user_id, integration_name, encrypted_token FROM integrations').all() as any[];
+    const updateStmt = db.prepare('UPDATE integrations SET encrypted_token = ? WHERE user_id = ? AND integration_name = ?');
+    const tx = db.transaction(() => {
+      for (const row of rows) {
+        if (row.encrypted_token && !row.encrypted_token.startsWith('gcm:')) {
+          const plain = decrypt(row.encrypted_token);
+          if (plain) {
+            const newEncrypted = encrypt(plain);
+            updateStmt.run(newEncrypted, row.user_id, row.integration_name);
+            migratedIntegrations++;
+          }
+        }
+      }
+    });
+    tx();
+    if (migratedIntegrations > 0) {
+      console.log(`[DB Migration] Re-encrypted ${migratedIntegrations} legacy integration token(s) to AES-256-GCM.`);
+    }
+  } catch (err) {
+    console.error('[DB Migration] Failed to migrate integrations encryption:', err);
+  }
+
+  // 3. Migrate orphan playlists (user_id IS NULL) if a single user exists
+  try {
+    const users = db.prepare('SELECT user_id FROM users LIMIT 2').all() as { user_id: string }[];
+    if (users.length === 1 && users[0]) {
+      const singleUserId = users[0].user_id;
+      const res = db.prepare('UPDATE playlists SET user_id = ? WHERE user_id IS NULL').run(singleUserId);
+      if (res.changes > 0) {
+        migratedPlaylists = res.changes;
+        console.log(`[DB Migration] Assigned ${res.changes} legacy playlist(s) to user ${singleUserId}`);
+      }
+    }
+  } catch (err) {
+    console.error('[DB Migration] Failed to migrate orphan playlists:', err);
+  }
+
+  return { migratedAccounts, migratedIntegrations, migratedPlaylists };
+}
+
+// Automatically migrate environment variables and legacy security data on boot
 try {
   migrateAccountsFromEnv();
 } catch (err) {
   console.error('[DB Migration] Error during initial environment migration:', err);
+}
+
+try {
+  migrateLegacySecurityData();
+} catch (err) {
+  console.error('[DB Migration] Error during legacy security data migration:', err);
+}
+
+export function insertRawAccountForTesting(user: string, url: string, token: string, salt: string, pass: string): void {
+  db.prepare('INSERT OR REPLACE INTO navidrome_accounts (url, user, token, salt, pass) VALUES (?, ?, ?, ?, ?)').run(url, user, token, salt, pass);
+}
+
+export function insertRawIntegrationForTesting(userId: string, integrationName: string, encryptedToken: string): void {
+  ensureUserExists(userId);
+  db.prepare('INSERT OR REPLACE INTO integrations (user_id, integration_name, encrypted_token) VALUES (?, ?, ?)').run(userId, integrationName, encryptedToken);
 }
 
 

@@ -49,21 +49,32 @@ else
     DOWNLOAD_BASE="https://github.com/FHRha/Holad/releases/download/$TARGET_VERSION"
 fi
 
+TMP_DIR=$(mktemp -d /tmp/holad_inst_XXXXXX)
+chmod 700 "$TMP_DIR"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
 echo "Downloading release from $DOWNLOAD_BASE..."
-if curl -sSLf "$DOWNLOAD_BASE/holad-web-release.tar.gz" -o /tmp/holad.tar.gz; then
+if curl -sSLf "$DOWNLOAD_BASE/holad-web-release.tar.gz" -o "$TMP_DIR/holad-web-release.tar.gz"; then
     echo "Downloaded holad-web-release.tar.gz"
-elif curl -sSLf "$DOWNLOAD_BASE/holad-linux-release.tar.gz" -o /tmp/holad.tar.gz; then
+elif curl -sSLf "$DOWNLOAD_BASE/holad-linux-release.tar.gz" -o "$TMP_DIR/holad-web-release.tar.gz"; then
     echo "Downloaded holad-linux-release.tar.gz (legacy fallback)"
 else
     echo "Error: Failed to download release bundle."
     exit 1
 fi
 
+echo "Checking SHA256 checksums if available..."
+if curl -sSLf "$DOWNLOAD_BASE/SHA256SUMS" -o "$TMP_DIR/SHA256SUMS" 2>/dev/null; then
+    (cd "$TMP_DIR" && sha256sum --check --ignore-missing SHA256SUMS) || {
+        echo "Error: SHA256 checksum verification failed!"
+        exit 1
+    }
+    echo "SHA256 checksum verified successfully."
+fi
+
 echo "Extracting release..."
-sudo tar -xzf /tmp/holad.tar.gz -C /tmp/
-sudo cp -r /tmp/holad-release/* $INSTALL_DIR/
-sudo rm -rf /tmp/holad-release
-sudo rm /tmp/holad.tar.gz
+tar -xzf "$TMP_DIR/holad-web-release.tar.gz" -C "$TMP_DIR/"
+sudo cp -r "$TMP_DIR"/holad-release/* $INSTALL_DIR/
 
 # Fetch and save current version from GitHub
 LATEST_VERSION=$(curl -sSL https://api.github.com/repos/FHRha/Holad/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
@@ -81,6 +92,10 @@ if [ ! -f .env ]; then
     echo "PORT=$HOLAD_PORT" | sudo tee .env > /dev/null
 else
     echo ".env already exists, preserving it."
+fi
+sudo chmod 700 "$INSTALL_DIR/server"
+if [ -f "$INSTALL_DIR/server/.env" ]; then
+    sudo chmod 600 "$INSTALL_DIR/server/.env"
 fi
 
 # 2. Setup Systemd Service

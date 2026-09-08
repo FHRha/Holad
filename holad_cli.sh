@@ -82,43 +82,60 @@ while true; do
             echo "Updating Holad from latest GitHub release..."
             sudo systemctl stop holad
             
-            # Backup .env and Database
+            # Backup .env and Database into secure directory
             echo "Backing up configuration and database..."
+            BACKUP_DIR="$INSTALL_DIR/backups/backup_$(date +%Y%m%d_%H%M%S)"
+            sudo mkdir -p "$BACKUP_DIR"
+            sudo chmod 700 "$BACKUP_DIR"
             if [ -f "$INSTALL_DIR/server/.env" ]; then
-                sudo cp $INSTALL_DIR/server/.env /tmp/holad_env_backup
+                sudo cp "$INSTALL_DIR/server/.env" "$BACKUP_DIR/.env"
+                sudo chmod 600 "$BACKUP_DIR/.env"
             fi
             if [ -f "$INSTALL_DIR/server/holad.sqlite" ]; then
-                sudo cp $INSTALL_DIR/server/holad.sqlite /tmp/holad_sqlite_backup
+                sudo cp "$INSTALL_DIR/server/holad.sqlite" "$BACKUP_DIR/holad.sqlite"
+                sudo chmod 600 "$BACKUP_DIR/holad.sqlite"
             fi
             
             # Download new release
             echo "Downloading latest release..."
+            TMP_DIR=$(mktemp -d /tmp/holad_upd_XXXXXX)
+            chmod 700 "$TMP_DIR"
+            trap 'rm -rf "$TMP_DIR"' EXIT
             DOWNLOAD_BASE="https://github.com/FHRha/Holad/releases/latest/download"
-            if curl -sSLf "$DOWNLOAD_BASE/holad-web-release.tar.gz" -o /tmp/holad-update.tar.gz; then
+            if curl -sSLf "$DOWNLOAD_BASE/holad-web-release.tar.gz" -o "$TMP_DIR/holad-web-release.tar.gz"; then
                 echo "Downloaded holad-web-release.tar.gz"
-            elif curl -sSLf "$DOWNLOAD_BASE/holad-linux-release.tar.gz" -o /tmp/holad-update.tar.gz; then
+            elif curl -sSLf "$DOWNLOAD_BASE/holad-linux-release.tar.gz" -o "$TMP_DIR/holad-web-release.tar.gz"; then
                 echo "Downloaded holad-linux-release.tar.gz (legacy fallback)"
             else
                 echo "Error: Failed to download release bundle."
             fi
             
-            if [ -f "/tmp/holad-update.tar.gz" ]; then
-                echo "Extracting release..."
-                sudo tar -xzf /tmp/holad-update.tar.gz -C /tmp/
-                sudo cp -r /tmp/holad-release/* $INSTALL_DIR/
-                sudo rm -rf /tmp/holad-release
-                sudo rm /tmp/holad-update.tar.gz
-                
-                # Restore .env and DB
-                if [ -f "/tmp/holad_env_backup" ]; then
-                    echo "Restoring configuration..."
-                    sudo cp /tmp/holad_env_backup $INSTALL_DIR/server/.env
-                    sudo rm /tmp/holad_env_backup
+            if [ -f "$TMP_DIR/holad-web-release.tar.gz" ]; then
+                echo "Checking SHA256 checksums if available..."
+                if curl -sSLf "$DOWNLOAD_BASE/SHA256SUMS" -o "$TMP_DIR/SHA256SUMS" 2>/dev/null; then
+                    (cd "$TMP_DIR" && sha256sum --check --ignore-missing SHA256SUMS) || {
+                        echo "Error: SHA256 checksum verification failed!"
+                        exit 1
+                    }
+                    echo "SHA256 checksum verified successfully."
                 fi
-                if [ -f "/tmp/holad_sqlite_backup" ]; then
+
+                echo "Extracting release..."
+                tar -xzf "$TMP_DIR/holad-web-release.tar.gz" -C "$TMP_DIR/"
+                sudo cp -r "$TMP_DIR"/holad-release/* $INSTALL_DIR/
+                
+                # Restore .env and DB from secure backup
+                if [ -f "$BACKUP_DIR/.env" ]; then
+                    echo "Restoring configuration..."
+                    sudo cp "$BACKUP_DIR/.env" $INSTALL_DIR/server/.env
+                fi
+                if [ -f "$BACKUP_DIR/holad.sqlite" ]; then
                     echo "Restoring database..."
-                    sudo cp /tmp/holad_sqlite_backup $INSTALL_DIR/server/holad.sqlite
-                    sudo rm /tmp/holad_sqlite_backup
+                    sudo cp "$BACKUP_DIR/holad.sqlite" $INSTALL_DIR/server/holad.sqlite
+                fi
+                sudo chmod 700 "$INSTALL_DIR/server"
+                if [ -f "$INSTALL_DIR/server/.env" ]; then
+                    sudo chmod 600 "$INSTALL_DIR/server/.env"
                 fi
                 
                 if [ "$LATEST_VERSION" != "Unknown" ]; then
