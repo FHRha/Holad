@@ -133,7 +133,7 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
                 key={album.id} 
                 id={isFirstOfLetter ? `letter-${letter}` : undefined} 
                 className="flex items-center gap-4 cursor-pointer scroll-mt-24 w-full"
-                onClick={() => navigate(`/Holad/album/${album.id}`)}
+                onClick={() => navigate(`/album/${album.id}`)}
                 onLongPress={(e: any) => {
                   e.preventDefault?.();
                   openMenu(e.clientX, e.clientY, album, 'album');

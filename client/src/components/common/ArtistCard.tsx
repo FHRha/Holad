@@ -33,7 +33,7 @@ const ArtistCard = memo(function ArtistCard({ artist, onClick }: ArtistCardProps
           if (isJam && room) {
             navigate(`/jam/artist/${slug}?room=${room}`);
           } else {
-            navigate(`/Holad/artist/${slug}`);
+            navigate(`/artist/${slug}`);
           }
         }
       }}

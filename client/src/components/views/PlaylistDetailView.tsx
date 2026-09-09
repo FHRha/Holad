@@ -189,7 +189,7 @@ export default function PlaylistDetailView() {
            if (isCustomId) {
              if (isMounted) {
                if (!isJamPath) {
-                 navigate('/Holad/playlists', { replace: true });
+                 navigate('/playlists', { replace: true });
                } else {
                  setPlaylist(null);
                }
@@ -206,7 +206,7 @@ export default function PlaylistDetailView() {
                setEditDesc(data?.comment || '');
              } else {
                if (!isJamPath) {
-                 navigate('/Holad/playlists', { replace: true });
+                 navigate('/playlists', { replace: true });
                } else {
                  setPlaylist(null);
                }
@@ -215,7 +215,7 @@ export default function PlaylistDetailView() {
              if (!isMounted) return;
              console.error('Failed to fetch Subsonic playlist:', e);
              if (!isJamPath) {
-               navigate('/Holad/playlists', { replace: true });
+               navigate('/playlists', { replace: true });
              } else {
                setPlaylist(null);
              }
@@ -226,7 +226,7 @@ export default function PlaylistDetailView() {
         console.error('Failed to fetch playlist:', err);
         const isJamPath = window.location.pathname.startsWith('/jam');
         if (!isJamPath) {
-          navigate('/Holad/playlists', { replace: true });
+          navigate('/playlists', { replace: true });
         } else {
           setPlaylist(null);
         }

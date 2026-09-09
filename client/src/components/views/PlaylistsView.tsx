@@ -73,7 +73,7 @@ export default function PlaylistsView() {
     if (isJam && room) {
       navigate(`/jam/library/playlist/${id}?room=${room}`);
     } else {
-      navigate(`/Holad/playlist/${id}`);
+      navigate(`/playlist/${id}`);
     }
   };
 

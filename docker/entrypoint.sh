@@ -33,17 +33,10 @@ else
     chmod 600 "$KEY_FILE"
 fi
 
-# 3. Dynamic BASE_PATH customization for Web Client (default: /Holad/)
-CUSTOM_BASE="${BASE_PATH:-${VITE_APP_BASE}}"
-if [ -n "$CUSTOM_BASE" ] && [ "$CUSTOM_BASE" != "/Holad/" ]; then
-    # Ensure proper trailing slash
-    if [ "$CUSTOM_BASE" != "/" ]; then
-        [[ "$CUSTOM_BASE" != /* ]] && CUSTOM_BASE="/$CUSTOM_BASE"
-        [[ "$CUSTOM_BASE" != */ ]] && CUSTOM_BASE="$CUSTOM_BASE/"
-    fi
-    echo "[Holad Docker] Configuring custom client base path: $CUSTOM_BASE"
-    find /app/client/dist -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i "s|/Holad/|${CUSTOM_BASE}|g" {} + 2>/dev/null || true
-fi
+# 3. Dynamic BASE_PATH customization for Web Client (default: /)
+CUSTOM_BASE="${BASE_PATH:-/}"
+export BASE_PATH="$CUSTOM_BASE"
+echo "[Holad Docker] Base path configured: $BASE_PATH"
 
 # 4. Ensure permissions on persistent volume and application directories
 chown -R "$PUID:$PGID" /data /app/client/dist

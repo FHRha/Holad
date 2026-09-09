@@ -155,6 +155,31 @@ describe('API Endpoints', () => {
     expect(res.status).toBe(403);
   });
 
+  it('should permit authorized access to getStarred and getStarred2 without 403 Forbidden', async () => {
+    // When u, t, s are supplied, unauthorized endpoint returns 403
+    const resUnauth = await request(app).get('/api/subsonic/getUsers?u=test&t=test&s=test');
+    expect(resUnauth.status).toBe(403);
+
+    // Mock fetch for authorized endpoints to avoid real network call to upstream
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ 'subsonic-response': { status: 'ok', starred2: {} } })
+    } as any);
+
+    try {
+      // getStarred and getStarred2 are in ALLOWED_AUTH_ENDPOINTS so they pass the whitelist check (not 403)
+      const resStarred = await request(app).get('/api/subsonic/getStarred?u=test&t=test&s=test');
+      expect(resStarred.status).not.toBe(403);
+
+      const resStarred2 = await request(app).get('/api/subsonic/getStarred2?u=test&t=test&s=test');
+      expect(resStarred2.status).not.toBe(403);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it('should return 404 for getCoverArt when id is missing or invalid', async () => {
     // Missing id
     const res1 = await request(app).get('/api/subsonic/getCoverArt');

@@ -871,7 +871,7 @@ export function resetE2EHarness(): void {
     customColors: ['', '', ''],
     language: 'ru',
     clickAction: 'play_now',
-    startPage: '/Holad',
+    startPage: '/',
     isCrossfadeEnabled: true,
     crossfadeDuration: 3,
     crossfadeCurve: 'equalPower',

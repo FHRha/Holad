@@ -31,7 +31,7 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
     if (!isHost) {
       (usePlayerStore as any).persist?.rehydrate();
     }
-    navigate('/Holad/');
+    navigate('/');
   };
 
   const handleCopyLink = async () => {

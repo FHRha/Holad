@@ -10,6 +10,7 @@ echo "==================================="
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -p|--port) HOLAD_PORT="$2"; shift ;;
+        -b|--base-path) HOLAD_BASE_PATH="$2"; shift ;;
         --no-systemd) ENABLE_SYSTEMD="n" ;;
         -v|--version) TARGET_VERSION="$2"; shift ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
@@ -27,6 +28,16 @@ if [ -z "$HOLAD_PORT" ]; then
     fi
 fi
 HOLAD_PORT=${HOLAD_PORT:-3000}
+
+if [ -z "$HOLAD_BASE_PATH" ]; then
+    if [ -c /dev/tty ]; then
+        printf "Enter the base path for web routing [default: /Holad]: " >/dev/tty
+        read -r HOLAD_BASE_PATH </dev/tty
+    else
+        echo "Non-interactive environment detected. Using default base path /Holad."
+    fi
+fi
+HOLAD_BASE_PATH=${HOLAD_BASE_PATH:-/Holad}
 
 if [ -z "$ENABLE_SYSTEMD" ]; then
     if [ -c /dev/tty ]; then
@@ -89,9 +100,15 @@ sudo pnpm install --prod || npm install --production
 
 echo "Configuring environment..."
 if [ ! -f .env ]; then
-    echo "PORT=$HOLAD_PORT" | sudo tee .env > /dev/null
+    sudo bash -c "cat > .env" <<EOF
+PORT=$HOLAD_PORT
+BASE_PATH=$HOLAD_BASE_PATH
+EOF
 else
     echo ".env already exists, preserving it."
+    if ! grep -q "^BASE_PATH=" .env; then
+        echo "BASE_PATH=$HOLAD_BASE_PATH" | sudo tee -a .env > /dev/null
+    fi
 fi
 sudo chmod 700 "$INSTALL_DIR/server"
 if [ -f "$INSTALL_DIR/server/.env" ]; then

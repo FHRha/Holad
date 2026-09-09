@@ -143,7 +143,7 @@ export default function SettingsModal({
       settings.setCustomColor(0, '');
       settings.setCustomColor(1, '');
       settings.setCustomColor(2, '');
-      settings.setStartPage('/Holad');
+      settings.setStartPage('/');
       settings.setLanguage('ru');
       setResetState('done');
       setTimeout(() => setResetState('idle'), 2000);
@@ -266,10 +266,10 @@ export default function SettingsModal({
                     value={settings.startPage}
                     onChange={(val) => settings.setStartPage(val as StartPage)}
                     options={[
-                      { label: t('settings.start_home'), value: '/Holad' },
-                      { label: t('settings.start_albums'), value: '/Holad/albums' },
-                      { label: t('settings.start_radio'), value: '/Holad/radio' },
-                      { label: t('settings.start_favorites'), value: '/Holad/favorites' }
+                      { label: t('settings.start_home'), value: '/' },
+                      { label: t('settings.start_albums'), value: '/albums' },
+                      { label: t('settings.start_radio'), value: '/radio' },
+                      { label: t('settings.start_favorites'), value: '/favorites' }
                     ]}
                   />
                 </SettingSection>

@@ -16,8 +16,28 @@ if (!process.env.NAVIDROME_URL) {
   dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 }
 
+const isDocker = fs.existsSync('/.dockerenv') || process.env.IS_DOCKER === 'true';
+const defaultBasePath = isDocker ? '/' : '/Holad';
+const rawBasePath = process.env.BASE_PATH !== undefined ? process.env.BASE_PATH : defaultBasePath;
+const normalizedBase = (rawBasePath === '/' || rawBasePath === '')
+  ? ''
+  : (rawBasePath.startsWith('/') ? rawBasePath : `/${rawBasePath}`).replace(/\/$/, '');
+
 const app: Express = express();
 const httpServer = createServer(app);
+
+// Normalizing incoming socket.io connections from root or custom base path to /Holad/socket.io
+function normalizeSocketUrl(req: any) {
+  if (!req.url) return;
+  if (req.url.startsWith('/socket.io')) {
+    req.url = req.url.replace('/socket.io', '/Holad/socket.io');
+  } else if (normalizedBase && req.url.startsWith(`${normalizedBase}/socket.io`)) {
+    req.url = req.url.replace(`${normalizedBase}/socket.io`, '/Holad/socket.io');
+  }
+}
+httpServer.prependListener('request', normalizeSocketUrl);
+httpServer.prependListener('upgrade', normalizeSocketUrl);
+
 const io = new Server(httpServer, {
   path: '/Holad/socket.io',
   cors: {
@@ -29,10 +49,13 @@ const io = new Server(httpServer, {
 
 app.use(cors());
 
-// Middleware to support relative routing when hosted under /Holad
+// Middleware to support relative routing when hosted under custom base path or /Holad
 app.use((req, res, next) => {
   if (req.url.startsWith('/Holad/api/')) {
     req.url = req.url.replace('/Holad/api/', '/api/');
+    (req as any)._parsedUrl = undefined;
+  } else if (normalizedBase && req.url.startsWith(`${normalizedBase}/api/`)) {
+    req.url = req.url.replace(`${normalizedBase}/api/`, '/api/');
     (req as any)._parsedUrl = undefined;
   }
   next();
@@ -138,7 +161,13 @@ const ALLOWED_GUEST_ENDPOINTS = new Set([
   'getAlbumList2',
   'getRandomSongs',
   'getLyrics',
-  'getLyricsBySongId'
+  'getLyricsBySongId',
+  'getStarred',
+  'getStarred2',
+  'getMusicFolders',
+  'getLicense',
+  'stream',
+  'download'
 ]);
 
 const ALLOWED_AUTH_ENDPOINTS = new Set([
@@ -151,8 +180,22 @@ const ALLOWED_AUTH_ENDPOINTS = new Set([
   'setRating',
   'scrobble',
   'savePlayQueue',
-  'getPlayQueue'
+  'getPlayQueue',
+  'createShare'
 ]);
+
+// Allow expanding endpoints via environment variable (e.g. SUBSONIC_ALLOWED_ENDPOINTS=customMethod1,customMethod2)
+const customSubsonicEndpoints = process.env.SUBSONIC_ALLOWED_ENDPOINTS || process.env.DEMO_ALLOWED_ENDPOINTS;
+if (customSubsonicEndpoints) {
+  const extra = customSubsonicEndpoints
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+  for (const ep of extra) {
+    ALLOWED_AUTH_ENDPOINTS.add(ep);
+    ALLOWED_GUEST_ENDPOINTS.add(ep);
+  }
+}
 
 function isValidHttpUrl(string: string) {
   try {
@@ -1058,7 +1101,7 @@ app.all(['/api/subsonic/:endpoint', '/api/subsonic/rest/:endpoint', '/Holad/api/
       const query = new URLSearchParams(req.query as any).toString();
       try {
         const fullUrl = `${targetServer.replace(/\/$/, '')}/rest/${endpoint}?${query}`;
-        const response = await fetch(fullUrl);
+        const response = await fetch(fullUrl, { signal: AbortSignal.timeout(10000) });
         if (response.ok || response.status === 206) {
           const contentType = response.headers.get('content-type');
           if (contentType && (contentType.includes('image/') || contentType.includes('audio/'))) {
@@ -2238,31 +2281,65 @@ const handleFavicon = (_req: express.Request, res: express.Response) => {
 
 app.get('/favicon.ico', handleFavicon);
 app.get('/Holad/favicon.ico', handleFavicon);
+if (normalizedBase && normalizedBase !== '/Holad') {
+  app.get(`${normalizedBase}/favicon.ico`, handleFavicon);
+}
 
 if (fs.existsSync(clientPath)) {
-  const basePath = process.env.BASE_PATH || '/Holad/';
-  if (basePath === '/Holad/' || basePath.startsWith('/Holad')) {
+  // If base path is not root, redirect root '/' to `${normalizedBase}/`
+  if (normalizedBase) {
     app.get(['/', '/index.html'], (_req, res) => {
-      res.redirect('/Holad/');
+      res.redirect(`${normalizedBase}/`);
     });
+    app.use(normalizedBase, express.static(clientPath));
   }
   app.use(express.static(clientPath));
-  app.use('/Holad', express.static(clientPath));
+  // Keep /Holad alias for backwards compatibility if base is not /Holad
+  if (normalizedBase !== '/Holad') {
+    app.use('/Holad', express.static(clientPath));
+  }
   
-  // SPA fallback (using regex for Express 5 compatibility)
-  app.get(/^(.*)$/, (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io') || req.path.startsWith('/Holad/api') || req.path.startsWith('/Holad/socket.io')) {
-      return next();
-    }
-    // Exclude static assets with file extensions from SPA fallback so they return 404 instead of index.html
-    if (path.extname(req.path)) {
-      return next();
-    }
-    // Prevent caching of index.html so users don't get white screens after deployments
+  const sendIndexHtml = (res: express.Response) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    res.sendFile(path.join(clientPath, 'index.html'));
+    try {
+      let html = fs.readFileSync(path.join(clientPath, 'index.html'), 'utf8');
+      const baseHref = normalizedBase ? `${normalizedBase}/` : '/';
+      if (html.includes('<base ')) {
+        html = html.replace(/<base\s+href="[^"]*"\s*\/?>/i, `<base href="${baseHref}" />`);
+      } else {
+        html = html.replace('<head>', `<head>\n    <base href="${baseHref}" />`);
+      }
+      res.send(html);
+    } catch {
+      res.sendFile(path.join(clientPath, 'index.html'));
+    }
+  };
+
+  if (normalizedBase) {
+    app.get([`${normalizedBase}`, `${normalizedBase}/`], (_req, res) => {
+      sendIndexHtml(res);
+    });
+  }
+
+  // SPA fallback (using regex for Express 5 compatibility)
+  app.get(/^(.*)$/, (req, res, next) => {
+    const p = req.path;
+    if (
+      p.startsWith('/api') || 
+      p.startsWith('/socket.io') || 
+      p.startsWith('/Holad/api') || 
+      p.startsWith('/Holad/socket.io') ||
+      (normalizedBase && (p.startsWith(`${normalizedBase}/api`) || p.startsWith(`${normalizedBase}/socket.io`)))
+    ) {
+      return next();
+    }
+    // Exclude static assets with file extensions from SPA fallback so they return 404 instead of index.html
+    if (path.extname(p)) {
+      return next();
+    }
+    sendIndexHtml(res);
   });
 }
 

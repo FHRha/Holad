@@ -157,7 +157,7 @@ export function useGlobalSearch(
     if (isJam && room) {
       navigate(`/jam/library/album/${id}?room=${room}`);
     } else {
-      navigate(`/Holad/album/${id}`);
+      navigate(`/album/${id}`);
     }
     setSearchOpen(false);
   };
@@ -170,7 +170,7 @@ export function useGlobalSearch(
     if (isJam && room) {
       navigate(`/jam/library/artist/${slug}?room=${room}`);
     } else {
-      navigate(`/Holad/artist/${slug}`);
+      navigate(`/artist/${slug}`);
     }
     setSearchOpen(false);
   };

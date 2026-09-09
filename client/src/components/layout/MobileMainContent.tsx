@@ -288,7 +288,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
       <div className="px-4 py-4 flex flex-col gap-8">
         
         {/* Listening History */}
-        <section onClick={() => navigate('/Holad/history')} className="cursor-pointer group">
+        <section onClick={() => navigate('/history')} className="cursor-pointer group">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-foreground tracking-tight group-hover:text-primary transition-colors">{t('views.listening_history')}</h2>
             <ChevronRight size={24} className="text-secondary group-hover:text-foreground transition-colors" />

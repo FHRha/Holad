@@ -10,7 +10,7 @@ COPY client/package.json client/pnpm-lock.yaml* ./
 RUN pnpm install --frozen-lockfile || pnpm install
 
 COPY client/ ./
-ARG VITE_APP_BASE=/Holad/
+ARG VITE_APP_BASE=./
 ENV VITE_APP_BASE=${VITE_APP_BASE}
 RUN pnpm run build
 
@@ -90,6 +90,7 @@ RUN mkdir -p /data
 # Default environment configuration
 ENV NODE_ENV=production \
     PORT=4000 \
+    BASE_PATH=/ \
     DATABASE_PATH=/data/holad.sqlite \
     PUID=1000 \
     PGID=1000 \

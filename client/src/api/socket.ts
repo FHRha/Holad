@@ -10,7 +10,7 @@ import i18n from '../i18n';
 import { useSettingsStore } from '../store/settingsStore';
 import { useDemoStore } from '../store/demoStore';
 
-import { getSocketUrl } from '../utils/serverConfig';
+import { getSocketUrl, getSocketPath } from '../utils/serverConfig';
 import { getAudioEngine } from '../audio/AudioEngine';
 import { sanitizeTracks } from '../store/slices/queueSlice';
 import { getCoverArtUrl } from './subsonic';
@@ -28,7 +28,7 @@ class JamSocketService {
     if (this.socket) return;
     
     this.socket = io(getSocketUrl(), {
-      path: '/Holad/socket.io',
+      path: getSocketPath(),
       transports: ['websocket', 'polling']
     });
 

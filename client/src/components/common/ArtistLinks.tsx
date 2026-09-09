@@ -37,7 +37,7 @@ export default function ArtistLinks({ artistString, artistId, className = "", on
        if (isJam && room) {
           navigate(`/jam${path}?room=${room}`);
        } else {
-          navigate(`/Holad${path}`);
+          navigate(path);
        }
        useUIStore.getState().setSearchOpen(false); // Also close globally just in case
     } else {

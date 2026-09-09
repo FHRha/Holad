@@ -25,7 +25,7 @@ export default function Sidebar() {
   const slotId = useDemoStore(state => state.slotId);
   const isJamRoute = location.pathname.startsWith('/jam');
   const isJamGuest = isJamRoute && (role === 'listener' || role === 'cohost');
-  const basePath = isJamRoute ? '/jam' : '/Holad';
+  const basePath = isJamRoute ? '/jam' : '';
   const appIcon = useSettingsStore(state => state.appIcon);
   const isNative = isTauri() || isCapacitor();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -160,7 +160,7 @@ export default function Sidebar() {
                 {!isJamGuest && (
                   <button 
                     onClick={() => {
-                      navigate('/Holad/history');
+                      navigate('/history');
                       setIsProfileMenuOpen(false);
                     }}
                     className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-foreground/5 transition-colors text-left w-full"
@@ -209,7 +209,7 @@ export default function Sidebar() {
         </div>
 
         <div className={`flex-1 w-full flex flex-col pt-4 ${isWide ? 'gap-1' : 'gap-6'}`}>
-          {!isJamGuest && <SidebarItem to={basePath} icon={<Home size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.home')} isWide={isWide} end />}
+          {!isJamGuest && <SidebarItem to={basePath || '/'} icon={<Home size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.home')} isWide={isWide} end />}
           {!isJamGuest && <SidebarItem to={`${basePath}/favorites`} icon={<Heart size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.favorites')} isWide={isWide} />}
           <SidebarItem to={`${basePath}/albums${roomId ? `?room=${roomId}` : ''}`} icon={<Disc size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.albums')} isWide={isWide} />
           {(!isJamGuest || role === 'cohost') && <SidebarItem to={`${basePath}/tracks${roomId ? `?room=${roomId}` : ''}`} icon={<Music size={isWide ? 20 : 22} className="flex-shrink-0" />} label={t('sidebar.tracks')} isWide={isWide} />}
@@ -246,7 +246,7 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
   const totalProgress = [...activeDownloads, ...pausedDownloads].reduce((acc, d) => acc + (d.progress || 0), 0);
   const avgProgress = isDownloading ? Math.round(totalProgress / (activeDownloads.length + pausedDownloads.length)) : 0;
 
-  const to = '/Holad/downloads';
+  const to = '/downloads';
   const isActive = location.pathname.startsWith(to);
 
   // SVG Circular Ring geometry: r = 12, C = 2 * PI * 12 ~= 75.398

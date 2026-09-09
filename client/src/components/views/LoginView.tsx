@@ -14,7 +14,7 @@ import ThemeSelector from '../common/ThemeSelector';
 export default function LoginView() {
   const isDemoMode = useDemoStore(state => state.isDemoMode);
   if (isDemoMode) {
-    return <Navigate to="/Holad" replace />;
+    return <Navigate to="/" replace />;
   }
 
   const { t } = useTranslation();
@@ -74,7 +74,7 @@ export default function LoginView() {
       setCredentials(url, cleanUsername, token, salt);
       
       setAuthenticated(true);
-      navigate('/Holad', { replace: true });
+      navigate('/', { replace: true });
     } catch (err: any) {
       console.error(err);
       setError(err.message || t('views.connection_failed'));

@@ -81,7 +81,11 @@ If you prefer installing directly onto your host OS:
 curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash
 ```
 
-The script will download the latest release, install it to `/opt/holad`, fetch dependencies, and create a `systemd` service for background execution on port 4000. 
+The script interactively prompts for the internal port (default 3000), web base path (`BASE_PATH`, default `/Holad`, or `/` for root), and `systemd` service creation.
+You can also pass arguments directly:
+```bash
+bash install.sh --port 4000 --base-path /Holad
+```
 *For manual builds, use `build_release.sh` (Linux/macOS) or `build_release.bat` (Windows).*
 
 ### Nginx Configuration

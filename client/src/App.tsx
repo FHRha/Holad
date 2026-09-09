@@ -58,6 +58,13 @@ import { useDownloadStore } from './store/downloadStore';
 import { Toaster } from 'sonner';
 import UpdateModal from './components/modals/UpdateModal';
 import JamJoinDialog from './components/modals/JamJoinDialog';
+import { getBasePath } from './utils/basePath';
+
+function LegacyHoladRedirect() {
+  const loc = useLocation();
+  const target = loc.pathname.replace(/^\/Holad(\/|$)/i, '/') + loc.search;
+  return <Navigate to={target || '/'} replace />;
+}
 
 // Helper to convert hex to rgb string for Tailwind's opacity to work
 function hexToRgb(hex: string) {
@@ -262,10 +269,15 @@ function AppContent() {
         <MobileBackground />
         <div className="flex flex-1 overflow-hidden relative z-10">
           <Routes>
-            <Route path="/" element={<Navigate to={startPage} replace />} />
-            <Route path="/login" element={isDemoMode ? <Navigate to="/Holad" replace /> : (!isAuthenticated ? <LoginView /> : <Navigate to="/Holad" replace />)} />
+            <Route path="/login" element={isDemoMode ? <Navigate to="/" replace /> : (!isAuthenticated ? <LoginView /> : <Navigate to="/" replace />)} />
+            <Route path="/jam/*" element={<JamLayout />} />
+            <Route path="/join" element={<JamJoinDialog />} />
             
-            <Route path="/Holad/*" element={
+            {/* Backward compatibility redirects for legacy /Holad/* URLs */}
+            <Route path="/Holad" element={<Navigate to="/" replace />} />
+            <Route path="/Holad/*" element={<LegacyHoladRedirect />} />
+            
+            <Route path="/*" element={
               isAuthenticated ? (
               <>
                 <Sidebar />
@@ -276,7 +288,7 @@ function AppContent() {
                     </div>
                     <div className="flex-1 overflow-hidden flex flex-col relative hide-scrollbar">
                       <Routes>
-                        <Route path="/" element={<MainContent />} />
+                        <Route path="/" element={startPage && startPage !== '/' ? <Navigate to={startPage} replace /> : <MainContent />} />
                         <Route path="/library/*" element={<LibraryView />} />
                         <Route path="/albums" element={<AlbumsView />} />
                         <Route path="/artists" element={<ArtistsView />} />
@@ -306,10 +318,6 @@ function AppContent() {
                 <Navigate to="/login" replace />
               ))
             } />
-            
-            <Route path="/jam/*" element={<JamLayout />} />
-            <Route path="/join" element={<JamJoinDialog />} />
-            <Route path="*" element={<Navigate to="/Holad" replace />} />
           </Routes>
           
           <NowPlayingModal />
@@ -482,7 +490,7 @@ function App() {
   }
 
   return (
-    <Router>
+    <Router basename={getBasePath()}>
       <Routes>
         <Route path="/*" element={<AppContent />} />
       </Routes>

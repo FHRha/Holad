@@ -62,7 +62,7 @@ services:
       - PUID=1000
       - PGID=1000
       - PORT=4000
-      - BASE_PATH=/Holad/
+      - BASE_PATH=/
     volumes:
       - ./data:/data
 
@@ -89,12 +89,13 @@ docker compose up -d
 | `PORT` | `4000` | Internal port the Node.js server listens on |
 | `PUID` | `1000` | Host user ID for proper file ownership in `./data` |
 | `PGID` | `1000` | Host group ID for proper file ownership in `./data` |
-| `BASE_PATH` | `/Holad/` | Web client URL base path. Set to `/` if hosting at the root of a domain |
+| `BASE_PATH` | `/` | Web client URL base path. Defaults to `/` (root of domain). Set to `/Holad/` or any subpath if hosting behind a reverse proxy subfolder |
 | `ENCRYPTION_KEY` | *(auto)* | Master AES-256-GCM key used for encrypting credentials. If omitted, automatically generated and persisted in `/data/.encryption_key` |
 | `BACKUP_ENABLED` | `false` | Enable automated non-blocking SQLite WAL online backups |
 | `BACKUP_PATH` | `/data/backups` | Directory inside the volume where backups are stored |
 | `BACKUP_INTERVAL_HOURS` | `24` | Backup creation frequency (in hours) |
 | `BACKUP_RETENTION_DAYS` | `7` | Retention period for old backups (in days) before automatic cleanup |
+| `SUBSONIC_ALLOWED_ENDPOINTS` | *(empty)* | Comma-separated list of additional Subsonic API endpoints permitted through the proxy (e.g. `getStarred2,stream,download`) |
 | `NAVIDROME_URL` | *(empty)* | Optional: Navidrome server URL for headless pre-authentication |
 | `NAVIDROME_USER` | *(empty)* | Optional: Navidrome username for headless pre-authentication |
 | `NAVIDROME_PASS` | *(empty)* | Optional: Navidrome password for headless pre-authentication |
@@ -106,17 +107,17 @@ docker compose up -d
 
 ## 3. Configuring the Base Path
 
-By default, Holad uses `/Holad/` as its base path. This allows it to coexist seamlessly behind an existing Nginx reverse proxy alongside other services (e.g. `https://example.com/Holad/`).
+In Docker, Holad defaults to a root base path `BASE_PATH=/`. If you are dedicating a domain or subdomain to Holad (e.g. `https://music.example.com/`), no additional path configuration is needed.
 
-### Hosting at the Root of a Domain or Subdomain (`/`)
-If you are dedicating a full domain or subdomain to Holad (e.g. `https://music.example.com/`), simply set `BASE_PATH=/`:
+### Hosting in a Subpath behind a Reverse Proxy (e.g. `/Holad/`)
+If you want to host Holad inside a subfolder behind an existing reverse proxy (e.g. `https://example.com/Holad/`), simply set `BASE_PATH=/Holad/`:
 
 ```yaml
 environment:
-  - BASE_PATH=/
+  - BASE_PATH=/Holad/
 ```
 
-During container startup, `entrypoint.sh` dynamically configures the web client static assets to resolve against the root.
+The server automatically injects `<base href="/Holad/">` into `index.html`, serves assets and rewrites API and WebSocket routes dynamically without rebuilding the image.
 
 ---
 

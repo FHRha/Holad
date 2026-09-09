@@ -402,7 +402,7 @@ export default function ContextMenu() {
       }
       window.dispatchEvent(new CustomEvent('playlists-updated'));
       if (window.location.pathname.includes(playlistItem.id)) {
-        navigate('/Holad/playlists', { replace: true });
+        navigate('/playlists', { replace: true });
       }
       toast.success(t('common.playlist_deleted', 'Плейлист удален'));
     } catch (e: any) {
@@ -633,10 +633,10 @@ export default function ContextMenu() {
                     <MobileIconBtn icon={Download} label={t('common.download')} onClick={() => handleAction(onDownload)} />
                   ))}
                   {!isGuest && <MobileIconBtn icon={Share2} label={t('common.share')} onClick={() => handleAction(onShare, false)} activeColor={isCopied ? "text-primary" : "text-foreground"} />}
-                  {!isGuest && item.artistId && <MobileIconBtn icon={User} label={t('common.go_to_artist')} onClick={() => handleAction(() => navigate(`/Holad/artist/${item.artistId}`))} />}
+                  {!isGuest && item.artistId && <MobileIconBtn icon={User} label={t('common.go_to_artist')} onClick={() => handleAction(() => navigate(`/artist/${item.artistId}`))} />}
                   {!isGuest && (isAlbum || item.albumId) && <MobileIconBtn icon={Disc} label={t('common.go_to_album')} onClick={() => handleAction(() => {
-                    if (isAlbum) navigate(`/Holad/album/${item.id}`);
-                    else if (item.albumId) navigate(`/Holad/album/${item.albumId}`);
+                    if (isAlbum) navigate(`/album/${item.id}`);
+                    else if (item.albumId) navigate(`/album/${item.albumId}`);
                   })} />}
                   {item.queueIndex !== undefined && (
                     <MobileIconBtn icon={Trash2} label={t('common.remove_from_queue')} onClick={() => handleAction(onRemoveFromQueue)} color="text-red-400" />
@@ -665,7 +665,7 @@ export default function ContextMenu() {
 
             {type === 'playlist' && (
               <div className="grid grid-cols-3 gap-2">
-                <MobileIconBtn icon={Play} label={t('common.open')} onClick={() => handleAction(() => { navigate(`/Holad/playlist/${item.id}`); })} />
+                <MobileIconBtn icon={Play} label={t('common.open')} onClick={() => handleAction(() => { navigate(`/playlist/${item.id}`); })} />
                 <MobileIconBtn icon={Share2} label={isCopied ? t('common.copied') : t('common.share')} onClick={() => handleAction(() => handleSharePlaylist(item), false)} activeColor={isCopied ? "text-primary" : "text-foreground"} />
                 <MobileIconBtn icon={Trash2} color="text-red-500" label={t('common.delete')} onClick={() => handleDeletePlaylist(item)} />
               </div>
@@ -871,12 +871,12 @@ export default function ContextMenu() {
               <div className="py-1 border-t border-border">
                 {item.artistId && (
                   <ItemBtn icon={User} label={t('common.go_to_artist')} onClick={() => handleAction(() => {
-                    navigate(`/Holad/artist/${item.artistId}`);
+                    navigate(`/artist/${item.artistId}`);
                   })} />
                 )}
                 <ItemBtn icon={Disc} label={t('common.go_to_album')} onClick={() => handleAction(() => {
-                  if (isAlbum) navigate(`/Holad/album/${item.id}`);
-                  else if (item.albumId) navigate(`/Holad/album/${item.albumId}`);
+                  if (isAlbum) navigate(`/album/${item.id}`);
+                  else if (item.albumId) navigate(`/album/${item.albumId}`);
                 })} />
               </div>
             </>
@@ -886,7 +886,7 @@ export default function ContextMenu() {
 
       {type === 'playlist' && (
         <div className="py-1">
-          <ItemBtn icon={Play} label={t('common.open')} onClick={() => handleAction(() => { navigate(`/Holad/playlist/${item.id}`); })} />
+          <ItemBtn icon={Play} label={t('common.open')} onClick={() => handleAction(() => { navigate(`/playlist/${item.id}`); })} />
           <ItemBtn icon={Share2} label={isCopied ? t('common.copied') : t('common.share')} onClick={() => handleAction(() => handleSharePlaylist(item), false)} color={isCopied ? "text-primary font-bold" : "text-foreground"} />
           <div className="py-1 border-t border-border">
             <ItemBtn icon={Trash2} label={t('common.delete')} onClick={() => handleDeletePlaylist(item)} color="text-red-500 hover:text-red-400" />

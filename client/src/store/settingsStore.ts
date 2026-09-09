@@ -9,7 +9,7 @@ export type AppTheme = 'dark' | 'light' | 'system';
 export type AppIcon = 'wave_dark' | 'wave_light' | 'cassette';
 export type AccentColor = string;
 export type ClickAction = 'play_now' | 'play_next';
-export type StartPage = '/Holad' | '/Holad/albums' | '/Holad/radio' | '/Holad/favorites';
+export type StartPage = '/' | '/albums' | '/radio' | '/favorites';
 export type VisualizerStyle = 'classic' | 'modern' | 'wave' | 'radial' | 'peaks';
 
 export interface SettingsState {
@@ -88,7 +88,7 @@ export const useSettingsStore = create<SettingsState>()(
       customColors: ['', '', ''],
       language: i18n.language || 'ru',
       clickAction: 'play_now',
-      startPage: '/Holad',
+      startPage: '/',
       isCrossfadeEnabled: true,
       crossfadeDuration: 3,
       crossfadeCurve: 'equalPower',
@@ -178,6 +178,12 @@ export const useSettingsStore = create<SettingsState>()(
       onRehydrateStorage: () => (state) => {
         if (state && typeof state.imageCacheLimitMb === 'number') {
           setImageCacheLimit(state.imageCacheLimitMb);
+        }
+        if (state && state.startPage) {
+          if ((state.startPage as string).startsWith('/Holad')) {
+            const migrated = (state.startPage as string).replace(/^\/Holad(\/|$)/, '/') || '/';
+            state.startPage = (migrated === '' ? '/' : migrated) as StartPage;
+          }
         }
       },
     }

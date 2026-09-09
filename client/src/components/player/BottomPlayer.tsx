@@ -127,12 +127,12 @@ export default function BottomPlayer() {
         </div>
         <div className="flex flex-col leading-tight justify-center gap-0.5 flex-1 min-w-0">
           <div className="flex items-center gap-1.5 w-full">
-            <span onClick={() => navigate(`/Holad/album/${currentTrack.albumId}`)} className="font-bold text-base text-foreground truncate hover:underline cursor-pointer">{currentTrack.title}</span>
+            <span onClick={() => navigate(`/album/${currentTrack.albumId}`)} className="font-bold text-base text-foreground truncate hover:underline cursor-pointer">{currentTrack.title}</span>
             <MoreVertical size={16} className="text-[#808080] hover:text-foreground cursor-pointer flex-shrink-0" onClick={(e) => { e.stopPropagation(); openMenu(e.clientX, e.clientY, currentTrack, 'track'); }} />
           </div>
           <ArtistLinks artistString={currentTrack.artist} artistId={currentTrack.artistId} className="text-sm font-medium text-secondary truncate mt-0.5" />
           {currentTrack.album && (
-            <span onClick={() => navigate(`/Holad/album/${currentTrack.albumId}`)} className="text-sm text-secondary/70 truncate hover:underline cursor-pointer mt-0.5">{currentTrack.album}</span>
+            <span onClick={() => navigate(`/album/${currentTrack.albumId}`)} className="text-sm text-secondary/70 truncate hover:underline cursor-pointer mt-0.5">{currentTrack.album}</span>
           )}
           {!isActiveDevice && activeDeviceObj && (
             <div className="relative shrink-0 mt-1 max-w-full w-fit">

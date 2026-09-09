@@ -96,7 +96,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
       }
       openMenu(clientX, clientY, album, 'album');
     },
-    () => navigate(`/Holad/album/${album.id}`)
+    () => navigate(`/album/${album.id}`)
   );
 
   const handleLike = (e: React.MouseEvent) => {

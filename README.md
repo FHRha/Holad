@@ -81,7 +81,11 @@
 curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash
 ```
 
-Скрипт скачает последний релиз, установит его в `/opt/holad`, подтянет зависимости и создаст службу `systemd` для фоновой работы на порту 4000. 
+Скрипт интерактивно запросит порт (по умолчанию 3000), базовый путь маршрутизации (`BASE_PATH`, по умолчанию `/Holad`, либо `/` для корня) и создание службы `systemd`. 
+Параметры можно передать и аргументами командной строки:
+```bash
+bash install.sh --port 4000 --base-path /Holad
+```
 *Для ручной сборки используйте `build_release.sh` (Linux/macOS) или `build_release.bat` (Windows).*
 
 ### Настройка Nginx

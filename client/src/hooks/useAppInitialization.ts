@@ -116,7 +116,7 @@ export function useAppInitialization() {
       if (isAuthenticated) {
         const userName = !isDemoMode && typeof user === 'string' ? user : undefined;
         jamSocket.joinRoom(targetRoom, userName);
-        navigate('/Holad', { replace: true });
+        navigate('/', { replace: true });
       } else if (!isJoinRoute) {
         navigate(`/jam/?room=${encodeURIComponent(targetRoom)}`, { replace: true });
       }

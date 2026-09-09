@@ -40,12 +40,12 @@ export default function JamJoinDialog() {
 
   const handleContinueInBrowser = () => {
     if (!roomId) {
-      navigate('/Holad', { replace: true });
+      navigate('/', { replace: true });
       return;
     }
     if (isAuthenticated) {
       jamSocket.joinRoom(roomId, typeof user === 'string' ? user : undefined);
-      navigate('/Holad', { replace: true });
+      navigate('/', { replace: true });
     } else {
       navigate(`/jam/?room=${encodeURIComponent(roomId)}`, { replace: true });
     }

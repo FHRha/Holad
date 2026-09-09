@@ -7,10 +7,10 @@ export default function MobileBottomNav() {
   
   return (
     <div className="md:hidden flex items-center justify-around bg-background/80 backdrop-blur-md transform-gpu will-change-transform border-t border-border h-[56px] pb-[env(safe-area-inset-bottom)] px-4 z-50 rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.4)] mt-[-1px]">
-      <NavItem to="/Holad" icon={<Home size={26} />} label={t('sidebar.home')} end />
-      <NavItem to="/Holad/library" icon={<Library size={26} />} label={t('common.library')} />
-      <NavItem to="/Holad/favorites" icon={<Heart size={26} />} label={t('sidebar.favorites')} />
-      <NavItem to="/Holad/settings" icon={<Settings size={26} />} label={t('sidebar.settings')} />
+      <NavItem to="/" icon={<Home size={26} />} label={t('sidebar.home')} end />
+      <NavItem to="/library" icon={<Library size={26} />} label={t('common.library')} />
+      <NavItem to="/favorites" icon={<Heart size={26} />} label={t('sidebar.favorites')} />
+      <NavItem to="/settings" icon={<Settings size={26} />} label={t('sidebar.settings')} />
     </div>
   );
 }

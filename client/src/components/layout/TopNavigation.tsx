@@ -6,10 +6,10 @@ export default function TopNavigation() {
   return (
     <div className="md:hidden sticky top-0 z-50 bg-background/95 backdrop-blur-md transform-gpu border-b border-border pt-4 pb-2">
       <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar px-4">
-        <NavTab to="/Holad" label={t('sidebar.tracks')} />
-        <NavTab to="/Holad/albums" label={t('sidebar.albums')} />
-        <NavTab to="/Holad/artists" label={t('sidebar.artists')} />
-        <NavTab to="/Holad/playlists" label={t('sidebar.playlists')} />
+        <NavTab to="/tracks" label={t('sidebar.tracks')} />
+        <NavTab to="/albums" label={t('sidebar.albums')} />
+        <NavTab to="/artists" label={t('sidebar.artists')} />
+        <NavTab to="/playlists" label={t('sidebar.playlists')} />
       </div>
     </div>
   );

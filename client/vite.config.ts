@@ -13,7 +13,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
   },
-  base: process.env.VITE_APP_BASE || '/Holad/',
+  base: process.env.VITE_APP_BASE || './',
   server: {
     port: 5173,
     proxy: {

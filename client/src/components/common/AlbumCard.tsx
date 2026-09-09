@@ -64,7 +64,7 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
       if (isJam && room) {
         navigate(`/jam/album/${album.id}?room=${room}`);
       } else {
-        navigate(`/Holad/album/${album.id}`);
+        navigate(`/album/${album.id}`);
       }
     }
   );

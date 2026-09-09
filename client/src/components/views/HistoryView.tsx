@@ -128,8 +128,8 @@ export default function HistoryView() {
                 const [artistId, artistName] = artist.key.includes('|||') ? artist.key.split('|||') : ['', artist.key];
                 return (
                 <div key={artist.key} className="flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-colors cursor-pointer" onClick={() => {
-                  if (artistId) navigate(`/Holad/artist/${artistId}`);
-                  else navigate(`/Holad/search?q=${encodeURIComponent(artistName)}`);
+                  if (artistId) navigate(`/artist/${artistId}`);
+                  else navigate(`/search?q=${encodeURIComponent(artistName)}`);
                 }}>
                   <div className="flex items-center gap-4">
                     <span className="text-xl font-black text-white/20 w-6 text-center">{i + 1}</span>
@@ -195,7 +195,7 @@ export default function HistoryView() {
                   <LongPressWrapper 
                     key={id} 
                     className="flex items-center p-2 rounded-xl hover:bg-white/5 transition-colors group cursor-pointer" 
-                    onClick={() => navigate(`/Holad/album/${id}`)}
+                    onClick={() => navigate(`/album/${id}`)}
                     onLongPress={(e: any) => {
                       e.preventDefault?.();
                       openMenu(e.clientX, e.clientY, { id, name: title, title, artist, coverArt: getImageUrl(coverArt || id, 300) }, 'album');

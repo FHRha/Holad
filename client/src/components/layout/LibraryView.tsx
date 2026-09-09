@@ -54,10 +54,10 @@ export default function LibraryView() {
     <div className="flex-1 flex flex-col min-w-0 bg-transparent md:bg-[#121212] overflow-hidden relative md:pb-0">
       {/* Desktop Liquid Glass Top Navigation */}
       <div className="hidden md:flex absolute top-4 left-4 right-4 z-50 bg-primary/10 backdrop-blur-2xl border border-primary/20 rounded-2xl shadow-lg shadow-primary/5 p-2 items-center justify-between overflow-x-auto hide-scrollbar gap-2">
-        <NavTab to="/Holad/library/tracks" label={t('sidebar.tracks')} />
-        <NavTab to="/Holad/library/albums" label={t('sidebar.albums')} />
-        <NavTab to="/Holad/library/artists" label={t('sidebar.artists')} />
-        <NavTab to="/Holad/library/playlists" label={t('sidebar.playlists')} />
+        <NavTab to="/library/tracks" label={t('sidebar.tracks')} />
+        <NavTab to="/library/albums" label={t('sidebar.albums')} />
+        <NavTab to="/library/artists" label={t('sidebar.artists')} />
+        <NavTab to="/library/playlists" label={t('sidebar.playlists')} />
       </div>
 
       {/* Mobile Top Section */}
@@ -105,16 +105,16 @@ export default function LibraryView() {
         
         {/* Mobile Tabs */}
         <div className="flex bg-card rounded-2xl p-1 gap-1 overflow-x-auto hide-scrollbar">
-          <MobileNavTab to="/Holad/library/tracks" label={t('sidebar.tracks')} />
-          <MobileNavTab to="/Holad/library/albums" label={t('sidebar.albums')} />
-          <MobileNavTab to="/Holad/library/artists" label={t('views.artists_short_tab')} />
-          <MobileNavTab to="/Holad/library/playlists" label={t('common.playlists')} />
+          <MobileNavTab to="/library/tracks" label={t('sidebar.tracks')} />
+          <MobileNavTab to="/library/albums" label={t('sidebar.albums')} />
+          <MobileNavTab to="/library/artists" label={t('views.artists_short_tab')} />
+          <MobileNavTab to="/library/playlists" label={t('common.playlists')} />
         </div>
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col">
         <Routes>
-          <Route path="/" element={<Navigate to="/Holad/library/albums" replace />} />
+          <Route path="/" element={<Navigate to="/library/albums" replace />} />
           <Route path="/tracks" element={<TracksView />} />
           <Route path="/albums" element={<AlbumsView viewMode={viewMode} />} />
           <Route path="/artists" element={<ArtistsView />} />

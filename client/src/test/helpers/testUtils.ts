@@ -41,7 +41,7 @@ export function resetAllStores(): void {
     accentColor: 'green',
     language: 'ru',
     clickAction: 'play_now',
-    startPage: '/Holad',
+    startPage: '/',
     isCrossfadeEnabled: true,
     crossfadeDuration: 3,
     runOnStartup: true,

@@ -6,7 +6,7 @@ import { useSettingsStore } from './settingsStore';
 import { useHistoryStore } from './historyStore';
 
 import { useAuthStore } from './authStore';
-import { getSocketUrl, getHoladServerUrl } from '../utils/serverConfig';
+import { getSocketUrl, getHoladServerUrl, getSocketPath } from '../utils/serverConfig';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
 import { getAudioEngine } from '../audio/AudioEngine';
 
@@ -104,7 +104,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
       }
 
       socket = io(getSocketUrl(), {
-        path: '/Holad/socket.io',
+        path: getSocketPath(),
         transports: ['websocket', 'polling']
       });
 
