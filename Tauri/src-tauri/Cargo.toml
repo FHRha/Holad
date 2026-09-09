@@ -1,6 +1,6 @@
 [package]
 name = "holad"
-version = "0.1.0"
+version = "2.0.3"
 description = "Holad Music Player"
 authors = ["FHRha"]
 license = ""

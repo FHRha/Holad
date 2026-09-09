@@ -19,6 +19,7 @@
         }
       ]
     },
-    "core:path:default"
+    "core:path:default",
+    "core:app:default"
   ]
 }

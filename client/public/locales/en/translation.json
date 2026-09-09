@@ -695,7 +695,10 @@
     "install": "Install",
     "retry": "Retry",
     "download_github": "Download from GitHub",
-    "skip": "Skip for now"
+    "skip": "Skip for now",
+    "checking": "Checking for updates...",
+    "check_failed": "Failed to check for updates",
+    "up_to_date": "You are on the latest version!"
   },
   "demo": {
     "badge": "Holad Demo Mode",

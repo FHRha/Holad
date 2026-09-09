@@ -37,11 +37,11 @@ export default function Sidebar() {
   const [appVersion, setAppVersion] = useState<string>('');
 
   useEffect(() => {
-    if (isTauri()) {
-      import('@tauri-apps/api/app').then(m => m.getVersion().then(setAppVersion));
-    } else {
-      setAppVersion('0.1.0');
-    }
+    UpdateService.getCurrentVersion().then((v) => {
+      if (v && v !== '0.0.0') {
+        setAppVersion(v);
+      }
+    });
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {

@@ -52,12 +52,32 @@ export class UpdateService {
         if (isTauri()) {
             try {
                 const { getVersion } = await import('@tauri-apps/api/app');
-                return await getVersion();
+                const version = await getVersion();
+                if (version && version !== '0.0.0') {
+                    return version;
+                }
             } catch (e) {
                 console.warn('Could not read Tauri app version:', e);
             }
         }
-        return '0.1.0';
+
+        if (isCapacitor()) {
+            try {
+                const { App } = await import('@capacitor/app');
+                const info = await App.getInfo();
+                if (info?.version && info.version !== '0.0.0') {
+                    return info.version;
+                }
+            } catch (e) {
+                console.warn('Could not read Capacitor app version:', e);
+            }
+        }
+
+        if (typeof __APP_VERSION__ !== 'undefined' && __APP_VERSION__ && __APP_VERSION__ !== '0.0.0') {
+            return __APP_VERSION__;
+        }
+
+        return '0.0.0';
     }
 
     static async checkForUpdates(manualCheck = false): Promise<{ 
@@ -88,7 +108,12 @@ export class UpdateService {
             const notes = data.body || '';
             const currentVersion = await this.getCurrentVersion();
             
+            if (!manualCheck && (currentVersion === '0.0.0' || import.meta.env.DEV)) {
+                return { available: false, version: latestVersion, notes };
+            }
+
             const isNewer = compareVersions(latestVersion, currentVersion) > 0;
+            console.log(`[UpdateService] Current: "${currentVersion}", Latest: "${latestVersion}", isNewer: ${isNewer}`);
             
             if (isNewer) {
                 const platform = getPlatform();

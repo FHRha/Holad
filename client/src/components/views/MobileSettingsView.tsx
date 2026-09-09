@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, CloudOff, Database, Palette, Music, Globe, HardDrive, ChevronRight, ChevronDown, Check, Pencil, Info, DownloadCloud, Eye, EyeOff, RefreshCw, Moon } from 'lucide-react';
 import { UpdateService } from '../../services/UpdateService';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -122,6 +122,15 @@ export default function MobileSettingsView() {
   
   const [showLastFmKey, setShowLastFmKey] = useState(false);
   const [showYandexToken, setShowYandexToken] = useState(false);
+  const [appVersion, setAppVersion] = useState<string>('');
+
+  useEffect(() => {
+    UpdateService.getCurrentVersion().then((v) => {
+      if (v && v !== '0.0.0') {
+        setAppVersion(v);
+      }
+    });
+  }, []);
   
   const toggleSection = (id: string) => {
     setExpandedSection(prev => prev === id ? null : id);
@@ -172,7 +181,7 @@ export default function MobileSettingsView() {
             className="flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-foreground/10 text-white font-bold py-3 rounded-xl border border-white/10 transition-colors"
           >
             <img src="/icons/github.png" className="w-[20px] h-[20px] invert" alt="GitHub" />
-            GitHub
+            GitHub {appVersion && <span className="text-xs text-secondary/70 ml-1">v{appVersion}</span>}
           </button>
           <button 
             onClick={() => {
