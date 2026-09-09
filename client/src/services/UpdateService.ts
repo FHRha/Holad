@@ -3,6 +3,7 @@ import { isTauri, isCapacitor } from '../utils/StorageManager';
 import { useUIStore, type UpdateProgress } from '../store/uiStore';
 import { openExternalLink } from '../utils/linkHelper';
 import { ApkUpdaterPlugin } from '../utils/apkUpdaterHelper';
+import { getHoladServerUrl } from '../utils/serverConfig';
 import i18n from '../i18n';
 
 function compareVersions(v1: string, v2: string): number {
@@ -33,6 +34,11 @@ function getPlatform(): 'windows' | 'linux' | 'android' | 'other' {
 export class UpdateService {
     private static readonly SNOOZE_KEY = 'update_snooze_until';
     private static readonly GITHUB_RELEASES_API = 'https://api.github.com/repos/FHRha/Holad/releases/latest';
+    private static cachedServerVersion: string | null = null;
+
+    static clearCachedVersion(): void {
+        this.cachedServerVersion = null;
+    }
 
     static isSnoozed(): boolean {
         const snoozeUntil = localStorage.getItem(this.SNOOZE_KEY);
@@ -73,11 +79,36 @@ export class UpdateService {
             }
         }
 
+        // Web mode: return cached server version if available
+        if (this.cachedServerVersion) {
+            return this.cachedServerVersion;
+        }
+
+        // Try querying the backend /api/version endpoint
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const serverUrl = getHoladServerUrl();
+            const res = await fetch(`${serverUrl}/api/version`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+                const data = await res.json();
+                if (data?.version && data.version !== '0.0.0') {
+                    this.cachedServerVersion = data.version;
+                    return data.version;
+                }
+            }
+        } catch {
+            // Endpoint unreachable or offline; fallback to compile-time define
+        }
+
         if (typeof __APP_VERSION__ !== 'undefined' && __APP_VERSION__ && __APP_VERSION__ !== '0.0.0') {
             return __APP_VERSION__;
         }
 
-        return '0.0.0';
+        return '2.0.5';
     }
 
     static async checkForUpdates(manualCheck = false): Promise<{ 

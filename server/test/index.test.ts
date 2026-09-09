@@ -42,6 +42,18 @@ describe('API Endpoints', () => {
     expect(res.body).toEqual({ ok: true, server: 'holad' });
   });
 
+  it('should return application version via /api/version and /Holad/api/version', async () => {
+    const res = await request(app).get('/api/version');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('version');
+    expect(typeof res.body.version).toBe('string');
+    expect(res.body.version).toMatch(/^\d+\.\d+\.\d+/);
+
+    const resHolad = await request(app).get('/Holad/api/version');
+    expect(resHolad.status).toBe(200);
+    expect(resHolad.body.version).toBe(res.body.version);
+  });
+
   it('should save, validate, retrieve, and delete custom playlists via /api/custom-playlists and /Holad/api/custom-playlists', async () => {
     const customId = 'test_api_pl_' + Date.now();
 

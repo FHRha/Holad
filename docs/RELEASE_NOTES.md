@@ -1,7 +1,13 @@
-## 🇷🇺 Русская версия (Subsonic 403 Fix & Dynamic Base Path)
-Это обновление устраняет критическую ошибку 403 при запросах к избранному в Subsonic-прокси, а также полностью перерабатывает архитектуру роутинга веб-клиента для поддержки произвольного базового пути (`BASE_PATH`).
+## 🇷🇺 Русская версия (Subsonic 403 Fix, Dynamic Base Path & App Version Synchronization)
+Это обновление устраняет критическую ошибку 403 при запросах к избранному в Subsonic-прокси, полностью перерабатывает архитектуру роутинга веб-клиента для поддержки произвольного базового пути (`BASE_PATH`), а также устраняет проблему с зависанием отображаемой версии приложения на `v2.0.3`.
 
 **Главные нововведения и исправления:**
+* **Синхронизация и исправление отображения версии (v2.0.5):**
+  * Устранена проблема, при которой приложение во всех средах (особенно в Docker-контейнерах и в браузере) всегда отображало устаревшую версию `v2.0.3`.
+  * В манифестах всех компонентов (`client`, `server`, `Capacitor`, `Tauri`) версии синхронизированы до актуальной (`2.0.5`).
+  * В `Dockerfile` добавлен аргумент `ARG RELEASE_VERSION`, а в workflow `docker.yml` настроена автоматическая передача тега релиза, благодаря чему публикуемые образы на GHCR больше не запекают устаревшую версию.
+  * На бэкенде реализован эндпоинт `GET /api/version` с автоматическим определением версии из переменных окружения (`HOLAD_VERSION`, `RELEASE_VERSION`), файла `.version` или манифестов.
+  * В `UpdateService` веб-клиента добавлено динамическое чтение версии с сервера с кэшированием и надежным фоллбэком при оффлайн-работе.
 * **Исправление ошибки 403 в Subsonic Proxy (`getStarred2`):**
   * Устранена ошибка `Blocked unauthorized access attempt to endpoint: getStarred2`, приводившая к падению загрузки избранного и стартовой страницы при гостевом и демо-проксировании.
   * В список разрешённых эндпоинтов Subsonic API добавлены `getStarred`, `getStarred2`, `getMusicFolders`, `getLicense`, `stream`, `download` и `createShare`.
@@ -21,10 +27,16 @@
 
 ---
 
-## 🇬🇧 English version (Subsonic 403 Fix & Dynamic Base Path)
-This release resolves a critical 403 Forbidden error in the Subsonic proxy when fetching starred content and completely overhauls the web client routing architecture to support arbitrary base paths (`BASE_PATH`).
+## 🇬🇧 English version (Subsonic 403 Fix, Dynamic Base Path & App Version Synchronization)
+This release resolves a critical 403 Forbidden error in the Subsonic proxy when fetching starred content, completely overhauls the web client routing architecture to support arbitrary base paths (`BASE_PATH`), and fixes the issue where the app continuously reported outdated version `v2.0.3`.
 
 **Major Features & Fixes:**
+* **App Version Synchronization & Stuck v2.0.3 Fix (v2.0.5):**
+  * Resolved the issue where the client constantly reported `v2.0.3` across environments, particularly in Docker containers and web sessions.
+  * Synchronized manifests across all project components (`client`, `server`, `Capacitor`, `Tauri`) to version `2.0.5`.
+  * Updated `Dockerfile` with `ARG RELEASE_VERSION` and enhanced `.github/workflows/docker.yml` to pass release tags into build args, preventing published GHCR images from freezing on an outdated static version.
+  * Added a backend `/api/version` endpoint with automatic detection from `HOLAD_VERSION` / `RELEASE_VERSION` environment variables, `.version` files, and package manifests.
+  * Updated web `UpdateService` to dynamically query the server's version at runtime with caching and offline fallback.
 * **Subsonic Proxy 403 Error Fix (`getStarred2`):**
   * Resolved `Blocked unauthorized access attempt to endpoint: getStarred2` error which previously prevented favorites, likes, and start page tracks from loading during guest and demo proxying.
   * Expanded the proxy allowlist with missing Subsonic endpoints: `getStarred`, `getStarred2`, `getMusicFolders`, `getLicense`, `stream`, `download`, and `createShare`.

@@ -47,6 +47,7 @@ let appVersion = null;
 if (rawVersion) {
   const version = rawVersion.startsWith('v') ? rawVersion.substring(1) : rawVersion;
   appVersion = version;
+  process.env.RELEASE_VERSION = version;
   console.log(`Injecting version ${version} into project files...`);
   
   [
@@ -80,6 +81,19 @@ if (rawVersion) {
     }
   }
 
+  // Update Cargo.lock
+  const cargoLockPath = path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'Cargo.lock');
+  if (fs.existsSync(cargoLockPath)) {
+    try {
+      let lockContent = fs.readFileSync(cargoLockPath, 'utf8');
+      lockContent = lockContent.replace(/(\[\[package\]\]\r?\nname\s*=\s*"holad"\r?\nversion\s*=\s*)"[^"]*"/, `$1"${version}"`);
+      fs.writeFileSync(cargoLockPath, lockContent);
+      console.log(`Updated version in Tauri/src-tauri/Cargo.lock to ${version}`);
+    } catch (e) {
+      console.warn(`Could not update version in Cargo.lock:`, e.message);
+    }
+  }
+
   // Update Capacitor build.gradle
   const buildGradlePath = path.join(ROOT_DIR, 'Capacitor', 'android', 'app', 'build.gradle');
   if (fs.existsSync(buildGradlePath)) {
@@ -97,6 +111,10 @@ if (rawVersion) {
 function getAppVersion() {
   if (appVersion) return appVersion;
   try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'client', 'package.json'), 'utf8'));
+    if (pkg.version) return pkg.version;
+  } catch (e) {}
+  try {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'Capacitor', 'package.json'), 'utf8'));
     if (pkg.version) return pkg.version;
   } catch (e) {}
@@ -104,7 +122,7 @@ function getAppVersion() {
     const tauriConfig = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'tauri.conf.json'), 'utf8'));
     if (tauriConfig.version) return tauriConfig.version;
   } catch (e) {}
-  return null;
+  return '2.0.5';
 }
 
 function getEnv(envOverrides = {}) {
@@ -315,14 +333,20 @@ async function main() {
 
   // 2. Build Client and Server in parallel
   const webTasks = [];
+  const currentBuildVersion = appVersion || getAppVersion() || process.env.RELEASE_VERSION || '2.0.5';
   if (!skipClient) {
     console.log("\n--- Scheduling Web Client Build (Base: /Holad/) ---");
-    webTasks.push(runCommand('Web Client Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: '/Holad/' }));
+    webTasks.push(runCommand('Web Client Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'client'), { 
+      VITE_APP_BASE: '/Holad/',
+      RELEASE_VERSION: currentBuildVersion
+    }));
   }
 
   if (!skipServer) {
     console.log("\n--- Scheduling Server Build ---");
-    webTasks.push(runCommand('Server Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'server')));
+    webTasks.push(runCommand('Server Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'server'), {
+      RELEASE_VERSION: currentBuildVersion
+    }));
   }
 
   if (webTasks.length > 0) {
@@ -345,6 +369,9 @@ async function main() {
         fs.copyFileSync(path.join(ROOT_DIR, 'server', 'migrate.js'), path.join(RELEASE_DIR, 'server', 'migrate.js'));
       }
     }
+
+    // Save .version file in release directory
+    fs.writeFileSync(path.join(RELEASE_DIR, '.version'), `${currentBuildVersion}\n`);
 
     // Create .env.example
     fs.writeFileSync(path.join(RELEASE_DIR, 'server', '.env.example'), `PORT=4000
@@ -392,7 +419,10 @@ node dist/index.js
   if (!skipTauri || !skipAndroid) {
     console.log("\n--- Rebuilding Client for Native Apps (Base: ./) ---");
     await ensureDependencies('Native Client Install', path.join(ROOT_DIR, 'client'));
-    await runCommand('Native Client Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'client'), { VITE_APP_BASE: './' });
+    await runCommand('Native Client Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'client'), { 
+      VITE_APP_BASE: './',
+      RELEASE_VERSION: currentBuildVersion
+    });
   }
 
   // 3. Build Tauri Desktop Apps and Capacitor Android App in parallel

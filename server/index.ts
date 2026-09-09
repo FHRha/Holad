@@ -211,8 +211,60 @@ console.log("=== SERVER STARTED ===");
 console.log("LOADED ACCOUNTS:", navidromeAccounts.map(a => ({ user: a.user, url: a.url, hasToken: !!a.token, hasPass: !!a.pass })));
 console.log("======================");
 
+export function getAppVersion(): string {
+  // 1. Check environment variables
+  const envVer = process.env.HOLAD_VERSION || process.env.RELEASE_VERSION;
+  if (envVer) {
+    const cleaned = envVer.replace(/^v/i, '').trim();
+    if (cleaned) return cleaned;
+  }
+
+  // 2. Check for .version file in cwd, parent directory, /app, or /opt/holad
+  const versionFilePaths = [
+    path.join(process.cwd(), '.version'),
+    path.resolve(process.cwd(), '..', '.version'),
+    '/app/.version',
+    '/opt/holad/.version'
+  ];
+  for (const vPath of versionFilePaths) {
+    try {
+      if (fs.existsSync(vPath)) {
+        const vContent = fs.readFileSync(vPath, 'utf8').trim();
+        if (vContent) {
+          return vContent.replace(/^v/i, '');
+        }
+      }
+    } catch {}
+  }
+
+  // 3. Check server/package.json or client/package.json
+  const pkgPaths = [
+    path.join(process.cwd(), 'package.json'),
+    path.resolve(process.cwd(), '..', 'package.json'),
+    path.resolve(process.cwd(), '..', 'client', 'package.json'),
+    '/app/server/package.json',
+    '/app/client/package.json'
+  ];
+  for (const pPath of pkgPaths) {
+    try {
+      if (fs.existsSync(pPath)) {
+        const pkgData = JSON.parse(fs.readFileSync(pPath, 'utf8'));
+        if (pkgData.version && pkgData.version !== '0.0.0') {
+          return pkgData.version;
+        }
+      }
+    } catch {}
+  }
+
+  return '2.0.5';
+}
+
 app.get('/api/ping', (req, res) => {
   res.json({ ok: true, server: 'holad' });
+});
+
+app.get('/api/version', (_req, res) => {
+  res.json({ version: getAppVersion() });
 });
 
 // Sync endpoints

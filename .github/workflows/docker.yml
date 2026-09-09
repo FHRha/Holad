@@ -58,5 +58,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            RELEASE_VERSION=${{ github.ref_type == 'tag' && github.ref_name || (steps.meta.outputs.version != '' && steps.meta.outputs.version || '2.0.5') }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

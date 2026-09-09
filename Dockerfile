@@ -12,6 +12,8 @@ RUN pnpm install --frozen-lockfile || pnpm install
 COPY client/ ./
 ARG VITE_APP_BASE=./
 ENV VITE_APP_BASE=${VITE_APP_BASE}
+ARG RELEASE_VERSION=""
+ENV RELEASE_VERSION=${RELEASE_VERSION}
 RUN pnpm run build
 
 # ==========================================
@@ -87,6 +89,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/backup.sh
 # Ensure persistent data directory exists
 RUN mkdir -p /data
 
+ARG RELEASE_VERSION=""
 # Default environment configuration
 ENV NODE_ENV=production \
     PORT=4000 \
@@ -97,7 +100,9 @@ ENV NODE_ENV=production \
     BACKUP_ENABLED=false \
     BACKUP_PATH=/data/backups \
     BACKUP_INTERVAL_HOURS=24 \
-    BACKUP_RETENTION_DAYS=7
+    BACKUP_RETENTION_DAYS=7 \
+    RELEASE_VERSION=${RELEASE_VERSION} \
+    HOLAD_VERSION=${RELEASE_VERSION}
 
 VOLUME ["/data"]
 EXPOSE 4000
