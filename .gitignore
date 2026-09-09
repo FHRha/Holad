@@ -27,7 +27,7 @@ rustup-init.exe
 scratch/
 *.py
 *.pyc
-RELEASE_NOTES.md
+/RELEASE_NOTES.md
 .agents/
 TEST_INFRA.md
 PROJECT.md
