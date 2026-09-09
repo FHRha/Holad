@@ -1,5 +1,33 @@
 import { toast } from 'sonner';
+import { isTauri, isCapacitor } from '../utils/StorageManager';
+import { useUIStore, type UpdateProgress } from '../store/uiStore';
+import { openExternalLink } from '../utils/linkHelper';
+import i18n from '../i18n';
 
+function compareVersions(v1: string, v2: string): number {
+    const normalize = (v: string) => 
+        v.replace(/^v/i, '').trim().split('.').map(n => parseInt(n, 10) || 0);
+    const parts1 = normalize(v1);
+    const parts2 = normalize(v2);
+    const maxLen = Math.max(parts1.length, parts2.length);
+    for (let i = 0; i < maxLen; i++) {
+        const num1 = parts1[i] || 0;
+        const num2 = parts2[i] || 0;
+        if (num1 > num2) return 1;
+        if (num1 < num2) return -1;
+    }
+    return 0;
+}
+
+function getPlatform(): 'windows' | 'linux' | 'android' | 'other' {
+    if (isCapacitor()) return 'android';
+    const ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '').toLowerCase();
+    const plat = (typeof navigator !== 'undefined' ? (navigator as any).platform || '' : '').toLowerCase();
+    if (ua.includes('android')) return 'android';
+    if (plat.startsWith('win') || ua.includes('windows')) return 'windows';
+    if (plat.startsWith('linux') || ua.includes('linux')) return 'linux';
+    return 'other';
+}
 
 export class UpdateService {
     private static readonly SNOOZE_KEY = 'update_snooze_until';
@@ -19,72 +47,150 @@ export class UpdateService {
         localStorage.setItem(this.SNOOZE_KEY, snoozeDate.toISOString());
     }
 
-    static async checkForUpdates(manualCheck = false): Promise<{ available: boolean, version?: string, notes?: string, downloadUrl?: string }> {
+    static async getCurrentVersion(): Promise<string> {
+        if (isTauri()) {
+            try {
+                const { getVersion } = await import('@tauri-apps/api/app');
+                return await getVersion();
+            } catch (e) {
+                console.warn('Could not read Tauri app version:', e);
+            }
+        }
+        return '0.1.0';
+    }
+
+    static async checkForUpdates(manualCheck = false): Promise<{ 
+        available: boolean; 
+        version?: string; 
+        notes?: string; 
+        downloadUrl?: string;
+        fileName?: string;
+        size?: number;
+    }> {
         if (!manualCheck && this.isSnoozed()) {
             return { available: false };
         }
 
         try {
             if (manualCheck) {
-                toast.info('Checking for updates...');
+                toast.info(i18n.t('update.checking', 'Checking for updates...'));
             }
 
             const response = await fetch(this.GITHUB_RELEASES_API);
             if (!response.ok) {
-                if (manualCheck) toast.error('Failed to check for updates (API error).');
+                if (manualCheck) toast.error(i18n.t('update.check_failed', 'Failed to check for updates (API error).'));
                 return { available: false };
             }
             
             const data = await response.json();
-            const latestVersion = data.tag_name;
-            const notes = data.body;
+            const latestVersion = data.tag_name || '';
+            const notes = data.body || '';
+            const currentVersion = await this.getCurrentVersion();
             
-            const downloadUrl = data.assets?.[0]?.browser_download_url;
-            
-            // Stub until we parse version properly
-            const isNewer = true; // Temporary logic: assume it's always newer or check logic here
+            const isNewer = compareVersions(latestVersion, currentVersion) > 0;
             
             if (isNewer) {
-                const uiStore = (await import('../store/uiStore')).useUIStore;
-                uiStore.getState().setUpdateInfo({ version: latestVersion, notes, downloadUrl });
-                uiStore.getState().setUpdateModalOpen(true);
+                const platform = getPlatform();
+                const assets: any[] = Array.isArray(data.assets) ? data.assets : [];
+
+                let targetAsset: any = null;
+                if (platform === 'windows') {
+                    targetAsset = assets.find((a: any) => a.name?.endsWith('-setup.exe')) 
+                               || assets.find((a: any) => a.name?.endsWith('.exe'))
+                               || assets.find((a: any) => a.name?.endsWith('.msi'));
+                } else if (platform === 'linux') {
+                    targetAsset = assets.find((a: any) => a.name?.endsWith('.AppImage'))
+                               || assets.find((a: any) => a.name?.endsWith('.deb'));
+                } else if (platform === 'android') {
+                    targetAsset = assets.find((a: any) => a.name?.endsWith('.apk'));
+                }
+
+                if (!targetAsset && assets.length > 0) {
+                    targetAsset = assets[0];
+                }
+
+                const downloadUrl = targetAsset?.browser_download_url;
+                const fileName = targetAsset?.name;
+                const size = targetAsset?.size;
+
+                useUIStore.getState().setUpdateInfo({ 
+                    version: latestVersion, 
+                    notes, 
+                    downloadUrl,
+                    fileName,
+                    size,
+                    progress: null
+                });
+                useUIStore.getState().setUpdateModalOpen(true);
+
+                return {
+                    available: true,
+                    version: latestVersion,
+                    notes,
+                    downloadUrl,
+                    fileName,
+                    size
+                };
             } else if (manualCheck) {
-                toast.success('You are on the latest version!');
+                toast.success(i18n.t('update.up_to_date', 'You are on the latest version!'));
             }
             
             return {
-                available: isNewer,
+                available: false,
                 version: latestVersion,
-                notes,
-                downloadUrl
+                notes
             };
         } catch (error) {
             console.error('Failed to check for updates', error);
-            if (manualCheck) toast.error('Failed to check for updates (Network error).');
+            if (manualCheck) toast.error(i18n.t('update.check_failed', 'Failed to check for updates (Network error).'));
             return { available: false };
         }
     }
 
-    static async performUpdate(downloadUrl?: string) {
-        // TODO: Вызов нативного скачивания APK (Android) или установка через Tauri (Desktop)
-        /*
-        // Desktop (Tauri) update flow
-        if (isTauri) {
-            import { check } from '@tauri-apps/plugin-updater';
-            import { relaunch } from '@tauri-apps/plugin-process';
-            
-            const update = await check();
-            if (update) {
-                await update.downloadAndInstall();
-                await relaunch();
-            }
-        } 
-        // Android update flow
-        else if (isAndroid) {
-            // 1. Download APK to temp directory using Capacitor Filesystem / HTTP plugin
-            // 2. Request install via intent / native code
+    static async performUpdate() {
+        const info = useUIStore.getState().updateInfo;
+        
+        if (!info?.downloadUrl || !info?.fileName) {
+            toast.error(i18n.t('update.download_failed', 'Failed to download update'));
+            return;
         }
-        */
-        console.log('Downloading and installing update from:', downloadUrl);
+
+        if (isTauri()) {
+            try {
+                useUIStore.getState().setUpdateProgress({
+                    stage: 'downloading',
+                    percent: 0,
+                    downloaded: 0,
+                    total: info.size || 0
+                });
+
+                const { listen } = await import('@tauri-apps/api/event');
+                const { invoke } = await import('@tauri-apps/api/core');
+
+                const unlisten = await listen<UpdateProgress>('update-download-progress', (event) => {
+                    useUIStore.getState().setUpdateProgress(event.payload);
+                });
+
+                await invoke('download_and_install_update', {
+                    url: info.downloadUrl,
+                    fileName: info.fileName
+                });
+
+                unlisten();
+            } catch (err: any) {
+                console.error('Desktop update error:', err);
+                const errorStr = typeof err === 'string' ? err : err?.message || 'Update failed';
+                useUIStore.getState().setUpdateProgress({
+                    stage: 'error',
+                    percent: 0,
+                    downloaded: 0,
+                    total: 0,
+                    error: errorStr
+                });
+                toast.error(errorStr);
+            }
+        } else {
+            openExternalLink(info.downloadUrl);
+        }
     }
 }

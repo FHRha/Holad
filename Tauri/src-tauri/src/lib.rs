@@ -1,5 +1,6 @@
 mod taskbar;
 mod audio_session;
+mod updater;
 use std::sync::Mutex;
 use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState, TrayIconEvent};
 use tauri::Manager;
@@ -194,7 +195,8 @@ pub fn run() {
         set_tray_menu_size,
         set_app_icon,
         sync_audio_session,
-        open_downloads_folder
+        open_downloads_folder,
+        updater::download_and_install_update
     ])
     .setup(|app| {
       let is_autostart = std::env::args().any(|arg| arg == "--autostart");

@@ -4,6 +4,23 @@ import { persist } from 'zustand/middleware';
 export const LEFT_SIDEBAR_DEFAULT_WIDTH = 96;
 export const RIGHT_SIDEBAR_DEFAULT_WIDTH = 320;
 
+export interface UpdateProgress {
+  stage: 'downloading' | 'installing' | 'error';
+  percent: number;
+  downloaded: number;
+  total: number;
+  error?: string;
+}
+
+export interface UpdateInfo {
+  version?: string;
+  notes?: string;
+  downloadUrl?: string;
+  fileName?: string;
+  size?: number;
+  progress?: UpdateProgress | null;
+}
+
 interface UIState {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -42,8 +59,9 @@ interface UIState {
   
   isUpdateModalOpen: boolean;
   setUpdateModalOpen: (open: boolean) => void;
-  updateInfo: { version?: string; notes?: string; downloadUrl?: string } | null;
-  setUpdateInfo: (info: { version?: string; notes?: string; downloadUrl?: string } | null) => void;
+  updateInfo: UpdateInfo | null;
+  setUpdateInfo: (info: UpdateInfo | null) => void;
+  setUpdateProgress: (progress: UpdateProgress | null) => void;
   
   isJamModalOpen: boolean;
   setIsJamModalOpen: (open: boolean) => void;
@@ -99,6 +117,9 @@ export const useUIStore = create<UIState>()(
       setUpdateModalOpen: (open) => set({ isUpdateModalOpen: open }),
       updateInfo: null,
       setUpdateInfo: (info) => set({ updateInfo: info }),
+      setUpdateProgress: (progress) => set((state) => ({
+        updateInfo: state.updateInfo ? { ...state.updateInfo, progress } : null
+      })),
       
       isJamModalOpen: false,
       setIsJamModalOpen: (open) => set({ isJamModalOpen: open }),

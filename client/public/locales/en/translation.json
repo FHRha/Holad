@@ -686,6 +686,10 @@
     "available": "Update Available",
     "new_version_desc": "A new version of Holad is available.",
     "auto_update": "Auto-Update",
+    "downloading": "Downloading update...",
+    "installing": "Launching installer...",
+    "download_failed": "Failed to download update",
+    "retry": "Retry",
     "download_github": "Download from GitHub",
     "skip": "Skip for now"
   },

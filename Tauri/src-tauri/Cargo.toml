@@ -31,6 +31,7 @@ tauri-plugin-shell = "2.3.5"
 tauri-plugin-fs = "2.5.1"
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
+ureq = { version = "2.10", features = ["tls"] }
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61.3", features = [
     "Win32_UI_Shell",

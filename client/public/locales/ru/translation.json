@@ -686,6 +686,10 @@
     "available": "Доступно обновление",
     "new_version_desc": "Доступна новая версия Holad.",
     "auto_update": "Автообновление",
+    "downloading": "Загрузка обновления...",
+    "installing": "Запуск установщика...",
+    "download_failed": "Не удалось загрузить обновление",
+    "retry": "Повторить",
     "download_github": "Скачать с GitHub",
     "skip": "Пропустить"
   },
