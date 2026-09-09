@@ -689,6 +689,10 @@
     "downloading": "Downloading update...",
     "installing": "Launching installer...",
     "download_failed": "Failed to download update",
+    "permission_required": "Install permission required",
+    "permission_desc": "To install the update, please allow Holad to install apps in settings.",
+    "open_settings": "Open Settings",
+    "install": "Install",
     "retry": "Retry",
     "download_github": "Download from GitHub",
     "skip": "Skip for now"

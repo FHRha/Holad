@@ -2,6 +2,7 @@ import { toast } from 'sonner';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
 import { useUIStore, type UpdateProgress } from '../store/uiStore';
 import { openExternalLink } from '../utils/linkHelper';
+import { ApkUpdaterPlugin } from '../utils/apkUpdaterHelper';
 import i18n from '../i18n';
 
 function compareVersions(v1: string, v2: string): number {
@@ -189,8 +190,61 @@ export class UpdateService {
                 });
                 toast.error(errorStr);
             }
+        } else if (isCapacitor() && ApkUpdaterPlugin) {
+            try {
+                useUIStore.getState().setUpdateProgress({
+                    stage: 'downloading',
+                    percent: 0,
+                    downloaded: 0,
+                    total: info.size || 0
+                });
+
+                const listener = await ApkUpdaterPlugin.addListener('update-download-progress', (event) => {
+                    useUIStore.getState().setUpdateProgress(event);
+                });
+
+                const res = await ApkUpdaterPlugin.downloadAndInstall({
+                    url: info.downloadUrl,
+                    fileName: info.fileName || 'Holad-Update.apk'
+                });
+
+                if (res.stage === 'permission_required') {
+                    useUIStore.getState().setUpdateProgress({
+                        stage: 'permission_required',
+                        percent: 100,
+                        downloaded: info.size || 0,
+                        total: info.size || 0,
+                        filePath: res.filePath
+                    });
+                }
+
+                await listener.remove();
+            } catch (err: any) {
+                console.error('Android update error:', err);
+                const errorStr = typeof err === 'string' ? err : err?.message || 'Update failed';
+                useUIStore.getState().setUpdateProgress({
+                    stage: 'error',
+                    percent: 0,
+                    downloaded: 0,
+                    total: 0,
+                    error: errorStr
+                });
+                toast.error(errorStr);
+            }
         } else {
             openExternalLink(info.downloadUrl);
+        }
+    }
+
+    static async requestInstallPermission() {
+        if (isCapacitor() && ApkUpdaterPlugin) {
+            await ApkUpdaterPlugin.openInstallSettings();
+        }
+    }
+
+    static async installDownloadedApk(filePath: string) {
+        if (isCapacitor() && ApkUpdaterPlugin) {
+            await ApkUpdaterPlugin.installApk({ filePath });
         }
     }
 }

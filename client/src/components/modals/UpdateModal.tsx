@@ -2,7 +2,7 @@ import { X, Download, SkipForward, Loader2, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { UpdateService } from '../../services/UpdateService';
-import { isTauri } from '../../utils/StorageManager';
+import { isTauri, isCapacitor } from '../../utils/StorageManager';
 import { openExternalLink } from '../../utils/linkHelper';
 import { useSettingsStore } from '../../store/settingsStore';
 
@@ -15,6 +15,7 @@ export default function UpdateModal() {
 
   const isDownloading = updateInfo.progress?.stage === 'downloading';
   const isInstalling = updateInfo.progress?.stage === 'installing';
+  const isPermissionRequired = updateInfo.progress?.stage === 'permission_required';
   const isBusy = isDownloading || isInstalling;
   const isError = updateInfo.progress?.stage === 'error';
 
@@ -108,6 +109,34 @@ export default function UpdateModal() {
             </div>
           )}
 
+          {isPermissionRequired && (
+            <div className="flex flex-col gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-200">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle size={18} className="shrink-0 text-amber-400 mt-0.5" />
+                <div className="flex flex-col gap-1">
+                  <span className="font-semibold text-amber-300">{t('update.permission_required', 'Install permission required')}</span>
+                  <span className="opacity-90">{t('update.permission_desc', 'To install the update, please allow Holad to install apps in settings.')}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-1">
+                <button
+                  onClick={() => UpdateService.requestInstallPermission()}
+                  className="flex-1 py-2 px-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold rounded-lg border border-amber-500/30 transition-colors"
+                >
+                  {t('update.open_settings', 'Open Settings')}
+                </button>
+                {progress?.filePath && (
+                  <button
+                    onClick={() => UpdateService.installDownloadedApk(progress.filePath!)}
+                    className="flex-1 py-2 px-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg transition-colors"
+                  >
+                    {t('update.install', 'Install')}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {isError && (
             <div className="flex items-start gap-2.5 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
@@ -119,7 +148,7 @@ export default function UpdateModal() {
           )}
 
           <div className="flex flex-col gap-3 mt-2">
-            {isTauri() && !isBusy && (
+            {(isTauri() || isCapacitor()) && !isBusy && !isPermissionRequired && (
               <button 
                 onClick={handleUpdate}
                 className="flex items-center justify-center gap-3 w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-primary/20"

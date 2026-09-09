@@ -5,11 +5,12 @@ export const LEFT_SIDEBAR_DEFAULT_WIDTH = 96;
 export const RIGHT_SIDEBAR_DEFAULT_WIDTH = 320;
 
 export interface UpdateProgress {
-  stage: 'downloading' | 'installing' | 'error';
+  stage: 'downloading' | 'installing' | 'permission_required' | 'error';
   percent: number;
   downloaded: number;
   total: number;
   error?: string;
+  filePath?: string;
 }
 
 export interface UpdateInfo {
