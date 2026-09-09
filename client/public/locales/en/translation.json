@@ -277,7 +277,7 @@
     "login_btn": "Log in",
     "holad_connection_title": "Connect to Holad",
     "holad_connection_desc": "Enter your Holad server address",
-    "holad_connection_note": "Just enter the domain or IP (e.g., myholad.com). No need to append /Holad.",
+    "holad_connection_note": "Enter the server address (e.g., myholad.com or example.com/Holad).",
     "holad_url": "Holad Server URL",
     "holad_connect_btn": "Continue",
     "radio_failed": "Failed to load tracks for this station.",

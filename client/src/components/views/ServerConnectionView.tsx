@@ -32,29 +32,40 @@ export default function ServerConnectionView({ onConnected }: Props) {
       
       let cleanUrl = parsed.origin + parsed.pathname;
       cleanUrl = cleanUrl.replace(/\/$/, '');
-      const testUrl = cleanUrl.endsWith('/Holad') ? cleanUrl : `${cleanUrl}/Holad`;
-      
-      // Ping the server to check if Holad is running (Backwards compatible check)
-      try {
-        const response = await fetch(`${testUrl}/api/save-credentials`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
-        });
-        
-        // Our Holad server returns 400 'Missing fields' when body is empty.
-        // Or 403 if bound to another server.
-        // It should NOT return 404 (which means Not Found / not Holad)
-        if (response.status !== 400 && response.status !== 403 && response.status !== 401 && !response.ok) {
-          throw new Error('Not a Holad server');
+
+      // Check the exact URL entered first; if that fails and has no subpath, check /Holad as fallback
+      const candidateUrls = [cleanUrl];
+      if (!cleanUrl.toLowerCase().endsWith('/holad')) {
+        candidateUrls.push(`${cleanUrl}/Holad`);
+      }
+
+      let workingUrl = '';
+      for (const target of candidateUrls) {
+        try {
+          const response = await fetch(`${target}/api/save-credentials`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          });
+
+          // Our Holad server returns 400 'Missing fields' when body is empty.
+          // Or 403 if bound to another server, or 401.
+          // It should NOT return 404 (which means Not Found / not Holad)
+          if (response.status === 400 || response.status === 403 || response.status === 401 || response.ok) {
+            workingUrl = target;
+            break;
+          }
+        } catch {
+          // ignore and try next candidate
         }
-      // oxlint-disable-next-line
-      } catch (err) {
+      }
+
+      if (!workingUrl) {
         throw new Error('Server unreachable or not a Holad instance');
       }
-      
-      // Save it
-      localStorage.setItem('holadServerUrl', cleanUrl);
+
+      // Save verified working URL
+      localStorage.setItem('holadServerUrl', workingUrl);
       onConnected();
     } catch (err: any) {
       if (err.message === 'Invalid protocol') {

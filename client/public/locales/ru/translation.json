@@ -277,7 +277,7 @@
     "login_btn": "Войти",
     "holad_connection_title": "Подключение к Holad",
     "holad_connection_desc": "Укажите адрес вашего сервера Holad",
-    "holad_connection_note": "Просто впишите домен или IP (например: myholad.com). Дописывать /Holad в конце не нужно.",
+    "holad_connection_note": "Укажите адрес сервера (например: myholad.com или example.com/Holad).",
     "holad_url": "URL сервера Holad",
     "holad_connect_btn": "Продолжить",
     "radio_failed": "Не удалось загрузить треки для этой станции.",
