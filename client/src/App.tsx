@@ -226,7 +226,8 @@ function AppContent() {
   const searchParams = new URLSearchParams(location.search);
   const isStandaloneQuery = (searchParams.has('track') && !!searchParams.get('track')) ||
                             (searchParams.has('album') && !!searchParams.get('album')) ||
-                            (searchParams.has('playlist') && !!searchParams.get('playlist'));
+                            (searchParams.has('playlist') && !!searchParams.get('playlist')) ||
+                            (searchParams.has('queue') && !!searchParams.get('queue'));
   const isStandalonePath = location.pathname.startsWith('/jam/track/') ||
                            location.pathname.startsWith('/jam/album/') ||
                            location.pathname.startsWith('/jam/playlist/');

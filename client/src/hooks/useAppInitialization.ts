@@ -56,9 +56,8 @@ export function useAppInitialization() {
       }).catch(e => console.error("Failed to fetch exclusions", e));
     }
 
-    const isStandaloneJam = isJamRoute && (!!trackId || !!albumId);
-
-    if (!isStandaloneJam && !roomToJoin && !queueFetched.current) {
+    // Do not load default play queue if on a Jam route or joining a room
+    if (!isJamRoute && !roomToJoin && !queueFetched.current) {
       queueFetched.current = true;
       getPlayQueue().then(queueData => {
         if (queueData && queueData.entry) {
@@ -103,6 +102,11 @@ export function useAppInitialization() {
   }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute, isDemoMode, guestUserId]);
 
   useEffect(() => {
+    // When on /jam routes, JamLayout manages the room lifecycle, playback and layout directly
+    if (location.pathname.startsWith('/jam')) {
+      return;
+    }
+
     const jamParam = searchParams.get('jam');
     const isJoinRoute = location.pathname.startsWith('/join');
     const roomParam = isJoinRoute ? searchParams.get('room') : (searchParams.get('room') || null);
@@ -110,14 +114,14 @@ export function useAppInitialization() {
 
     if (targetRoom) {
       if (isAuthenticated) {
-        const userName = typeof user === 'string' ? user : undefined;
+        const userName = !isDemoMode && typeof user === 'string' ? user : undefined;
         jamSocket.joinRoom(targetRoom, userName);
         navigate('/Holad', { replace: true });
-      } else if (!location.pathname.startsWith('/jam') && !location.pathname.startsWith('/join')) {
+      } else if (!isJoinRoute) {
         navigate(`/jam/?room=${encodeURIComponent(targetRoom)}`, { replace: true });
       }
     }
-  }, [isAuthenticated, searchParams, location.pathname, user, navigate]);
+  }, [isAuthenticated, searchParams, location.pathname, user, navigate, isDemoMode]);
 
   return { isAuthenticated, isJamRoute };
 }

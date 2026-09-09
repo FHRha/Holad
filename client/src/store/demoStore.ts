@@ -25,7 +25,7 @@ interface DemoState {
 
 export const useDemoStore = create<DemoState>((set, get) => ({
   isDemoMode: false,
-  isCheckingDemo: false,
+  isCheckingDemo: typeof window !== 'undefined' && !isTauri() && !isCapacitor(),
   isPoolExhausted: false,
   retryAfter: 60,
   sessionId: null,

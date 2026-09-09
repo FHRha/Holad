@@ -317,7 +317,7 @@ class JamSocketService {
         const { isDemoMode, slotId } = useDemoStore.getState();
         const guestNick = slotId ? `${i18n.t('demo.guest', 'Гость')} #${slotId}` : i18n.t('demo.guest', 'Гость');
         const defaultNick = isDemoMode ? guestNick : (useAuthStore.getState().user || usePlayerStore.getState().userName || 'Host');
-        const userName = name || defaultNick;
+        const userName = isDemoMode ? guestNick : (name || defaultNick);
         const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
         this.socket?.emit('createRoom', { name: userName, sessionId: this.getSessionId(), demoSessionId });
       };
@@ -346,7 +346,7 @@ class JamSocketService {
     const { isDemoMode, slotId } = useDemoStore.getState();
     const guestNick = slotId ? `${i18n.t('demo.guest', 'Гость')} #${slotId}` : i18n.t('demo.guest', 'Гость');
     const defaultNick = isDemoMode ? guestNick : (useAuthStore.getState().user || usePlayerStore.getState().userName || 'Guest');
-    const userName = name || defaultNick;
+    const userName = isDemoMode ? guestNick : (name || defaultNick);
     const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
     const { user, token, salt, url } = useAuthStore.getState();
     this.socket?.emit('joinRoom', { 

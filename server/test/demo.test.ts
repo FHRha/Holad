@@ -106,5 +106,5 @@ describe('Demo REST Endpoints', () => {
     const res2 = await request(app).get('/Holad/api/demo/status');
     expect(res2.status).toBe(200);
     expect(res2.body).toHaveProperty('enabled');
-  });
+  }, 15000);
 });

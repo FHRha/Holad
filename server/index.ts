@@ -1947,18 +1947,23 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const demoSession = (demoManager.isEnabled() && demoSessionId)
-      ? demoManager.getSession(demoSessionId)
+    const demoSession = demoManager.isEnabled()
+      ? (demoManager.getSession(demoSessionId || '') || demoManager.findSession(demoSessionId))
       : null;
 
-    if (auth && typeof auth.user === 'string' && typeof auth.token === 'string' && typeof auth.salt === 'string' && typeof auth.url === 'string') {
+    let currentUser = socketToUser.get(socket.id);
+    if (demoSession) {
+      const guestName = `Гость #${demoSession.slotId}`;
+      const userRecord = database.ensureUserWithTag(demoSession.guestUserId, guestName);
+      registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
+      currentUser = { userId: userRecord.user_id, username: userRecord.username, tag: userRecord.tag };
+    } else if (auth && typeof auth.user === 'string' && typeof auth.token === 'string' && typeof auth.salt === 'string' && typeof auth.url === 'string') {
       try {
         const isValid = await verifySubsonicCredentials(auth.user, auth.token, auth.salt, auth.url);
         if (isValid) {
-          const socialUserId = demoSession ? demoSession.guestUserId : auth.user;
-          const socialUsername = demoSession ? `Гость #${demoSession.slotId}` : auth.user;
-          const userRecord = database.ensureUserWithTag(socialUserId, socialUsername);
+          const userRecord = database.ensureUserWithTag(auth.user, auth.user);
           registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
+          currentUser = { userId: userRecord.user_id, username: userRecord.username, tag: userRecord.tag };
         }
       } catch (e) {
         // Ignore auth error for guest fallback
@@ -1966,17 +1971,9 @@ io.on('connection', (socket) => {
     }
 
     socket.join(roomId);
-    
-    let currentUser = socketToUser.get(socket.id);
-    if (demoSession && (!currentUser || currentUser.username !== `Гость #${demoSession.slotId}`)) {
-      const guestName = `Гость #${demoSession.slotId}`;
-      const userRecord = database.ensureUserWithTag(demoSession.guestUserId, guestName);
-      registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
-      currentUser = { userId: userRecord.user_id, username: userRecord.username, tag: userRecord.tag };
-    }
 
-    const guestName = (demoSession && currentUser?.username) 
-      ? currentUser.username 
+    const guestName = demoSession 
+      ? (currentUser?.username || `Гость #${demoSession.slotId}`)
       : (name || currentUser?.username || 'Guest');
     const existingIndex = room.participants.findIndex(p => p.sessionId === sessionId && sessionId !== undefined);
     if (existingIndex !== -1) {

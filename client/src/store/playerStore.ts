@@ -33,13 +33,17 @@ export const usePlayerStore = create<PlayerState>()(
         const isJamRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/jam');
         const shouldIsolateQueue = isJamRoute && state.role !== 'host';
 
+        // Do not persist temporary demo guest nicknames to localStorage
+        const isGuestNick = Boolean(state.userName && /^(?:гость|guest)\s*#?\d*$/i.test(state.userName.trim()));
+        const savedUserName = isGuestNick ? undefined : state.userName;
+
         if (shouldIsolateQueue) {
           return {
             localPlaylists: state.localPlaylists,
             volume: state.volume,
             mobileVolume: state.mobileVolume,
             volumeMultiplier: state.volumeMultiplier,
-            userName: state.userName,
+            userName: savedUserName,
             excludedTrackIds: state.excludedTrackIds,
             excludedAlbumIds: state.excludedAlbumIds,
             excludedFingerprints: state.excludedFingerprints,
@@ -56,7 +60,7 @@ export const usePlayerStore = create<PlayerState>()(
           isShuffle: state.isShuffle,
           repeatMode: state.repeatMode,
           isAutoDjEnabled: state.isAutoDjEnabled,
-          userName: state.userName,
+          userName: savedUserName,
           excludedTrackIds: state.excludedTrackIds,
           excludedAlbumIds: state.excludedAlbumIds,
           excludedFingerprints: state.excludedFingerprints,
@@ -69,8 +73,19 @@ export const usePlayerStore = create<PlayerState>()(
             persistedState.volume = 0.5;
           }
         }
+        if (persistedState?.userName && /^(?:гость|guest)\s*#?\d*$/i.test(persistedState.userName.trim())) {
+          persistedState.userName = undefined;
+        }
         return persistedState;
       },
     }
   )
 );
+
+// Purge cached guest nicknames on initial store load
+if (typeof window !== 'undefined') {
+  const currentNick = usePlayerStore.getState().userName;
+  if (currentNick && /^(?:гость|guest)\s*#?\d*$/i.test(currentNick.trim())) {
+    usePlayerStore.setState({ userName: '' });
+  }
+}

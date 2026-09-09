@@ -20,6 +20,7 @@ import MainContent from './MainContent';
 import { useTranslation } from 'react-i18next';
 import ThemeSelector from '../common/ThemeSelector';
 import LanguageSelector from '../common/LanguageSelector';
+import { useDemoStore } from '../../store/demoStore';
 
 async function resolveTracksFromIds(trackIds: string[]) {
   const offlineTracks = getOfflineTracks();
@@ -88,20 +89,30 @@ export default function JamLayout() {
 
   const { setQueueAndPlay, jamError, userName, setUserName } = usePlayerStore();
   const role = usePlayerStore(state => state.role);
+  const { isDemoMode, isCheckingDemo, slotId } = useDemoStore();
+  
+  const effectiveUserName = (isDemoMode && slotId)
+    ? `${t('demo.guest', 'Гость')} #${slotId}`
+    : (userName || (isDemoMode ? t('demo.guest', 'Гость') : ''));
   
   const [localName, setLocalName] = useState('');
   const hasJoined = useRef(false);
   const loadedTargetRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (isCheckingDemo) return;
+
     // If it's a room and we have a username or we are the host, connect
     const currentRole = usePlayerStore.getState().role;
-    if (roomToJoin && (userName || currentRole === 'host') && !hasJoined.current) {
+    if (roomToJoin && (effectiveUserName || currentRole === 'host') && !hasJoined.current) {
+      if (effectiveUserName && effectiveUserName !== userName) {
+        usePlayerStore.setState({ userName: effectiveUserName });
+      }
       jamSocket.connect();
-      jamSocket.joinRoom(roomToJoin, userName);
+      jamSocket.joinRoom(roomToJoin, effectiveUserName);
       hasJoined.current = true;
     }
-  }, [roomToJoin, userName]);
+  }, [roomToJoin, effectiveUserName, userName, isCheckingDemo]);
 
   // Force fullscreen player open for listeners and standalone users
   useEffect(() => {
@@ -112,6 +123,8 @@ export default function JamLayout() {
 
   // Standalone Track/Album/Playlist initialization
   useEffect(() => {
+    if (isCheckingDemo) return;
+
     if (roomToJoin) {
       if (albumId && !location.pathname.includes(`/album/${albumId}`)) {
         navigate(`/jam/album/${albumId}?room=${roomToJoin}`, { replace: true });
@@ -151,6 +164,7 @@ export default function JamLayout() {
             }
           }
         }).catch((err) => {
+          loadedTargetRef.current = null;
           console.error('Failed to load standalone track:', err);
         });
       }
@@ -177,6 +191,7 @@ export default function JamLayout() {
             setQueueAndPlay(tracks, 0);
           }
         }).catch((err) => {
+          loadedTargetRef.current = null;
           console.error('Failed to load standalone album:', err);
         });
         if (!location.pathname.includes(`/album/${albumId}`)) {
@@ -354,6 +369,15 @@ export default function JamLayout() {
     );
   }
 
+  if (isCheckingDemo && (roomToJoin || isStandalone)) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-foreground">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-secondary">{t('jam.connecting_jam', 'Подключение к Jam...')}</p>
+      </div>
+    );
+  }
+
   if (!roomToJoin && !isValidStandaloneTrack && !isValidStandaloneAlbum && !isValidStandalonePlaylist && !isValidStandaloneQueue) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background">
@@ -363,7 +387,7 @@ export default function JamLayout() {
     );
   }
 
-  if (!isStandalone && !hasJoined.current && !userName && !jamError && (usePlayerStore.getState().role !== 'host')) {
+  if (!isStandalone && !hasJoined.current && !effectiveUserName && !jamError && (usePlayerStore.getState().role !== 'host')) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6 relative">
         <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
