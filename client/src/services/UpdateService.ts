@@ -108,7 +108,7 @@ export class UpdateService {
             return __APP_VERSION__;
         }
 
-        return '2.0.5';
+        return '2.0.6';
     }
 
     static async checkForUpdates(manualCheck = false): Promise<{ 

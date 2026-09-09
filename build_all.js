@@ -122,7 +122,7 @@ function getAppVersion() {
     const tauriConfig = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'tauri.conf.json'), 'utf8'));
     if (tauriConfig.version) return tauriConfig.version;
   } catch (e) {}
-  return '2.0.5';
+  return '2.0.6';
 }
 
 function getEnv(envOverrides = {}) {
@@ -333,7 +333,7 @@ async function main() {
 
   // 2. Build Client and Server in parallel
   const webTasks = [];
-  const currentBuildVersion = appVersion || getAppVersion() || process.env.RELEASE_VERSION || '2.0.5';
+  const currentBuildVersion = appVersion || getAppVersion() || process.env.RELEASE_VERSION || '2.0.6';
   if (!skipClient) {
     console.log("\n--- Scheduling Web Client Build (Base: /Holad/) ---");
     webTasks.push(runCommand('Web Client Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'client'), { 

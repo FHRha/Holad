@@ -19,14 +19,14 @@ describe('UpdateService Version Resolution', () => {
       if (url.includes('/api/version')) {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ version: '2.0.5' })
+          json: async () => ({ version: '2.0.6' })
         });
       }
       return Promise.reject(new Error('Unknown url'));
     });
 
     const version = await UpdateService.getCurrentVersion();
-    expect(version).toBe('2.0.5');
+    expect(version).toBe('2.0.6');
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/version'),
       expect.any(Object)
@@ -38,7 +38,7 @@ describe('UpdateService Version Resolution', () => {
       if (url.includes('/api/version')) {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ version: '2.0.5' })
+          json: async () => ({ version: '2.0.6' })
         });
       }
       return Promise.reject(new Error('Unknown url'));
@@ -48,8 +48,8 @@ describe('UpdateService Version Resolution', () => {
     const v1 = await UpdateService.getCurrentVersion();
     const v2 = await UpdateService.getCurrentVersion();
 
-    expect(v1).toBe('2.0.5');
-    expect(v2).toBe('2.0.5');
+    expect(v1).toBe('2.0.6');
+    expect(v2).toBe('2.0.6');
     // Fetch should only have been called once due to caching
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
