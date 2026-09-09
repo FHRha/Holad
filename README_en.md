@@ -4,9 +4,15 @@
 </div>
 
 <div align="center">
-  <img src="client/public/icons/favicon_dark.png" alt="Holad Dark Logo" width="150" height="150" style="border-radius: 30px; margin-right: 15px;">
-  <img src="client/public/icons/favicon_light.png" alt="Holad Light Logo" width="150" height="150" style="border-radius: 30px; margin-right: 15px;">
-  <img src="client/public/icons/logo_cassette.png" alt="Holad Classic Logo" width="150" height="150" style="border-radius: 30px;">
+  <a href="https://holad-demo.onrender.com/" target="_blank" rel="noopener noreferrer" title="Try Holad Live Demo">
+    <img src="client/public/icons/favicon_dark.png" alt="Holad Dark Logo" width="150" height="150" style="border-radius: 30px; margin-right: 15px;">
+  </a>
+  <a href="https://holad-demo.onrender.com/" target="_blank" rel="noopener noreferrer" title="Try Holad Live Demo">
+    <img src="client/public/icons/favicon_light.png" alt="Holad Light Logo" width="150" height="150" style="border-radius: 30px; margin-right: 15px;">
+  </a>
+  <a href="https://holad-demo.onrender.com/" target="_blank" rel="noopener noreferrer" title="Try Holad Live Demo">
+    <img src="client/public/icons/logo_cassette.png" alt="Holad Classic Logo" width="150" height="150" style="border-radius: 30px;">
+  </a>
   
   # Holad
   
@@ -14,13 +20,21 @@
   A modern, highly customizable streaming platform and player. Holad acts as an elegant and lightning-fast client for your Subsonic/Navidrome servers.
   While building this project, I was heavily inspired by **Spotify**, **Feishin**, and **Substreamer**. A massive thank you to their developers for their hard work and ideas!
 
+  <br />
+
+  <a href="https://holad-demo.onrender.com/" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.shields.io/badge/Live_Demo-Try_in_Browser-1DB954?style=for-the-badge&logoColor=white" alt="Live Demo" style="border-radius: 8px;" />
+  </a>
+
+  <p><i>Click any logo above or the Live Demo button to open an interactive demonstration in your browser without installation.</i></p>
+
   [![GitHub release (latest by date)](https://img.shields.io/github/v/release/FHRha/Holad)](https://github.com/FHRha/Holad/releases)
   [![License: Non-Commercial](https://img.shields.io/badge/License-Non_Commercial-red.svg)](LICENSE)
   [![VirusTotal Scanned](https://img.shields.io/badge/VirusTotal-Scanned-success?logo=virustotal)](https://github.com/FHRha/Holad/releases)
 
   <br />
   
-  <h3>📥 Download Holad</h3>
+  <h3>Download Holad</h3>
 
   <a href="https://github.com/FHRha/Holad/releases/latest">
     <img src="https://img.shields.io/badge/Windows-Setup_.exe_%2F_.msi-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Download" style="border-radius: 8px;" />
@@ -55,7 +69,7 @@
 - **Local Encrypted SQLite Database**: Automatic synchronization of settings, history, playlists, and exclusions across devices. Credentials and tokens are securely encrypted using AES-256-GCM and stored locally in `holad.sqlite`.
 - **Deep OS Integration**: Rich system tray menu (Windows/Linux) with album artwork preview, native Android Media Session support (lock screen and notification shade controls), and taskbar integration.
 - **Localization**: Built-in multi-language support (currently **Russian** and **English** are available).
-- **Self-Hosted & Demo Mode**: Full control over your data. Deploy easily on your own Linux or Windows server, or run a turnkey public showcase using Managed Demo Mode (`DEMO_MODE=true`) with an automated guest lease pool and capacity protection.
+- **Self-Hosted & Demo Mode**: Full control over your data. Deploy easily on your own Linux or Windows server, or run a turnkey public showcase using Managed Demo Mode ([interactive live demo](https://holad-demo.onrender.com/)) with an automated guest lease pool and capacity protection.
 
 ## Interface Demo
 
@@ -63,7 +77,7 @@
 
 ## Quick Start
 
-### 🐳 Deploying with Docker
+### Deploying with Docker
 
 Holad provides an official multi-arch Docker image (`ghcr.io/fhrha/holad:latest`) with support for x86_64 and ARM64 (Raspberry Pi), auto-updates via Watchtower, and online database backups.
 
@@ -73,7 +87,7 @@ Detailed configuration guides, environment parameters, and ready-to-use recipes 
 
 ---
 
-### 📦 Bare-metal Installation without Docker (Linux)
+### Bare-metal Installation without Docker (Linux)
 
 If you prefer installing directly onto your host OS:
 

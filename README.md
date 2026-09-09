@@ -4,9 +4,15 @@
 </div>
 
 <div align="center">
-  <img src="client/public/icons/favicon_dark.png" alt="Holad Dark Logo" width="150" height="150" style="border-radius: 30px; margin-right: 15px;">
-  <img src="client/public/icons/favicon_light.png" alt="Holad Light Logo" width="150" height="150" style="border-radius: 30px; margin-right: 15px;">
-  <img src="client/public/icons/logo_cassette.png" alt="Holad Classic Logo" width="150" height="150" style="border-radius: 30px;">
+  <a href="https://holad-demo.onrender.com/" target="_blank" rel="noopener noreferrer" title="Попробовать онлайн демо-версию Holad">
+    <img src="client/public/icons/favicon_dark.png" alt="Holad Dark Logo" width="150" height="150" style="border-radius: 30px; margin-right: 15px;">
+  </a>
+  <a href="https://holad-demo.onrender.com/" target="_blank" rel="noopener noreferrer" title="Попробовать онлайн демо-версию Holad">
+    <img src="client/public/icons/favicon_light.png" alt="Holad Light Logo" width="150" height="150" style="border-radius: 30px; margin-right: 15px;">
+  </a>
+  <a href="https://holad-demo.onrender.com/" target="_blank" rel="noopener noreferrer" title="Попробовать онлайн демо-версию Holad">
+    <img src="client/public/icons/logo_cassette.png" alt="Holad Classic Logo" width="150" height="150" style="border-radius: 30px;">
+  </a>
   
   # Holad
   
@@ -14,13 +20,21 @@
   Современная, кастомизируемая стриминговая платформа и плеер. Holad выступает в роли элегантного и быстрого клиента для серверов Subsonic/Navidrome.
   Создавая этот проект, я вдохновлялся **Spotify**, **Feishin** и **Substreamer**. Огромное спасибо их разработчикам за труд и идеи!
 
+  <br />
+
+  <a href="https://holad-demo.onrender.com/" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.shields.io/badge/Live_Demo-Попробовать_в_браузере-1DB954?style=for-the-badge&logoColor=white" alt="Live Demo" style="border-radius: 8px;" />
+  </a>
+
+  <p><i>Нажмите на любой логотип выше или на кнопку Live Demo, чтобы открыть интерактивную демонстрацию в браузере без установки.</i></p>
+
   [![GitHub release (latest by date)](https://img.shields.io/github/v/release/FHRha/Holad)](https://github.com/FHRha/Holad/releases)
   [![License: Non-Commercial](https://img.shields.io/badge/License-Non_Commercial-red.svg)](LICENSE)
   [![VirusTotal Scanned](https://img.shields.io/badge/VirusTotal-Scanned-success?logo=virustotal)](https://github.com/FHRha/Holad/releases)
 
   <br />
   
-  <h3>📥 Скачать Holad</h3>
+  <h3>Скачать Holad</h3>
 
   <a href="https://github.com/FHRha/Holad/releases/latest">
     <img src="https://img.shields.io/badge/Windows-Setup_.exe_%2F_.msi-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Download" style="border-radius: 8px;" />
@@ -55,7 +69,7 @@
 - **Локальная База Данных SQLite с шифрованием**: Синхронизация настроек, истории прослушиваний, плейлистов и исключений между вашими устройствами. Все пароли и токены зашифрованы алгоритмом AES-256-GCM и хранятся локально на вашем сервере (в `holad.sqlite`).
 - **Глубокая Интеграция с ОС**: Полноценное управление из системного трея (Windows/Linux) с крупной обложкой трека, поддержка Media Session на Android (управление с экрана блокировки и шторки) и нативная интеграция с панелью задач.
 - **Мультиязычность**: Встроенная поддержка нескольких языков (в данный момент доступны **Русский** и **Английский**).
-- **Self-Hosted & Демо-режим**: Полный контроль над вашими данными. Легко разворачивается на собственном Linux или Windows сервере, а также поддерживает встроенный безопасный демонстрационный режим (`DEMO_MODE=true`) с управляемым пулом гостевых слотов и автоматической очисткой.
+- **Self-Hosted & Демо-режим**: Полный контроль над вашими данными. Легко разворачивается на собственном Linux или Windows сервере, а также поддерживает встроенный безопасный демонстрационный режим ([онлайн демо-версия](https://holad-demo.onrender.com/)) с управляемым пулом гостевых слотов и автоматической очисткой.
 
 ## Демонстрация интерфейса
 
@@ -63,7 +77,7 @@
 
 ## Быстрый старт
 
-### 🐳 Развёртывание в Docker
+### Развёртывание в Docker
 
 Для Holad доступен официальный multi-arch Docker-образ (`ghcr.io/fhrha/holad:latest`) с поддержкой x86_64 и ARM64 (Raspberry Pi), автообновлениями через Watchtower и онлайн-бэкапами базы данных.
 
@@ -73,7 +87,7 @@
 
 ---
 
-### 📦 Установка на хост без Docker (Linux)
+### Установка на хост без Docker (Linux)
 
 Если вы предпочитаете классическую установку напрямую на сервер:
 

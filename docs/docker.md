@@ -3,7 +3,7 @@
   <a href="docker_en.md"><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/gb.svg" alt="English" width="30" style="border-radius: 4px;" /></a>
 </div>
 
-# 🐳 Развёртывание Holad в Docker
+# Развёртывание Holad в Docker
 
 Данное руководство подробно описывает процесс запуска, настройки и эксплуатации **Holad** в контейнерах Docker и Docker Compose.
 

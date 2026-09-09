@@ -3,7 +3,7 @@
   <a href="docker_en.md"><img src="https://raw.githubusercontent.com/lipis/flag-icons/main/flags/4x3/gb.svg" alt="English" width="30" style="border-radius: 4px;" /></a>
 </div>
 
-# 🐳 Deploying Holad with Docker
+# Deploying Holad with Docker
 
 This guide provides a comprehensive overview of deploying, configuring, and operating **Holad** using Docker and Docker Compose.
 
