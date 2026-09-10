@@ -95,43 +95,39 @@
 curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash
 ```
 
-Скрипт интерактивно запросит порт (по умолчанию 3000), базовый путь маршрутизации (`BASE_PATH`, по умолчанию `/Holad`, либо `/` для корня) и создание службы `systemd`. 
-Параметры можно передать и аргументами командной строки:
+Скрипт интерактивно запросит порт (по умолчанию 4000), базовый путь маршрутизации (`BASE_PATH`, по умолчанию `/` для корня, либо любую подпапку вроде `/Holad`) и создание службы `systemd`. 
+Параметры можно передать сразу в одну строку:
 ```bash
-bash install.sh --port 4000 --base-path /Holad
+curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash -s -- --port 4000 --base-path /Holad
 ```
 *Для ручной сборки используйте `build_release.sh` (Linux/macOS) или `build_release.bat` (Windows).*
 
 ### Настройка Nginx
 
-Если вы используете **Nginx** в качестве reverse proxy (рекомендуется), добавьте следующие блоки `location` внутрь вашего серверного блока (в файл `/etc/nginx/sites-available/...`), чтобы проксировать запросы к плееру без конфликтов:
+Все компоненты Holad (интерфейс, страница входа, Jam-сессии, сокеты, API и статика) строго инкапсулированы внутри `BASE_PATH`. 
 
+Для проксирования через **Nginx** достаточно **всего одного блока `location`** в файле конфигурации вашего сайта (например, `/etc/nginx/sites-available/...`):
+
+#### Если Holad запущен в подпапке (`BASE_PATH=/Holad`):
 ```nginx
-    # --- Holad Player ---
-    
-    # 1. Интерфейс плеера
-    location /Holad {
-        proxy_pass http://127.0.0.1:4000/Holad;
-        include snippets/proxy-params.conf;
-    }
+location /Holad/ {
+    proxy_pass http://127.0.0.1:4000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    include snippets/proxy-params.conf;
+}
+```
 
-    # 2. Страница входа
-    location /login {
-        proxy_pass http://127.0.0.1:4000/login;
-        include snippets/proxy-params.conf;
-    }
-
-    # 3. Интерфейс совместных сессий
-    location /jam {
-        proxy_pass http://127.0.0.1:4000/jam;
-        include snippets/proxy-params.conf;
-    }
-
-    # 4. Веб-сокеты для HoladConnect и Jam-сессий
-    location /socket.io/ {
-        proxy_pass http://127.0.0.1:4000/socket.io/;
-        include snippets/proxy-params.conf;
-    }
+#### Если Holad запущен на отдельном домене (`BASE_PATH=/`):
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:4000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    include snippets/proxy-params.conf;
+}
 ```
 *(Примечание: `include snippets/proxy-params.conf;` подключает стандартные заголовки для проксирования. В Ubuntu/Debian вы можете использовать встроенный `include proxy_params;`. Если вы используете свой файл `snippets/proxy-params.conf`, убедитесь, что в нём прописано следующее:)*
 ```nginx

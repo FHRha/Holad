@@ -58,7 +58,7 @@ import { useDownloadStore } from './store/downloadStore';
 import { Toaster } from 'sonner';
 import UpdateModal from './components/modals/UpdateModal';
 import JamJoinDialog from './components/modals/JamJoinDialog';
-import { getBasePath } from './utils/basePath';
+import { getBasePath, isJamPath } from './utils/basePath';
 
 function LegacyHoladRedirect() {
   const loc = useLocation();
@@ -429,7 +429,7 @@ function App() {
   const isHostedOnBackend = 
     (!isTauri() && !isCapacitor()) ||
     window.location.pathname.toLowerCase().includes('/holad') || 
-    window.location.pathname.toLowerCase().startsWith('/jam');
+    isJamPath();
   const needsServerUrl = !serverUrlSet && !isHostedOnBackend;
   const theme = useSettingsStore(state => state.theme);
   const accentColor = useSettingsStore(state => state.accentColor);
@@ -483,7 +483,7 @@ function App() {
     root.style.setProperty('--color-primary-rgb', rgbStr);
   }, [theme, accentColor]);
   
-  const isJamRouteGlobal = window.location.pathname.startsWith('/jam');
+  const isJamRouteGlobal = isJamPath();
   
   if (needsServerUrl && !isJamRouteGlobal) {
     return <ServerConnectionView onConnected={() => setServerUrlSet(true)} />;

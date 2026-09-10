@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
+import { isJamPath } from '../../utils/basePath';
 
 interface ArtistLinksProps {
   artistString: string | undefined | null;
@@ -27,7 +28,7 @@ export default function ArtistLinks({ artistString, artistId, className = "", on
     e.stopPropagation();
     e.preventDefault();
 
-    const isJam = window.location.pathname.startsWith('/jam');
+    const isJam = isJamPath();
     const searchParams = new URLSearchParams(window.location.search);
     const room = searchParams.get('room');
     

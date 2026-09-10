@@ -11,6 +11,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useDemoStore } from '../store/demoStore';
 
 import { getSocketUrl, getSocketPath } from '../utils/serverConfig';
+import { getBasePath, isJamPath } from '../utils/basePath';
 import { getAudioEngine } from '../audio/AudioEngine';
 import { sanitizeTracks } from '../store/slices/queueSlice';
 import { getCoverArtUrl } from './subsonic';
@@ -111,8 +112,10 @@ class JamSocketService {
       usePlayerStore.getState().setJamError(i18n.t('jam.kicked'));
       usePlayerStore.getState().setRoomInfo(null, null);
       this.stopHostSync();
-      if (window.location.pathname.startsWith('/jam') && window.location.pathname !== '/jam/') {
-        window.location.href = '/jam/';
+      const base = getBasePath();
+      const jamHome = base ? `${base}/jam/` : '/jam/';
+      if (isJamPath() && window.location.pathname !== jamHome && window.location.pathname !== jamHome.slice(0, -1)) {
+        window.location.href = jamHome;
       }
     });
 
@@ -120,8 +123,10 @@ class JamSocketService {
       usePlayerStore.getState().setJamError(msg);
       usePlayerStore.getState().setRoomInfo(null, null);
       this.stopHostSync();
-      if (window.location.pathname.startsWith('/jam') && window.location.pathname !== '/jam/') {
-        window.location.href = '/jam/';
+      const base = getBasePath();
+      const jamHome = base ? `${base}/jam/` : '/jam/';
+      if (isJamPath() && window.location.pathname !== jamHome && window.location.pathname !== jamHome.slice(0, -1)) {
+        window.location.href = jamHome;
       }
     });
 

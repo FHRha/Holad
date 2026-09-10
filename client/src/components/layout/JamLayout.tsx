@@ -361,9 +361,12 @@ export default function JamLayout() {
         </p>
         
         <div className="flex flex-col gap-4">
-          <a href="/" className="px-8 py-3 rounded-full bg-primary text-background font-bold hover:scale-105 transition-transform shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.3)]">
+          <button 
+            onClick={() => navigate('/')} 
+            className="px-8 py-3 rounded-full bg-primary text-background font-bold hover:scale-105 transition-transform shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.3)] cursor-pointer"
+          >
             {t('jam.go_home')}
-          </a>
+          </button>
         </div>
       </div>
     );

@@ -110,14 +110,14 @@ docker compose up -d
 In Docker, Holad defaults to a root base path `BASE_PATH=/`. If you are dedicating a domain or subdomain to Holad (e.g. `https://music.example.com/`), no additional path configuration is needed.
 
 ### Hosting in a Subpath behind a Reverse Proxy (e.g. `/Holad/`)
-If you want to host Holad inside a subfolder behind an existing reverse proxy (e.g. `https://example.com/Holad/`), simply set `BASE_PATH=/Holad/`:
+If you want to host Holad inside a subfolder behind an existing reverse proxy (e.g. `https://example.com/Holad/`), simply set `BASE_PATH=/Holad`:
 
 ```yaml
 environment:
-  - BASE_PATH=/Holad/
+  - BASE_PATH=/Holad
 ```
 
-The server automatically injects `<base href="/Holad/">` into `index.html`, serves assets and rewrites API and WebSocket routes dynamically without rebuilding the image.
+The server automatically injects `<base href="...">`, encapsulates the UI, login page (`/Holad/login`), Jam sessions (`/Holad/jam`), WebSockets (`/Holad/socket.io`), API (`/Holad/api`), and static assets without rebuilding the image.
 
 ---
 
@@ -211,13 +211,33 @@ music.yourdomain.com {
 
 ### Recipe 3: Holad Behind Nginx / Nginx Proxy Manager / Traefik
 
-When using an external Nginx proxy, ensure WebSocket upgrade headers are passed for `/Holad/socket.io/`:
-
+#### Option A: Dedicated Domain or Subdomain (Root `/`)
 ```nginx
 server {
     server_name music.yourdomain.com;
 
     location / {
+        proxy_pass http://127.0.0.1:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+#### Option B: Subpath Deployment (e.g. `/Holad/`)
+Set `BASE_PATH=/Holad` in your Docker environment. Everything in Holad (UI, login, Jam sessions, API, WebSockets, static assets) is encapsulated inside this subpath, so you only need **a single `location` block** in Nginx:
+
+```nginx
+server {
+    server_name yourdomain.com;
+
+    # Single unified location for UI, API, and WebSockets
+    location /Holad/ {
         proxy_pass http://127.0.0.1:4000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;

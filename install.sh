@@ -21,23 +21,23 @@ done
 # 1. Ask for configuration
 if [ -z "$HOLAD_PORT" ]; then
     if [ -c /dev/tty ]; then
-        printf "Enter the internal port for the Node.js backend [3000]: " >/dev/tty
+        printf "Enter the internal port for the Node.js backend [4000]: " >/dev/tty
         read -r HOLAD_PORT </dev/tty
     else
-        echo "Non-interactive environment detected. Using default port 3000."
+        echo "Non-interactive environment detected. Using default port 4000."
     fi
 fi
-HOLAD_PORT=${HOLAD_PORT:-3000}
+HOLAD_PORT=${HOLAD_PORT:-4000}
 
 if [ -z "$HOLAD_BASE_PATH" ]; then
     if [ -c /dev/tty ]; then
-        printf "Enter the base path for web routing [default: /Holad]: " >/dev/tty
+        printf "Enter the base path for web routing [default: /]: " >/dev/tty
         read -r HOLAD_BASE_PATH </dev/tty
     else
-        echo "Non-interactive environment detected. Using default base path /Holad."
+        echo "Non-interactive environment detected. Using default base path /."
     fi
 fi
-HOLAD_BASE_PATH=${HOLAD_BASE_PATH:-/Holad}
+HOLAD_BASE_PATH=${HOLAD_BASE_PATH:-/}
 
 if [ -z "$ENABLE_SYSTEMD" ]; then
     if [ -c /dev/tty ]; then

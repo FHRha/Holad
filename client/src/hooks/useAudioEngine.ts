@@ -12,6 +12,7 @@ import { isTauri, isCapacitor } from '../utils/StorageManager';
 import { AudioEngine } from '../audio/AudioEngine';
 import { useSocialStore } from '../store/socialStore';
 import { jamSocket } from '../api/socket';
+import { isJamPath } from '../utils/basePath';
 
 export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | null>, React.RefObject<HTMLAudioElement | null>], currentTrack: any) {
   const {
@@ -375,7 +376,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   // Save history state & Subsonic playqueue
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
-    const isJamUrl = window.location.pathname.startsWith('/jam');
+    const isJamUrl = isJamPath();
     const saveState = () => {
       if (currentTrack) {
         const trackIds = queue.map((t) => t.id);

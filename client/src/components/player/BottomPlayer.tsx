@@ -22,6 +22,7 @@ import { useBookmark } from '../../hooks/useBookmark';
 import { Bookmark } from 'lucide-react';
 import PlayerProgressControl from './PlayerProgressControl';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
+import { getBasePath, isJamPath } from '../../utils/basePath';
 
 const MiniProgressBar = React.memo(function MiniProgressBar() {
   const progress = useAudioStore(s => s.progress);
@@ -95,13 +96,15 @@ export default function BottomPlayer() {
   };
 
   const searchParams = new URLSearchParams(window.location.search);
-  const isJamRoute = window.location.pathname.startsWith('/jam');
+  const isJamRoute = isJamPath();
   const isStandaloneQuery = (searchParams.has('track') && !!searchParams.get('track')) ||
                             (searchParams.has('album') && !!searchParams.get('album')) ||
                             (searchParams.has('playlist') && !!searchParams.get('playlist'));
-  const isStandalonePath = window.location.pathname.startsWith('/jam/track/') ||
-                           window.location.pathname.startsWith('/jam/album/') ||
-                           window.location.pathname.startsWith('/jam/playlist/');
+  const base = getBasePath();
+  const normPath = base && window.location.pathname.startsWith(base) ? window.location.pathname.slice(base.length) : window.location.pathname;
+  const isStandalonePath = normPath.startsWith('/jam/track/') ||
+                           normPath.startsWith('/jam/album/') ||
+                           normPath.startsWith('/jam/playlist/');
   const isStandalone = isJamRoute && (isStandaloneQuery || isStandalonePath);
   const hideSocialActions = isJamRoute && role !== 'host';
   const hideAutoDJ = isJamRoute && isStandalone;

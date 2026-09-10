@@ -110,14 +110,14 @@ docker compose up -d
 В Docker Holad по умолчанию настроен на корневой базовый путь `BASE_PATH=/` (корень домена). Если вы выделяете под Holad отдельный домен или поддомен (например, `https://music.example.com/`), дополнительная настройка роутинга не требуется.
 
 ### Размещение в подпапке за существующим reverse proxy (например, `/Holad/`)
-Если вы хотите разместить плеер в подпапке за существующим Nginx-прокси вместе с другими сервисами (например, `https://example.com/Holad/`), задайте переменную `BASE_PATH=/Holad/`:
+Если вы хотите разместить плеер в подпапке за существующим Nginx-прокси вместе с другими сервисами (например, `https://example.com/Holad/`), задайте переменную `BASE_PATH=/Holad`:
 
 ```yaml
 environment:
-  - BASE_PATH=/Holad/
+  - BASE_PATH=/Holad
 ```
 
-Сервер автоматически инжектирует соответствующий `<base href="...">`, отдаёт статические файлы и маршрутизирует запросы API и сокетов без необходимости пересборки образа.
+Сервер автоматически инжектирует соответствующий `<base href="...">`, изолирует интерфейс, страницу входа (`/Holad/login`), совместные сессии (`/Holad/jam`), сокеты (`/Holad/socket.io`), API (`/Holad/api`) и статику без необходимости пересборки образа.
 
 ---
 
@@ -211,13 +211,33 @@ music.yourdomain.com {
 
 ### Рецепт 3: Holad за Nginx / Nginx Proxy Manager / Traefik
 
-При использовании внешнего Nginx убедитесь, что включена поддержка WebSockets для пути `/Holad/socket.io/`:
-
+#### Вариант А: Размещение на отдельном домене (корень `/`)
 ```nginx
 server {
     server_name music.yourdomain.com;
 
     location / {
+        proxy_pass http://127.0.0.1:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+#### Вариант Б: Размещение в подпапке (например, `/Holad/`)
+Задайте в Docker-окружении `BASE_PATH=/Holad`. Вся работа Holad (интерфейс, вход, Jam-сессии, API и WebSockets) изолируется внутри префикса, поэтому в Nginx нужен **ровно один блок `location`**:
+
+```nginx
+server {
+    server_name yourdomain.com;
+
+    # Единый блок для интерфейса, API и WebSockets
+    location /Holad/ {
         proxy_pass http://127.0.0.1:4000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;

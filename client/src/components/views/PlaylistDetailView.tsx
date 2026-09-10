@@ -10,6 +10,7 @@ import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../stor
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { getHoladServerUrl } from '../../utils/serverConfig';
+import { isJamPath as checkIsJamPath } from '../../utils/basePath';
 import TrackRow from '../common/TrackRow';
 import PlaylistCover from '../common/PlaylistCover';
 import { Virtuoso } from 'react-virtuoso';
@@ -63,7 +64,7 @@ export default function PlaylistDetailView() {
 
         if (!isMounted) return;
 
-        const isJamPath = window.location.pathname.startsWith('/jam');
+        const isJamPath = checkIsJamPath();
 
         if (customPlaylist) {
            const offlineTracks = getOfflineTracks();
@@ -224,7 +225,7 @@ export default function PlaylistDetailView() {
       } catch (err) {
         if (!isMounted) return;
         console.error('Failed to fetch playlist:', err);
-        const isJamPath = window.location.pathname.startsWith('/jam');
+        const isJamPath = checkIsJamPath();
         if (!isJamPath) {
           navigate('/playlists', { replace: true });
         } else {

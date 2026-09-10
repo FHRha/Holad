@@ -12,6 +12,7 @@ import { openExternalLink } from '../../utils/linkHelper';
 import { useSettingsStore } from '../../store/settingsStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useDemoStore } from '../../store/demoStore';
+import { getAssetUrl } from '../../utils/appIconHelper';
 
 
 export default function Sidebar() {
@@ -120,7 +121,7 @@ export default function Sidebar() {
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             className={`text-foreground flex items-center justify-center gap-2 transition-transform hover:scale-105 active:scale-95 ${!isWide ? 'flex-col' : 'px-2'} w-full`}
           >
-            <img src={`${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/${appIcon === 'cassette' ? 'logo_cassette.png' : appIcon === 'wave_light' ? 'favicon_light.png' : 'favicon_dark.png'}`} alt="Holad" className={`${isWide ? 'w-10 h-10' : 'w-14 h-14'} rounded-lg shadow-lg object-cover flex-shrink-0`} />
+            <img src={getAssetUrl(`/icons/${appIcon === 'cassette' ? 'logo_cassette.png' : appIcon === 'wave_light' ? 'favicon_light.png' : 'favicon_dark.png'}`)} alt="Holad" className={`${isWide ? 'w-10 h-10' : 'w-14 h-14'} rounded-lg shadow-lg object-cover flex-shrink-0`} />
             {isWide && <span className="font-bold text-lg whitespace-nowrap overflow-hidden text-ellipsis">Holad</span>}
           </button>
 
@@ -137,7 +138,7 @@ export default function Sidebar() {
                   <span className="font-bold text-sm truncate">{isDemoMode && slotId ? `${t('demo.guest', 'Гость')} #${slotId}` : (user || t('sidebar.user'))}</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <img 
-                      src={`${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/navidrome.png`} 
+                      src={getAssetUrl('/icons/navidrome.png')} 
                       alt="Navidrome" 
                       className="w-3.5 h-3.5 object-contain opacity-80 shrink-0" 
                     />
@@ -176,7 +177,7 @@ export default function Sidebar() {
                   }}
                   className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-secondary hover:text-foreground hover:bg-foreground/5 transition-colors text-left w-full"
                 >
-                  <img src={`${isTauri() || isCapacitor() ? '/' : import.meta.env.BASE_URL}icons/github.png`} className="w-[18px] h-[18px] dark:invert opacity-70 group-hover:opacity-100 transition-opacity" alt="GitHub" />
+                  <img src={getAssetUrl('/icons/github.png')} className="w-[18px] h-[18px] dark:invert opacity-70 group-hover:opacity-100 transition-opacity" alt="GitHub" />
                   <span>GitHub {appVersion && <span className="text-xs text-secondary/50 ml-1">v{appVersion}</span>}</span>
                 </button>
                 {!isJamGuest && (

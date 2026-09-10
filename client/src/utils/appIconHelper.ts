@@ -1,5 +1,6 @@
 import { isTauri, isCapacitor } from './StorageManager';
 import { registerPlugin } from '@capacitor/core';
+import { getBasePath } from './basePath';
 
 interface AppIconPluginType {
   setAppIcon(options: { icon: string }): Promise<{ success: boolean; icon: string }>;
@@ -10,7 +11,7 @@ const AppIconPlugin = isCapacitor()
   : null;
 
 export function getAssetUrl(path: string): string {
-  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+  const base = getBasePath();
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${base}${cleanPath}`;
 }

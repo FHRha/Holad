@@ -4,6 +4,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import FullScreenPlayerUI from './FullScreenPlayerUI';
 import MobilePlayerUI from '../player/MobilePlayerUI';
 import { isTauri, isCapacitor } from '../../utils/StorageManager';
+import { getBasePath, isJamPath } from '../../utils/basePath';
 
 const isMobileDevice = () => {
   if (typeof window === 'undefined') return false;
@@ -26,14 +27,16 @@ export default function NowPlayingModal() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const isJamRoute = window.location.pathname.startsWith('/jam');
+  const isJamRoute = isJamPath();
   const searchParams = new URLSearchParams(window.location.search);
   const isStandaloneQuery = (searchParams.has('track') && !!searchParams.get('track')) ||
                             (searchParams.has('album') && !!searchParams.get('album')) ||
                             (searchParams.has('playlist') && !!searchParams.get('playlist'));
-  const isStandalonePath = window.location.pathname.startsWith('/jam/track/') ||
-                           window.location.pathname.startsWith('/jam/album/') ||
-                           window.location.pathname.startsWith('/jam/playlist/');
+  const base = getBasePath();
+  const normPath = base && window.location.pathname.startsWith(base) ? window.location.pathname.slice(base.length) : window.location.pathname;
+  const isStandalonePath = normPath.startsWith('/jam/track/') ||
+                           normPath.startsWith('/jam/album/') ||
+                           normPath.startsWith('/jam/playlist/');
   const validStandalone = isStandaloneQuery || isStandalonePath;
 
   const isControlledByMinimization = isJamRoute && role !== 'host' && (!!roomId || validStandalone);

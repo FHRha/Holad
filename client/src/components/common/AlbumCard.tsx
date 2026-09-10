@@ -9,6 +9,7 @@ import type { Track } from '../../store/playerStore';
 import ArtistLinks from './ArtistLinks';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useDownloadStore } from '../../store/downloadStore';
+import { isJamPath } from '../../utils/basePath';
 
 const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
   const navigate = useNavigate();
@@ -58,7 +59,7 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
         handlePlayNow(e);
         return;
       }
-      const isJam = window.location.pathname.startsWith('/jam');
+      const isJam = isJamPath();
       const searchParams = new URLSearchParams(window.location.search);
       const room = searchParams.get('room');
       if (isJam && room) {

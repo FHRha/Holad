@@ -6,6 +6,7 @@ import { useUIStore } from '../store/uiStore';
 import { usePlayerStore } from '../store/playerStore';
 import { useNetworkStatus } from './useNetworkStatus';
 import { getOfflineTracks, getDownloadedAlbums } from '../store/downloadStore';
+import { isJamPath } from '../utils/basePath';
 
 export function useGlobalSearch(
   inputRef: React.RefObject<HTMLInputElement | null>,
@@ -151,7 +152,7 @@ export function useGlobalSearch(
   };
 
   const navigateToAlbum = (id: string) => {
-    const isJam = window.location.pathname.startsWith('/jam');
+    const isJam = isJamPath();
     const searchParams = new URLSearchParams(window.location.search);
     const room = searchParams.get('room');
     if (isJam && room) {
@@ -164,7 +165,7 @@ export function useGlobalSearch(
 
   const navigateToArtist = (artist: any) => {
     const slug = `${encodeURIComponent(artist.name)}-${artist.id}`;
-    const isJam = window.location.pathname.startsWith('/jam');
+    const isJam = isJamPath();
     const searchParams = new URLSearchParams(window.location.search);
     const room = searchParams.get('room');
     if (isJam && room) {

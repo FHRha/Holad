@@ -16,8 +16,7 @@ if (!process.env.NAVIDROME_URL) {
   dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 }
 
-const isDocker = fs.existsSync('/.dockerenv') || process.env.IS_DOCKER === 'true';
-const defaultBasePath = isDocker ? '/' : '/Holad';
+const defaultBasePath = '/';
 const rawBasePath = process.env.BASE_PATH !== undefined ? process.env.BASE_PATH : defaultBasePath;
 const normalizedBase = (rawBasePath === '/' || rawBasePath === '')
   ? ''
@@ -26,20 +25,22 @@ const normalizedBase = (rawBasePath === '/' || rawBasePath === '')
 const app: Express = express();
 const httpServer = createServer(app);
 
-// Normalizing incoming socket.io connections from root or custom base path to /Holad/socket.io
+const socketPath = normalizedBase ? `${normalizedBase}/socket.io` : '/socket.io';
+
+// Normalizing incoming socket.io connections from root, legacy /Holad, or custom base path
 function normalizeSocketUrl(req: any) {
   if (!req.url) return;
-  if (req.url.startsWith('/socket.io')) {
-    req.url = req.url.replace('/socket.io', '/Holad/socket.io');
-  } else if (normalizedBase && req.url.startsWith(`${normalizedBase}/socket.io`)) {
-    req.url = req.url.replace(`${normalizedBase}/socket.io`, '/Holad/socket.io');
+  if (socketPath !== '/socket.io' && req.url.startsWith('/socket.io')) {
+    req.url = req.url.replace('/socket.io', socketPath);
+  } else if (socketPath !== '/Holad/socket.io' && req.url.startsWith('/Holad/socket.io')) {
+    req.url = req.url.replace('/Holad/socket.io', socketPath);
+  } else if (normalizedBase && socketPath !== `${normalizedBase}/socket.io` && req.url.startsWith(`${normalizedBase}/socket.io`)) {
+    req.url = req.url.replace(`${normalizedBase}/socket.io`, socketPath);
   }
 }
-httpServer.prependListener('request', normalizeSocketUrl);
-httpServer.prependListener('upgrade', normalizeSocketUrl);
 
 const io = new Server(httpServer, {
-  path: '/Holad/socket.io',
+  path: socketPath,
   cors: {
     origin: '*',
     methods: ['GET', 'POST']
@@ -47,16 +48,27 @@ const io = new Server(httpServer, {
   maxHttpBufferSize: 1e6 // 1 MB limit to prevent OOM DoS
 });
 
+httpServer.prependListener('request', normalizeSocketUrl);
+httpServer.prependListener('upgrade', normalizeSocketUrl);
+
 app.use(cors());
 
 // Middleware to support relative routing when hosted under custom base path or /Holad
 app.use((req, res, next) => {
-  if (req.url.startsWith('/Holad/api/')) {
+  if (req.url === '/Holad/api') {
+    req.url = '/api';
+    (req as any)._parsedUrl = undefined;
+  } else if (req.url.startsWith('/Holad/api/')) {
     req.url = req.url.replace('/Holad/api/', '/api/');
     (req as any)._parsedUrl = undefined;
-  } else if (normalizedBase && req.url.startsWith(`${normalizedBase}/api/`)) {
-    req.url = req.url.replace(`${normalizedBase}/api/`, '/api/');
-    (req as any)._parsedUrl = undefined;
+  } else if (normalizedBase) {
+    if (req.url === `${normalizedBase}/api`) {
+      req.url = '/api';
+      (req as any)._parsedUrl = undefined;
+    } else if (req.url.startsWith(`${normalizedBase}/api/`)) {
+      req.url = req.url.replace(`${normalizedBase}/api/`, '/api/');
+      (req as any)._parsedUrl = undefined;
+    }
   }
   next();
 });
@@ -2338,19 +2350,6 @@ if (normalizedBase && normalizedBase !== '/Holad') {
 }
 
 if (fs.existsSync(clientPath)) {
-  // If base path is not root, redirect root '/' to `${normalizedBase}/`
-  if (normalizedBase) {
-    app.get(['/', '/index.html'], (_req, res) => {
-      res.redirect(`${normalizedBase}/`);
-    });
-    app.use(normalizedBase, express.static(clientPath));
-  }
-  app.use(express.static(clientPath));
-  // Keep /Holad alias for backwards compatibility if base is not /Holad
-  if (normalizedBase !== '/Holad') {
-    app.use('/Holad', express.static(clientPath));
-  }
-  
   const sendIndexHtml = (res: express.Response) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
@@ -2358,10 +2357,11 @@ if (fs.existsSync(clientPath)) {
     try {
       let html = fs.readFileSync(path.join(clientPath, 'index.html'), 'utf8');
       const baseHref = normalizedBase ? `${normalizedBase}/` : '/';
+      const scriptInjection = `<script>window.__HOLAD_BASE_PATH__ = ${JSON.stringify(normalizedBase)};</script>`;
       if (html.includes('<base ')) {
-        html = html.replace(/<base\s+href="[^"]*"\s*\/?>/i, `<base href="${baseHref}" />`);
+        html = html.replace(/<base\s+href="[^"]*"\s*\/?>/i, `<base href="${baseHref}" />\n    ${scriptInjection}`);
       } else {
-        html = html.replace('<head>', `<head>\n    <base href="${baseHref}" />`);
+        html = html.replace('<head>', `<head>\n    <base href="${baseHref}" />\n    ${scriptInjection}`);
       }
       res.send(html);
     } catch {
@@ -2370,10 +2370,40 @@ if (fs.existsSync(clientPath)) {
   };
 
   if (normalizedBase) {
-    app.get([`${normalizedBase}`, `${normalizedBase}/`], (_req, res) => {
+    // If request arrives at base path (e.g. /Holad) without slash, redirect to trailing slash (e.g. /Holad/)
+    app.get(normalizedBase, (req, res, next) => {
+      const urlPath = (req.originalUrl || req.url).split('?')[0];
+      if (urlPath === normalizedBase) {
+        return res.redirect(`${normalizedBase}/`);
+      }
+      next();
+    });
+    app.use(normalizedBase, express.static(clientPath, { index: false }));
+  }
+  app.use(express.static(clientPath, { index: false }));
+  // Keep /Holad alias for backwards compatibility if base is not /Holad
+  if (normalizedBase !== '/Holad') {
+    app.use('/Holad', express.static(clientPath, { index: false }));
+    app.get('/Holad', (req, res, next) => {
+      const urlPath = (req.originalUrl || req.url).split('?')[0];
+      if (urlPath === '/Holad') {
+        return res.redirect('/Holad/');
+      }
+      next();
+    });
+    app.get(['/Holad/', '/Holad/index.html'], (_req, res) => {
       sendIndexHtml(res);
     });
   }
+
+  if (normalizedBase) {
+    app.get([`${normalizedBase}/`, `${normalizedBase}/index.html`], (_req, res) => {
+      sendIndexHtml(res);
+    });
+  }
+  app.get(['/', '/index.html'], (_req, res) => {
+    sendIndexHtml(res);
+  });
 
   // SPA fallback (using regex for Express 5 compatibility)
   app.get(/^(.*)$/, (req, res, next) => {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ArtistAvatar from './ArtistAvatar';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
+import { isJamPath } from '../../utils/basePath';
 
 interface ArtistCardProps {
   artist: {
@@ -27,7 +28,7 @@ const ArtistCard = memo(function ArtistCard({ artist, onClick }: ArtistCardProps
           onClick();
         } else {
           setSearchOpen(false);
-          const isJam = window.location.pathname.startsWith('/jam');
+          const isJam = isJamPath();
           const searchParams = new URLSearchParams(window.location.search);
           const room = searchParams.get('room');
           if (isJam && room) {

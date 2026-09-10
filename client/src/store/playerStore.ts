@@ -11,6 +11,7 @@ import type { SocialSlice } from './slices/socialSlice';
 import { createPlaylistSlice } from './slices/playlistSlice';
 import type { PlaylistSlice } from './slices/playlistSlice';
 import type { Track } from '../types';
+import { isJamPath } from '../utils/basePath';
 
 export type PlayerState = PlaybackSlice & QueueSlice & JamSlice & SocialSlice & PlaylistSlice;
 
@@ -30,7 +31,7 @@ export const usePlayerStore = create<PlayerState>()(
       partialize: (state) => {
         // Isolate Jam environment for listeners and standalone links
         // If we are in /jam/ and not a host, DO NOT save queue/currentIndex to localStorage
-        const isJamRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/jam');
+        const isJamRoute = isJamPath();
         const shouldIsolateQueue = isJamRoute && state.role !== 'host';
 
         // Do not persist temporary demo guest nicknames to localStorage

@@ -47,5 +47,6 @@ export const getShareUrl = (): string => {
   if (customUrl) {
     return customUrl.replace(/\/$/, '');
   }
-  return window.location.origin;
+  const base = getBasePath();
+  return `${window.location.origin}${base}`;
 };

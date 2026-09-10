@@ -20,6 +20,7 @@ import { ListMusic, Plus, ChevronRight } from 'lucide-react';
 import { networkManager } from '../../utils/networkStatus';
 import { jamSocket } from '../../api/socket';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
+import { isJamPath } from '../../utils/basePath';
 
 export default function ContextMenu() {
   const { t } = useTranslation();
@@ -27,7 +28,7 @@ export default function ContextMenu() {
   const { isOpen, x, y, item, type, closeMenu } = useContextMenuStore();
   const { setQueueAndPlay, playNext, addToQueue, queue, setQueue, likedTrackIds, likedAlbumIds, toggleTrackLike, toggleAlbumLike, role, toggleTrackExclude, toggleAlbumExclude, excludedTrackIds, excludedAlbumIds, excludedFingerprints, roomId } = usePlayerStore();
   const isJamActive = roomId !== null;
-  const isJamRoute = window.location.pathname.startsWith('/jam');
+  const isJamRoute = isJamPath();
   const isGuest = isJamRoute && role !== 'host';
   const menuRef = useRef<HTMLDivElement>(null);
   const [rating, setRating] = useState(0);

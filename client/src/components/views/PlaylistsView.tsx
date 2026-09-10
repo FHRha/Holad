@@ -7,6 +7,7 @@ import { usePlaylistStore } from '../../store/playlistStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import PlaylistCover from '../common/PlaylistCover';
+import { isJamPath } from '../../utils/basePath';
 
 export default function PlaylistsView() {
   const { t } = useTranslation();
@@ -67,7 +68,7 @@ export default function PlaylistsView() {
   }, [isOffline, customPlaylists]);
 
   const handlePlaylistClick = (id: string) => {
-    const isJam = window.location.pathname.startsWith('/jam');
+    const isJam = isJamPath();
     const searchParams = new URLSearchParams(window.location.search);
     const room = searchParams.get('room');
     if (isJam && room) {

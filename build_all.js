@@ -335,9 +335,10 @@ async function main() {
   const webTasks = [];
   const currentBuildVersion = appVersion || getAppVersion() || process.env.RELEASE_VERSION || '2.0.6';
   if (!skipClient) {
-    console.log("\n--- Scheduling Web Client Build (Base: /Holad/) ---");
+    const clientBase = process.env.VITE_APP_BASE || './';
+    console.log(`\n--- Scheduling Web Client Build (Base: ${clientBase}) ---`);
     webTasks.push(runCommand('Web Client Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'client'), { 
-      VITE_APP_BASE: '/Holad/',
+      VITE_APP_BASE: clientBase,
       RELEASE_VERSION: currentBuildVersion
     }));
   }

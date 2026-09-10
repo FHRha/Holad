@@ -5,6 +5,7 @@ import LanguageSelector from '../common/LanguageSelector';
 import ThemeSelector from '../common/ThemeSelector';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useDemoStore } from '../../store/demoStore';
+import { getAssetUrl } from '../../utils/appIconHelper';
 
 export default function DemoCapacityView() {
   const { t } = useTranslation();
@@ -44,7 +45,7 @@ export default function DemoCapacityView() {
     }
   };
 
-  const iconPath = import.meta.env.BASE_URL + `icons/${appIcon === 'cassette' ? 'logo_cassette.png' : appIcon === 'wave_light' ? 'favicon_light.png' : 'favicon_dark.png'}`;
+  const iconPath = getAssetUrl(`/icons/${appIcon === 'cassette' ? 'logo_cassette.png' : appIcon === 'wave_light' ? 'favicon_light.png' : 'favicon_dark.png'}`);
 
   return (
     <div className="h-full w-full bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">

@@ -95,43 +95,39 @@ If you prefer installing directly onto your host OS:
 curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash
 ```
 
-The script interactively prompts for the internal port (default 3000), web base path (`BASE_PATH`, default `/Holad`, or `/` for root), and `systemd` service creation.
-You can also pass arguments directly:
+The script interactively prompts for the internal port (default 4000), web base path (`BASE_PATH`, default `/` for root, or any subpath like `/Holad`), and `systemd` service creation.
+Parameters can be passed directly on the command line:
 ```bash
-bash install.sh --port 4000 --base-path /Holad
+curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash -s -- --port 4000 --base-path /Holad
 ```
 *For manual builds, use `build_release.sh` (Linux/macOS) or `build_release.bat` (Windows).*
 
 ### Nginx Configuration
 
-If you are using **Nginx** as a reverse proxy (recommended), add the following `location` blocks inside your server block (e.g., in `/etc/nginx/sites-available/...`) to proxy requests to the player without conflicts:
+All Holad components (interface, login page, Jam sessions, WebSockets, API, and static assets) are strictly encapsulated inside `BASE_PATH`.
 
+Proxying via **Nginx** requires **only a single `location` block** inside your server configuration (e.g., in `/etc/nginx/sites-available/...`):
+
+#### If Holad runs under a subpath (`BASE_PATH=/Holad`):
 ```nginx
-    # --- Holad Player ---
-    
-    # 1. Player Interface
-    location /Holad {
-        proxy_pass http://127.0.0.1:4000/Holad;
-        include snippets/proxy-params.conf;
-    }
+location /Holad/ {
+    proxy_pass http://127.0.0.1:4000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    include snippets/proxy-params.conf;
+}
+```
 
-    # 2. Login Page
-    location /login {
-        proxy_pass http://127.0.0.1:4000/login;
-        include snippets/proxy-params.conf;
-    }
-
-    # 3. Jam Sessions Interface
-    location /jam {
-        proxy_pass http://127.0.0.1:4000/jam;
-        include snippets/proxy-params.conf;
-    }
-
-    # 4. WebSockets for HoladConnect and Jam Sessions
-    location /socket.io/ {
-        proxy_pass http://127.0.0.1:4000/socket.io/;
-        include snippets/proxy-params.conf;
-    }
+#### If Holad runs at the root of a domain (`BASE_PATH=/`):
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:4000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    include snippets/proxy-params.conf;
+}
 ```
 *(Note: `include snippets/proxy-params.conf;` includes standard proxy headers. On Ubuntu/Debian, you can use the built-in `include proxy_params;`. If you are using your own `snippets/proxy-params.conf` file, make sure it contains the following:)*
 ```nginx
