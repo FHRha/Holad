@@ -75,9 +75,16 @@ export default function UpdateModal() {
               alt="Holad" 
               className="w-24 h-24 mb-4 object-contain drop-shadow-xl" 
             />
-            <span className="inline-block px-3 py-1 bg-primary/20 text-primary rounded-full text-sm font-bold mb-2">
-              {updateInfo.version ? (updateInfo.version.startsWith('v') ? updateInfo.version : 'v' + updateInfo.version) : 'v??'}
-            </span>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="inline-block px-3 py-1 bg-primary/20 text-primary rounded-full text-sm font-bold">
+                {updateInfo.version ? (updateInfo.version.startsWith('v') ? updateInfo.version : 'v' + updateInfo.version) : 'v??'}
+              </span>
+              {(updateInfo.isPrerelease || updateInfo.version?.includes('-')) && (
+                <span className="inline-block px-2.5 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full text-xs font-semibold">
+                  {t('update.prerelease_badge', 'Pre-release')}
+                </span>
+              )}
+            </div>
             <p className="text-secondary text-sm mb-2">
               {t('update.new_version_desc', 'A new version of Holad is available.')}
             </p>

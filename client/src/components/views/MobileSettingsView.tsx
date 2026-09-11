@@ -192,6 +192,15 @@ export default function MobileSettingsView() {
             <DownloadCloud size={20} />
             {t('settings.check_updates') || 'Проверить обновления'}
           </button>
+          <label className="flex items-center gap-2.5 px-1 py-1 cursor-pointer select-none text-xs text-secondary hover:text-foreground transition-colors">
+            <input 
+              type="checkbox"
+              checked={settings.includePrereleases}
+              onChange={(e) => settings.setIncludePrereleases(e.target.checked)}
+              className="accent-primary w-4 h-4 rounded cursor-pointer"
+            />
+            <span>{t('settings.include_prereleases')}</span>
+          </label>
         </div>
       )
     },

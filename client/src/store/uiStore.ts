@@ -20,6 +20,7 @@ export interface UpdateInfo {
   fileName?: string;
   size?: number;
   progress?: UpdateProgress | null;
+  isPrerelease?: boolean;
 }
 
 interface UIState {

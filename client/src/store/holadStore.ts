@@ -28,6 +28,8 @@ interface HoladState {
   deviceId: string;
   deviceName: string;
   roomId: string | null;
+  connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
+  connectError: string | null;
   connect: (roomId: string) => void;
   disconnect: () => void;
   setActiveDevice: (deviceId: string) => void;
@@ -96,25 +98,38 @@ export const useHoladStore = create<HoladState>((set, get) => {
     deviceId,
     deviceName,
     roomId: null,
+    connectionStatus: 'disconnected',
+    connectError: null,
 
     connect: (roomId: string) => {
+      const normalizedRoom = (roomId || '').trim().toLowerCase();
+      if (!normalizedRoom) return;
+
       if (socket) {
-        if (get().roomId === roomId) return;
+        if (get().roomId === normalizedRoom && socket.connected) return;
         get().disconnect();
       }
 
+      set({ connectionStatus: 'connecting', connectError: null, roomId: normalizedRoom });
+
       socket = io(getSocketUrl(), {
         path: getSocketPath(),
-        transports: ['websocket', 'polling']
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 10000
       });
 
-      set({ socket, roomId });
+      set({ socket, roomId: normalizedRoom });
 
       socket.on('connect', () => {
+        set({ connectionStatus: 'connected', connectError: null });
         const { user, salt, token, url } = useAuthStore.getState();
         const demoSessionId = typeof window !== 'undefined' ? (sessionStorage.getItem('holad_demo_session_id') || undefined) : undefined;
         socket!.emit('holad_joinRoom', { 
-          roomId, 
+          roomId: normalizedRoom, 
           deviceId, 
           deviceName,
           auth: { user, salt, token, url },
@@ -122,8 +137,19 @@ export const useHoladStore = create<HoladState>((set, get) => {
         });
       });
 
+      socket.on('connect_error', (err: any) => {
+        console.warn('[Holad] Socket connect_error:', err?.message || err);
+        set({ connectionStatus: 'error', connectError: err?.message || 'Connection error' });
+      });
+
+      socket.on('disconnect', (reason: string) => {
+        console.warn('[Holad] Socket disconnected:', reason);
+        set({ connectionStatus: 'disconnected' });
+      });
+
       socket.on('holad_authError', (message: string) => {
         console.error('[Holad] Auth Error:', message);
+        set({ connectionStatus: 'error', connectError: message });
         get().disconnect();
       });
 
@@ -478,7 +504,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
         unsubscribeSettings();
         unsubscribeSettings = null;
       }
-      set({ socket: null, devices: [], activeDeviceId: null, roomId: null });
+      set({ socket: null, devices: [], activeDeviceId: null, roomId: null, connectionStatus: 'disconnected', connectError: null });
     },
 
     setActiveDevice: (id: string) => {

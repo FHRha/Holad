@@ -76,6 +76,8 @@ export interface SettingsState {
   setLastFmKey: (key: string) => void;
   setYandexToken: (token: string) => void;
   setVisualizerStyle: (style: VisualizerStyle) => void;
+  includePrereleases: boolean;
+  setIncludePrereleases: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -172,6 +174,8 @@ export const useSettingsStore = create<SettingsState>()(
       setLastFmKey: (lastFmKey) => set({ lastFmKey }),
       setYandexToken: (yandexToken) => set({ yandexToken }),
       setVisualizerStyle: (visualizerStyle) => set({ visualizerStyle }),
+      includePrereleases: typeof __APP_VERSION__ !== 'undefined' && typeof __APP_VERSION__ === 'string' ? __APP_VERSION__.includes('-') : false,
+      setIncludePrereleases: (includePrereleases) => set({ includePrereleases }),
     }),
     {
       name: 'holad-settings',

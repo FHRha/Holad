@@ -67,6 +67,7 @@ if (typeof window !== 'undefined') {
     };
   })();
   Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+  Object.defineProperty(global, 'localStorage', { value: localStorageMock });
 
   // Mock IntersectionObserver
   class IntersectionObserverMock {

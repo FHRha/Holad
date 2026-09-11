@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Tv2, Monitor, Smartphone, MonitorSpeaker, Radio, Headphones, Speaker, Info, Check } from 'lucide-react';
+import { Tv2, Monitor, Smartphone, MonitorSpeaker, Radio, Headphones, Speaker, Info, Check, Loader2 } from 'lucide-react';
 import { useHoladStore } from '../../store/holadStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useSocialStore } from '../../store/socialStore';
@@ -19,6 +19,9 @@ export default function HoladConnectMenu() {
   const localDeviceId = useHoladStore(s => s.deviceId);
   const setActiveDevice = useHoladStore(s => s.setActiveDevice);
   const isConnected = useHoladStore(s => s.roomId !== null);
+  const connectionStatus = useHoladStore(s => s.connectionStatus);
+  const roomId = useHoladStore(s => s.roomId);
+  const connect = useHoladStore(s => s.connect);
 
   const jamRoomId = usePlayerStore(s => s.roomId);
   const participants = usePlayerStore(s => s.participants);
@@ -49,7 +52,8 @@ export default function HoladConnectMenu() {
 
   if (!isConnected && !jamRoomId) return null;
 
-  const isActive = activeDeviceId === localDeviceId || activeDeviceId === null;
+  const isThisDeviceActive = activeDeviceId === localDeviceId || (activeDeviceId === null && devices.some(d => d.id === localDeviceId));
+  const isActive = isThisDeviceActive && devices.length > 0;
 
   const getDeviceIcon = (name: string) => {
     const n = name.toLowerCase();
@@ -187,7 +191,28 @@ export default function HoladConnectMenu() {
               );
             })}
             
-            {devices.length === 0 && (
+            {connectionStatus === 'connecting' && (
+              <div className="px-3 py-4 flex items-center justify-center gap-2 text-sm text-secondary">
+                <Loader2 size={16} className="animate-spin text-primary" />
+                <span>{t('player.connecting')}</span>
+              </div>
+            )}
+
+            {connectionStatus === 'error' && (
+              <div className="px-3 py-3 flex flex-col items-center gap-2 text-center text-xs text-red-400">
+                <span>{t('player.connection_failed')}</span>
+                {roomId && (
+                  <button
+                    onClick={() => connect(roomId)}
+                    className="px-3 py-1 bg-white/10 hover:bg-white/20 text-foreground rounded-lg transition-colors text-xs font-semibold"
+                  >
+                    {t('player.retry')}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {connectionStatus !== 'connecting' && connectionStatus !== 'error' && devices.length === 0 && (
               <div className="px-3 py-4 text-center text-sm text-secondary">
                 {t('player.devices_not_found')}
               </div>

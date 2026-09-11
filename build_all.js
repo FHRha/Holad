@@ -60,6 +60,13 @@ if (rawVersion) {
       try {
         const data = JSON.parse(fs.readFileSync(file, 'utf8'));
         data.version = version;
+        if (file.endsWith('tauri.conf.json')) {
+          const numericVersion = version.split('-')[0].trim();
+          if (!data.bundle) data.bundle = {};
+          if (!data.bundle.windows) data.bundle.windows = {};
+          if (!data.bundle.windows.wix) data.bundle.windows.wix = {};
+          data.bundle.windows.wix.version = numericVersion;
+        }
         fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
         console.log(`Updated version in ${path.basename(path.dirname(file))}/${path.basename(file)} to ${version}`);
       } catch (e) {
@@ -440,8 +447,15 @@ node dist/index.js
       }
 
       console.log("\n--- Scheduling Tauri Build (Desktop App) ---");
-      try {
-        await runCommand('Tauri Build', 'npx @tauri-apps/cli build', path.join(ROOT_DIR, 'Tauri'));
+        let tauriBuildCmd = 'npx @tauri-apps/cli build';
+        const currentVer = getAppVersion();
+        if (process.env.TAURI_BUNDLES) {
+          tauriBuildCmd = `npx @tauri-apps/cli build --bundles ${process.env.TAURI_BUNDLES}`;
+        } else if (process.platform === 'win32' && currentVer && currentVer.includes('-')) {
+          console.log(`[Tauri] Pre-release version detected (${currentVer}). Packaging NSIS setup bundle (skipping WiX MSI which requires strict numeric x.x.x versioning).`);
+          tauriBuildCmd = 'npx @tauri-apps/cli build --bundles nsis';
+        }
+        await runCommand('Tauri Build', tauriBuildCmd, path.join(ROOT_DIR, 'Tauri'));
         
         // Copy Tauri binaries and bundles to artifacts
         const tauriReleaseDir = path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'target', 'release');

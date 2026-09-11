@@ -19,6 +19,9 @@
   },
   "settings": {
     "general": "General",
+    "updates": "Updates",
+    "check_updates": "Check for updates",
+    "include_prereleases": "Include pre-releases (Test versions)",
     "appearance": "Appearance",
     "appIcon": "App Icon",
     "player": "Player",
@@ -232,6 +235,9 @@
     "listening_here": "Listening here",
     "no_devices_found": "No devices found",
     "devices_not_found": "Devices not found",
+    "connecting": "Connecting...",
+    "connection_failed": "Connection failed",
+    "retry": "Retry",
     "info": {
       "year": "Year",
       "format": "Format",
@@ -699,7 +705,8 @@
     "skip": "Skip for now",
     "checking": "Checking for updates...",
     "check_failed": "Failed to check for updates",
-    "up_to_date": "You are on the latest version!"
+    "up_to_date": "You are on the latest version!",
+    "prerelease_badge": "Pre-release"
   },
   "demo": {
     "badge": "Holad Demo Mode",

@@ -281,6 +281,7 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
+          prerelease: ${{ contains(github.ref_name, '-') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'test') }}
           files: |
             holad-web-release.tar.gz
             SHA256SUMS

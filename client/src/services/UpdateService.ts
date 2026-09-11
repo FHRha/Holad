@@ -4,19 +4,63 @@ import { useUIStore, type UpdateProgress } from '../store/uiStore';
 import { openExternalLink } from '../utils/linkHelper';
 import { ApkUpdaterPlugin } from '../utils/apkUpdaterHelper';
 import { getHoladServerUrl } from '../utils/serverConfig';
+import { useSettingsStore } from '../store/settingsStore';
 import i18n from '../i18n';
 
-function compareVersions(v1: string, v2: string): number {
-    const normalize = (v: string) => 
-        v.replace(/^v/i, '').trim().split('.').map(n => parseInt(n, 10) || 0);
-    const parts1 = normalize(v1);
-    const parts2 = normalize(v2);
-    const maxLen = Math.max(parts1.length, parts2.length);
+export function compareVersions(v1: string, v2: string): number {
+    const parse = (v: string) => {
+        const clean = (v || '').replace(/^v/i, '').trim();
+        const [core, ...preParts] = clean.split('-');
+        const pre = preParts.length > 0 ? preParts.join('-') : null;
+        const coreNums = core.split('.').map(n => parseInt(n, 10) || 0);
+        while (coreNums.length < 3) coreNums.push(0);
+        return { coreNums, pre };
+    };
+
+    const p1 = parse(v1);
+    const p2 = parse(v2);
+
+    const maxLen = Math.max(p1.coreNums.length, p2.coreNums.length);
     for (let i = 0; i < maxLen; i++) {
-        const num1 = parts1[i] || 0;
-        const num2 = parts2[i] || 0;
-        if (num1 > num2) return 1;
-        if (num1 < num2) return -1;
+        const n1 = p1.coreNums[i] || 0;
+        const n2 = p2.coreNums[i] || 0;
+        if (n1 > n2) return 1;
+        if (n1 < n2) return -1;
+    }
+
+    // Core numbers are equal:
+    // Normal release (no pre-release) has higher precedence than a pre-release
+    if (!p1.pre && p2.pre) return 1;
+    if (p1.pre && !p2.pre) return -1;
+    if (!p1.pre && !p2.pre) return 0;
+
+    // Both have pre-release identifiers, compare segment by segment
+    const parts1 = p1.pre!.split('.');
+    const parts2 = p2.pre!.split('.');
+    const maxPreLen = Math.max(parts1.length, parts2.length);
+
+    for (let i = 0; i < maxPreLen; i++) {
+        const seg1 = parts1[i];
+        const seg2 = parts2[i];
+        if (seg1 === undefined) return -1;
+        if (seg2 === undefined) return 1;
+
+        const num1 = parseInt(seg1, 10);
+        const num2 = parseInt(seg2, 10);
+        const isNum1 = !isNaN(num1) && String(num1) === seg1;
+        const isNum2 = !isNaN(num2) && String(num2) === seg2;
+
+        if (isNum1 && isNum2) {
+            if (num1 > num2) return 1;
+            if (num1 < num2) return -1;
+        } else if (isNum1 && !isNum2) {
+            return -1;
+        } else if (!isNum1 && isNum2) {
+            return 1;
+        } else {
+            const cmp = seg1.localeCompare(seg2);
+            if (cmp !== 0) return cmp > 0 ? 1 : -1;
+        }
     }
     return 0;
 }
@@ -115,9 +159,10 @@ export class UpdateService {
         available: boolean; 
         version?: string; 
         notes?: string; 
-        downloadUrl?: string;
-        fileName?: string;
+        downloadUrl?: string; 
+        fileName?: string; 
         size?: number;
+        isPrerelease?: boolean;
     }> {
         if (!manualCheck && this.isSnoozed()) {
             return { available: false };
@@ -128,23 +173,41 @@ export class UpdateService {
                 toast.info(i18n.t('update.checking', 'Checking for updates...'));
             }
 
-            const response = await fetch(this.GITHUB_RELEASES_API);
+            const includePrereleases = useSettingsStore.getState().includePrereleases;
+            const apiUrl = includePrereleases
+                ? 'https://api.github.com/repos/FHRha/Holad/releases?per_page=10'
+                : this.GITHUB_RELEASES_API;
+
+            const response = await fetch(apiUrl);
             if (!response.ok) {
                 if (manualCheck) toast.error(i18n.t('update.check_failed', 'Failed to check for updates (API error).'));
                 return { available: false };
             }
             
-            const data = await response.json();
+            const rawData = await response.json();
+            let data: any = null;
+            if (Array.isArray(rawData)) {
+                data = rawData.find((r: any) => !r.draft) || null;
+            } else {
+                data = rawData;
+            }
+
+            if (!data) {
+                if (manualCheck) toast.error(i18n.t('update.check_failed', 'No release found.'));
+                return { available: false };
+            }
+
             const latestVersion = data.tag_name || '';
             const notes = data.body || '';
+            const isPrerelease = Boolean(data.prerelease || latestVersion.includes('-'));
             const currentVersion = await this.getCurrentVersion();
             
             if (!manualCheck && (currentVersion === '0.0.0' || import.meta.env.DEV)) {
-                return { available: false, version: latestVersion, notes };
+                return { available: false, version: latestVersion, notes, isPrerelease };
             }
 
             const isNewer = compareVersions(latestVersion, currentVersion) > 0;
-            console.log(`[UpdateService] Current: "${currentVersion}", Latest: "${latestVersion}", isNewer: ${isNewer}`);
+            console.log(`[UpdateService] Current: "${currentVersion}", Latest: "${latestVersion}", isPrerelease: ${isPrerelease}, isNewer: ${isNewer}`);
             
             if (isNewer) {
                 const platform = getPlatform();
@@ -176,7 +239,8 @@ export class UpdateService {
                     downloadUrl,
                     fileName,
                     size,
-                    progress: null
+                    progress: null,
+                    isPrerelease
                 });
                 useUIStore.getState().setUpdateModalOpen(true);
 
@@ -186,7 +250,8 @@ export class UpdateService {
                     notes,
                     downloadUrl,
                     fileName,
-                    size
+                    size,
+                    isPrerelease
                 };
             } else if (manualCheck) {
                 toast.success(i18n.t('update.up_to_date', 'You are on the latest version!'));
@@ -195,7 +260,8 @@ export class UpdateService {
             return {
                 available: false,
                 version: latestVersion,
-                notes
+                notes,
+                isPrerelease
             };
         } catch (error) {
             console.error('Failed to check for updates', error);

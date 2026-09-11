@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Palette, Settings2, MonitorPlay, Pencil, Check, HardDrive, FolderSearch, Speaker, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { X, Palette, Settings2, MonitorPlay, Pencil, Check, HardDrive, FolderSearch, Speaker, Eye, EyeOff, RefreshCw, DownloadCloud } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { UpdateService } from '../../services/UpdateService';
 import type { AppTheme, AccentColor, StartPage } from '../../store/settingsStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useDownloadStore } from '../../store/downloadStore';
@@ -437,6 +438,27 @@ export default function SettingsModal({
                     </div>
                   </SettingSection>
                 )}
+
+                <SettingSection title={t('settings.updates') || 'Обновления'}>
+                  <div className="flex flex-col gap-3">
+                    <button 
+                      onClick={() => UpdateService.checkForUpdates(true)}
+                      className="flex items-center justify-center gap-2 w-full max-w-xs bg-primary/10 hover:bg-primary/20 text-primary font-semibold py-2.5 px-4 rounded-xl border border-primary/20 transition-colors text-sm"
+                    >
+                      <DownloadCloud size={18} />
+                      {t('settings.check_updates') || 'Проверить обновления'}
+                    </button>
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-xs text-secondary hover:text-foreground transition-colors">
+                      <input 
+                        type="checkbox"
+                        checked={settings.includePrereleases}
+                        onChange={(e) => settings.setIncludePrereleases(e.target.checked)}
+                        className="accent-primary w-4 h-4 rounded cursor-pointer"
+                      />
+                      <span>{t('settings.include_prereleases')}</span>
+                    </label>
+                  </div>
+                </SettingSection>
               </div>
             )}
 

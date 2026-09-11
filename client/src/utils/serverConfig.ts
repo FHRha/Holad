@@ -2,7 +2,7 @@
 import { getBasePath } from './basePath';
 
 export const getHoladServerUrl = (): string => {
-  const customUrl = localStorage.getItem('holadServerUrl');
+  const customUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('holadServerUrl') : null;
   if (customUrl) {
     return customUrl.replace(/\/$/, '');
   }
@@ -15,7 +15,7 @@ export const getHoladServerUrl = (): string => {
 };
 
 export const getSocketUrl = (): string => {
-  const customUrl = localStorage.getItem('holadServerUrl');
+  const customUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('holadServerUrl') : null;
   if (customUrl) {
     try {
       const parsed = new URL(customUrl);
@@ -24,11 +24,11 @@ export const getSocketUrl = (): string => {
       return customUrl.replace(/\/$/, '');
     }
   }
-  return import.meta.env.VITE_SERVER_URL || window.location.origin;
+  return import.meta.env.VITE_SERVER_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 };
 
 export const getSocketPath = (): string => {
-  const customUrl = localStorage.getItem('holadServerUrl');
+  const customUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('holadServerUrl') : null;
   if (customUrl) {
     try {
       const parsed = new URL(customUrl);
@@ -43,10 +43,10 @@ export const getSocketPath = (): string => {
 };
 
 export const getShareUrl = (): string => {
-  const customUrl = localStorage.getItem('holadServerUrl');
+  const customUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('holadServerUrl') : null;
   if (customUrl) {
     return customUrl.replace(/\/$/, '');
   }
   const base = getBasePath();
-  return `${window.location.origin}${base}`;
+  return typeof window !== 'undefined' ? `${window.location.origin}${base}` : base;
 };

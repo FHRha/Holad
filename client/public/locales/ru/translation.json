@@ -19,6 +19,9 @@
   },
   "settings": {
     "general": "Общие",
+    "updates": "Обновления",
+    "check_updates": "Проверить обновления",
+    "include_prereleases": "Искать тестовые версии (Pre-release)",
     "appearance": "Внешний вид",
     "appIcon": "Иконка приложения",
     "player": "Плеер",
@@ -232,6 +235,9 @@
     "listening_here": "Слушаем здесь",
     "no_devices_found": "Устройства не найдены",
     "devices_not_found": "Устройства не найдены",
+    "connecting": "Подключение...",
+    "connection_failed": "Ошибка подключения",
+    "retry": "Повторить",
     "info": {
       "year": "Год",
       "format": "Формат",
@@ -699,7 +705,8 @@
     "skip": "Пропустить",
     "checking": "Проверка обновлений...",
     "check_failed": "Не удалось проверить обновления",
-    "up_to_date": "У вас установлена последняя версия!"
+    "up_to_date": "У вас установлена последняя версия!",
+    "prerelease_badge": "Тестовая версия (Pre-release)"
   },
   "demo": {
     "badge": "Демо-режим Holad",

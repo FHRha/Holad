@@ -638,11 +638,11 @@ const validateRestAuth = async (req: express.Request, res: express.Response, nex
   salt = decodeURIComponent(salt);
   url = decodeURIComponent(url);
 
-  if (user !== roomId) {
+  if (user.trim().toLowerCase() !== roomId.trim().toLowerCase()) {
     return res.status(401).send('Room mismatch');
   }
 
-  const isWhitelisted = navidromeAccounts.length === 0 || navidromeAccounts.some(a => a.user === user || a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
+  const isWhitelisted = navidromeAccounts.length === 0 || navidromeAccounts.some(a => a.user.toLowerCase() === user.toLowerCase() || a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
   if (!isWhitelisted) {
     return res.status(403).send('Forbidden: Unauthorized server URL');
   }
@@ -1577,53 +1577,70 @@ io.on('connection', (socket) => {
       ? (demoSessionId ? demoManager.getSession(demoSessionId) : demoManager.getSessionByGuestUserId(roomId))
       : null;
 
-    const isDemoMatch = !!demoSession && (roomId === demoSession.guestUserId || (auth.user === demoSession.account.user && roomId === demoSession.guestUserId));
+    const rawRoom = (typeof roomId === 'string' ? roomId : '').trim();
+    const authUserClean = auth.user.trim().toLowerCase();
+    const normalizedRoom = rawRoom ? rawRoom.toLowerCase() : authUserClean;
 
-    if (!isDemoMatch && auth.user !== roomId) {
+    const isDemoMatch = !!demoSession && (
+      normalizedRoom === demoSession.guestUserId.toLowerCase() || 
+      (authUserClean === demoSession.account.user.toLowerCase() && normalizedRoom === demoSession.guestUserId.toLowerCase())
+    );
+
+    if (!isDemoMatch && authUserClean !== normalizedRoom) {
       socket.emit('holad_authError', 'Room mismatch: You can only join your own room');
       socket.disconnect();
       return;
     }
+
+    if (navidromeAccounts.length === 0) {
+      navidromeAccounts = database.getNavidromeAccounts();
+    }
     
-    const isWhitelisted = !!process.env.NAVIDROME_URL || navidromeAccounts.length === 0 || navidromeAccounts.some(a => a.user === auth.user || a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
+    const dbAccount = navidromeAccounts.find(a => a.user.toLowerCase() === authUserClean);
+    const isEnvUser = !!process.env.NAVIDROME_USER && process.env.NAVIDROME_USER.toLowerCase() === authUserClean;
+    const isKnownUser = !!dbAccount || isEnvUser || isDemoMatch;
+
+    const isWhitelisted = !!process.env.NAVIDROME_URL || navidromeAccounts.length === 0 || isKnownUser || navidromeAccounts.some(a => a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
     if (!isWhitelisted) {
       socket.emit('holad_authError', 'Unauthorized server URL');
       socket.disconnect();
       return;
     }
 
+    // Try resolving URL for Subsonic verification
+    const isDocker = fs.existsSync('/.dockerenv') || process.env.IS_DOCKER === 'true';
+    let resolvedUrl = auth.url;
+    if (process.env.NAVIDROME_URL) {
+      resolvedUrl = process.env.NAVIDROME_URL;
+    } else if (dbAccount?.url) {
+      resolvedUrl = dbAccount.url;
+    } else if (isDocker) {
+      resolvedUrl = resolvedUrl.replace('localhost', 'host.docker.internal').replace('127.0.0.1', 'host.docker.internal');
+    } else {
+      resolvedUrl = resolvedUrl.replace('localhost', '127.0.0.1');
+    }
+
+    let isPingSuccessful = false;
     try {
-      const isDocker = fs.existsSync('/.dockerenv') || process.env.IS_DOCKER === 'true';
-      let resolvedUrl = auth.url;
-      if (process.env.NAVIDROME_URL) {
-        resolvedUrl = process.env.NAVIDROME_URL;
-      } else if (isDocker) {
-        resolvedUrl = resolvedUrl.replace('localhost', 'host.docker.internal').replace('127.0.0.1', 'host.docker.internal');
-      } else {
-        resolvedUrl = resolvedUrl.replace('localhost', '127.0.0.1');
-      }
       const pingUrl = `${resolvedUrl.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(auth.user)}&t=${encodeURIComponent(auth.token)}&s=${encodeURIComponent(auth.salt)}&v=1.16.1&c=StreamNavi&f=json`;
-      const response = await fetch(pingUrl, { signal: AbortSignal.timeout(5000) });
+      const response = await fetch(pingUrl, { signal: AbortSignal.timeout(3000) });
       const json = await response.json().catch(() => null);
-      
-      if (!response.ok || json?.['subsonic-response']?.status !== 'ok') {
-        socket.emit('holad_authError', 'Invalid Subsonic credentials');
-        socket.disconnect();
-        return;
+      if (response.ok && json?.['subsonic-response']?.status === 'ok') {
+        isPingSuccessful = true;
       }
     } catch (error: any) {
-      const dbAccount = navidromeAccounts.find(a => a.user === auth.user);
-      if (!dbAccount) {
-        socket.emit('holad_authError', 'Failed to reach Subsonic server for validation');
-        socket.disconnect();
-        return;
-      }
-      console.warn(`[AUTH] Subsonic server unreachable directly from backend (${error?.message || error}), allowing socket connection for DB-verified user: ${auth.user}`);
+      // Ping fetch error
+    }
+
+    if (!isPingSuccessful && !isKnownUser) {
+      socket.emit('holad_authError', 'Invalid Subsonic credentials or unverified server');
+      socket.disconnect();
+      return;
     }
 
     // Register or refresh account in DB so covers and streams can immediately use it
     try {
-      const cleanAuthUrl = auth.url.replace(/\/$/, '');
+      const cleanAuthUrl = (process.env.NAVIDROME_URL || auth.url).replace(/\/$/, '');
       database.saveNavidromeAccount({
         url: cleanAuthUrl,
         user: auth.user,
@@ -1635,12 +1652,12 @@ io.on('connection', (socket) => {
       console.warn('[Holad] Failed to auto-save account on joinRoom:', e);
     }
 
-    socket.join(`holad_${roomId}`);
+    socket.join(`holad_${normalizedRoom}`);
     
-    let room = holadRooms.get(roomId);
+    let room = holadRooms.get(normalizedRoom);
     if (!room) {
       room = { activeDeviceId: null, devices: [], cachedState: null };
-      holadRooms.set(roomId, room);
+      holadRooms.set(normalizedRoom, room);
     }
     
     room.devices = room.devices.filter(d => d.id !== deviceId);
@@ -1650,7 +1667,7 @@ io.on('connection', (socket) => {
       room.activeDeviceId = deviceId;
     }
     
-    (socket as any).holadData = { roomId, deviceId };
+    (socket as any).holadData = { roomId: normalizedRoom, deviceId };
     
     // Register user presence for social features
     const socialUserId = demoSession ? demoSession.guestUserId : auth.user;
@@ -1658,7 +1675,9 @@ io.on('connection', (socket) => {
     const userRecord = database.ensureUserWithTag(socialUserId, socialUsername);
     registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
     
-    io.to(`holad_${roomId}`).emit('holad_devices', { devices: room.devices, activeDeviceId: room.activeDeviceId });
+    const devicesPayload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
+    socket.emit('holad_devices', devicesPayload);
+    io.to(`holad_${normalizedRoom}`).emit('holad_devices', devicesPayload);
     
     if (room.cachedState) {
       socket.emit('holad_syncState', room.cachedState);
@@ -1666,7 +1685,7 @@ io.on('connection', (socket) => {
 
     // Sync current exclusions from DB to newly joined device
     try {
-      const userExclusions = database.getExclusions(roomId);
+      const userExclusions = database.getExclusions(normalizedRoom);
       socket.emit('holad_remoteCommand', {
         type: 'exclusionsSynced',
         payload: userExclusions
@@ -1682,7 +1701,9 @@ io.on('connection', (socket) => {
     const room = holadRooms.get(data.roomId);
     if (room) {
       room.activeDeviceId = deviceId;
-      io.to(`holad_${data.roomId}`).emit('holad_devices', { devices: room.devices, activeDeviceId: room.activeDeviceId });
+      const payload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
+      socket.emit('holad_devices', payload);
+      io.to(`holad_${data.roomId}`).emit('holad_devices', payload);
     }
   });
 
