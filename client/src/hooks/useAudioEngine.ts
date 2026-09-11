@@ -5,6 +5,7 @@ import { preloadTrackAssets } from '../utils/assetPreloader';
 import { useAudioStore } from '../store/audioStore';
 import { useHoladStore } from '../store/holadStore';
 import { useHistoryStore } from '../store/historyStore';
+import { pushHistoryEntry } from '../api/history';
 import { useSettingsStore } from '../store/settingsStore';
 import { useTrackSource } from './useTrackSource';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
@@ -434,6 +435,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
           syncedRef.current = true;
           const now = Date.now();
           useHistoryStore.getState().addTrackToHistory(currentTrack, now);
+          pushHistoryEntry(currentTrack, now).catch(err => console.warn('[History] Push error:', err));
           useHoladStore.getState().sendRemoteCommand('syncHistory', { track: currentTrack, playedAt: now });
         }
 

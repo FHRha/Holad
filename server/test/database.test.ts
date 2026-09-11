@@ -332,3 +332,83 @@ describe('Database Legacy Security Data Migration', () => {
     database.deleteNavidromeAccount(testUser, testUrl);
   });
 });
+
+describe('Database History Functions & Delta Sync', () => {
+  const testUserId = 'history_test_user_' + Date.now();
+
+  it('addHistoryEntry adds a track and retrieves it', () => {
+    const entry = {
+      song_id: 'song_1',
+      title: 'Test Song 1',
+      artist: 'Test Artist',
+      album: 'Test Album',
+      duration: 210,
+      played_at: 1000000
+    };
+
+    const added = database.addHistoryEntry(testUserId, entry);
+    expect(added).toBe(true);
+
+    const history = database.getHistory(testUserId);
+    expect(history.length).toBe(1);
+    expect(history[0]!.song_id).toBe('song_1');
+    expect(history[0]!.title).toBe('Test Song 1');
+    expect(history[0]!.artist).toBe('Test Artist');
+    expect(history[0]!.album).toBe('Test Album');
+    expect(history[0]!.duration).toBe(210);
+    expect(history[0]!.played_at).toBe(1000000);
+  });
+
+  it('addHistoryEntry deduplicates plays within 5 minutes', () => {
+    // Same song 2 minutes later
+    const duplicateEntry = {
+      song_id: 'song_1',
+      title: 'Test Song 1',
+      played_at: 1000000 + 2 * 60 * 1000
+    };
+    const addedDup = database.addHistoryEntry(testUserId, duplicateEntry);
+    expect(addedDup).toBe(false);
+
+    // Same song 6 minutes later (should succeed)
+    const validEntry = {
+      song_id: 'song_1',
+      title: 'Test Song 1',
+      played_at: 1000000 + 6 * 60 * 1000
+    };
+    const addedValid = database.addHistoryEntry(testUserId, validEntry);
+    expect(addedValid).toBe(true);
+
+    const history = database.getHistory(testUserId);
+    expect(history.length).toBe(2);
+  });
+
+  it('addHistoryBatch adds multiple entries and respects deduplication', () => {
+    const batch = [
+      { song_id: 'song_2', title: 'Song 2', played_at: 2000000 },
+      { song_id: 'song_3', title: 'Song 3', played_at: 2500000 },
+      { song_id: 'song_3', title: 'Song 3', played_at: 2500000 + 60 * 1000 } // duplicate of song_3
+    ];
+
+    const inserted = database.addHistoryBatch(testUserId, batch);
+    expect(inserted).toBe(2); // Only song_2 and first song_3
+  });
+
+  it('getHistory supports delta query via since parameter', () => {
+    // Current played_at values: ~1000000, 1360000, 2000000, 2500000
+    const delta = database.getHistory(testUserId, 1500000);
+    expect(delta.length).toBe(2);
+    expect(delta.every(t => t.played_at > 1500000)).toBe(true);
+  });
+
+  it('pruneUserHistory limits total entries per user', () => {
+    database.pruneUserHistory(testUserId, 2);
+    const history = database.getHistory(testUserId);
+    expect(history.length).toBe(2);
+  });
+
+  it('clearUserHistory wipes all records for user', () => {
+    database.clearUserHistory(testUserId);
+    const history = database.getHistory(testUserId);
+    expect(history.length).toBe(0);
+  });
+});

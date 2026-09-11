@@ -4,6 +4,7 @@ import { usePlayerStore } from './playerStore';
 import { useAudioStore } from './audioStore';
 import { useSettingsStore } from './settingsStore';
 import { useHistoryStore } from './historyStore';
+import { syncHistoryWithServer } from '../api/history';
 
 import { useAuthStore } from './authStore';
 import { getSocketUrl, getHoladServerUrl, getSocketPath } from '../utils/serverConfig';
@@ -314,27 +315,9 @@ export const useHoladStore = create<HoladState>((set, get) => {
         }
         
         if (command.type === 'historyAvailable') {
-           console.log('[Holad] Received historyAvailable, fetching from API...');
-           const { user, token, salt, url } = useAuthStore.getState();
-           fetch(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(get().roomId!)}`, {
-             headers: {
-               'x-user': encodeURIComponent(user),
-               'x-token': encodeURIComponent(token),
-               'x-salt': encodeURIComponent(salt),
-               'x-url': encodeURIComponent(url)
-             }
-           })
-             .then(res => {
-               if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-               return res.json();
-             })
-             .then(historyData => {
-               console.log('[Holad] Downloaded history with tracks:', historyData.length);
-               console.log('[Holad] Merging history silently from all devices');
-               useHistoryStore.getState().syncHistoryData(historyData);
-             })
-             .catch(err => console.error('[Holad] Failed to fetch history:', err));
-           return;
+          console.log('[Holad] Received historyAvailable, syncing with server SQLite DB...');
+          syncHistoryWithServer().catch(err => console.error('[Holad] Failed to sync history:', err));
+          return;
         }
 
         if (command.type === 'clearHistory') {

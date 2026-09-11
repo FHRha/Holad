@@ -105,9 +105,17 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS history (
-    user_id TEXT,
-    song_id TEXT,
-    played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    song_id TEXT NOT NULL,
+    title TEXT,
+    artist TEXT,
+    album TEXT,
+    album_id TEXT,
+    artist_id TEXT,
+    duration INTEGER,
+    cover_art TEXT,
+    played_at INTEGER NOT NULL,
     FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
   );
 
@@ -220,6 +228,36 @@ try {
   console.error('Failed to migrate exclusions table columns:', err);
 }
 
+// Safely migrate existing history table if metadata columns or indexes are missing
+try {
+  const historyColumns = db.prepare("PRAGMA table_info(history)").all() as { name: string }[];
+  const histColNames = new Set(historyColumns.map(c => c.name));
+  if (!histColNames.has('title')) {
+    db.exec('ALTER TABLE history ADD COLUMN title TEXT');
+  }
+  if (!histColNames.has('artist')) {
+    db.exec('ALTER TABLE history ADD COLUMN artist TEXT');
+  }
+  if (!histColNames.has('album')) {
+    db.exec('ALTER TABLE history ADD COLUMN album TEXT');
+  }
+  if (!histColNames.has('album_id')) {
+    db.exec('ALTER TABLE history ADD COLUMN album_id TEXT');
+  }
+  if (!histColNames.has('artist_id')) {
+    db.exec('ALTER TABLE history ADD COLUMN artist_id TEXT');
+  }
+  if (!histColNames.has('duration')) {
+    db.exec('ALTER TABLE history ADD COLUMN duration INTEGER');
+  }
+  if (!histColNames.has('cover_art')) {
+    db.exec('ALTER TABLE history ADD COLUMN cover_art TEXT');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_history_user_played ON history(user_id, played_at DESC)');
+} catch (err) {
+  console.error('Failed to migrate history table columns:', err);
+}
+
 // Helper to generate user_id
 export function generateUserId(login: string, passwordHash: string): string {
   return crypto.createHash('sha256').update(`${login}:${passwordHash}`).digest('hex');
@@ -330,7 +368,7 @@ export function getSyncData(userId: string) {
   const preferences = db.prepare('SELECT language, accent_color FROM preferences WHERE user_id = ?').get(userId) || {};
   const playbackState = db.prepare('SELECT current_song_id, position, volume FROM playback_state WHERE user_id = ?').get(userId) || {};
   const exclusions = db.prepare('SELECT entity_id, entity_type FROM exclusions WHERE user_id = ?').all(userId) || [];
-  const history = db.prepare('SELECT song_id, played_at FROM history WHERE user_id = ? ORDER BY played_at DESC LIMIT 100').all(userId) || [];
+  const history = getHistory(userId, undefined, 100);
   const playlistsRaw = db.prepare('SELECT id, name, description FROM playlists WHERE user_id = ?').all(userId) as any[];
   const playlists = playlistsRaw.map(pl => {
     const tracks = db.prepare('SELECT track_id FROM playlist_tracks WHERE playlist_id = ? ORDER BY added_at ASC').all(pl.id) as any[];
@@ -380,11 +418,18 @@ export function saveSyncData(userId: string, data: any) {
       }
     }
 
-    if (data.history) {
-      const stmt = db.prepare('INSERT INTO history (user_id, song_id, played_at) VALUES (?, ?, ?)');
-      for (const item of data.history) {
-        stmt.run(userId, item.song_id, item.played_at);
-      }
+    if (data.history && Array.isArray(data.history)) {
+      addHistoryBatch(userId, data.history.map((item: any) => ({
+        song_id: item.song_id || item.id,
+        title: item.title || '',
+        artist: item.artist || '',
+        album: item.album || '',
+        album_id: item.album_id || item.albumId,
+        artist_id: item.artist_id || item.artistId,
+        duration: item.duration || 0,
+        cover_art: item.cover_art || item.coverArt,
+        played_at: item.played_at || item.playedAt || Date.now()
+      })));
     }
 
     if (data.playlists) {
@@ -1261,6 +1306,179 @@ export function deleteUserData(userId: string): void {
   } catch (err) {
     console.error(`[DB] Failed to delete user data for ${userId}:`, err);
   }
+}
+
+export interface HistoryRecord {
+  id?: number;
+  song_id: string;
+  title: string;
+  artist?: string;
+  album?: string;
+  album_id?: string;
+  artist_id?: string;
+  duration?: number;
+  cover_art?: string;
+  played_at: number; // Unix timestamp in ms
+}
+
+export function pruneUserHistory(userId: string, maxEntries = 5000): void {
+  if (!userId) return;
+  try {
+    db.prepare(`
+      DELETE FROM history 
+      WHERE user_id = ? AND rowid NOT IN (
+        SELECT rowid FROM history WHERE user_id = ? ORDER BY played_at DESC LIMIT ?
+      )
+    `).run(userId, userId, maxEntries);
+  } catch (err) {
+    console.error(`[DB] Error pruning history for user ${userId}:`, err);
+  }
+}
+
+export function addHistoryEntry(userId: string, entry: HistoryRecord): boolean {
+  if (!userId || !entry || !entry.song_id) return false;
+  ensureUserExists(userId);
+
+  const playedAt = typeof entry.played_at === 'number' && !isNaN(entry.played_at) 
+    ? entry.played_at 
+    : Date.now();
+
+  // Deduplication: check last played track for this user with same song_id
+  const lastEntry = db.prepare(`
+    SELECT song_id, played_at FROM history 
+    WHERE user_id = ? AND song_id = ? 
+    ORDER BY played_at DESC LIMIT 1
+  `).get(userId, entry.song_id) as { song_id: string; played_at: number | string } | undefined;
+
+  if (lastEntry) {
+    const lastTime = typeof lastEntry.played_at === 'number' 
+      ? lastEntry.played_at 
+      : new Date(lastEntry.played_at).getTime();
+    if (Math.abs(playedAt - lastTime) < 5 * 60 * 1000) {
+      return false; // Skip duplicate within 5 mins
+    }
+  }
+
+  const stmt = db.prepare(`
+    INSERT INTO history (user_id, song_id, title, artist, album, album_id, artist_id, duration, cover_art, played_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  stmt.run(
+    userId,
+    entry.song_id,
+    entry.title || '',
+    entry.artist || '',
+    entry.album || '',
+    entry.album_id || null,
+    entry.artist_id || null,
+    entry.duration !== undefined && entry.duration !== null ? Math.round(Number(entry.duration)) : 0,
+    entry.cover_art || null,
+    playedAt
+  );
+
+  pruneUserHistory(userId, 5000);
+  return true;
+}
+
+export function addHistoryBatch(userId: string, entries: HistoryRecord[]): number {
+  if (!userId || !Array.isArray(entries) || entries.length === 0) return 0;
+  ensureUserExists(userId);
+
+  let insertedCount = 0;
+  const insertStmt = db.prepare(`
+    INSERT INTO history (user_id, song_id, title, artist, album, album_id, artist_id, duration, cover_art, played_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const sorted = [...entries].sort((a, b) => (a.played_at || 0) - (b.played_at || 0));
+
+  const transaction = db.transaction(() => {
+    for (const entry of sorted) {
+      if (!entry || !entry.song_id) continue;
+      const playedAt = typeof entry.played_at === 'number' && !isNaN(entry.played_at) 
+        ? entry.played_at 
+        : Date.now();
+
+      const lastEntry = db.prepare(`
+        SELECT song_id, played_at FROM history 
+        WHERE user_id = ? AND song_id = ? 
+        ORDER BY played_at DESC LIMIT 1
+      `).get(userId, entry.song_id) as { song_id: string; played_at: number | string } | undefined;
+
+      if (lastEntry) {
+        const lastTime = typeof lastEntry.played_at === 'number' 
+          ? lastEntry.played_at 
+          : new Date(lastEntry.played_at).getTime();
+        if (Math.abs(playedAt - lastTime) < 5 * 60 * 1000) {
+          continue;
+        }
+      }
+
+      insertStmt.run(
+        userId,
+        entry.song_id,
+        entry.title || '',
+        entry.artist || '',
+        entry.album || '',
+        entry.album_id || null,
+        entry.artist_id || null,
+        entry.duration !== undefined && entry.duration !== null ? Math.round(Number(entry.duration)) : 0,
+        entry.cover_art || null,
+        playedAt
+      );
+      insertedCount++;
+    }
+
+    pruneUserHistory(userId, 5000);
+  });
+
+  transaction();
+  return insertedCount;
+}
+
+export function getHistory(userId: string, since?: number, limit = 500): HistoryRecord[] {
+  if (!userId) return [];
+  ensureUserExists(userId);
+
+  const safeLimit = Math.min(Math.max(1, limit), 5000);
+
+  let rows: any[];
+  if (since !== undefined && since !== null && !isNaN(since)) {
+    rows = db.prepare(`
+      SELECT rowid as id, song_id, title, artist, album, album_id, artist_id, duration, cover_art, played_at 
+      FROM history 
+      WHERE user_id = ? AND played_at > ? 
+      ORDER BY played_at DESC 
+      LIMIT ?
+    `).all(userId, since, safeLimit);
+  } else {
+    rows = db.prepare(`
+      SELECT rowid as id, song_id, title, artist, album, album_id, artist_id, duration, cover_art, played_at 
+      FROM history 
+      WHERE user_id = ? 
+      ORDER BY played_at DESC 
+      LIMIT ?
+    `).all(userId, safeLimit);
+  }
+
+  return rows.map(r => ({
+    id: r.id,
+    song_id: r.song_id,
+    title: r.title || '',
+    artist: r.artist || '',
+    album: r.album || '',
+    album_id: r.album_id || undefined,
+    artist_id: r.artist_id || undefined,
+    duration: r.duration || 0,
+    cover_art: r.cover_art || undefined,
+    played_at: typeof r.played_at === 'number' ? r.played_at : new Date(r.played_at).getTime()
+  }));
+}
+
+export function clearUserHistory(userId: string): void {
+  if (!userId) return;
+  db.prepare('DELETE FROM history WHERE user_id = ?').run(userId);
 }
 
 

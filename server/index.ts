@@ -681,45 +681,92 @@ const validateRestAuth = async (req: express.Request, res: express.Response, nex
 
 app.post('/api/holad/history/:roomId', validateRestAuth, express.json({ limit: '10mb' }), (req, res) => {
   const roomId = req.params.roomId as string;
-  const history = req.body;
-  
-  if (!Array.isArray(history)) {
-    return res.status(400).send('Expected JSON array');
-  }
-  
-  const existing = holadHistoryCache.get(roomId) || [];
-  const merged = [...existing, ...history];
-  merged.sort((a, b) => b.playedAt - a.playedAt);
-  
-  const newHistory: any[] = [];
-  for (const e of merged) {
-    const isDuplicate = newHistory.some(ex => ex.id === e.id && Math.abs(ex.playedAt - e.playedAt) < 5 * 60 * 1000);
-    if (!isDuplicate) {
-      newHistory.push(e);
+  const body = req.body;
+
+  try {
+    if (Array.isArray(body)) {
+      const formattedEntries = body.map((item: any) => ({
+        song_id: item.id || item.song_id,
+        title: item.title || '',
+        artist: item.artist || '',
+        album: item.album || '',
+        album_id: item.albumId || item.album_id,
+        artist_id: item.artistId || item.artist_id,
+        duration: item.duration || 0,
+        cover_art: item.coverArt || item.cover_art,
+        played_at: item.playedAt || item.played_at || Date.now()
+      })).filter(item => Boolean(item.song_id));
+
+      database.addHistoryBatch(roomId, formattedEntries);
+    } else if (body && typeof body === 'object') {
+      const entry = {
+        song_id: body.id || body.song_id,
+        title: body.title || '',
+        artist: body.artist || '',
+        album: body.album || '',
+        album_id: body.albumId || body.album_id,
+        artist_id: body.artistId || body.artist_id,
+        duration: body.duration || 0,
+        cover_art: body.coverArt || body.cover_art,
+        played_at: body.playedAt || body.played_at || Date.now()
+      };
+      if (entry.song_id) {
+        database.addHistoryEntry(roomId, entry);
+      }
+    } else {
+      return res.status(400).send('Expected JSON object or array');
     }
+
+    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'historyAvailable' });
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error(`[Holad] Failed to save history for room ${roomId}:`, error);
+    res.status(500).send('Error saving history');
   }
-  
-  holadHistoryCache.set(roomId, newHistory.slice(0, 5000));
-  io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'historyAvailable' });
-  
-  if (historyTimers.has(roomId)) {
-    clearTimeout(historyTimers.get(roomId)!);
-  }
-  historyTimers.set(roomId, setTimeout(() => {
-    holadHistoryCache.delete(roomId);
-    historyTimers.delete(roomId);
-  }, 2 * 60 * 1000));
-  
-  res.status(200).send('OK');
 });
 
 app.get('/api/holad/history/:roomId', validateRestAuth, (req, res) => {
   const roomId = req.params.roomId as string;
-  const history = holadHistoryCache.get(roomId);
-  if (history) {
+  const sinceParam = req.query.since as string | undefined;
+  const limitParam = req.query.limit as string | undefined;
+
+  const since = sinceParam !== undefined && !isNaN(Number(sinceParam)) 
+    ? Number(sinceParam) 
+    : undefined;
+  const limit = limitParam !== undefined && !isNaN(Number(limitParam)) 
+    ? Math.min(Math.max(1, Number(limitParam)), 5000) 
+    : 500;
+
+  try {
+    const rows = database.getHistory(roomId, since, limit);
+    const history = rows.map(r => ({
+      id: r.song_id,
+      title: r.title,
+      artist: r.artist,
+      album: r.album,
+      albumId: r.album_id,
+      artistId: r.artist_id,
+      duration: r.duration,
+      coverArt: r.cover_art,
+      playedAt: r.played_at
+    }));
+
     res.json(history);
-  } else {
-    res.status(404).send('Not found or expired');
+  } catch (error) {
+    console.error(`[Holad] Failed to fetch history for room ${roomId}:`, error);
+    res.status(500).send('Error fetching history');
+  }
+});
+
+app.delete('/api/holad/history/:roomId', validateRestAuth, (req, res) => {
+  const roomId = req.params.roomId as string;
+  try {
+    database.clearUserHistory(roomId);
+    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'clearHistory', fromUserId: roomId });
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error(`[Holad] Failed to delete history for room ${roomId}:`, error);
+    res.status(500).send('Error clearing history');
   }
 });
 

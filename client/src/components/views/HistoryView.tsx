@@ -8,6 +8,7 @@ import Dropdown from '../common/Dropdown';
 import { getCoverArtUrl } from '../../api/subsonic';
 import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
+import { syncHistoryWithServer } from '../../api/history';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
@@ -58,6 +59,7 @@ export default function HistoryView() {
   const handleManualSync = async () => {
     setIsSyncing(true);
     try {
+      await syncHistoryWithServer();
       await useHoladStore.getState().triggerManualSync();
       // wait a bit for animation
       await new Promise(r => setTimeout(r, 1000));

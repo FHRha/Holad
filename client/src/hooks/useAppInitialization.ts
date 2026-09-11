@@ -4,6 +4,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { useAuthStore } from '../store/authStore';
 import { fetchStarred, getPlayQueue, getCoverArtUrl } from '../api/subsonic';
 import { fetchExclusions } from '../api/exclusions';
+import { syncHistoryWithServer } from '../api/history';
 import { jamSocket } from '../api/socket';
 import { useHoladStore } from '../store/holadStore';
 import { useSocialStore } from '../store/socialStore';
@@ -54,6 +55,8 @@ export function useAppInitialization() {
           setExcludedItems(exclusions.excludedTrackIds, exclusions.excludedAlbumIds, exclusions.excludedFingerprints);
         }
       }).catch(e => console.error("Failed to fetch exclusions", e));
+
+      syncHistoryWithServer().catch(e => console.error("Failed to sync history with server", e));
     }
 
     // Do not load default play queue if on a Jam route or joining a room
