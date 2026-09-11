@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { isTauri } from '../utils/StorageManager';
+import { isTauri, isCapacitor } from '../utils/StorageManager';
 
 let globalIsWindowVisible = true;
 const visibilityListeners = new Set<(visible: boolean) => void>();
@@ -24,8 +24,9 @@ export function subscribeWindowVisibility(listener: (visible: boolean) => void):
 
 /**
  * Hook to track whether the application window is visible and active.
- * Integrates with native Tauri window events (minimized / hidden to tray)
- * and web visibility API (document.hidden / blur / focus).
+ * Integrates with native Tauri window events (minimized / hidden to tray),
+ * Capacitor app state change events (background / screen locked),
+ * and web visibility API (document.hidden / blur / focus / pause / resume).
  */
 export function useWindowVisibility(): boolean {
   const [isVisible, setIsVisible] = useState<boolean>(globalIsWindowVisible);
@@ -49,11 +50,37 @@ export function useWindowVisibility(): boolean {
       }
     };
 
+    const handlePause = () => {
+      setGlobalWindowVisible(false);
+    };
+
+    const handleResume = () => {
+      setGlobalWindowVisible(true);
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('blur', handleBlur);
+    document.addEventListener('pause', handlePause);
+    document.addEventListener('resume', handleResume);
 
-    // 2. Native Tauri events (WM_SIZE minimize/restore and tray hide/show)
+    // 2. Native Capacitor mobile lifecycle (screen locked / app sent to background)
+    let unlistenCapacitor: (() => void) | null = null;
+    if (isCapacitor()) {
+      import('@capacitor/app').then(({ App }) => {
+        App.addListener('appStateChange', ({ isActive }) => {
+          setGlobalWindowVisible(Boolean(isActive));
+        }).then((handle) => {
+          unlistenCapacitor = () => {
+            if (handle && typeof handle.remove === 'function') {
+              handle.remove();
+            }
+          };
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+
+    // 3. Native Tauri events (WM_SIZE minimize/restore and tray hide/show)
     let unlistenTauri: (() => void) | null = null;
     if (isTauri()) {
       import('@tauri-apps/api/event').then(({ listen }) => {
@@ -79,6 +106,11 @@ export function useWindowVisibility(): boolean {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('pause', handlePause);
+      document.removeEventListener('resume', handleResume);
+      if (unlistenCapacitor) {
+        unlistenCapacitor();
+      }
       if (unlistenTauri) {
         unlistenTauri();
       }

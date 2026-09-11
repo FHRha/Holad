@@ -15,6 +15,7 @@ export interface AudioEngineSettings {
     isGaplessEnabled: boolean;
     isLoudnessNormalizationEnabled: boolean;
     preloadNextTrack: boolean;
+    preloadLookaheadSeconds?: number;
     compressorThreshold: number;
     compressorRatio: number;
     compressorAttack: number;

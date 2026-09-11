@@ -6,6 +6,7 @@ export * from './subsonic/playlists';
 
 import { buildUrl, getBaseUrl, getAuthParams, fetchWithRetry } from './subsonic-core';
 import { useAuthStore } from '../store/authStore';
+import { useSettingsStore } from '../store/settingsStore';
 import { getHoladServerUrl } from '../utils/serverConfig';
 
 import { isCapacitor } from '../utils/StorageManager';
@@ -16,21 +17,34 @@ export const getDownloadUrl = (id: string) => {
 
 export const getStreamUrl = (id: string) => {
   const { isAuthenticated, url } = useAuthStore.getState();
+  const { streamingQuality } = useSettingsStore.getState();
   const proxyUrl = getHoladServerUrl();
   const params = getAuthParams();
   const targetServerUrl = url ? url.replace(/\/$/, '') : '';
 
+  let formatParam = 'format=opus&maxBitRate=256';
+  if (streamingQuality === 'raw') {
+    formatParam = 'format=raw';
+  } else if (streamingQuality === 'opus-192') {
+    formatParam = 'format=opus&maxBitRate=192';
+  } else if (streamingQuality === 'opus-128') {
+    formatParam = 'format=opus&maxBitRate=128';
+  } else if (streamingQuality === 'mp3-320') {
+    formatParam = 'format=mp3&maxBitRate=320';
+  } else {
+    formatParam = 'format=opus&maxBitRate=256';
+  }
+
   if (!isAuthenticated) {
-    return `${proxyUrl}/api/stream/${id}`;
+    return `${proxyUrl}/api/stream/${id}?${formatParam}`;
   }
 
   // On mobile (Capacitor), stream directly from Subsonic server to avoid WebView proxy/CORS issues
-  // Add format=raw&estimateContentLength=true to bypass on-the-fly server transcoding and deliver instant playback
   if (isCapacitor() && targetServerUrl) {
-    return `${targetServerUrl}/rest/stream?id=${id}&${params}&format=raw&estimateContentLength=true`;
+    return `${targetServerUrl}/rest/stream?id=${id}&${params}&${formatParam}&estimateContentLength=true`;
   }
 
-  return `${proxyUrl}/api/stream/${id}?serverUrl=${encodeURIComponent(targetServerUrl)}&${params}&format=raw&estimateContentLength=true`;
+  return `${proxyUrl}/api/stream/${id}?serverUrl=${encodeURIComponent(targetServerUrl)}&${params}&${formatParam}&estimateContentLength=true`;
 };
 
 // Moved to social.ts

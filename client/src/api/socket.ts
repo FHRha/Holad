@@ -462,7 +462,7 @@ class JamSocketService {
     if (state.role === 'host' || state.role === 'cohost') {
       this.syncInterval = setInterval(() => {
         const state = usePlayerStore.getState();
-        if (state.roomId && state.queue.length > 0 && state.currentIndex >= 0 && state.currentIndex < state.queue.length && (state.role === 'host' || state.role === 'cohost')) {
+        if (state.roomId && state.participants.length > 1 && state.queue.length > 0 && state.currentIndex >= 0 && state.currentIndex < state.queue.length && (state.role === 'host' || state.role === 'cohost')) {
           const isSpeakerDj = useSocialStore.getState().audioMode === 'speaker_dj';
           // Remote control device does not output audio locally, so it must not broadcast local engine time
           if (isSpeakerDj) return;
@@ -503,7 +503,7 @@ class JamSocketService {
             hostAudioMode
           });
         }
-      }, 2000); // Send sync ping every 2 seconds
+      }, 10000); // Send sync ping every 10 seconds
     }
 
     this.unsubscribeStore = usePlayerStore.subscribe((newState, prevState) => {

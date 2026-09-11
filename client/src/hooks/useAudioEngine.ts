@@ -14,6 +14,7 @@ import { AudioEngine } from '../audio/AudioEngine';
 import { useSocialStore } from '../store/socialStore';
 import { jamSocket } from '../api/socket';
 import { isJamPath } from '../utils/basePath';
+import { getIsWindowVisible, subscribeWindowVisibility } from './useWindowVisibility';
 
 export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | null>, React.RefObject<HTMLAudioElement | null>], currentTrack: any) {
   const {
@@ -75,21 +76,49 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     }
   }, []);
 
-  // Flush track position on page unload / pagehide
+  const flushPlayQueueToServer = useCallback(() => {
+    const isJamUrl = isJamPath();
+    const pStore = usePlayerStore.getState();
+    const trk = pStore.queue[pStore.currentIndex];
+    if (trk && pStore.role !== 'listener' && !isJamUrl) {
+      const trackIds = pStore.queue.map((t) => t.id);
+      const pos = Math.floor(engineRef.current.getCurrentTime() * 1000);
+      savePlayQueue(trackIds, trk.id, pos).catch(() => {});
+    }
+  }, []);
+
+  // Flush track position & queue on page unload / pagehide / mobile backgrounding
   useEffect(() => {
     const handleUnload = () => {
       flushPositionToLocalStorage();
+      flushPlayQueueToServer();
     };
 
     window.addEventListener('beforeunload', handleUnload);
     window.addEventListener('pagehide', handleUnload);
 
+    let unlistenCapacitor: (() => void) | null = null;
+    if (isCapacitor()) {
+      import('@capacitor/app').then(({ App }) => {
+        App.addListener('appStateChange', ({ isActive }) => {
+          if (!isActive) {
+            handleUnload();
+          }
+        }).then((handle) => {
+          unlistenCapacitor = () => {
+            if (handle && typeof handle.remove === 'function') handle.remove();
+          };
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+
     return () => {
       window.removeEventListener('beforeunload', handleUnload);
       window.removeEventListener('pagehide', handleUnload);
-      flushPositionToLocalStorage();
+      handleUnload();
+      if (unlistenCapacitor) unlistenCapacitor();
     };
-  }, [flushPositionToLocalStorage]);
+  }, [flushPositionToLocalStorage, flushPlayQueueToServer]);
 
   useEffect(() => {
     prevIsPlayingRef.current = isPlaying;
@@ -115,7 +144,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     crossfadeCurve: role === 'listener' && hostSettings ? (hostSettings.crossfadeCurve ?? settings.crossfadeCurve) : settings.crossfadeCurve,
     isGaplessEnabled: role === 'listener' && hostSettings ? (hostSettings.isGaplessEnabled ?? settings.isGaplessEnabled) : settings.isGaplessEnabled,
     isLoudnessNormalizationEnabled: settings.isLoudnessNormalizationEnabled,
-    preloadNextTrack: settings.preloadNextTrack,
+    preloadNextTrack: settings.preloadNextTrack && settings.preloadMode !== 'disabled',
+    preloadLookaheadSeconds: settings.preloadLookahead,
     compressorThreshold: settings.compressorThreshold,
     compressorRatio: settings.compressorRatio,
     compressorAttack: settings.compressorAttack,
@@ -130,6 +160,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       isGaplessEnabled: effectiveSettings.isGaplessEnabled,
       isLoudnessNormalizationEnabled: effectiveSettings.isLoudnessNormalizationEnabled,
       preloadNextTrack: effectiveSettings.preloadNextTrack,
+      preloadLookaheadSeconds: effectiveSettings.preloadLookaheadSeconds,
       compressorThreshold: effectiveSettings.compressorThreshold,
       compressorRatio: effectiveSettings.compressorRatio,
       compressorAttack: effectiveSettings.compressorAttack,
@@ -142,6 +173,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     effectiveSettings.isGaplessEnabled,
     effectiveSettings.isLoudnessNormalizationEnabled,
     effectiveSettings.preloadNextTrack,
+    effectiveSettings.preloadLookaheadSeconds,
     effectiveSettings.compressorThreshold,
     effectiveSettings.compressorRatio,
     effectiveSettings.compressorAttack,
@@ -174,7 +206,16 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
   // Preload next track
   const preloadUpcomingTrack = useCallback(() => {
-    if (!settings.preloadNextTrack) return;
+    if (!settings.preloadNextTrack || settings.preloadMode === 'disabled') return;
+
+    // If wifi_only is selected, check if connection is cellular or metered
+    if (settings.preloadMode === 'wifi_only') {
+      if (typeof navigator !== 'undefined' && (navigator as any).connection) {
+        const conn = (navigator as any).connection;
+        if (conn.type === 'cellular' || conn.saveData) return;
+      }
+    }
+
     const q = usePlayerStore.getState().queue;
     const idx = usePlayerStore.getState().currentIndex;
     const rMode = usePlayerStore.getState().repeatMode;
@@ -189,9 +230,11 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const nextTrk = q[nextIdx];
     if (nextTrk) {
       engineRef.current.preloadNextTrack(nextTrk).catch(() => {});
-      preloadTrackAssets(nextTrk).catch(() => {});
+      if (settings.preloadCovers) {
+        preloadTrackAssets(nextTrk).catch(() => {});
+      }
     }
-  }, [settings.preloadNextTrack]);
+  }, [settings.preloadNextTrack, settings.preloadMode, settings.preloadCovers]);
 
   // Handle Track Source Changes & Playback Transitions
   const prevTrackIdRef = useRef<string | null>(null);
@@ -402,7 +445,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     };
   }, []);
 
-  // Save history state & Subsonic playqueue
+  // Save history state & Subsonic playqueue (every 60s during playback, and on track change / pause)
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     const isJamUrl = isJamPath();
@@ -416,7 +459,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     if (currentTrack && role !== 'listener' && !isJamUrl) {
       saveState();
       if (isPlaying) {
-        interval = setInterval(saveState, 2000);
+        interval = setInterval(saveState, 60000);
       }
     }
     return () => clearInterval(interval);
@@ -545,11 +588,14 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     };
   }, [currentTrack, isActiveDevice, duration, role, sleepTimer, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer, flushPositionToLocalStorage]);
 
-  // Holad Syncing
+  // Holad Syncing: only broadcast if there are multiple devices in the room (remote controller/listener)
+  const holadDevices = useHoladStore(s => s.devices);
+  const hasRemoteDevices = holadDevices.length > 1;
+
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
-    if (isPlaying && isActiveDevice && isHoladConnected) {
-      interval = setInterval(() => {
+    if (isPlaying && isActiveDevice && isHoladConnected && hasRemoteDevices) {
+      const emitSync = () => {
         const roomId = useHoladStore.getState().roomId;
         if (roomId) {
           useHoladStore.getState().socket?.emit('holad_syncTime', {
@@ -557,17 +603,24 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
             currentTime: engineRef.current.getCurrentTime(),
           });
         }
-      }, 2000);
+      };
+
+      // Emit immediately on resume/track start
+      emitSync();
+
+      // Drift sync interval every 12 seconds
+      interval = setInterval(emitSync, 12000);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, isActiveDevice, isHoladConnected]);
+  }, [isPlaying, isActiveDevice, isHoladConnected, hasRemoteDevices]);
 
   useEffect(() => {
     if (isActiveDevice || !isHoladConnected) return;
 
-    let animationFrame: number;
+    let animationFrame: number | undefined;
     let lastTime = performance.now();
     let localCurrentTime = (useAudioStore.getState().progress / 100) * (currentTrack?.duration || 1);
+    let isWindowVisible = getIsWindowVisible();
 
     const socket = useHoladStore.getState().socket;
 
@@ -584,6 +637,11 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     }
 
     const tick = () => {
+      if (!isWindowVisible) {
+        animationFrame = undefined;
+        return;
+      }
+
       if (currentTrack && currentTrack.duration && duration !== currentTrack.duration) {
         setDuration(currentTrack.duration);
       }
@@ -602,13 +660,29 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       animationFrame = requestAnimationFrame(tick);
     };
 
-    animationFrame = requestAnimationFrame(tick);
+    const unsubVis = subscribeWindowVisibility((visible) => {
+      isWindowVisible = visible;
+      if (visible) {
+        lastTime = performance.now();
+        if (!animationFrame) {
+          animationFrame = requestAnimationFrame(tick);
+        }
+      } else if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = undefined;
+      }
+    });
+
+    if (isWindowVisible) {
+      animationFrame = requestAnimationFrame(tick);
+    }
 
     return () => {
-      cancelAnimationFrame(animationFrame);
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      unsubVis();
       if (socket) socket.off('holad_syncTime', onSyncTime);
     };
-  }, [isActiveDevice, currentTrack, isHoladConnected, duration, setDuration]);
+  }, [isActiveDevice, currentTrack, isHoladConnected, duration, setDuration, setProgress]);
 
   return {
     get progress() {

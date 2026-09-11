@@ -399,6 +399,9 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         } else if (newSettings.isGaplessEnabled) {
             this.settings.isCrossfadeEnabled = false;
         }
+        if (newSettings.preloadLookaheadSeconds !== undefined) {
+            this.preloadManager.setLookaheadSeconds(newSettings.preloadLookaheadSeconds);
+        }
         if (newSettings.isLoudnessNormalizationEnabled !== undefined && this.pipeline) {
             this.pipeline.setNormalizationEnabled(newSettings.isLoudnessNormalizationEnabled);
         }

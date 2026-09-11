@@ -782,22 +782,6 @@ export default function SettingsModal({
                   </label>
                 </SettingSection>
 
-
-
-                <SettingSection title={t('settings.prebuffering')}>
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      checked={settings.preloadNextTrack} 
-                      onChange={(e) => settings.setPreloadNextTrack(e.target.checked)}
-                      className="accent-primary w-4 h-4 rounded cursor-pointer"
-                    />
-                    <span className="group-hover:text-primary transition-colors text-sm">
-                      {t('settings.preload_desc')}
-                    </span>
-                  </label>
-                </SettingSection>
-
                 <SettingSection title={t('settings.defaultVolume') || 'Громкость'}>
                   <div className="pt-2 pb-1">
                     <LiquidSeekBar 
@@ -832,6 +816,97 @@ export default function SettingsModal({
 
             {activeTab === 'audio' && (
               <div className="space-y-8">
+                <SettingSection title={t('settings.streaming_quality') || 'Качество потока (стриминга)'}>
+                  <div className="flex flex-col gap-2">
+                    <Dropdown
+                      value={settings.streamingQuality}
+                      onChange={(val) => settings.setStreamingQuality(val)}
+                      options={[
+                        { label: t('settings.quality_opus_256', 'Opus 256 кбит/с (Рекомендуется, прозрачное)'), value: 'opus-256' },
+                        { label: t('settings.quality_raw', 'Исходное (Без сжатия / FLAC)'), value: 'raw' },
+                        { label: t('settings.quality_opus_192', 'Opus 192 кбит/с (Высокое)'), value: 'opus-192' },
+                        { label: t('settings.quality_opus_128', 'Opus 128 кбит/с (Экономия батареи и трафика)'), value: 'opus-128' },
+                        { label: t('settings.quality_mp3_320', 'MP3 320 кбит/с'), value: 'mp3-320' },
+                      ]}
+                    />
+                    <span className="text-xs text-secondary mt-1">
+                      {t('settings.streaming_quality_desc', 'Формат и битрейт аудио при воспроизведении по сети')}
+                    </span>
+                  </div>
+                </SettingSection>
+
+                <SettingSection title={t('settings.prebuffering') || 'Предварительная буферизация'}>
+                  <div className="flex flex-col gap-4">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.preloadNextTrack} 
+                        onChange={(e) => settings.setPreloadNextTrack(e.target.checked)}
+                        className="accent-primary w-4 h-4 rounded cursor-pointer"
+                      />
+                      <span className="group-hover:text-primary transition-colors text-sm">
+                        {t('settings.preload_desc', 'Предзагрузка следующего трека до окончания текущего')}
+                      </span>
+                    </label>
+
+                    {settings.preloadNextTrack && (
+                      <div className="space-y-4 pt-3 border-t border-white/5">
+                        <div className="flex flex-col gap-2">
+                          <span className="text-xs text-secondary font-medium">
+                            {t('settings.preload_mode', 'Режим предзагрузки треков')}
+                          </span>
+                          <Dropdown
+                            value={settings.preloadMode}
+                            onChange={(val) => settings.setPreloadMode(val)}
+                            options={[
+                              { label: t('settings.preload_wifi_only', 'Только по Wi-Fi'), value: 'wifi_only' },
+                              { label: t('settings.preload_always', 'Всегда (Wi-Fi и сотовая сеть)'), value: 'always' },
+                              { label: t('settings.preload_disabled', 'Отключено'), value: 'disabled' },
+                            ]}
+                          />
+                          <span className="text-xs text-secondary">
+                            {t('settings.preload_mode_desc', 'Когда автоматически загружать следующий трек в память')}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <span className="text-xs text-secondary font-medium">
+                            {t('settings.preload_lookahead', 'Время предзагрузки до конца трека')}
+                          </span>
+                          <Dropdown
+                            value={settings.preloadLookahead}
+                            onChange={(val) => settings.setPreloadLookahead(Number(val) as any)}
+                            options={[
+                              { label: t('settings.preload_lookahead_5s', '5 секунд'), value: 5 },
+                              { label: t('settings.preload_lookahead_15s', '15 секунд (По умолчанию)'), value: 15 },
+                              { label: t('settings.preload_lookahead_30s', '30 секунд'), value: 30 },
+                            ]}
+                          />
+                          <span className="text-xs text-secondary">
+                            {t('settings.preload_lookahead_desc', 'За сколько секунд до окончания трека начинать предзагрузку')}
+                          </span>
+                        </div>
+
+                        <label className="flex items-center gap-3 cursor-pointer group pt-1">
+                          <input 
+                            type="checkbox" 
+                            checked={settings.preloadCovers} 
+                            onChange={(e) => settings.setPreloadCovers(e.target.checked)}
+                            className="accent-primary w-4 h-4 rounded cursor-pointer"
+                          />
+                          <div className="flex flex-col">
+                            <span className="group-hover:text-primary transition-colors text-sm">
+                              {t('settings.preload_covers', 'Предзагрузка обложек очереди')}
+                            </span>
+                            <span className="text-xs text-secondary">
+                              {t('settings.preload_covers_desc', 'Загружать обложки для следующих треков в очереди')}
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                </SettingSection>
                 <SettingSection title={t('settings.crossfade') || 'Плавный переход (Кроссфейд)'}>
                   <div className="flex flex-col gap-4">
                     <label className="flex items-center gap-3 cursor-pointer group">

@@ -500,6 +500,27 @@ export default function MobileSettingsView() {
       content: (
         <div className="flex flex-col gap-6 mt-4">
           <div className="flex flex-col gap-3">
+            <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('settings.streaming_quality')}</span>
+            <div className="bg-black/20 p-4 rounded-xl flex flex-col gap-2">
+              <div className="relative">
+                <select
+                  value={settings.streamingQuality}
+                  onChange={(e) => settings.setStreamingQuality(e.target.value as any)}
+                  className="w-full bg-foreground/10 border border-white/20 rounded-lg py-2.5 px-3 text-sm text-white outline-none focus:border-primary appearance-none cursor-pointer pr-10"
+                >
+                  <option value="opus-256" className="bg-zinc-900 text-white">{t('settings.quality_opus_256')}</option>
+                  <option value="raw" className="bg-zinc-900 text-white">{t('settings.quality_raw')}</option>
+                  <option value="opus-192" className="bg-zinc-900 text-white">{t('settings.quality_opus_192')}</option>
+                  <option value="opus-128" className="bg-zinc-900 text-white">{t('settings.quality_opus_128')}</option>
+                  <option value="mp3-320" className="bg-zinc-900 text-white">{t('settings.quality_mp3_320')}</option>
+                </select>
+                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" />
+              </div>
+              <span className="text-xs text-[#b3b3b3] mt-1">{t('settings.streaming_quality_desc')}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
             <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_click_action')}</span>
             <div className="flex flex-col gap-3 bg-black/20 p-4 rounded-xl">
               <label className="flex items-center gap-3">
@@ -651,18 +672,71 @@ export default function MobileSettingsView() {
             />
           </label>
 
-          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
-            <div className="flex flex-col pr-4">
-              <span className="text-[15px] font-medium text-white">{t('settings.prebuffering')}</span>
-              <span className="text-[13px] text-[#b3b3b3]">{t('settings.preload_desc')}</span>
-            </div>
-            <input 
-              type="checkbox" 
-              checked={settings.preloadNextTrack} 
-              onChange={(e) => settings.setPreloadNextTrack(e.target.checked)}
-              className="accent-primary w-6 h-6 rounded flex-shrink-0"
-            />
-          </label>
+          <div className="bg-black/20 p-4 rounded-xl flex flex-col gap-4">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex flex-col pr-4">
+                <span className="text-[15px] font-medium text-white">{t('settings.prebuffering')}</span>
+                <span className="text-[13px] text-[#b3b3b3]">{t('settings.preload_desc')}</span>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={settings.preloadNextTrack} 
+                onChange={(e) => settings.setPreloadNextTrack(e.target.checked)}
+                className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
+              />
+            </label>
+
+            {settings.preloadNextTrack && (
+              <div className="pt-3 border-t border-white/5 flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs text-[#b3b3b3] font-medium">{t('settings.preload_mode')}</span>
+                  <div className="relative">
+                    <select
+                      value={settings.preloadMode}
+                      onChange={(e) => settings.setPreloadMode(e.target.value as any)}
+                      className="w-full bg-foreground/10 border border-white/20 rounded-lg py-2.5 px-3 text-sm text-white outline-none focus:border-primary appearance-none cursor-pointer pr-10"
+                    >
+                      <option value="wifi_only" className="bg-zinc-900 text-white">{t('settings.preload_wifi_only')}</option>
+                      <option value="always" className="bg-zinc-900 text-white">{t('settings.preload_always')}</option>
+                      <option value="disabled" className="bg-zinc-900 text-white">{t('settings.preload_disabled')}</option>
+                    </select>
+                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" />
+                  </div>
+                  <span className="text-xs text-[#b3b3b3]">{t('settings.preload_mode_desc')}</span>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs text-[#b3b3b3] font-medium">{t('settings.preload_lookahead')}</span>
+                  <div className="relative">
+                    <select
+                      value={settings.preloadLookahead}
+                      onChange={(e) => settings.setPreloadLookahead(Number(e.target.value) as any)}
+                      className="w-full bg-foreground/10 border border-white/20 rounded-lg py-2.5 px-3 text-sm text-white outline-none focus:border-primary appearance-none cursor-pointer pr-10"
+                    >
+                      <option value={5} className="bg-zinc-900 text-white">{t('settings.preload_lookahead_5s')}</option>
+                      <option value={15} className="bg-zinc-900 text-white">{t('settings.preload_lookahead_15s')}</option>
+                      <option value={30} className="bg-zinc-900 text-white">{t('settings.preload_lookahead_30s')}</option>
+                    </select>
+                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" />
+                  </div>
+                  <span className="text-xs text-[#b3b3b3]">{t('settings.preload_lookahead_desc')}</span>
+                </div>
+
+                <label className="flex items-center justify-between pt-1 cursor-pointer">
+                  <div className="flex flex-col pr-4">
+                    <span className="text-[15px] font-medium text-white">{t('settings.preload_covers')}</span>
+                    <span className="text-[13px] text-[#b3b3b3]">{t('settings.preload_covers_desc')}</span>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={settings.preloadCovers} 
+                    onChange={(e) => settings.setPreloadCovers(e.target.checked)}
+                    className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
+                  />
+                </label>
+              </div>
+            )}
+          </div>
         </div>
       )
     },

@@ -11,6 +11,9 @@ export type AccentColor = string;
 export type ClickAction = 'play_now' | 'play_next';
 export type StartPage = '/' | '/albums' | '/radio' | '/favorites';
 export type VisualizerStyle = 'classic' | 'modern' | 'wave' | 'radial' | 'peaks';
+export type StreamingQuality = 'opus-256' | 'raw' | 'opus-192' | 'opus-128' | 'mp3-320';
+export type PreloadMode = 'wifi_only' | 'always' | 'disabled';
+export type PreloadLookahead = 5 | 15 | 30;
 
 export interface SettingsState {
   theme: AppTheme;
@@ -26,6 +29,10 @@ export interface SettingsState {
   isGaplessEnabled: boolean;
   isLoudnessNormalizationEnabled: boolean;
   preloadNextTrack: boolean;
+  streamingQuality: StreamingQuality;
+  preloadMode: PreloadMode;
+  preloadLookahead: PreloadLookahead;
+  preloadCovers: boolean;
   runOnStartup: boolean;
   startMinimized: boolean;
   closeToTray: boolean;
@@ -58,6 +65,10 @@ export interface SettingsState {
   setIsGaplessEnabled: (enabled: boolean) => void;
   setIsLoudnessNormalizationEnabled: (enabled: boolean) => void;
   setPreloadNextTrack: (enabled: boolean) => void;
+  setStreamingQuality: (quality: StreamingQuality) => void;
+  setPreloadMode: (mode: PreloadMode) => void;
+  setPreloadLookahead: (seconds: PreloadLookahead) => void;
+  setPreloadCovers: (enabled: boolean) => void;
   setRunOnStartup: (enabled: boolean) => void;
   setStartMinimized: (enabled: boolean) => void;
   setCloseToTray: (enabled: boolean) => void;
@@ -101,6 +112,10 @@ export const useSettingsStore = create<SettingsState>()(
       isGaplessEnabled: false,
       isLoudnessNormalizationEnabled: false,
       preloadNextTrack: true,
+      streamingQuality: 'opus-256',
+      preloadMode: 'wifi_only',
+      preloadLookahead: 15,
+      preloadCovers: true,
       runOnStartup: true,
       startMinimized: true,
       closeToTray: true,
@@ -156,6 +171,10 @@ export const useSettingsStore = create<SettingsState>()(
       })),
       setIsLoudnessNormalizationEnabled: (isLoudnessNormalizationEnabled) => set({ isLoudnessNormalizationEnabled }),
       setPreloadNextTrack: (preloadNextTrack) => set({ preloadNextTrack }),
+      setStreamingQuality: (streamingQuality) => set({ streamingQuality }),
+      setPreloadMode: (preloadMode) => set({ preloadMode }),
+      setPreloadLookahead: (preloadLookahead) => set({ preloadLookahead }),
+      setPreloadCovers: (preloadCovers) => set({ preloadCovers }),
       setRunOnStartup: (runOnStartup) => set({ runOnStartup }),
       setStartMinimized: (startMinimized) => set({ startMinimized }),
       setCloseToTray: (closeToTray) => set({ closeToTray }),
