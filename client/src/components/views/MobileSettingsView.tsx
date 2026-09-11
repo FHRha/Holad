@@ -9,7 +9,9 @@ import { useAuthStore } from '../../store/authStore';
 import { clearAppCache } from '../../utils/storage';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { toggleOfflineMode } from '../../utils/networkStatus';
-import Slider from '../common/Slider';
+import LiquidSeekBar from '../common/LiquidSeekBar';
+import { pushPreferences } from '../../api/preferences';
+import { pushIntegrations } from '../../api/integrations';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../common/LanguageSelector';
 import DeleteDownloadsModal from '../modals/DeleteDownloadsModal';
@@ -242,7 +244,13 @@ export default function MobileSettingsView() {
             <input 
               type="checkbox" 
               checked={settings.useLastFm} 
-              onChange={(e) => settings.setUseLastFm(e.target.checked)}
+              onChange={(e) => {
+                const val = e.target.checked;
+                settings.setUseLastFm(val);
+                pushIntegrations([
+                  { integration_name: 'lastfm', token: settings.lastFmKey, enabled: val }
+                ]);
+              }}
               className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
             />
           </label>
@@ -254,6 +262,11 @@ export default function MobileSettingsView() {
                   placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
                   value={settings.lastFmKey}
                   onChange={(e) => settings.setLastFmKey(e.target.value)}
+                  onBlur={() => {
+                    pushIntegrations([
+                      { integration_name: 'lastfm', token: settings.lastFmKey, enabled: settings.useLastFm }
+                    ]);
+                  }}
                   className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
                 />
                 <button 
@@ -278,7 +291,13 @@ export default function MobileSettingsView() {
             <input 
               type="checkbox" 
               checked={settings.useYandex} 
-              onChange={(e) => settings.setUseYandex(e.target.checked)}
+              onChange={(e) => {
+                const val = e.target.checked;
+                settings.setUseYandex(val);
+                pushIntegrations([
+                  { integration_name: 'yandex', token: settings.yandexToken, enabled: val }
+                ]);
+              }}
               className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
             />
           </label>
@@ -290,6 +309,11 @@ export default function MobileSettingsView() {
                   placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
                   value={settings.yandexToken}
                   onChange={(e) => settings.setYandexToken(e.target.value)}
+                  onBlur={() => {
+                    pushIntegrations([
+                      { integration_name: 'yandex', token: settings.yandexToken, enabled: settings.useYandex }
+                    ]);
+                  }}
                   className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
                 />
                 <button 
@@ -329,6 +353,27 @@ export default function MobileSettingsView() {
                 <span>{t('settings.theme_dark', 'Dark')}</span>
               </button>
             </div>
+            <label className="flex items-center gap-3 cursor-pointer group mt-2">
+              <input 
+                type="checkbox" 
+                checked={settings.syncTheme} 
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  settings.setSyncTheme(val);
+                  if (val) {
+                    pushPreferences({
+                      theme: settings.theme,
+                      accent_color: settings.accentColor,
+                      custom_colors: JSON.stringify(settings.customColors)
+                    });
+                  }
+                }}
+                className="accent-primary w-4 h-4 rounded cursor-pointer"
+              />
+              <span className="text-xs text-secondary">
+                {t('settings.sync_theme', 'Синхронизировать тему и оформление с сервером')}
+              </span>
+            </label>
           </div>
           
           <div className="flex flex-col gap-3">
@@ -343,11 +388,36 @@ export default function MobileSettingsView() {
           <div className="flex flex-col gap-3">
             <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_accent')}</span>
             <div className="flex gap-2 flex-wrap">
-              <ColorOption color="green" hex="#1db954" current={settings.accentColor} onSelect={settings.setAccentColor} />
-              <ColorOption color="blue" hex="#3b82f6" current={settings.accentColor} onSelect={settings.setAccentColor} />
-              <ColorOption color="purple" hex="#a855f7" current={settings.accentColor} onSelect={settings.setAccentColor} />
-              <ColorOption color="pink" hex="#ec4899" current={settings.accentColor} onSelect={settings.setAccentColor} />
-              <ColorOption color="orange" hex="#f97316" current={settings.accentColor} onSelect={settings.setAccentColor} />
+              <ColorOption color="green" hex="#1db954" current={settings.accentColor} onSelect={(color) => {
+                settings.setAccentColor(color);
+                if (settings.syncTheme) {
+                  pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
+                }
+              }} />
+              <ColorOption color="blue" hex="#3b82f6" current={settings.accentColor} onSelect={(color) => {
+                settings.setAccentColor(color);
+                if (settings.syncTheme) {
+                  pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
+                }
+              }} />
+              <ColorOption color="purple" hex="#a855f7" current={settings.accentColor} onSelect={(color) => {
+                settings.setAccentColor(color);
+                if (settings.syncTheme) {
+                  pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
+                }
+              }} />
+              <ColorOption color="pink" hex="#ec4899" current={settings.accentColor} onSelect={(color) => {
+                settings.setAccentColor(color);
+                if (settings.syncTheme) {
+                  pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
+                }
+              }} />
+              <ColorOption color="orange" hex="#f97316" current={settings.accentColor} onSelect={(color) => {
+                settings.setAccentColor(color);
+                if (settings.syncTheme) {
+                  pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
+                }
+              }} />
             </div>
 
             <div className="flex items-center gap-2 mt-2">
@@ -365,6 +435,9 @@ export default function MobileSettingsView() {
                       } else {
                         settings.setAccentColor(color);
                         setEditingColorIndex(null);
+                        if (settings.syncTheme) {
+                          pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
+                        }
                       }
                     }}
                     className={`relative w-10 h-10 rounded-full border-2 transition-all cursor-pointer flex items-center justify-center ${
@@ -391,7 +464,12 @@ export default function MobileSettingsView() {
               <div className="bg-black/30 p-4 rounded-2xl border border-white/10 mt-2 space-y-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-bold text-sm">{t('views.settings_color_setup')}</span>
-                  <button onClick={() => setEditingColorIndex(null)}><Check size={18} className="text-primary" /></button>
+                  <button onClick={() => {
+                    setEditingColorIndex(null);
+                    if (settings.syncTheme) {
+                      pushPreferences({ theme: settings.theme, accent_color: settings.accentColor, custom_colors: JSON.stringify(settings.customColors) });
+                    }
+                  }}><Check size={18} className="text-primary" /></button>
                 </div>
                 <input 
                   type="range" min="0" max="360" 
@@ -448,7 +526,7 @@ export default function MobileSettingsView() {
           <div className="flex flex-col gap-3">
             <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_default_volume')}</span>
             <div className="bg-black/20 p-4 rounded-xl">
-              <Slider value={volume} onChange={setVolume} thickness="thick" />
+              <LiquidSeekBar value={volume} onChange={setVolume} />
               <div className="flex justify-between text-xs text-secondary mt-3">
                 <span>0%</span>
                 <span>{Math.round(volume * 100)}%</span>

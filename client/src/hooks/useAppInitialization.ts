@@ -5,6 +5,10 @@ import { useAuthStore } from '../store/authStore';
 import { fetchStarred, getPlayQueue, getCoverArtUrl } from '../api/subsonic';
 import { fetchExclusions } from '../api/exclusions';
 import { syncHistoryWithServer } from '../api/history';
+import { fetchPreferences } from '../api/preferences';
+import { fetchIntegrations } from '../api/integrations';
+import { fetchPlaybackState } from '../api/playback';
+import { useSettingsStore } from '../store/settingsStore';
 import { jamSocket } from '../api/socket';
 import { useHoladStore } from '../store/holadStore';
 import { useSocialStore } from '../store/socialStore';
@@ -57,6 +61,52 @@ export function useAppInitialization() {
       }).catch(e => console.error("Failed to fetch exclusions", e));
 
       syncHistoryWithServer().catch(e => console.error("Failed to sync history with server", e));
+
+      fetchPreferences().then(prefs => {
+        if (prefs) {
+          const { syncTheme, syncLanguage, setTheme, setAccentColor, setCustomColor, setLanguage } = useSettingsStore.getState();
+          if (syncTheme) {
+            if (prefs.theme && (prefs.theme === 'dark' || prefs.theme === 'light' || prefs.theme === 'system')) {
+              setTheme(prefs.theme);
+            }
+            if (prefs.accent_color) {
+              setAccentColor(prefs.accent_color);
+            }
+            if (prefs.custom_colors) {
+              try {
+                const colors = typeof prefs.custom_colors === 'string' ? JSON.parse(prefs.custom_colors) : prefs.custom_colors;
+                if (Array.isArray(colors)) {
+                  colors.forEach((col: string, idx: number) => {
+                    if (idx < 3) setCustomColor(idx, col);
+                  });
+                }
+              } catch {}
+            }
+          }
+          if (syncLanguage && prefs.language) {
+            setLanguage(prefs.language);
+          }
+        }
+      }).catch(e => console.error("Failed to fetch preferences", e));
+
+      fetchIntegrations().then(items => {
+        if (Array.isArray(items)) {
+          const { setLastFmKey, setUseLastFm, setYandexToken, setUseYandex } = useSettingsStore.getState();
+          for (const item of items) {
+            if (item.integration_name === 'lastfm') {
+              if (item.token) {
+                setLastFmKey(item.token);
+                setUseLastFm(item.enabled !== false);
+              }
+            } else if (item.integration_name === 'yandex') {
+              if (item.token) {
+                setYandexToken(item.token);
+                setUseYandex(item.enabled !== false);
+              }
+            }
+          }
+        }
+      }).catch(e => console.error("Failed to fetch integrations", e));
     }
 
     // Do not load default play queue if on a Jam route or joining a room
@@ -99,6 +149,14 @@ export function useAppInitialization() {
             isPlaying: false, 
             initialPosition: pos
           });
+
+          if (pos === 0) {
+            fetchPlaybackState().then(pbState => {
+              if (pbState && pbState.position && pbState.song_id === queueData.current) {
+                usePlayerStore.setState({ initialPosition: pbState.position * 1000 });
+              }
+            }).catch(() => {});
+          }
         }
       }).catch(e => console.error("Failed to fetch play queue", e));
     }

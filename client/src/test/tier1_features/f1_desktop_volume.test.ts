@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { usePlayerStore } from '../../store/playerStore';
 import { WebAudioCore } from '../../audio/WebAudioCore';
 import { VolumeManager, volumeManager } from '../../audio/VolumeManager';
-import { UnifiedAudioEngine } from '../../audio/UnifiedAudioEngine';
 import { resetAllStores } from '../helpers/testUtils';
 
 describe('Tier 1 - F1: Desktop Volume Control', () => {
@@ -67,18 +66,17 @@ describe('Tier 1 - F1: Desktop Volume Control', () => {
     expect(usePlayerStore.getState().volumeMultiplier).toBe(1.0);
   });
 
-  it('F1-5: UnifiedAudioEngine coordinates VolumeManager and driver setVolume', () => {
+  it('F1-5: VolumeManager coordinates master volume and WebAudioCore setVolume', () => {
     const webAudio = new WebAudioCore();
-    const engine = new UnifiedAudioEngine(webAudio);
-
-    engine.setVolume(0.6);
+    volumeManager.setMasterVolume(0.6);
+    webAudio.setVolume(volumeManager.getState().master);
     expect(volumeManager.getState().master).toBe(0.6);
 
     const ctx = webAudio.getAudioContext() as any;
     const gainNode = ctx.createdNodes.find((n: any) => n.gain !== undefined);
     expect(gainNode.gain.value).toBe(0.6);
 
-    engine.destroy();
+    webAudio.destroy();
   });
 
   it('F1-6: Volume changes reflect immediately without audio clipping or NaN values', () => {

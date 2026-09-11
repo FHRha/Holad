@@ -6,6 +6,7 @@ import { useAudioStore } from '../store/audioStore';
 import { useHoladStore } from '../store/holadStore';
 import { useHistoryStore } from '../store/historyStore';
 import { pushHistoryEntry } from '../api/history';
+import { savePlaybackState } from '../api/playback';
 import { useSettingsStore } from '../store/settingsStore';
 import { useTrackSource } from './useTrackSource';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
@@ -289,8 +290,41 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     } else {
       flushPositionToLocalStorage();
       engineRef.current.pause();
+      if (isActiveDevice) {
+        savePlaybackState({
+          song_id: currentTrack.id,
+          position: Math.round(latestPositionRef.current),
+          volume
+        });
+      }
     }
-  }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage]);
+  }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, volume]);
+
+  // Save playback state on tab close or hide
+  useEffect(() => {
+    const handleSaveState = () => {
+      if (currentTrack && latestPositionRef.current > 0 && isActiveDevice) {
+        savePlaybackState({
+          song_id: currentTrack.id,
+          position: Math.round(latestPositionRef.current),
+          volume
+        }, true);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        handleSaveState();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleSaveState);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('beforeunload', handleSaveState);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [currentTrack, isActiveDevice, volume]);
 
   // Audio mode dynamic change in Jam
   useEffect(() => {

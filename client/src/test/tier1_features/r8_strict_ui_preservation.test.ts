@@ -10,7 +10,6 @@ import { useUIStore } from '../../store/uiStore';
 import BottomPlayer from '../../components/player/BottomPlayer';
 import SettingsModal from '../../components/modals/SettingsModal';
 import LiquidSeekBar from '../../components/common/LiquidSeekBar';
-import Slider from '../../components/common/Slider';
 import { ErrorBoundary } from '../../components/common/ErrorBoundary';
 
 describe('Tier 1 - R8: Strict UI Preservation & Design System Tokens', () => {
@@ -84,22 +83,14 @@ describe('Tier 1 - R8: Strict UI Preservation & Design System Tokens', () => {
     expect(canvas).not.toBeNull();
   });
 
-  it('R8-5: Slider component supports normal and thick thickness variants preserving design system classes', () => {
-    const { container: normalContainer } = render(
-      React.createElement(Slider, {
+  it('R8-5: LiquidSeekBar supports custom className prop preserving design system styling', () => {
+    const { container } = render(
+      React.createElement(LiquidSeekBar, {
         value: 0.5,
-        thickness: 'normal',
+        className: 'custom-seekbar-test',
       })
     );
-    expect(normalContainer.querySelector('.h-1')).not.toBeNull();
-
-    const { container: thickContainer } = render(
-      React.createElement(Slider, {
-        value: 0.5,
-        thickness: 'thick',
-      })
-    );
-    expect(thickContainer.querySelector('.h-2')).not.toBeNull();
+    expect(container.querySelector('.custom-seekbar-test')).not.toBeNull();
   });
 
   it('R8-6: ErrorBoundary wraps UI children and recovers cleanly without crashing component tree', () => {

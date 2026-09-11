@@ -78,6 +78,10 @@ export interface SettingsState {
   setVisualizerStyle: (style: VisualizerStyle) => void;
   includePrereleases: boolean;
   setIncludePrereleases: (enabled: boolean) => void;
+  syncTheme: boolean;
+  setSyncTheme: (sync: boolean) => void;
+  syncLanguage: boolean;
+  setSyncLanguage: (sync: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -176,6 +180,10 @@ export const useSettingsStore = create<SettingsState>()(
       setVisualizerStyle: (visualizerStyle) => set({ visualizerStyle }),
       includePrereleases: typeof __APP_VERSION__ !== 'undefined' && typeof __APP_VERSION__ === 'string' ? __APP_VERSION__.includes('-') : false,
       setIncludePrereleases: (includePrereleases) => set({ includePrereleases }),
+      syncTheme: true,
+      setSyncTheme: (syncTheme) => set({ syncTheme }),
+      syncLanguage: true,
+      setSyncLanguage: (syncLanguage) => set({ syncLanguage }),
     }),
     {
       name: 'holad-settings',

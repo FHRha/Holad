@@ -18,7 +18,6 @@ import ArtistsView from './components/views/ArtistsView';
 import LoginView from './components/views/LoginView';
 import RadioView from './components/views/RadioView';
 import MobileSettingsView from './components/views/MobileSettingsView';
-import SyncConflictModal from './components/common/SyncConflictModal';
 import HistoryView from './components/views/HistoryView';
 import DownloadsView from './components/views/DownloadsView';
 import FriendsView from './components/views/FriendsView';
@@ -324,7 +323,6 @@ function AppContent() {
           </Routes>
           
           <NowPlayingModal />
-          <SyncConflictModal />
           <MobileSearchOverlay />
           {isSettingsOpen && <SettingsModal />}
           {isOfflineModalOpen && <OfflineModeModal isOpen={isOfflineModalOpen} onClose={() => setOfflineModalOpen(false)} />}

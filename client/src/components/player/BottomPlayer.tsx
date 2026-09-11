@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
 import { starItem, unstarItem } from '../../api/subsonic';
-import Slider from '../common/Slider';
+import LiquidSeekBar from '../common/LiquidSeekBar';
 import ArtistLinks from '../common/ArtistLinks';
 import TrackImage from '../common/TrackImage';
 import { getCoverArtUrl } from '../../api/subsonic';
@@ -263,7 +263,7 @@ export default function BottomPlayer() {
                 {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
               </button>
               <div className="hidden md:block flex-1 min-w-[60px] max-w-[100px]">
-                <Slider 
+                <LiquidSeekBar 
                   value={volume} 
                   onChange={setVolume}
                   onDrag={(newVolume) => {
@@ -274,7 +274,6 @@ export default function BottomPlayer() {
                     setDragVolume(null);
                     setVolume(newVolume);
                   }} 
-                  thickness="thick" 
                 />
               </div>
               <span className="hidden md:block text-xs font-bold w-9 text-right flex-shrink-0">{Math.round((dragVolume !== null ? dragVolume : volume) * 100)}%</span>

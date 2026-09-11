@@ -8,8 +8,10 @@ import type { AppTheme, AccentColor, StartPage } from '../../store/settingsStore
 import { usePlayerStore } from '../../store/playerStore';
 import { useDownloadStore } from '../../store/downloadStore';
 import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
-import Slider from '../common/Slider';
+import LiquidSeekBar from '../common/LiquidSeekBar';
 import Dropdown from '../common/Dropdown';
+import { pushPreferences } from '../../api/preferences';
+import { pushIntegrations } from '../../api/integrations';
 import DeleteDownloadsModal from './DeleteDownloadsModal';
 import StorageStatsBar from '../settings/StorageStatsBar';
 import StorageLimitControl from '../settings/StorageLimitControl';
@@ -254,12 +256,34 @@ export default function SettingsModal({
                 <SettingSection title={t('settings.language') || 'Язык'}>
                   <Dropdown
                     value={settings.language}
-                    onChange={(val) => settings.setLanguage(val)}
+                    onChange={(val) => {
+                      settings.setLanguage(val);
+                      if (settings.syncLanguage) {
+                        pushPreferences({ language: val });
+                      }
+                    }}
                     options={[
                       { label: 'Русский', value: 'ru' },
                       { label: 'English', value: 'en' }
                     ]}
                   />
+                  <label className="flex items-center gap-3 cursor-pointer group mt-2">
+                    <input 
+                      type="checkbox" 
+                      checked={settings.syncLanguage} 
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        settings.setSyncLanguage(val);
+                        if (val) {
+                          pushPreferences({ language: settings.language });
+                        }
+                      }}
+                      className="accent-primary w-4 h-4 rounded cursor-pointer"
+                    />
+                    <span className="group-hover:text-primary transition-colors text-xs text-secondary">
+                      {t('settings.sync_language', 'Синхронизировать язык с сервером')}
+                    </span>
+                  </label>
                 </SettingSection>
 
                 <SettingSection title={t('settings.startPage')}>
@@ -305,7 +329,13 @@ export default function SettingsModal({
                       <input 
                         type="checkbox" 
                         checked={settings.useLastFm} 
-                        onChange={(e) => settings.setUseLastFm(e.target.checked)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          settings.setUseLastFm(checked);
+                          pushIntegrations([
+                            { integration_name: 'lastfm', token: settings.lastFmKey, enabled: checked }
+                          ]);
+                        }}
                         className="accent-primary w-4 h-4 rounded cursor-pointer"
                       />
                       <span className="group-hover:text-primary transition-colors text-sm">
@@ -320,6 +350,11 @@ export default function SettingsModal({
                             placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
                             value={settings.lastFmKey}
                             onChange={(e) => settings.setLastFmKey(e.target.value)}
+                            onBlur={() => {
+                              pushIntegrations([
+                                { integration_name: 'lastfm', token: settings.lastFmKey, enabled: settings.useLastFm }
+                              ]);
+                            }}
                             className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
                           />
                           <button 
@@ -342,7 +377,13 @@ export default function SettingsModal({
                       <input 
                         type="checkbox" 
                         checked={settings.useYandex} 
-                        onChange={(e) => settings.setUseYandex(e.target.checked)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          settings.setUseYandex(checked);
+                          pushIntegrations([
+                            { integration_name: 'yandex', token: settings.yandexToken, enabled: checked }
+                          ]);
+                        }}
                         className="accent-primary w-4 h-4 rounded cursor-pointer"
                       />
                       <span className="group-hover:text-primary transition-colors text-sm">
@@ -358,6 +399,11 @@ export default function SettingsModal({
                             placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
                             value={settings.yandexToken}
                             onChange={(e) => settings.setYandexToken(e.target.value)}
+                            onBlur={() => {
+                              pushIntegrations([
+                                { integration_name: 'yandex', token: settings.yandexToken, enabled: settings.useYandex }
+                              ]);
+                            }}
                             className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
                           />
                           <button 
@@ -457,10 +503,58 @@ export default function SettingsModal({
               <div className="space-y-6">
                 <SettingSection title={t('settings.theme') || 'Тема'}>
                   <div className="flex gap-2">
-                    <ThemeOption label={t('settings.theme_dark', 'Dark')} value="dark" current={settings.theme} onSelect={settings.setTheme} />
-                    <ThemeOption label={t('settings.theme_light', 'Light')} value="light" current={settings.theme} onSelect={settings.setTheme} />
-                    <ThemeOption label={t('settings.theme_system', 'System')} value="system" current={settings.theme} onSelect={settings.setTheme} />
+                    <ThemeOption label={t('settings.theme_dark', 'Dark')} value="dark" current={settings.theme} onSelect={(val) => {
+                      settings.setTheme(val);
+                      if (settings.syncTheme) {
+                        pushPreferences({
+                          theme: val,
+                          accent_color: settings.accentColor,
+                          custom_colors: JSON.stringify(settings.customColors)
+                        });
+                      }
+                    }} />
+                    <ThemeOption label={t('settings.theme_light', 'Light')} value="light" current={settings.theme} onSelect={(val) => {
+                      settings.setTheme(val);
+                      if (settings.syncTheme) {
+                        pushPreferences({
+                          theme: val,
+                          accent_color: settings.accentColor,
+                          custom_colors: JSON.stringify(settings.customColors)
+                        });
+                      }
+                    }} />
+                    <ThemeOption label={t('settings.theme_system', 'System')} value="system" current={settings.theme} onSelect={(val) => {
+                      settings.setTheme(val);
+                      if (settings.syncTheme) {
+                        pushPreferences({
+                          theme: val,
+                          accent_color: settings.accentColor,
+                          custom_colors: JSON.stringify(settings.customColors)
+                        });
+                      }
+                    }} />
                   </div>
+                  <label className="flex items-center gap-3 cursor-pointer group mt-3">
+                    <input 
+                      type="checkbox" 
+                      checked={settings.syncTheme} 
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        settings.setSyncTheme(val);
+                        if (val) {
+                          pushPreferences({
+                            theme: settings.theme,
+                            accent_color: settings.accentColor,
+                            custom_colors: JSON.stringify(settings.customColors)
+                          });
+                        }
+                      }}
+                      className="accent-primary w-4 h-4 rounded cursor-pointer"
+                    />
+                    <span className="group-hover:text-primary transition-colors text-xs text-secondary">
+                      {t('settings.sync_theme', 'Синхронизировать тему и оформление с сервером')}
+                    </span>
+                  </label>
                 </SettingSection>
 
                 <SettingSection title={t('settings.appIcon') || 'App Icon'}>
@@ -474,11 +568,36 @@ export default function SettingsModal({
                 <SettingSection title={t('settings.accentColor') || 'Цвет'}>
                   <div className="flex flex-col gap-3">
                     <div className="flex gap-2">
-                      <ColorOption color="green" hex="#1db954" current={settings.accentColor} onSelect={settings.setAccentColor} />
-                      <ColorOption color="blue" hex="#3b82f6" current={settings.accentColor} onSelect={settings.setAccentColor} />
-                      <ColorOption color="purple" hex="#a855f7" current={settings.accentColor} onSelect={settings.setAccentColor} />
-                      <ColorOption color="pink" hex="#ec4899" current={settings.accentColor} onSelect={settings.setAccentColor} />
-                      <ColorOption color="orange" hex="#f97316" current={settings.accentColor} onSelect={settings.setAccentColor} />
+                      <ColorOption color="green" hex="#1db954" current={settings.accentColor} onSelect={(color) => {
+                        settings.setAccentColor(color);
+                        if (settings.syncTheme) {
+                          pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
+                        }
+                      }} />
+                      <ColorOption color="blue" hex="#3b82f6" current={settings.accentColor} onSelect={(color) => {
+                        settings.setAccentColor(color);
+                        if (settings.syncTheme) {
+                          pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
+                        }
+                      }} />
+                      <ColorOption color="purple" hex="#a855f7" current={settings.accentColor} onSelect={(color) => {
+                        settings.setAccentColor(color);
+                        if (settings.syncTheme) {
+                          pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
+                        }
+                      }} />
+                      <ColorOption color="pink" hex="#ec4899" current={settings.accentColor} onSelect={(color) => {
+                        settings.setAccentColor(color);
+                        if (settings.syncTheme) {
+                          pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
+                        }
+                      }} />
+                      <ColorOption color="orange" hex="#f97316" current={settings.accentColor} onSelect={(color) => {
+                        settings.setAccentColor(color);
+                        if (settings.syncTheme) {
+                          pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
+                        }
+                      }} />
                     </div>
 
                     <div className="flex items-center gap-2 mt-2">
@@ -681,10 +800,9 @@ export default function SettingsModal({
 
                 <SettingSection title={t('settings.defaultVolume') || 'Громкость'}>
                   <div className="pt-2 pb-1">
-                    <Slider 
+                    <LiquidSeekBar 
                       value={volume} 
                       onChange={setVolume} 
-                      thickness="thick" 
                     />
                   </div>
                   <div className="flex justify-between text-xs text-secondary mt-3">

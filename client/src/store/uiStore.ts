@@ -51,9 +51,6 @@ interface UIState {
   rightSidebarWidth: number;
   setRightSidebarWidth: (width: number) => void;
   
-  pendingHistorySync: any[] | null;
-  setPendingHistorySync: (sync: any[] | null) => void;
-  
   isPlaylistModalOpen: boolean;
   setPlaylistModalOpen: (open: boolean) => void;
   playlistTargetItem: any | null;
@@ -106,9 +103,6 @@ export const useUIStore = create<UIState>()(
       setLeftSidebarWidth: (width) => set({ leftSidebarWidth: width }),
       rightSidebarWidth: RIGHT_SIDEBAR_DEFAULT_WIDTH,
       setRightSidebarWidth: (width) => set({ rightSidebarWidth: width }),
-      
-      pendingHistorySync: null,
-      setPendingHistorySync: (sync) => set({ pendingHistorySync: sync }),
       
       isPlaylistModalOpen: false,
       setPlaylistModalOpen: (open) => set({ isPlaylistModalOpen: open }),

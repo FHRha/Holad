@@ -412,3 +412,114 @@ describe('Database History Functions & Delta Sync', () => {
     expect(history.length).toBe(0);
   });
 });
+
+describe('Database Preferences Functions', () => {
+  const testUserId = 'pref_user_' + Date.now();
+
+  it('saves and retrieves user preferences', () => {
+    database.savePreferences(testUserId, {
+      theme: 'dark',
+      accent_color: '#1db954',
+      custom_colors: JSON.stringify(['#111', '#222', '#333']),
+      language: 'ru'
+    });
+
+    const prefs = database.getPreferences(testUserId);
+    expect(prefs).toBeDefined();
+    expect(prefs?.theme).toBe('dark');
+    expect(prefs?.accent_color).toBe('#1db954');
+    expect(prefs?.language).toBe('ru');
+    expect(prefs?.updated_at).toBeGreaterThan(0);
+  });
+
+  it('updates partial preferences without clobbering existing fields', () => {
+    database.savePreferences(testUserId, {
+      theme: 'light'
+    });
+
+    const prefs = database.getPreferences(testUserId);
+    expect(prefs?.theme).toBe('light');
+    expect(prefs?.accent_color).toBe('#1db954');
+    expect(prefs?.language).toBe('ru');
+  });
+});
+
+describe('Database Playback State Functions', () => {
+  const testUserId = 'pb_user_' + Date.now();
+
+  it('saves and retrieves playback state', () => {
+    database.savePlaybackState(testUserId, {
+      song_id: 'trk_999',
+      position: 125,
+      volume: 0.8
+    });
+
+    const state = database.getPlaybackState(testUserId);
+    expect(state).toBeDefined();
+    expect(state?.song_id).toBe('trk_999');
+    expect(state?.position).toBe(125);
+    expect(state?.volume).toBe(0.8);
+    expect(state?.updated_at).toBeGreaterThan(0);
+  });
+
+  it('updates playback state on pause/close', () => {
+    database.savePlaybackState(testUserId, {
+      song_id: 'trk_1000',
+      position: 240,
+      volume: 0.5
+    });
+
+    const state = database.getPlaybackState(testUserId);
+    expect(state?.song_id).toBe('trk_1000');
+    expect(state?.position).toBe(240);
+    expect(state?.volume).toBe(0.5);
+  });
+});
+
+describe('Database Integrations Functions & AES-256-GCM Encryption', () => {
+  const testUserId = 'intg_user_' + Date.now();
+
+  it('saves and retrieves integration tokens with decryption', () => {
+    database.saveIntegrations(testUserId, [
+      { integration_name: 'lastfm', token: 'secret_lastfm_key_123', enabled: true },
+      { integration_name: 'yandex', token: 'secret_yandex_token_456', enabled: true }
+    ]);
+
+    const items = database.getIntegrations(testUserId);
+    expect(items.length).toBe(2);
+
+    const lastfm = items.find(i => i.integration_name === 'lastfm');
+    const yandex = items.find(i => i.integration_name === 'yandex');
+
+    expect(lastfm?.token).toBe('secret_lastfm_key_123');
+    expect(lastfm?.enabled).toBe(true);
+
+    expect(yandex?.token).toBe('secret_yandex_token_456');
+    expect(yandex?.enabled).toBe(true);
+  });
+
+  it('verifies that token is encrypted at rest in SQLite database', () => {
+    // Encrypted token in database should start with gcm: and not contain plaintext
+    const items = database.getIntegrations(testUserId);
+    expect(items.length).toBe(2);
+
+    // Test decrypting with safeDecrypt
+    const encrypted = database.safeEncrypt('super_sensitive_token');
+    expect(encrypted).toMatch(/^gcm:[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/);
+    expect(encrypted).not.toContain('super_sensitive_token');
+
+    const decrypted = database.safeDecrypt(encrypted);
+    expect(decrypted).toBe('super_sensitive_token');
+  });
+
+  it('removes or updates integration when disabled with empty token', () => {
+    database.saveIntegrations(testUserId, [
+      { integration_name: 'lastfm', token: '', enabled: false }
+    ]);
+
+    const items = database.getIntegrations(testUserId);
+    const lastfm = items.find(i => i.integration_name === 'lastfm');
+    expect(lastfm).toBeUndefined();
+  });
+});
+

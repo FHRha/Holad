@@ -8,12 +8,10 @@ import { createJamSlice } from './slices/jamSlice';
 import type { JamSlice } from './slices/jamSlice';
 import { createSocialSlice } from './slices/socialSlice';
 import type { SocialSlice } from './slices/socialSlice';
-import { createPlaylistSlice } from './slices/playlistSlice';
-import type { PlaylistSlice } from './slices/playlistSlice';
 import type { Track } from '../types';
 import { isJamPath } from '../utils/basePath';
 
-export type PlayerState = PlaybackSlice & QueueSlice & JamSlice & SocialSlice & PlaylistSlice;
+export type PlayerState = PlaybackSlice & QueueSlice & JamSlice & SocialSlice;
 
 export type { Track }; // Re-export for backwards compatibility
 
@@ -24,7 +22,6 @@ export const usePlayerStore = create<PlayerState>()(
       ...createQueueSlice(...a),
       ...createJamSlice(...a),
       ...createSocialSlice(...a),
-      ...createPlaylistSlice(...a),
     }),
     {
       name: 'holad-storage',
@@ -40,7 +37,6 @@ export const usePlayerStore = create<PlayerState>()(
 
         if (shouldIsolateQueue) {
           return {
-            localPlaylists: state.localPlaylists,
             volume: state.volume,
             mobileVolume: state.mobileVolume,
             volumeMultiplier: state.volumeMultiplier,
@@ -52,7 +48,6 @@ export const usePlayerStore = create<PlayerState>()(
         }
 
         return {
-          localPlaylists: state.localPlaylists,
           volume: state.volume,
           mobileVolume: state.mobileVolume,
           volumeMultiplier: state.volumeMultiplier,

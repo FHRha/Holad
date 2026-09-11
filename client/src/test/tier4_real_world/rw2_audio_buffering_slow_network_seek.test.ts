@@ -6,7 +6,7 @@ import { AudioEngine } from '../../audio/AudioEngine';
 // oxlint-disable-next-line
 import { createMockAudioElement, MockTimeRanges } from '../mocks/mockAudio';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
-import Slider from '../../components/common/Slider';
+import LiquidSeekBar from '../../components/common/LiquidSeekBar';
 
 describe('Tier 4 - Scenario 2: Slow Network Buffering, Seekbar Interaction & Recovery (R2, R8)', () => {
   beforeEach(() => {
@@ -42,7 +42,7 @@ describe('Tier 4 - Scenario 2: Slow Network Buffering, Seekbar Interaction & Rec
 
     // 2. Render seekbar with 15% buffer
     const { container, rerender } = render(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.05,
         buffered: 0.15,
       } as any)
@@ -52,7 +52,7 @@ describe('Tier 4 - Scenario 2: Slow Network Buffering, Seekbar Interaction & Rec
     // 3. Network delivers next chunk (up to 50% buffer = 100s)
     (el0 as any).simulateBufferProgress(0, 100);
     rerender(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.1,
         buffered: 0.5,
       } as any)
@@ -61,7 +61,7 @@ describe('Tier 4 - Scenario 2: Slow Network Buffering, Seekbar Interaction & Rec
     // 4. User seeks forward to 40s (0.20), inside buffered range
     engine.seek(40);
     rerender(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.2,
         buffered: 0.5,
       } as any)
@@ -71,7 +71,7 @@ describe('Tier 4 - Scenario 2: Slow Network Buffering, Seekbar Interaction & Rec
     // 5. Final buffer completion (100%)
     (el0 as any).simulateBufferProgress(0, 200);
     rerender(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.2,
         buffered: 1.0,
       } as any)

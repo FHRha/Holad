@@ -3,7 +3,6 @@ import { render, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { useAudioStore } from '../../store/audioStore';
 import LiquidSeekBar from '../../components/common/LiquidSeekBar';
-import Slider from '../../components/common/Slider';
 import { MockAudioElement, MockTimeRanges } from '../mocks/mockAudio';
 import { resetAllStores } from '../helpers/testUtils';
 
@@ -54,20 +53,20 @@ describe('Tier 1 - F10: UI Buffering, Volume Slider & Settings Layout', () => {
     expect((bufferBar as HTMLElement).style.width).toBe('80%');
   });
 
-  it('F10-4: Slider renders gray buffered bar with bg-white/40 rounded-full when buffered > 0', () => {
-    const { container } = render(<Slider value={0.2} buffered={0.5} />);
+  it('F10-4: LiquidSeekBar renders gray buffered bar with bg-white/40 rounded-full when buffered > 0', () => {
+    const { container } = render(<LiquidSeekBar value={0.2} buffered={0.5} />);
     const bufferBar = container.querySelector('.bg-white\\/40.rounded-full');
     expect(bufferBar).not.toBeNull();
     expect((bufferBar as HTMLElement).style.width).toBe('50%');
   });
 
-  it('F10-5: Slider fires onChange on pointer interaction without requiring continuous drag', () => {
+  it('F10-5: LiquidSeekBar fires onChange on pointer interaction without requiring continuous drag', () => {
     let changedVal: number | null = null;
     const handleChange = (val: number) => {
       changedVal = val;
     };
 
-    const { container } = render(<Slider value={0.5} onChange={handleChange} />);
+    const { container } = render(<LiquidSeekBar value={0.5} onChange={handleChange} />);
     const sliderContainer = container.firstElementChild as HTMLElement;
 
     // Mock getBoundingClientRect

@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
-import Slider from '../../components/common/Slider';
 import LiquidSeekBar from '../../components/common/LiquidSeekBar';
 import { createMockAudioElement, MockTimeRanges } from '../mocks/mockAudio';
 import { resetAllStores } from '../helpers/testUtils';
@@ -16,10 +15,10 @@ describe('Tier 2 - B2: Buffering UI Boundaries & Edge Buffer States', () => {
     vi.restoreAllMocks();
   });
 
-  it('B2-1: Slider handles boundary buffer values (0.0, 1.0, and out-of-bounds negative or >1.0)', () => {
+  it('B2-1: LiquidSeekBar handles boundary buffer values (0.0, 1.0, and out-of-bounds negative or >1.0)', () => {
     // 0.0 buffer (empty)
     const { container, rerender } = render(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.0,
         buffered: 0.0,
       } as any)
@@ -28,7 +27,7 @@ describe('Tier 2 - B2: Buffering UI Boundaries & Edge Buffer States', () => {
 
     // 1.0 buffer (100% full)
     rerender(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.5,
         buffered: 1.0,
       } as any)
@@ -37,7 +36,7 @@ describe('Tier 2 - B2: Buffering UI Boundaries & Edge Buffer States', () => {
 
     // Out-of-bounds negative buffer (-0.2)
     rerender(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.1,
         buffered: -0.2,
       } as any)
@@ -46,7 +45,7 @@ describe('Tier 2 - B2: Buffering UI Boundaries & Edge Buffer States', () => {
 
     // Out-of-bounds overflow buffer (1.5)
     rerender(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.8,
         buffered: 1.5,
       } as any)
@@ -120,7 +119,7 @@ describe('Tier 2 - B2: Buffering UI Boundaries & Edge Buffer States', () => {
 
   it('B2-6: Seeking beyond current buffer position updates seeking state cleanly', () => {
     const { container } = render(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.9, // seek near end
         buffered: 0.3, // only 30% buffered
       } as any)

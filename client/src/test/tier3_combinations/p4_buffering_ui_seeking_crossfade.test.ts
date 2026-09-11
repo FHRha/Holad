@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
-import Slider from '../../components/common/Slider';
+import LiquidSeekBar from '../../components/common/LiquidSeekBar';
 import { AudioEngine } from '../../audio/AudioEngine';
 import { createMockAudioElement } from '../mocks/mockAudio';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
@@ -45,7 +45,7 @@ describe('Tier 3 - Pairwise: Buffering UI (R2) + Crossfade Sync (R7) + UI Seekba
 
   it('P4-2: Seeking during buffering updates progress fill without corrupting gray buffer bar indicator', () => {
     const { container, rerender } = render(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.1,
         buffered: 0.4,
       } as any)
@@ -55,7 +55,7 @@ describe('Tier 3 - Pairwise: Buffering UI (R2) + Crossfade Sync (R7) + UI Seekba
 
     // User seeks to 0.35 (inside buffered range)
     rerender(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.35,
         buffered: 0.4,
       } as any)
@@ -87,7 +87,7 @@ describe('Tier 3 - Pairwise: Buffering UI (R2) + Crossfade Sync (R7) + UI Seekba
 
   it('P4-4: LiquidSeekBar animates wave during active playback with partial buffer', () => {
     const { container } = render(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.25,
         buffered: 0.5,
         isAnimated: true,

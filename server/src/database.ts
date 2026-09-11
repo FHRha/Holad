@@ -74,16 +74,21 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS preferences (
     user_id TEXT PRIMARY KEY,
-    language TEXT,
+    theme TEXT,
     accent_color TEXT,
+    custom_colors TEXT,
+    language TEXT,
+    updated_at INTEGER,
     FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS playback_state (
     user_id TEXT PRIMARY KEY,
+    song_id TEXT,
     current_song_id TEXT,
     position INTEGER,
     volume REAL,
+    updated_at INTEGER,
     FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
   );
 
@@ -140,6 +145,8 @@ db.exec(`
     user_id TEXT,
     integration_name TEXT,
     encrypted_token TEXT,
+    enabled INTEGER DEFAULT 1,
+    updated_at INTEGER,
     PRIMARY KEY(user_id, integration_name),
     FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
   );
@@ -258,6 +265,60 @@ try {
   console.error('Failed to migrate history table columns:', err);
 }
 
+// Safely migrate existing preferences table if columns are missing
+try {
+  const prefColumns = db.prepare("PRAGMA table_info(preferences)").all() as { name: string }[];
+  const prefColNames = new Set(prefColumns.map(c => c.name));
+  if (!prefColNames.has('theme')) {
+    db.exec('ALTER TABLE preferences ADD COLUMN theme TEXT');
+  }
+  if (!prefColNames.has('accent_color')) {
+    db.exec('ALTER TABLE preferences ADD COLUMN accent_color TEXT');
+  }
+  if (!prefColNames.has('custom_colors')) {
+    db.exec('ALTER TABLE preferences ADD COLUMN custom_colors TEXT');
+  }
+  if (!prefColNames.has('language')) {
+    db.exec('ALTER TABLE preferences ADD COLUMN language TEXT');
+  }
+  if (!prefColNames.has('updated_at')) {
+    db.exec('ALTER TABLE preferences ADD COLUMN updated_at INTEGER');
+  }
+} catch (err) {
+  console.error('Failed to migrate preferences table columns:', err);
+}
+
+// Safely migrate existing playback_state table if columns are missing
+try {
+  const pbColumns = db.prepare("PRAGMA table_info(playback_state)").all() as { name: string }[];
+  const pbColNames = new Set(pbColumns.map(c => c.name));
+  if (!pbColNames.has('song_id')) {
+    db.exec('ALTER TABLE playback_state ADD COLUMN song_id TEXT');
+  }
+  if (!pbColNames.has('current_song_id')) {
+    db.exec('ALTER TABLE playback_state ADD COLUMN current_song_id TEXT');
+  }
+  if (!pbColNames.has('updated_at')) {
+    db.exec('ALTER TABLE playback_state ADD COLUMN updated_at INTEGER');
+  }
+} catch (err) {
+  console.error('Failed to migrate playback_state table columns:', err);
+}
+
+// Safely migrate existing integrations table if columns are missing
+try {
+  const intColumns = db.prepare("PRAGMA table_info(integrations)").all() as { name: string }[];
+  const intColNames = new Set(intColumns.map(c => c.name));
+  if (!intColNames.has('enabled')) {
+    db.exec('ALTER TABLE integrations ADD COLUMN enabled INTEGER DEFAULT 1');
+  }
+  if (!intColNames.has('updated_at')) {
+    db.exec('ALTER TABLE integrations ADD COLUMN updated_at INTEGER');
+  }
+} catch (err) {
+  console.error('Failed to migrate integrations table columns:', err);
+}
+
 // Helper to generate user_id
 export function generateUserId(login: string, passwordHash: string): string {
   return crypto.createHash('sha256').update(`${login}:${passwordHash}`).digest('hex');
@@ -363,149 +424,123 @@ function ensureUserExists(userId: string) {
   stmt.run(userId);
 }
 
-// Sync API implementations
-export function getSyncData(userId: string) {
-  const preferences = db.prepare('SELECT language, accent_color FROM preferences WHERE user_id = ?').get(userId) || {};
-  const playbackState = db.prepare('SELECT current_song_id, position, volume FROM playback_state WHERE user_id = ?').get(userId) || {};
-  const exclusions = db.prepare('SELECT entity_id, entity_type FROM exclusions WHERE user_id = ?').all(userId) || [];
-  const history = getHistory(userId, undefined, 100);
-  const playlistsRaw = db.prepare('SELECT id, name, description FROM playlists WHERE user_id = ?').all(userId) as any[];
-  const playlists = playlistsRaw.map(pl => {
-    const tracks = db.prepare('SELECT track_id FROM playlist_tracks WHERE playlist_id = ? ORDER BY added_at ASC').all(pl.id) as any[];
-    return { ...pl, trackIds: tracks.map(t => t.track_id) };
-  });
-  
-  const integrationsRaw = db.prepare('SELECT integration_name, encrypted_token FROM integrations WHERE user_id = ?').all(userId) as any[];
-  const integrations = integrationsRaw.map(i => ({
-    integration_name: i.integration_name,
-    token: decrypt(i.encrypted_token)
+// Preferences API implementations
+export interface UserPreferences {
+  theme?: string;
+  accent_color?: string;
+  custom_colors?: string;
+  language?: string;
+  updated_at?: number;
+}
+
+export function getPreferences(userId: string): UserPreferences | null {
+  const row = db.prepare('SELECT theme, accent_color, custom_colors, language, updated_at FROM preferences WHERE user_id = ?').get(userId) as UserPreferences | undefined;
+  return row || null;
+}
+
+export function savePreferences(userId: string, prefs: Partial<UserPreferences>): void {
+  ensureUserExists(userId);
+  const now = Date.now();
+  const existing = getPreferences(userId);
+  const theme = prefs.theme !== undefined ? prefs.theme : (existing?.theme ?? null);
+  const accent_color = prefs.accent_color !== undefined ? prefs.accent_color : (existing?.accent_color ?? null);
+  const custom_colors = prefs.custom_colors !== undefined 
+    ? (typeof prefs.custom_colors === 'object' ? JSON.stringify(prefs.custom_colors) : prefs.custom_colors) 
+    : (existing?.custom_colors ?? null);
+  const language = prefs.language !== undefined ? prefs.language : (existing?.language ?? null);
+
+  db.prepare(`
+    INSERT INTO preferences (user_id, theme, accent_color, custom_colors, language, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      theme = excluded.theme,
+      accent_color = excluded.accent_color,
+      custom_colors = excluded.custom_colors,
+      language = excluded.language,
+      updated_at = excluded.updated_at
+  `).run(userId, theme, accent_color, custom_colors, language, now);
+}
+
+// Playback State API implementations
+export interface PlaybackState {
+  song_id?: string | null;
+  position?: number;
+  volume?: number;
+  updated_at?: number;
+}
+
+export function getPlaybackState(userId: string): PlaybackState | null {
+  const row = db.prepare('SELECT COALESCE(song_id, current_song_id) as song_id, position, volume, updated_at FROM playback_state WHERE user_id = ?').get(userId) as PlaybackState | undefined;
+  return row || null;
+}
+
+export function savePlaybackState(userId: string, state: PlaybackState): void {
+  ensureUserExists(userId);
+  const now = state.updated_at || Date.now();
+  const songId = state.song_id ?? null;
+  const position = state.position !== undefined ? Math.round(state.position) : 0;
+  const volume = state.volume !== undefined ? state.volume : 1;
+
+  db.prepare(`
+    INSERT INTO playback_state (user_id, song_id, current_song_id, position, volume, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      song_id = excluded.song_id,
+      current_song_id = excluded.current_song_id,
+      position = excluded.position,
+      volume = excluded.volume,
+      updated_at = excluded.updated_at
+  `).run(userId, songId, songId, position, volume, now);
+}
+
+// Integrations API implementations
+export interface IntegrationItem {
+  integration_name: string;
+  token?: string | null;
+  enabled?: boolean | number;
+  updated_at?: number;
+}
+
+export function getIntegrations(userId: string): IntegrationItem[] {
+  const rows = db.prepare('SELECT integration_name, encrypted_token, enabled, updated_at FROM integrations WHERE user_id = ?').all(userId) as any[];
+  return rows.map(r => ({
+    integration_name: r.integration_name,
+    token: safeDecrypt(r.encrypted_token) || null,
+    enabled: Boolean(r.enabled),
+    updated_at: r.updated_at
   }));
-
-  return { preferences, playbackState, exclusions, history, playlists, integrations };
 }
 
-export function saveSyncData(userId: string, data: any) {
+export function saveIntegrations(userId: string, items: { integration_name: string; token?: string | null; enabled?: boolean }[]): void {
   ensureUserExists(userId);
-  const transaction = db.transaction(() => {
-    if (data.preferences) {
-      const stmt = db.prepare(`
-        INSERT INTO preferences (user_id, language, accent_color) 
-        VALUES (?, ?, ?) 
-        ON CONFLICT(user_id) DO UPDATE SET 
-          language = excluded.language, 
-          accent_color = excluded.accent_color
-      `);
-      stmt.run(userId, data.preferences.language, data.preferences.accent_color);
-    }
+  const now = Date.now();
+  const upsertStmt = db.prepare(`
+    INSERT INTO integrations (user_id, integration_name, encrypted_token, enabled, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(user_id, integration_name) DO UPDATE SET
+      encrypted_token = excluded.encrypted_token,
+      enabled = excluded.enabled,
+      updated_at = excluded.updated_at
+  `);
 
-    if (data.playbackState) {
-      const stmt = db.prepare(`
-        INSERT INTO playback_state (user_id, current_song_id, position, volume) 
-        VALUES (?, ?, ?, ?) 
-        ON CONFLICT(user_id) DO UPDATE SET 
-          current_song_id = excluded.current_song_id, 
-          position = excluded.position, 
-          volume = excluded.volume
-      `);
-      stmt.run(userId, data.playbackState.current_song_id, data.playbackState.position, data.playbackState.volume);
-    }
+  const deleteStmt = db.prepare(`
+    DELETE FROM integrations WHERE user_id = ? AND integration_name = ?
+  `);
 
-    if (data.exclusions) {
-      db.prepare('DELETE FROM exclusions WHERE user_id = ?').run(userId);
-      const stmt = db.prepare('INSERT INTO exclusions (user_id, entity_id, entity_type) VALUES (?, ?, ?)');
-      for (const excl of data.exclusions) {
-        stmt.run(userId, excl.entity_id, excl.entity_type);
-      }
-    }
-
-    if (data.history && Array.isArray(data.history)) {
-      addHistoryBatch(userId, data.history.map((item: any) => ({
-        song_id: item.song_id || item.id,
-        title: item.title || '',
-        artist: item.artist || '',
-        album: item.album || '',
-        album_id: item.album_id || item.albumId,
-        artist_id: item.artist_id || item.artistId,
-        duration: item.duration || 0,
-        cover_art: item.cover_art || item.coverArt,
-        played_at: item.played_at || item.playedAt || Date.now()
-      })));
-    }
-
-    if (data.playlists) {
-      const stmt = db.prepare(`
-        INSERT INTO playlists (id, user_id, name, description) 
-        VALUES (?, ?, ?, ?) 
-        ON CONFLICT(id) DO UPDATE SET 
-          name = excluded.name, 
-          description = excluded.description
-        WHERE playlists.user_id = excluded.user_id OR playlists.user_id IS NULL
-      `);
-      const trackStmt = db.prepare('INSERT OR IGNORE INTO playlist_tracks (playlist_id, track_id) VALUES (?, ?)');
-      for (const pl of data.playlists) {
-        const existing = db.prepare('SELECT user_id FROM playlists WHERE id = ?').get(pl.id) as { user_id?: string } | undefined;
-        if (existing && existing.user_id && existing.user_id !== userId) {
-          continue; // Prevent deleting or modifying another user's playlist
-        }
-        stmt.run(pl.id, userId, pl.name, pl.description || '');
-        if (pl.trackIds && Array.isArray(pl.trackIds)) {
-          db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(pl.id);
-          for (const trackId of pl.trackIds) {
-            trackStmt.run(pl.id, trackId);
-          }
+  const tx = db.transaction(() => {
+    for (const item of items) {
+      if (!item.integration_name) continue;
+      if (item.token === null || item.token === '') {
+        if (item.enabled === false) {
+          deleteStmt.run(userId, item.integration_name);
+          continue;
         }
       }
-    }
-
-    if (data.integrations) {
-      const stmt = db.prepare(`
-        INSERT INTO integrations (user_id, integration_name, encrypted_token) 
-        VALUES (?, ?, ?) 
-        ON CONFLICT(user_id, integration_name) DO UPDATE SET 
-          encrypted_token = excluded.encrypted_token
-      `);
-      for (const intg of data.integrations) {
-        if (intg.token) {
-          stmt.run(userId, intg.integration_name, encrypt(intg.token));
-        }
-      }
+      const encrypted = safeEncrypt(item.token || '') || '';
+      upsertStmt.run(userId, item.integration_name, encrypted, item.enabled !== false ? 1 : 0, now);
     }
   });
-
-  transaction();
-}
-
-export function createPlaylist(userId: string, id: string, name: string, description: string) {
-  ensureUserExists(userId);
-  db.prepare('INSERT INTO playlists (id, user_id, name, description) VALUES (?, ?, ?, ?)').run(id, userId, name, description || '');
-}
-
-export function updatePlaylist(userId: string, id: string, name?: string, description?: string) {
-  if (name !== undefined && description !== undefined) {
-    db.prepare('UPDATE playlists SET name = ?, description = ? WHERE id = ? AND user_id = ?').run(name, description, id, userId);
-  } else if (name !== undefined) {
-    db.prepare('UPDATE playlists SET name = ? WHERE id = ? AND user_id = ?').run(name, id, userId);
-  } else if (description !== undefined) {
-    db.prepare('UPDATE playlists SET description = ? WHERE id = ? AND user_id = ?').run(description, id, userId);
-  }
-}
-
-export function deletePlaylist(userId: string, id: string) {
-  db.prepare('DELETE FROM playlists WHERE id = ? AND user_id = ?').run(id, userId);
-}
-
-export function addTrackToPlaylist(userId: string, playlistId: string, trackId: string) {
-  const pl = db.prepare('SELECT id FROM playlists WHERE id = ? AND user_id = ?').get(playlistId, userId);
-  if (pl) {
-    db.prepare('INSERT OR IGNORE INTO playlist_tracks (playlist_id, track_id) VALUES (?, ?)').run(playlistId, trackId);
-  }
-}
-
-export function removeTrackFromPlaylist(userId: string, playlistId: string, trackId: string) {
-  const pl = db.prepare('SELECT id FROM playlists WHERE id = ? AND user_id = ?').get(playlistId, userId);
-  if (pl) {
-    db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?').run(playlistId, trackId);
-  }
+  tx();
 }
 
 export function deleteCustomPlaylist(id: string, userId?: string): boolean {

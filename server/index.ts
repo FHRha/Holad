@@ -297,33 +297,6 @@ app.get('/api/version', (_req, res) => {
   res.json({ version: getAppVersion() });
 });
 
-// Sync endpoints
-app.post('/api/sync/push', express.json({ limit: '10mb' }), (req, res) => {
-  const { login, password, data } = req.body;
-  if (!login || !password || !data) return res.status(400).json({ error: 'Missing credentials or data' });
-  try {
-    const userId = database.generateUserId(login, password);
-    database.saveSyncData(userId, data);
-    res.json({ ok: true });
-  } catch (error) {
-    console.error('Error saving sync data:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/sync/pull', express.json(), (req, res) => {
-  const { login, password } = req.body;
-  if (!login || !password) return res.status(400).json({ error: 'Missing credentials' });
-  try {
-    const userId = database.generateUserId(login, password);
-    const data = database.getSyncData(userId);
-    res.json({ ok: true, data });
-  } catch (error) {
-    console.error('Error fetching sync data:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 const PLAYLIST_ID_REGEX = /^[a-zA-Z0-9_\-\:]{1,128}$/;
 
 app.post(['/api/custom-playlists', '/Holad/api/custom-playlists'], express.json(), (req, res) => {
@@ -770,68 +743,97 @@ app.delete('/api/holad/history/:roomId', validateRestAuth, (req, res) => {
   }
 });
 
-app.post('/api/holad/playlists/:roomId', validateRestAuth, express.json(), (req, res) => {
+// --- Preferences REST Endpoints ---
+app.get('/api/holad/preferences/:roomId', validateRestAuth, (req, res) => {
   const roomId = req.params.roomId as string;
-  const { id, name, description } = req.body;
-  if (!id || !name) return res.status(400).send('Missing id or name');
   try {
-    database.createPlaylist(roomId, id, name, description);
-    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'playlistCreated', payload: { id, name, description } });
-    res.status(200).send('OK');
+    const prefs = database.getPreferences(roomId);
+    res.json(prefs || {});
   } catch (error) {
-    res.status(500).send('Error creating playlist');
+    console.error(`[Holad] Failed to fetch preferences for room ${roomId}:`, error);
+    res.status(500).send('Error fetching preferences');
   }
 });
 
-app.put('/api/holad/playlists/:roomId/:playlistId', validateRestAuth, express.json(), (req, res) => {
+app.post('/api/holad/preferences/:roomId', validateRestAuth, express.json(), (req, res) => {
   const roomId = req.params.roomId as string;
-  const playlistId = req.params.playlistId as string;
-  const { name, description } = req.body;
   try {
-    database.updatePlaylist(roomId, playlistId, name, description);
-    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'playlistUpdated', payload: { id: playlistId, name, description } });
+    const body = req.body || {};
+    database.savePreferences(roomId, {
+      theme: body.theme,
+      accent_color: body.accent_color || body.accentColor,
+      custom_colors: body.custom_colors || body.customColors,
+      language: body.language,
+    });
+    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { 
+      type: 'preferencesUpdated', 
+      payload: body 
+    });
     res.status(200).send('OK');
   } catch (error) {
-    res.status(500).send('Error updating playlist');
+    console.error(`[Holad] Failed to save preferences for room ${roomId}:`, error);
+    res.status(500).send('Error saving preferences');
   }
 });
 
-app.delete('/api/holad/playlists/:roomId/:playlistId', validateRestAuth, (req, res) => {
+// --- Playback State REST Endpoints ---
+app.get('/api/holad/playback/:roomId', validateRestAuth, (req, res) => {
   const roomId = req.params.roomId as string;
-  const playlistId = req.params.playlistId as string;
   try {
-    database.deletePlaylist(roomId, playlistId);
-    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'playlistDeleted', payload: { id: playlistId } });
-    res.status(200).send('OK');
+    const state = database.getPlaybackState(roomId);
+    res.json(state || {});
   } catch (error) {
-    res.status(500).send('Error deleting playlist');
+    console.error(`[Holad] Failed to fetch playback state for room ${roomId}:`, error);
+    res.status(500).send('Error fetching playback state');
   }
 });
 
-app.post('/api/holad/playlists/:roomId/:playlistId/tracks', validateRestAuth, express.json(), (req, res) => {
+app.post('/api/holad/playback/:roomId', validateRestAuth, express.json(), (req, res) => {
   const roomId = req.params.roomId as string;
-  const playlistId = req.params.playlistId as string;
-  const { trackId } = req.body;
-  if (!trackId) return res.status(400).send('Missing trackId');
   try {
-    database.addTrackToPlaylist(roomId, playlistId, trackId);
-    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'playlistTrackAdded', payload: { playlistId, trackId } });
+    const body = req.body || {};
+    database.savePlaybackState(roomId, {
+      song_id: body.song_id || body.songId || body.current_song_id,
+      position: body.position,
+      volume: body.volume,
+      updated_at: body.updated_at || body.updatedAt || Date.now()
+    });
     res.status(200).send('OK');
   } catch (error) {
-    res.status(500).send('Error adding track');
+    console.error(`[Holad] Failed to save playback state for room ${roomId}:`, error);
+    res.status(500).send('Error saving playback state');
   }
 });
 
-app.delete('/api/holad/playlists/:roomId/:playlistId/tracks/:trackId', validateRestAuth, (req, res) => {
+// --- Integrations REST Endpoints ---
+app.get('/api/holad/integrations/:roomId', validateRestAuth, (req, res) => {
   const roomId = req.params.roomId as string;
-  const playlistId = req.params.playlistId as string;
-  const trackId = req.params.trackId as string;
   try {
-    database.removeTrackFromPlaylist(roomId, playlistId, trackId);
-    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'playlistTrackRemoved', payload: { playlistId, trackId } });
+    const integrations = database.getIntegrations(roomId);
+    res.json(integrations);
+  } catch (error) {
+    console.error(`[Holad] Failed to fetch integrations for room ${roomId}:`, error);
+    res.status(500).send('Error fetching integrations');
+  }
+});
+
+app.post('/api/holad/integrations/:roomId', validateRestAuth, express.json(), (req, res) => {
+  const roomId = req.params.roomId as string;
+  try {
+    const items = Array.isArray(req.body) ? req.body : [req.body];
+    database.saveIntegrations(roomId, items.map((i: any) => ({
+      integration_name: i.integration_name || i.integrationName,
+      token: i.token !== undefined ? i.token : null,
+      enabled: i.enabled !== undefined ? Boolean(i.enabled) : true
+    })));
+    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { 
+      type: 'integrationsUpdated',
+      payload: items
+    });
     res.status(200).send('OK');
   } catch (error) {
-    res.status(500).send('Error removing track');
+    console.error(`[Holad] Failed to save integrations for room ${roomId}:`, error);
+    res.status(500).send('Error saving integrations');
   }
 });
 

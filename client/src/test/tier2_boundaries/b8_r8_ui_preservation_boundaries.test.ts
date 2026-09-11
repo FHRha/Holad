@@ -5,7 +5,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { usePlayerStore } from '../../store/playerStore';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
 import BottomPlayer from '../../components/player/BottomPlayer';
-import Slider from '../../components/common/Slider';
 import LiquidSeekBar from '../../components/common/LiquidSeekBar';
 import TrackImage from '../../components/common/TrackImage';
 
@@ -56,10 +55,10 @@ describe('Tier 2 - B8: UI Preservation Boundary Cases & Viewport Resilience', ()
     expect(container.firstChild).not.toBeNull();
   });
 
-  it('B8-3: Slider component renders within ultra-narrow 50px containers without layout deformation', () => {
+  it('B8-3: LiquidSeekBar component renders within ultra-narrow 50px containers without layout deformation', () => {
     const { container } = render(
       React.createElement('div', { style: { width: '50px' } },
-        React.createElement(Slider, { value: 0.75, buffered: 0.9 })
+        React.createElement(LiquidSeekBar, { value: 0.75, buffered: 0.9 })
       )
     );
 
@@ -109,7 +108,7 @@ describe('Tier 2 - B8: UI Preservation Boundary Cases & Viewport Resilience', ()
 
   it('B8-6: Contrast classes for gray buffering bar and active fill conform to player accessibility standards', () => {
     const { container } = render(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.3,
         buffered: 0.6,
       } as any)

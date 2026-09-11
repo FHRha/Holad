@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
+import { pushPreferences } from '../../api/preferences';
 
 export default function LanguageSelector({ align = 'right' }: { align?: 'left' | 'right' } = {}) {
   const { t, i18n } = useTranslation();
@@ -26,6 +27,9 @@ export default function LanguageSelector({ align = 'right' }: { align?: 'left' |
 
   const changeLanguage = (lng: string) => {
     useSettingsStore.getState().setLanguage(lng);
+    if (useSettingsStore.getState().syncLanguage) {
+      pushPreferences({ language: lng });
+    }
     setIsOpen(false);
   };
 

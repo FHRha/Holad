@@ -7,7 +7,7 @@ import { AudioEngine } from '../../audio/AudioEngine';
 import { WebAudioPipeline } from '../../audio/WebAudioPipeline';
 import { createMockAudioElement } from '../mocks/mockAudio';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
-import Slider from '../../components/common/Slider';
+import LiquidSeekBar from '../../components/common/LiquidSeekBar';
 import BottomPlayer from '../../components/player/BottomPlayer';
 
 describe('Tier 1 - R5: Web Volume Slider Audio Engine Modulation', () => {
@@ -24,7 +24,7 @@ describe('Tier 1 - R5: Web Volume Slider Audio Engine Modulation', () => {
     const handleChange = vi.fn();
 
     const { container } = render(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.5,
         onDrag: handleDrag,
         onChange: handleChange,

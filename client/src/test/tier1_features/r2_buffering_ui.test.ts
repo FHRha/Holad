@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
-import Slider from '../../components/common/Slider';
 import LiquidSeekBar from '../../components/common/LiquidSeekBar';
 import { useAudioStore } from '../../store/audioStore';
 import { AudioEngine } from '../../audio/AudioEngine';
@@ -19,10 +18,10 @@ describe('Tier 1 - R2: Buffering UI & Track Duration Slider Gray Buffer Bar', ()
     vi.restoreAllMocks();
   });
 
-  it('R2-1: Slider component accepts buffered prop and renders a gray buffer bar element', () => {
-    // Render Slider with 50% buffered (0.5) and 20% played (0.2)
+  it('R2-1: LiquidSeekBar component accepts buffered prop and renders a gray buffer bar element', () => {
+    // Render LiquidSeekBar with 50% buffered (0.5) and 20% played (0.2)
     const { container } = render(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.2,
         buffered: 0.5,
       } as any)
@@ -98,9 +97,9 @@ describe('Tier 1 - R2: Buffering UI & Track Duration Slider Gray Buffer Bar', ()
     engine.destroy();
   });
 
-  it('R2-6: Slider handles buffered value greater than current playback value without clipping progress fill', () => {
+  it('R2-6: LiquidSeekBar handles buffered value greater than current playback value without clipping progress fill', () => {
     const { container, rerender } = render(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.1,
         buffered: 0.4,
       } as any)
@@ -110,7 +109,7 @@ describe('Tier 1 - R2: Buffering UI & Track Duration Slider Gray Buffer Bar', ()
 
     // Advance playback value into buffered region
     rerender(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.35,
         buffered: 0.8,
       } as any)

@@ -15,8 +15,6 @@ describe('playerStore', () => {
     // From socialSlice
     expect(state.likedTrackIds).toBeDefined();
     expect(state.likedAlbumIds).toBeDefined();
-    // From playlistSlice
-    expect(state.localPlaylists).toBeDefined();
   });
 });
 

@@ -4,7 +4,7 @@ import React from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import { WebAudioPipeline } from '../../audio/WebAudioPipeline';
 import { resetAllStores } from '../helpers/testUtils';
-import Slider from '../../components/common/Slider';
+import LiquidSeekBar from '../../components/common/LiquidSeekBar';
 
 describe('Tier 2 - B5: Web Volume Slider Boundary Cases & Pointer Event Stress', () => {
   beforeEach(() => {
@@ -19,7 +19,7 @@ describe('Tier 2 - B5: Web Volume Slider Boundary Cases & Pointer Event Stress',
     let currentDragVal = -1;
 
     const { container } = render(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.5,
         onDrag: (v) => { currentDragVal = v; },
       })
@@ -115,7 +115,7 @@ describe('Tier 2 - B5: Web Volume Slider Boundary Cases & Pointer Event Stress',
     let finalVal = -1;
 
     const { container } = render(
-      React.createElement(Slider, {
+      React.createElement(LiquidSeekBar, {
         value: 0.5,
         onDragEnd: (v) => { finalVal = v; },
       })

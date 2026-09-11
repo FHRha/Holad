@@ -24,15 +24,3 @@ export const setItemRating = async (id: string, rating: number) => {
   await fetchWithRetry(url);
 };
 
-export const createShare = async (trackIds: string[], description: string = 'StreamNavi Share', expiresMs: number = 24 * 60 * 60 * 1000) => {
-  let url = buildUrl('createShare', { description, expires: (Date.now() + expiresMs).toString() });
-  const idParams = trackIds.map(id => `id=${id}`).join('&');
-  url += `&${idParams}`;
-  const res = await fetchWithRetry(url);
-  const data = await res.json();
-  const shares = data['subsonic-response']?.shares?.share;
-  if (shares && shares.length > 0) {
-    return shares[0]; // returns { id, url, description, username, expires, entry[] }
-  }
-  return null;
-};
