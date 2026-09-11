@@ -8,7 +8,7 @@ import type { AppTheme, AccentColor, StartPage } from '../../store/settingsStore
 import { usePlayerStore } from '../../store/playerStore';
 import { useDownloadStore } from '../../store/downloadStore';
 import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
-import LiquidSeekBar from '../common/LiquidSeekBar';
+import VolumeSlider from '../common/VolumeSlider';
 import Dropdown from '../common/Dropdown';
 import { pushPreferences } from '../../api/preferences';
 import { pushIntegrations } from '../../api/integrations';
@@ -162,7 +162,7 @@ export default function SettingsModal({
         
         {/* Sidebar */}
         <div className="w-60 bg-background/50 border-r border-white/5 flex flex-col p-4 shrink-0">
-          <h2 className="text-lg font-bold mb-4 px-2">{t('sidebar.settings') || 'Настройки'}</h2>
+          <h2 className="text-lg font-bold mb-4 px-2">{t('sidebar.settings')}</h2>
           
           <div className="flex flex-col gap-2 relative">
             {!isJamGuest && (
@@ -190,7 +190,7 @@ export default function SettingsModal({
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'player' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
                 >
                   <MonitorPlay size={20} className={activeTab === 'player' ? 'animate-pulse-slow' : ''} />
-                  <span>{t('settings.player') || 'Плеер'}</span>
+                  <span>{t('settings.player')}</span>
                 </button>
 
                 <button 
@@ -198,7 +198,7 @@ export default function SettingsModal({
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'audio' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
                 >
                   <Speaker size={20} className={activeTab === 'audio' ? 'animate-pulse-slow' : ''} />
-                  <span>{t('settings.audio') || 'Звук'}</span>
+                  <span>{t('settings.audio')}</span>
                 </button>
 
                 <button 
@@ -223,9 +223,9 @@ export default function SettingsModal({
                   'bg-green-500 text-white'
                 }`}
               >
-                {resetState === 'idle' ? (t('settings.reset') || 'Сбросить') :
-                 resetState === 'confirm' ? (t('settings.confirm_reset') || 'Вы уверены?') :
-                 (t('settings.reset_done') || '✅ Сброшено!')}
+                {resetState === 'idle' ? t('settings.reset') :
+                 resetState === 'confirm' ? t('settings.confirm_reset') :
+                 t('settings.reset_done')}
               </button>
             </div>
           )}
@@ -235,11 +235,11 @@ export default function SettingsModal({
         <div className="flex-1 flex flex-col relative overflow-hidden min-w-0">
           <div className="flex items-center justify-between p-6 pb-2 shrink-0 z-20 bg-card">
             <h3 className="text-xl font-bold">
-              {activeTab === 'general' && (t('settings.general') || 'Общие')}
-              {activeTab === 'appearance' && (t('settings.appearance') || 'Внешний вид')}
-              {activeTab === 'player' && (t('settings.player') || 'Плеер')}
-              {activeTab === 'audio' && (t('settings.audio') || 'Звук')}
-              {activeTab === 'storage' && (t('settings.storage') || 'Хранилище')}
+              {activeTab === 'general' && t('settings.general')}
+              {activeTab === 'appearance' && t('settings.appearance')}
+              {activeTab === 'player' && t('settings.player')}
+              {activeTab === 'audio' && t('settings.audio')}
+              {activeTab === 'storage' && t('settings.storage')}
             </h3>
             <button 
               onClick={handleClose}
@@ -253,7 +253,7 @@ export default function SettingsModal({
 
             {activeTab === 'general' && (
               <div className="space-y-6">
-                <SettingSection title={t('settings.language') || 'Язык'}>
+                <SettingSection title={t('settings.language')}>
                   <Dropdown
                     value={settings.language}
                     onChange={(val) => {
@@ -263,8 +263,8 @@ export default function SettingsModal({
                       }
                     }}
                     options={[
-                      { label: 'Русский', value: 'ru' },
-                      { label: 'English', value: 'en' }
+                      { label: '🇷🇺 Русский', value: 'ru' },
+                      { label: '🇺🇸 English', value: 'en' }
                     ]}
                   />
                   <label className="flex items-center gap-3 cursor-pointer group mt-2">
@@ -281,7 +281,7 @@ export default function SettingsModal({
                       className="accent-primary w-4 h-4 rounded cursor-pointer"
                     />
                     <span className="group-hover:text-primary transition-colors text-xs text-secondary">
-                      {t('settings.sync_language', 'Синхронизировать язык с сервером')}
+                      {t('settings.sync_language')}
                     </span>
                   </label>
                 </SettingSection>
@@ -552,7 +552,7 @@ export default function SettingsModal({
                       className="accent-primary w-4 h-4 rounded cursor-pointer"
                     />
                     <span className="group-hover:text-primary transition-colors text-xs text-secondary">
-                      {t('settings.sync_theme', 'Синхронизировать тему и оформление с сервером')}
+                      {t('settings.sync_theme')}
                     </span>
                   </label>
                 </SettingSection>
@@ -782,9 +782,9 @@ export default function SettingsModal({
                   </label>
                 </SettingSection>
 
-                <SettingSection title={t('settings.defaultVolume') || 'Громкость'}>
+                <SettingSection title={t('settings.defaultVolume')}>
                   <div className="pt-2 pb-1">
-                    <LiquidSeekBar 
+                    <VolumeSlider 
                       value={volume} 
                       onChange={setVolume} 
                     />

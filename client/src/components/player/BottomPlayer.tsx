@@ -1,10 +1,10 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Star, Maximize2, Monitor, Smartphone, Tv2, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
 import { starItem, unstarItem } from '../../api/subsonic';
-import LiquidSeekBar from '../common/LiquidSeekBar';
+import VolumeSlider from '../common/VolumeSlider';
 import ArtistLinks from '../common/ArtistLinks';
 import TrackImage from '../common/TrackImage';
 import { getCoverArtUrl } from '../../api/subsonic';
@@ -60,7 +60,24 @@ export default function BottomPlayer() {
   const currentTrack = queue[currentIndex];
 
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
-  const [dragVolume, setDragVolume] = useState<number | null>(null);
+  const percentTextRef = useRef<HTMLSpanElement>(null);
+  const lastNonZeroVolumeRef = useRef<number>(volume > 0 ? volume : 0.5);
+
+  useEffect(() => {
+    if (volume > 0) {
+      lastNonZeroVolumeRef.current = volume;
+    }
+  }, [volume]);
+
+  const handleToggleMute = () => {
+    if (volume > 0) {
+      lastNonZeroVolumeRef.current = volume;
+      setVolume(0);
+    } else {
+      const target = lastNonZeroVolumeRef.current > 0 ? lastNonZeroVolumeRef.current : 0.5;
+      setVolume(target);
+    }
+  };
 
   const activeDeviceId = useHoladStore(s => s.activeDeviceId);
   const localDeviceId = useHoladStore(s => s.deviceId);
@@ -190,104 +207,158 @@ export default function BottomPlayer() {
         <PlayerProgressControl isPlaying={isPlaying} role={role} />
       </div>
 
-      <div className="flex flex-col justify-center items-end flex-1 min-w-0 max-w-[30%] md:min-w-[150px] lg:min-w-[300px] text-secondary pr-2">
-        <div className="flex flex-col gap-3 w-full max-w-[320px]">
-          {/* Top row: Favorite, Stars */}
-          <div className="flex items-center gap-4 w-full justify-end">
+      <div className="flex items-center gap-3 lg:gap-4 justify-end flex-1 min-w-0 max-w-[36%] md:min-w-[180px] lg:min-w-[380px] text-secondary pr-2">
+        {/* Left Block: Single Action Icons (2 Rows) */}
+        <div className="flex flex-col gap-1.5 items-end shrink-0">
+          {/* Top Row: Like (Избранное), Bookmark (Отложенное), Ban (Игнор) */}
+          <div className="flex items-center gap-1 justify-end h-7">
             {!hideSocialActions && (
               <>
-                <button 
-                  onClick={handleBookmark} 
-                  disabled={role === 'listener'}
-                  className={`hover:text-primary transition-colors flex items-center justify-center w-5 disabled:opacity-50 ${isBookmarked ? 'text-primary' : ''}`}
-                  title={t('player.bookmarksPlaylist', 'Отложенное')}
-                >
-                  <Bookmark size={18} fill={isBookmarked ? "currentColor" : "none"} />
-                </button>
+                {/* Like (Избранное) */}
                 <button 
                   onClick={handleLike} 
                   disabled={role === 'listener'}
-                  className="hover:text-primary transition-colors flex items-center justify-center w-5 disabled:opacity-50"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-foreground/5 disabled:opacity-50 text-secondary hover:text-foreground"
+                  title={currentTrack && likedTrackIds.includes(currentTrack.id) ? t('player.tooltip_like_remove') : t('player.tooltip_like_add')}
                 >
-                  <Heart size={18} fill={likedTrackIds.includes(currentTrack.id) ? "currentColor" : "none"} className={likedTrackIds.includes(currentTrack.id) ? "text-primary" : ""} />
+                  <Heart size={16} fill={currentTrack && likedTrackIds.includes(currentTrack.id) ? "currentColor" : "none"} className={currentTrack && likedTrackIds.includes(currentTrack.id) ? "text-primary" : ""} />
                 </button>
+
+                {/* Bookmark (Отложенное) */}
                 <button 
-                  onClick={() => toggleTrackExclude(currentTrack.id, currentTrack)} 
+                  onClick={handleBookmark} 
                   disabled={role === 'listener'}
-                  className="hover:text-red-500 transition-colors flex items-center justify-center w-5 disabled:opacity-50"
+                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-foreground/5 disabled:opacity-50 ${isBookmarked ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+                  title={isBookmarked ? t('player.tooltip_bookmark_remove') : t('player.tooltip_bookmark_add')}
                 >
-                  <Ban size={18} className={isTrackExcluded(currentTrack, excludedTrackIds, excludedAlbumIds, excludedFingerprints) ? "text-red-500" : ""} />
+                  <Bookmark size={16} fill={isBookmarked ? "currentColor" : "none"} />
                 </button>
-                
-                {/* Star Rating */}
-                <div className={`flex items-center justify-end gap-0.5 flex-1 max-w-[100px] ${role === 'listener' ? 'pointer-events-none opacity-50' : ''}`} onMouseLeave={() => {}}>
-                  {[1, 2, 3, 4, 5].map(star => {
-                    const currentRating = currentTrack.userRating || 0;
-                    const isFilled = star <= currentRating;
-                    return (
-                      <button 
-                        key={star} 
-                        className={`transition-colors ${isFilled ? 'text-primary' : 'text-foreground/30 hover:text-foreground/60'}`}
-                        onClick={() => {
-                          const newRating = currentRating === star ? 0 : star;
-                          setTrackRating(currentTrack.id, newRating);
-                        }}
-                      >
-                        <Star size={16} fill={isFilled ? "currentColor" : "none"} />
-                      </button>
-                    );
-                  })}
-                </div>
+
+                {/* Ban (Игнор / Не рекомендовать) */}
+                <button 
+                  onClick={() => currentTrack && toggleTrackExclude(currentTrack.id, currentTrack)} 
+                  disabled={role === 'listener'}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-foreground/5 disabled:opacity-50 text-secondary hover:text-foreground"
+                  title={currentTrack && isTrackExcluded(currentTrack, excludedTrackIds, excludedAlbumIds, excludedFingerprints) ? t('player.tooltip_exclude_remove') : t('player.tooltip_exclude_add')}
+                >
+                  <Ban size={16} className={currentTrack && isTrackExcluded(currentTrack, excludedTrackIds, excludedAlbumIds, excludedFingerprints) ? "text-red-500" : ""} />
+                </button>
               </>
             )}
           </div>
 
-          {/* Bottom row: Expand & Volume */}
-          <div className="flex items-center gap-4 w-full justify-end">
-            {/* Expand Now Playing View or Maximize Jam */}
+          {/* Bottom Row: Holad Connect, Fullscreen Player */}
+          <div className="flex items-center gap-1 justify-end h-7">
             {!(isJamRoute && role !== 'host') && (
-              <div className="flex items-center gap-4 mr-auto">
+              <>
                 <HoladConnectMenu />
                 <button 
                   onClick={toggleNowPlaying}
-                  className={`transition-colors flex items-center justify-center w-5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
-                  title={t('player.now_playing')}
+                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-foreground/5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+                  title={isNowPlayingOpen ? t('player.tooltip_fullscreen_exit') : t('player.tooltip_fullscreen')}
                 >
                   <Maximize2 size={16} />
                 </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Right Block: 2 Rows (Top: Stars + AutoDJ, Bottom: Volume + Percentage) */}
+        <div className="flex flex-col gap-1.5 items-end shrink-0">
+          {/* Top row: Stars (tight, 16px, matching stroke) & ABTO-DJ */}
+          <div className="flex items-center justify-between w-full h-7">
+            {/* Star Rating */}
+            {!hideSocialActions && (
+              <div 
+                className={`flex items-center gap-0.5 ml-1.5 ${role === 'listener' ? 'pointer-events-none opacity-50' : ''}`} 
+                title={currentTrack?.userRating ? t('player.tooltip_rate_current', { rating: currentTrack.userRating }) : t('player.tooltip_rate_empty')}
+              >
+                {[1, 2, 3, 4, 5].map(star => {
+                  const currentRating = currentTrack?.userRating || 0;
+                  const isFilled = star <= currentRating;
+                  return (
+                    <button 
+                      key={star} 
+                      className={`transition-colors p-0 flex items-center justify-center w-4 h-4 ${isFilled ? 'text-primary' : 'text-foreground/50 hover:text-foreground/80'}`}
+                      onClick={() => {
+                        if (!currentTrack) return;
+                        const newRating = currentRating === star ? 0 : star;
+                        setTrackRating(currentTrack.id, newRating);
+                      }}
+                      title={currentRating === star ? t('player.tooltip_rate_reset') : t('player.tooltip_rate_star', { star })}
+                    >
+                      <Star size={16} strokeWidth={2} fill={isFilled ? "currentColor" : "none"} />
+                    </button>
+                  );
+                })}
               </div>
             )}
-            
-            <div className="flex items-center gap-3 flex-1 min-w-0 justify-end">
-              <button onClick={() => setVolume(volume === 0 ? 1 : 0)} className="hover:text-foreground transition-colors flex-shrink-0">
-                {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-              </button>
-              <div className="hidden md:block flex-1 min-w-[60px] max-w-[100px]">
-                <LiquidSeekBar 
-                  value={volume} 
-                  onChange={setVolume}
-                  onDrag={(newVolume) => {
-                    setDragVolume(newVolume);
-                    handleVolumeDrag(newVolume);
-                  }}
-                  onDragEnd={(newVolume) => {
-                    setDragVolume(null);
-                    setVolume(newVolume);
-                  }} 
-                />
-              </div>
-              <span className="hidden md:block text-xs font-bold w-9 text-right flex-shrink-0">{Math.round((dragVolume !== null ? dragVolume : volume) * 100)}%</span>
-            </div>
 
+            {/* Auto DJ Toggle */}
             {!hideAutoDJ && (
               <button 
                 onClick={toggleAutoDj}
                 disabled={role === 'listener'}
-                className={`text-[10px] font-bold tracking-widest transition-colors w-16 text-right disabled:opacity-50 flex-shrink-0 ${isAutoDjEnabled ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+                className={`text-[11px] font-bold tracking-wider uppercase transition-colors disabled:opacity-50 flex items-center ${hideSocialActions ? 'ml-auto' : ''} ${
+                  isAutoDjEnabled 
+                    ? 'text-primary' 
+                    : 'text-secondary hover:text-foreground'
+                }`}
+                title={isAutoDjEnabled ? t('player.tooltip_auto_dj_on') : t('player.tooltip_auto_dj_off')}
               >
                 {t('player.auto_dj')}
               </button>
             )}
+          </div>
+
+          {/* Bottom row: Volume Mute, Volume Slider, Percentage */}
+          <div 
+            className="flex items-center gap-2 justify-end h-7"
+            onWheel={(e) => {
+              e.preventDefault();
+              const delta = e.deltaY < 0 ? 0.03 : -0.03;
+              const nextVal = Math.max(0, Math.min(1, Math.round((volume + delta) * 100) / 100));
+              setVolume(nextVal);
+            }}
+          >
+            <button 
+              onClick={handleToggleMute} 
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-foreground/5 hover:text-foreground transition-colors flex-shrink-0 text-secondary"
+              title={volume === 0 ? t('player.tooltip_unmute') : t('player.tooltip_mute')}
+            >
+              {volume === 0 ? <VolumeX size={19} /> : <Volume2 size={19} />}
+            </button>
+
+            {/* Volume Slider Capsule */}
+            <div 
+              className="hidden md:block w-[80px] lg:w-[96px] flex-shrink-0"
+              title={`${t('player.tooltip_volume_slider')} (${Math.round(volume * 100)}%)`}
+            >
+              <VolumeSlider 
+                value={volume} 
+                onChange={setVolume}
+                onDrag={(newVolume) => {
+                  handleVolumeDrag(newVolume);
+                }}
+                onDragEnd={(newVolume) => {
+                  setVolume(newVolume);
+                }} 
+                onPercentageChange={(formatted) => {
+                  if (percentTextRef.current) {
+                    percentTextRef.current.textContent = formatted;
+                  }
+                }}
+              />
+            </div>
+
+            {/* Volume percentage number */}
+            <span 
+              ref={percentTextRef} 
+              className="hidden md:block text-xs font-bold w-8 text-right flex-shrink-0 text-secondary tabular-nums"
+            >
+              {Math.round(volume * 100)}%
+            </span>
           </div>
         </div>
       </div>

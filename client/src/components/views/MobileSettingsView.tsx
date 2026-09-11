@@ -9,7 +9,7 @@ import { useAuthStore } from '../../store/authStore';
 import { clearAppCache } from '../../utils/storage';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { toggleOfflineMode } from '../../utils/networkStatus';
-import LiquidSeekBar from '../common/LiquidSeekBar';
+import VolumeSlider from '../common/VolumeSlider';
 import { pushPreferences } from '../../api/preferences';
 import { pushIntegrations } from '../../api/integrations';
 import { useTranslation } from 'react-i18next';
@@ -371,7 +371,7 @@ export default function MobileSettingsView() {
                 className="accent-primary w-4 h-4 rounded cursor-pointer"
               />
               <span className="text-xs text-secondary">
-                {t('settings.sync_theme', 'Синхронизировать тему и оформление с сервером')}
+                {t('settings.sync_theme')}
               </span>
             </label>
           </div>
@@ -547,7 +547,7 @@ export default function MobileSettingsView() {
           <div className="flex flex-col gap-3">
             <span className="text-sm font-semibold text-[#b3b3b3] uppercase tracking-wider">{t('views.settings_default_volume')}</span>
             <div className="bg-black/20 p-4 rounded-xl">
-              <LiquidSeekBar value={volume} onChange={setVolume} />
+              <VolumeSlider value={volume} onChange={setVolume} />
               <div className="flex justify-between text-xs text-secondary mt-3">
                 <span>0%</span>
                 <span>{Math.round(volume * 100)}%</span>

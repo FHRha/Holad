@@ -233,7 +233,7 @@ export default function HoladConnectMenu() {
     <div className="relative" ref={menuRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`transition-colors flex items-center justify-center w-5 ${isActive ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+        className={`transition-colors flex items-center justify-center w-7 h-7 rounded-lg hover:bg-foreground/5 ${isActive ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
         title={t('player.connect_to_device')}
       >
         <MonitorSpeaker size={16} />
