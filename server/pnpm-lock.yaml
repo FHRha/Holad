@@ -26,6 +26,9 @@ importers:
       socket.io:
         specifier: ^4.8.3
         version: 4.8.3
+      undici:
+        specifier: ^8.10.2
+        version: 8.10.2
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^9.6.0
@@ -1470,6 +1473,10 @@ packages:
   undici-types@8.3.0:
     resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
 
+  undici@8.10.2:
+    resolution: {integrity: sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==}
+    engines: {node: '>=22.19.0'}
+
   unpipe@1.0.0:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
     engines: {node: '>= 0.8'}
@@ -2841,6 +2848,8 @@ snapshots:
   undefsafe@2.0.5: {}
 
   undici-types@8.3.0: {}
+
+  undici@8.10.2: {}
 
   unpipe@1.0.0: {}
 

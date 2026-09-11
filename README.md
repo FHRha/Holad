@@ -104,7 +104,15 @@ curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash -
 
 ### Настройка Nginx
 
-Все компоненты Holad (интерфейс, страница входа, Jam-сессии, сокеты, API и статика) строго инкапсулированы внутри `BASE_PATH`. 
+Все компоненты Holad (интерфейс, страница входа, Jam-сессии, сокеты, API и статика) строго инкапсулированы внутри `BASE_PATH`. Сервер автоматически отправляет заголовок `X-Accel-Buffering: no` для аудиопотока, чтобы исключить буферизацию треков в Nginx.
+
+Для корректной работы WebSockets без разрыва Keep-Alive соединений добавьте в секцию `http` (или перед блоком `server`):
+```nginx
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+```
 
 Для проксирования через **Nginx** достаточно **всего одного блока `location`** в файле конфигурации вашего сайта (например, `/etc/nginx/sites-available/...`):
 
@@ -114,7 +122,7 @@ location /Holad/ {
     proxy_pass http://127.0.0.1:4000;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
+    proxy_set_header Connection $connection_upgrade;
     include snippets/proxy-params.conf;
 }
 ```
@@ -125,7 +133,7 @@ location / {
     proxy_pass http://127.0.0.1:4000;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
+    proxy_set_header Connection $connection_upgrade;
     include snippets/proxy-params.conf;
 }
 ```
@@ -135,9 +143,6 @@ proxy_set_header Host $host;
 proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 proxy_set_header X-Forwarded-Proto $scheme;
-proxy_http_version 1.1;
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection "upgrade";
 ```
 
 После внесения изменений выполните `sudo nginx -s reload`.

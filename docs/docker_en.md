@@ -211,6 +211,16 @@ music.yourdomain.com {
 
 ### Recipe 3: Holad Behind Nginx / Nginx Proxy Manager / Traefik
 
+Holad automatically serves audio streams with `X-Accel-Buffering: no`, ensuring Nginx relays audio chunks to browsers immediately without buffering delays.
+
+To handle WebSockets properly without dropping HTTP Keep-Alive connections, add this `map` directive in your `http` block (or outside the `server` block):
+```nginx
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+```
+
 #### Option A: Dedicated Domain or Subdomain (Root `/`)
 ```nginx
 server {
@@ -220,7 +230,7 @@ server {
         proxy_pass http://127.0.0.1:4000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection $connection_upgrade;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -241,7 +251,7 @@ server {
         proxy_pass http://127.0.0.1:4000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection $connection_upgrade;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

@@ -1,3 +1,5 @@
+import dns from 'node:dns';
+import { Readable } from 'node:stream';
 import express, { type Express } from 'express';
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
@@ -7,8 +9,24 @@ import md5 from 'md5';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { Agent, setGlobalDispatcher } from 'undici';
 import * as database from './src/database.js';
 import { demoManager } from './src/demoManager.js';
+
+// Prioritize IPv4 DNS lookups to eliminate 5-second AAAA IPv6 timeouts on networks without IPv6
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch (e) {
+  console.warn('Could not set DNS default result order to ipv4first:', e);
+}
+
+// Reuse persistent HTTP/HTTPS sockets with upstream servers (Navidrome) to avoid TCP/TLS handshake latency
+setGlobalDispatcher(new Agent({
+  keepAliveTimeout: 60_000,
+  keepAliveMaxTimeout: 120_000,
+  connections: 50,
+  pipelining: 1,
+}));
 
 dotenv.config();
 // Fallback to root .env if running from server directory
@@ -1219,10 +1237,57 @@ app.all(['/api/subsonic/:endpoint', '/api/subsonic/rest/:endpoint', '/Holad/api/
   );
 });
 
-// Proxy audio stream to protect Navidrome credentials
-app.get(['/api/stream/:id', '/Holad/api/stream/:id'], async (req, res) => {
+// Helper to pipe audio stream natively without buffering and instruct reverse proxies not to buffer
+function pipeAudioStream(upstreamResponse: Response, req: express.Request, res: express.Response) {
+  res.status(upstreamResponse.status);
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+  // Instruct Nginx, Caddy, Cloudflare and other reverse proxies not to buffer this real-time audio stream
+  res.set('X-Accel-Buffering', 'no');
+  res.set('Cache-Control', 'no-cache, no-transform');
+  res.set('Content-Type', upstreamResponse.headers.get('content-type') || 'audio/mpeg');
+  
+  const contentLength = upstreamResponse.headers.get('content-length');
+  if (contentLength) res.set('Content-Length', contentLength);
+  if (upstreamResponse.headers.get('accept-ranges')) {
+    res.set('Accept-Ranges', upstreamResponse.headers.get('accept-ranges') || 'bytes');
+  }
+  if (upstreamResponse.headers.get('content-range')) {
+    res.set('Content-Range', upstreamResponse.headers.get('content-range') || '');
+  }
+
+  if (upstreamResponse.body) {
+    const nodeStream = Readable.fromWeb(upstreamResponse.body as any);
+    req.on('close', () => {
+      try {
+        nodeStream.destroy();
+      } catch {}
+    });
+    nodeStream.on('error', (err) => {
+      console.error('Audio stream pipe error:', err);
+      if (!res.headersSent) {
+        res.status(500).send('Stream error');
+      } else {
+        try { res.end(); } catch {}
+      }
+    });
+    nodeStream.pipe(res);
+  } else {
+    res.status(500).send('No response body');
+  }
+}
+
+// Proxy audio stream to protect Navidrome credentials and bypass reverse-proxy buffering
+const streamRoutes = ['/api/stream/:id', '/Holad/api/stream/:id'];
+if (normalizedBase && !streamRoutes.includes(`${normalizedBase}/api/stream/:id`)) {
+  streamRoutes.push(`${normalizedBase}/api/stream/:id`);
+}
+
+app.get(streamRoutes, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+  res.set('X-Accel-Buffering', 'no');
+  res.set('Cache-Control', 'no-cache, no-transform');
   
   const { id } = req.params;
   if (!id) {
@@ -1267,42 +1332,7 @@ app.get(['/api/stream/:id', '/Holad/api/stream/:id'], async (req, res) => {
       const response = await fetch(streamUrl, { headers });
       if (!response.ok && response.status !== 206) return res.status(response.status).send('Failed to fetch stream');
       
-      res.status(response.status);
-      res.set('Content-Type', response.headers.get('content-type') || 'audio/mpeg');
-      const contentLength1 = response.headers.get('content-length');
-      if (contentLength1) res.set('Content-Length', contentLength1);
-      if (response.headers.get('accept-ranges')) res.set('Accept-Ranges', response.headers.get('accept-ranges') || '');
-      if (response.headers.get('content-range')) res.set('Content-Range', response.headers.get('content-range') || '');
-      
-      if (response.body) {
-        const reader = response.body.getReader();
-        let isClosed = false;
-        req.on('close', () => {
-          isClosed = true;
-          try { reader.cancel(); } catch {}
-        });
-        const pump = async () => {
-          try {
-            while (!isClosed) {
-              const { done, value } = await reader.read();
-              if (done || isClosed) break;
-              const canWrite = res.write(value);
-              if (!canWrite) {
-                await new Promise<void>(resolve => res.once('drain', resolve));
-              }
-            }
-            if (!isClosed) res.end();
-          } catch (err) {
-            if (!isClosed) {
-              console.error('Stream error:', err);
-              res.end();
-            }
-          }
-        };
-        pump();
-      } else {
-        res.status(500).send('No response body');
-      }
+      pipeAudioStream(response, req, res);
     } catch (err) {
       console.error(err);
       res.status(500).send('Stream error');
@@ -1320,42 +1350,7 @@ app.get(['/api/stream/:id', '/Holad/api/stream/:id'], async (req, res) => {
       if (!response.ok && response.status !== 206) {
         return res.status(response.status).send('Failed to fetch stream');
       }
-      res.status(response.status);
-      res.set('Content-Type', response.headers.get('content-type') || 'audio/mpeg');
-      const contentLength2 = response.headers.get('content-length');
-      if (contentLength2) res.set('Content-Length', contentLength2);
-      if (response.headers.get('accept-ranges')) res.set('Accept-Ranges', response.headers.get('accept-ranges') || '');
-      if (response.headers.get('content-range')) res.set('Content-Range', response.headers.get('content-range') || '');
-      
-      if (response.body) {
-        const reader = response.body.getReader();
-        let isClosed = false;
-        req.on('close', () => {
-          isClosed = true;
-          try { reader.cancel(); } catch {}
-        });
-        const pump = async () => {
-          try {
-            while (!isClosed) {
-              const { done, value } = await reader.read();
-              if (done || isClosed) break;
-              const canWrite = res.write(value);
-              if (!canWrite) {
-                await new Promise<void>(resolve => res.once('drain', resolve));
-              }
-            }
-            if (!isClosed) res.end();
-          } catch (err) {
-            if (!isClosed) {
-              console.error('Stream error:', err);
-              res.end();
-            }
-          }
-        };
-        pump();
-      } else {
-        res.status(500).send('No response body');
-      }
+      pipeAudioStream(response, req, res);
     }
   );
 });
