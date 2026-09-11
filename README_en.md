@@ -106,46 +106,64 @@ curl -sSL https://raw.githubusercontent.com/FHRha/Holad/main/install.sh | bash -
 
 All Holad components (interface, login page, Jam sessions, WebSockets, API, and static assets) are strictly encapsulated inside `BASE_PATH`. The server automatically sets `X-Accel-Buffering: no` for audio streams to prevent buffering delays in Nginx.
 
-To handle WebSockets reliably without dropping HTTP Keep-Alive connections, place this `map` directive in your `http` block (or outside the `server` block):
-```nginx
-map $http_upgrade $connection_upgrade {
-    default upgrade;
-    ''      close;
-}
-```
-
-Proxying via **Nginx** requires **only a single `location` block** inside your server configuration (e.g., in `/etc/nginx/sites-available/...`):
+To ensure reliable WebSocket connections (Holad Connect) and prevent `Invalid Upgrade header` errors, it is recommended to define a dedicated socket location:
 
 #### If Holad runs under a subpath (`BASE_PATH=/Holad`):
 ```nginx
+# Holad Connect and Jam WebSockets
+location /Holad/socket.io/ {
+    proxy_pass http://127.0.0.1:4000;
+    include snippets/proxy-params.conf;
+    proxy_set_header Upgrade "websocket";
+    proxy_set_header Connection "upgrade";
+    proxy_buffering off;
+    proxy_read_timeout 86400s;
+    proxy_send_timeout 86400s;
+}
+
+# Web UI and REST API
 location /Holad/ {
     proxy_pass http://127.0.0.1:4000;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection $connection_upgrade;
     include snippets/proxy-params.conf;
+}
+
+location = /Holad {
+    return 301 /Holad/;
 }
 ```
 
 #### If Holad runs at the root of a domain (`BASE_PATH=/`):
 ```nginx
+# Holad Connect and Jam WebSockets
+location /socket.io/ {
+    proxy_pass http://127.0.0.1:4000;
+    include snippets/proxy-params.conf;
+    proxy_set_header Upgrade "websocket";
+    proxy_set_header Connection "upgrade";
+    proxy_buffering off;
+    proxy_read_timeout 86400s;
+    proxy_send_timeout 86400s;
+}
+
+# Main Web UI and REST API
 location / {
     proxy_pass http://127.0.0.1:4000;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection $connection_upgrade;
     include snippets/proxy-params.conf;
 }
 ```
-*(Note: `include snippets/proxy-params.conf;` includes standard proxy headers. On Ubuntu/Debian, you can use the built-in `include proxy_params;`. If you are using your own `snippets/proxy-params.conf` file, make sure it contains the following:)*
-```nginx
-proxy_set_header Host $host;
-proxy_set_header X-Real-IP $remote_addr;
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-proxy_set_header X-Forwarded-Proto $scheme;
-```
 
-After making these changes, run `sudo nginx -s reload`.
+> [!TIP]
+> **Standard `snippets/proxy-params.conf` (or system `proxy_params`):**
+> Ensure the shared snippet contains only standard headers without `Upgrade`/`Connection` to avoid header duplication:
+> ```nginx
+> proxy_set_header Host $host;
+> proxy_set_header X-Real-IP $remote_addr;
+> proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+> proxy_set_header X-Forwarded-Proto $scheme;
+> proxy_http_version 1.1;
+> ```
+
+After saving the configuration, run `sudo nginx -t && sudo systemctl restart nginx`.
 
 ### Login Issues (NAT Loopback)
 To protect against SSRF, the Holad server only allows login if the URL you enter in the browser matches the external domain exactly. However, if Holad is installed on your home network, the server's attempt to verify this domain might hang due to your router blocking "u-turn" traffic (lack of Hairpin NAT).

@@ -213,20 +213,21 @@ music.yourdomain.com {
 
 Holad automatically serves audio streams with `X-Accel-Buffering: no`, ensuring Nginx relays audio chunks to browsers immediately without buffering delays.
 
-To handle WebSockets properly (Holad Connect and Jam sessions) without dropping HTTP Keep-Alive connections, add this `map` directive in your `http` block (or outside the `server` block):
-```nginx
-map $http_upgrade $connection_upgrade {
-    default upgrade;
-    ''      close;
-}
-```
-*(Or specify `proxy_set_header Connection "upgrade";` directly in the socket locations)*.
-
 > [!IMPORTANT]
 > **Critical Nginx Guidelines:**
-> 1. Always ensure `proxy_http_version 1.1;` is set (otherwise Nginx defaults to HTTP/1.0 which drops WebSockets).
-> 2. Do **NOT** add a trailing slash to `proxy_pass http://127.0.0.1:PORT;` when using subpaths (it strips the subpath and breaks Socket.IO routing).
-> 3. Include `proxy_buffering off;` and `proxy_read_timeout 86400s;` to prevent long-polling buffers from freezing and socket drops after 60 seconds.
+> 1. **Clean `proxy-params.conf`:** In your `snippets/proxy-params.conf`, include only standard headers (`Host`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`, `proxy_http_version 1.1;`). **Never put `Upgrade` or `Connection` in the shared snippet file**. If a location sets them too, Nginx will duplicate them (`Upgrade: websocket, websocket`), causing Node.js to abort the connection with `400 Bad Request: Invalid Upgrade header`.
+> 2. **Dedicated Socket Location:** In setups with TLS termination, HTTP/2, or TCP SNI proxies, `$http_upgrade` might not be populated. The most resilient setup is a dedicated `location /socket.io/` (or `/<BASE_PATH>/socket.io/`) with explicit strings: `proxy_set_header Upgrade "websocket";` and `proxy_set_header Connection "upgrade";`.
+> 3. **Trailing Slashes:** In `proxy_pass http://127.0.0.1:PORT;`, do **NOT** add a trailing slash when proxying subpaths (it strips the subpath and breaks Socket.IO routing).
+> 4. **Timeouts and Buffering:** Always include `proxy_buffering off;` and `proxy_read_timeout 86400s;` so Nginx doesn't buffer long-polling packets or drop WebSockets after 60 seconds.
+
+#### Standard `/etc/nginx/snippets/proxy-params.conf`
+```nginx
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_http_version 1.1;
+```
 
 #### Option A: Dedicated Domain or Subdomain (Root `/`)
 ```nginx
@@ -255,44 +256,47 @@ server {
         proxy_send_timeout 600s;
     }
 
-    # Main UI, WebSockets and REST API
-    location / {
+    # Holad Connect and Jam WebSockets
+    location /socket.io/ {
         proxy_pass http://127.0.0.1:4000;
         include snippets/proxy-params.conf;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade; # or "upgrade"
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade "websocket";
+        proxy_set_header Connection "upgrade";
         proxy_buffering off;
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;
+    }
+
+    # Main Web UI and REST API
+    location / {
+        proxy_pass http://127.0.0.1:4000;
+        include snippets/proxy-params.conf;
     }
 }
 ```
 
 #### Option B: Subpath Deployment (e.g. `BASE_PATH=/Holad/`)
-Set `BASE_PATH=/Holad` in your Docker environment. Everything in Holad (UI, login, Jam sessions, API, WebSockets, static assets) is encapsulated inside this subpath, so you only need **a single `location` block** in Nginx:
+Set `BASE_PATH=/Holad` in your Docker environment. All Holad features are encapsulated inside this subpath prefix:
 
 ```nginx
 server {
     server_name yourdomain.com;
 
-    # Single unified location for UI, API, and WebSockets
-    location /Holad/ {
+    # Holad Connect and Jam WebSockets
+    location /Holad/socket.io/ {
         proxy_pass http://127.0.0.1:4000; # IMPORTANT: No trailing slash!
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade; # or "upgrade"
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        include snippets/proxy-params.conf;
+        proxy_set_header Upgrade "websocket";
+        proxy_set_header Connection "upgrade";
         proxy_buffering off;
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;
+    }
+
+    # Web UI, REST API, and static assets
+    location /Holad/ {
+        proxy_pass http://127.0.0.1:4000; # IMPORTANT: No trailing slash!
+        include snippets/proxy-params.conf;
     }
 
     location = /Holad {
