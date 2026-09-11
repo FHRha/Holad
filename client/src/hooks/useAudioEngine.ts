@@ -1,8 +1,7 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { usePlayerStore } from '../store/playerStore';
-import { savePlayQueue, getCoverArtUrl } from '../api/subsonic';
-import { getCachedImageUrl } from '../utils/imageCache';
+import { savePlayQueue } from '../api/subsonic';
+import { preloadTrackAssets } from '../utils/assetPreloader';
 import { useAudioStore } from '../store/audioStore';
 import { useHoladStore } from '../store/holadStore';
 import { useHistoryStore } from '../store/historyStore';
@@ -188,13 +187,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const nextTrk = q[nextIdx];
     if (nextTrk) {
       engineRef.current.preloadNextTrack(nextTrk).catch(() => {});
-      const nextCoverId = nextTrk.coverArt || nextTrk.albumId || nextTrk.id;
-      if (nextCoverId) {
-        const coverUrl = getCoverArtUrl(nextCoverId, 300);
-        if (coverUrl) {
-          getCachedImageUrl(coverUrl).catch(() => {});
-        }
-      }
+      preloadTrackAssets(nextTrk).catch(() => {});
     }
   }, [settings.preloadNextTrack]);
 
@@ -229,6 +222,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const isAutoSkip = crossfadeTriggeredRef.current === prevTrackIdRef.current;
     crossfadeTriggeredRef.current = null;
     prevTrackIdRef.current = currentTrack.id;
+    preloadTrackAssets(currentTrack).catch(() => {});
 
     const isPlayingStore = usePlayerStore.getState().isPlaying;
     const isCrossfade = effectiveSettings.isCrossfadeEnabled;
@@ -450,16 +444,21 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         const isEngineOnCurrentTrack = engine.getActiveTrackId() === currentTrack.id;
         const actualDur = engine.getDuration() || currentTrack.duration || 0;
 
+        const effectiveCrossfade = actualDur <= 3
+          ? 0
+          : Math.min(effectiveSettings.crossfadeDuration, actualDur * 0.35);
+
         if (
           canAdvanceTrack &&
           isEngineOnCurrentTrack &&
           effectiveSettings.isCrossfadeEnabled &&
+          effectiveCrossfade > 0 &&
           actualDur > 0 &&
           currentTrack.id !== crossfadeTriggeredRef.current &&
           !engine.isTransitioning()
         ) {
           const remaining = actualDur - currentTime;
-          if (remaining > 0 && remaining <= effectiveSettings.crossfadeDuration && currentTime > 0) {
+          if (remaining > 0 && remaining <= effectiveCrossfade && currentTime > effectiveCrossfade) {
             crossfadeTriggeredRef.current = currentTrack.id;
             if (isJamSession) {
               jamSocket.trackEnded(currentTrack.id, pStore.currentIndex, pStore.repeatMode);

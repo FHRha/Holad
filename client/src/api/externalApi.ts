@@ -1,16 +1,13 @@
 import { getHoladServerUrl } from '../utils/serverConfig';
+import { useSettingsStore } from '../store/settingsStore';
 
 export async function getExternalArtistStats(artistName: string) {
-  const useNavidrome = localStorage.getItem('useNavidrome') !== 'false';
-  const useLastFm = localStorage.getItem('useLastFm') === 'true';
-  const useYandex = localStorage.getItem('useYandex') === 'true';
-  const lastFmKey = localStorage.getItem('lastFmKey') || '';
-  const yandexToken = localStorage.getItem('yandexToken') || '';
+  const { useNavidrome, useLastFm, useYandex, lastFmKey, yandexToken } = useSettingsStore.getState();
 
   const params = new URLSearchParams();
-  params.append('useNavidrome', useNavidrome.toString());
-  params.append('useLastFm', useLastFm.toString());
-  params.append('useYandex', useYandex.toString());
+  params.append('useNavidrome', (useNavidrome !== false).toString());
+  params.append('useLastFm', Boolean(useLastFm).toString());
+  params.append('useYandex', Boolean(useYandex).toString());
   if (lastFmKey) params.append('lastFmKey', lastFmKey);
   if (yandexToken) params.append('yandexToken', yandexToken);
 
@@ -27,16 +24,12 @@ export async function getExternalArtistStats(artistName: string) {
 }
 
 export async function getExternalAlbumStats(artistName: string, albumName: string) {
-  const useNavidrome = localStorage.getItem('useNavidrome') !== 'false';
-  const useLastFm = localStorage.getItem('useLastFm') === 'true';
-  const useYandex = localStorage.getItem('useYandex') === 'true';
-  const lastFmKey = localStorage.getItem('lastFmKey') || '';
-  const yandexToken = localStorage.getItem('yandexToken') || '';
+  const { useNavidrome, useLastFm, useYandex, lastFmKey, yandexToken } = useSettingsStore.getState();
 
   const params = new URLSearchParams();
-  params.append('useNavidrome', useNavidrome.toString());
-  params.append('useLastFm', useLastFm.toString());
-  params.append('useYandex', useYandex.toString());
+  params.append('useNavidrome', (useNavidrome !== false).toString());
+  params.append('useLastFm', Boolean(useLastFm).toString());
+  params.append('useYandex', Boolean(useYandex).toString());
   if (lastFmKey) params.append('lastFmKey', lastFmKey);
   if (yandexToken) params.append('yandexToken', yandexToken);
 

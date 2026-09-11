@@ -887,7 +887,10 @@ app.get('/api/stats/artist/:name', async (req, res) => {
     } else {
       try {
         const topTagsUrl = `https://ws.audioscrobbler.com/2.0/?method=artist.gettoptags&artist=${encodeURIComponent(name)}&api_key=${lastFmKey}&format=json`;
-        const tagsRes = await fetch(topTagsUrl, { signal: AbortSignal.timeout(3000) });
+        const tagsRes = await fetch(topTagsUrl, {
+          headers: { 'User-Agent': 'Holad/1.0.0 (https://github.com/FHRha/Holad)' },
+          signal: AbortSignal.timeout(3000)
+        });
         if (tagsRes.ok) {
           const tagsData = await tagsRes.json();
           const tags = tagsData.toptags?.tag?.slice(0, 10).map((t: any) => t.name.toLowerCase()) || [];
@@ -909,7 +912,10 @@ app.get('/api/stats/artist/:name', async (req, res) => {
     // For a real robust proxy, we might need an actual yandex-music-api wrapper.
     const searchUrl = `https://api.music.yandex.net/search?text=${encodeURIComponent(name)}&type=artist`;
     const searchRes = await fetch(searchUrl, {
-      headers: { 'Authorization': `OAuth ${yandexToken}` },
+      headers: {
+        'Authorization': `OAuth ${yandexToken}`,
+        'User-Agent': 'Yandex-Music-API'
+      },
       signal: AbortSignal.timeout(4000)
     });
     if (!searchRes.ok) throw new Error('Yandex search failed');
@@ -920,7 +926,10 @@ app.get('/api/stats/artist/:name', async (req, res) => {
     // Get artist brief info
     const briefUrl = `https://api.music.yandex.net/artists/${artist.id}/brief-info`;
     const briefRes = await fetch(briefUrl, {
-      headers: { 'Authorization': `OAuth ${yandexToken}` },
+      headers: {
+        'Authorization': `OAuth ${yandexToken}`,
+        'User-Agent': 'Yandex-Music-API'
+      },
       signal: AbortSignal.timeout(4000)
     });
     if (!briefRes.ok) throw new Error('Yandex brief info failed');
@@ -931,9 +940,10 @@ app.get('/api/stats/artist/:name', async (req, res) => {
       data: {
         listeners: briefData.result?.stats?.lastMonthListeners || 0,
         playcount: 0, // Yandex doesn't provide total playcount easily
-        similar: briefData.result?.similar?.map((a: any) => ({ name: a.name })) || [],
+        similar: briefData.result?.similarArtists?.map((a: any) => ({ name: a.name })) || [],
         tags: artist.genres || [],
-        // image: artist.cover?.uri ? `https://${artist.cover.uri.replace('%%', '600x600')}` : null,
+        bio: artist.description?.text || briefData.result?.description?.text || '',
+        image: artist.cover?.uri ? `https://${artist.cover.uri.replace('%%', '600x600')}` : null,
         label: briefData.result?.labels?.map((l: any) => l.name || l.id || l).join(', ') || null,
         recordCompany: artist.tickets?.length ? 'On Tour' : null // Mocking some extra info
       }
@@ -942,7 +952,10 @@ app.get('/api/stats/artist/:name', async (req, res) => {
 
   const tryLastFm = async () => {
     const url = `https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(name)}&api_key=${lastFmKey}&format=json`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Holad/1.0.0 (https://github.com/FHRha/Holad)' },
+      signal: AbortSignal.timeout(4000)
+    });
     if (!res.ok) throw new Error('Last.fm getinfo failed');
     const data = await res.json();
     if (!data.artist) throw new Error('Artist not found in Last.fm');
@@ -1007,7 +1020,10 @@ app.get('/api/stats/album/:artist/:album', async (req, res) => {
   const tryYandex = async () => {
     const searchUrl = `https://api.music.yandex.net/search?text=${encodeURIComponent(artist + ' ' + album)}&type=album`;
     const searchRes = await fetch(searchUrl, {
-      headers: { 'Authorization': `OAuth ${yandexToken}` },
+      headers: {
+        'Authorization': `OAuth ${yandexToken}`,
+        'User-Agent': 'Yandex-Music-API'
+      },
       signal: AbortSignal.timeout(4000)
     });
     if (!searchRes.ok) throw new Error('Yandex search failed');
@@ -1015,11 +1031,10 @@ app.get('/api/stats/album/:artist/:album', async (req, res) => {
     const result = searchData.result?.albums?.results?.[0];
     if (!result) throw new Error('Album not found in Yandex');
 
-    // Muted image extraction to fallback strictly to Navidrome
     return {
       source: 'yandex',
       data: {
-        // image: result.coverUri ? `https://${result.coverUri.replace('%%', '600x600')}` : null,
+        image: result.coverUri ? `https://${result.coverUri.replace('%%', '600x600')}` : null,
         label: result.labels?.map((l: any) => l.name || l.id || l).join(', ') || null,
         recordCompany: result.recordCompany || result.labels?.[0]?.name || null
       }
@@ -1028,7 +1043,10 @@ app.get('/api/stats/album/:artist/:album', async (req, res) => {
 
   const tryLastFm = async () => {
     const url = `https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${lastFmKey}&format=json`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Holad/1.0.0 (https://github.com/FHRha/Holad)' },
+      signal: AbortSignal.timeout(4000)
+    });
     if (!res.ok) throw new Error('Last.fm getinfo failed');
     const data = await res.json();
     if (!data.album) throw new Error('Album not found in Last.fm');
@@ -1567,7 +1585,7 @@ io.on('connection', (socket) => {
       return;
     }
     
-    const isWhitelisted = navidromeAccounts.length === 0 || navidromeAccounts.some(a => a.user === auth.user || a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
+    const isWhitelisted = !!process.env.NAVIDROME_URL || navidromeAccounts.length === 0 || navidromeAccounts.some(a => a.user === auth.user || a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
     if (!isWhitelisted) {
       socket.emit('holad_authError', 'Unauthorized server URL');
       socket.disconnect();
@@ -1575,7 +1593,15 @@ io.on('connection', (socket) => {
     }
 
     try {
-      const resolvedUrl = auth.url.replace('localhost', '127.0.0.1');
+      const isDocker = fs.existsSync('/.dockerenv') || process.env.IS_DOCKER === 'true';
+      let resolvedUrl = auth.url;
+      if (process.env.NAVIDROME_URL) {
+        resolvedUrl = process.env.NAVIDROME_URL;
+      } else if (isDocker) {
+        resolvedUrl = resolvedUrl.replace('localhost', 'host.docker.internal').replace('127.0.0.1', 'host.docker.internal');
+      } else {
+        resolvedUrl = resolvedUrl.replace('localhost', '127.0.0.1');
+      }
       const pingUrl = `${resolvedUrl.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(auth.user)}&t=${encodeURIComponent(auth.token)}&s=${encodeURIComponent(auth.salt)}&v=1.16.1&c=StreamNavi&f=json`;
       const response = await fetch(pingUrl, { signal: AbortSignal.timeout(5000) });
       const json = await response.json().catch(() => null);
@@ -1586,8 +1612,8 @@ io.on('connection', (socket) => {
         return;
       }
     } catch (error: any) {
-      const dbAccount = navidromeAccounts.find(a => a.user === auth.user && a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
-      if (!dbAccount || !dbAccount.token || !safeTimingCompare(dbAccount.token, auth.token)) {
+      const dbAccount = navidromeAccounts.find(a => a.user === auth.user);
+      if (!dbAccount) {
         socket.emit('holad_authError', 'Failed to reach Subsonic server for validation');
         socket.disconnect();
         return;

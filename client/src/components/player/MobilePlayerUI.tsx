@@ -23,6 +23,9 @@ import { useBookmark } from '../../hooks/useBookmark';
 import { jamSocket } from '../../api/socket';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
 import { StorageManager } from '../../utils/StorageManager';
+import { motion, AnimatePresence } from 'framer-motion';
+import { preloadAndDecodeImage } from '../../utils/assetPreloader';
+import { getCachedImageUrl } from '../../utils/imageCache';
 
 export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -101,30 +104,50 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   }, [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
 
   const [localCoverUrl, setLocalCoverUrl] = useState<string>('');
+  const [displayedBgCover, setDisplayedBgCover] = useState<string>(() => {
+    if (!currentTrack) return '';
+    return getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
+  });
 
   useEffect(() => {
     let isMounted = true;
-    if (!currentTrack?.id) {
-      setLocalCoverUrl('');
-      return;
-    }
+    if (!currentTrack?.id) return;
 
-    StorageManager.getLocalCoverUri(currentTrack.id).then(uri => {
-      if (isMounted && uri) {
-        setLocalCoverUrl(uri);
-      } else if (isMounted) {
-        setLocalCoverUrl('');
+    const resolveBackground = async () => {
+      let candidate = '';
+      try {
+        const uri = await StorageManager.getLocalCoverUri(currentTrack.id);
+        if (uri && isMounted) {
+          setLocalCoverUrl(uri);
+          candidate = uri;
+        }
+      } catch {}
+
+      if (!candidate && coverArtLowRes) {
+        try {
+          candidate = await getCachedImageUrl(coverArtLowRes);
+        } catch {
+          candidate = coverArtLowRes;
+        }
       }
-    }).catch(() => {
-      if (isMounted) setLocalCoverUrl('');
-    });
+
+      if (candidate && isMounted) {
+        // Preload and GPU decode before updating background cover
+        await preloadAndDecodeImage(candidate);
+        if (isMounted) {
+          setDisplayedBgCover(candidate);
+        }
+      }
+    };
+
+    resolveBackground();
 
     return () => {
       isMounted = false;
     };
-  }, [currentTrack?.id]);
+  }, [currentTrack?.id, coverArtLowRes]);
 
-  const effectiveBgCover = localCoverUrl || coverArtLowRes;
+  const effectiveBgCover = displayedBgCover || localCoverUrl || coverArtLowRes;
 
   const handleLike = () => {
     if (!currentTrack) return;
@@ -195,12 +218,23 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-300">
-      {/* Blurred Background */}
-      <div 
-        className="absolute inset-0 z-0 bg-cover bg-center blur-[30px] opacity-70 scale-110 transform-gpu will-change-transform"
-        style={{ backgroundImage: effectiveBgCover ? `url("${effectiveBgCover}")` : undefined }}
-      />
-      <div className="absolute inset-0 z-0 bg-black/40" />
+      {/* Blurred Background with Dual-Layer Smooth Dissolve */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <AnimatePresence mode="popLayout">
+          {effectiveBgCover && (
+            <motion.div 
+              key={effectiveBgCover}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.7 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: 'easeInOut' }}
+              className="absolute inset-0 bg-cover bg-center blur-[30px] scale-110 transform-gpu will-change-transform"
+              style={{ backgroundImage: `url("${effectiveBgCover}")` }}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+      <div className="absolute inset-0 z-0 bg-black/40 pointer-events-none" />
 
       {/* Top Bar */}
       <div className="relative z-10 flex items-center justify-between px-4 py-4 w-full">
@@ -232,9 +266,14 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
         {/* Conditional Content based on Active Tab */}
         <div className={`w-full flex-1 flex flex-col justify-start min-h-0 overflow-hidden ${activeTab === 'player' ? 'mb-2 mt-2' : 'h-full'}`}>
           {activeTab === 'player' && (
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="h-full max-h-full max-w-full aspect-square">
-                <TrackImage src={coverArtHighRes} className="w-full h-full rounded-3xl shadow-2xl object-cover border border-border bg-card" alt={currentTrack.title} />
+            <div className="w-full h-full flex items-center justify-center transition-opacity duration-300">
+              <div className="h-full max-h-full max-w-full aspect-square transition-all duration-300">
+                <TrackImage 
+                  src={coverArtHighRes} 
+                  trackId={currentTrack.id}
+                  className="w-full h-full rounded-3xl shadow-2xl object-cover border border-border bg-card" 
+                  alt={currentTrack.title} 
+                />
               </div>
             </div>
           )}

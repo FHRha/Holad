@@ -215,6 +215,10 @@ export class AudioDeck implements IAudioDeck {
             if (this.element.src !== src) {
                 this.element.src = src;
                 this.element.load();
+            } else {
+                try {
+                    this.element.currentTime = position;
+                } catch {}
             }
         
             // Force the UI to reset immediately
@@ -223,7 +227,7 @@ export class AudioDeck implements IAudioDeck {
             await new Promise<void>((resolve, reject) => {
                 if (this.element.readyState >= 1) {
                     try {
-                        if (position > 0) this.element.currentTime = position;
+                        this.element.currentTime = position;
                     } catch {}
                     resolve();
                 } else {
@@ -231,13 +235,16 @@ export class AudioDeck implements IAudioDeck {
                     // Safety timeout: on mobile WebViews, if metadata takes >1500ms, resolve so play() can start immediately
                     const timer = setTimeout(() => {
                         cleanup();
+                        try {
+                            this.element.currentTime = position;
+                        } catch {}
                         resolve();
                     }, 1500);
 
                     const onReady = () => {
                         cleanup();
                         try {
-                            if (position > 0) this.element.currentTime = position;
+                            this.element.currentTime = position;
                         } catch {}
                         resolve();
                     };

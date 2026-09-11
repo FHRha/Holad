@@ -34,6 +34,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     private deckTrackIds: [string | null, string | null] = [null, null];
     private playToken: number = 0;
     private isPlaying: boolean = false;
+    private hasPreloadedCurrentTrack: boolean = false;
 
     constructor(elements?: [HTMLAudioElement, HTMLAudioElement]) {
         const deck0 = new AudioDeck('deck-0', elements?.[0]);
@@ -142,10 +143,17 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     private checkPreloadThreshold(currentTime: number, duration: number): void {
-        if (!this.settings.preloadNextTrack || !duration || duration <= 0) return;
+        if (this.hasPreloadedCurrentTrack || !this.settings.preloadNextTrack) return;
+
+        let effectiveDuration = duration;
+        if (!effectiveDuration || isNaN(effectiveDuration) || effectiveDuration <= 0 || !isFinite(effectiveDuration)) {
+            effectiveDuration = typeof this.currentTrack?.duration === 'number' ? this.currentTrack.duration : 0;
+        }
+        if (!effectiveDuration || effectiveDuration <= 0 || !isFinite(effectiveDuration)) return;
         
         const crossfadeSec = this.settings.isCrossfadeEnabled ? this.settings.crossfadeDuration : 0;
-        if (this.preloadManager.shouldPreload(currentTime, duration, crossfadeSec)) {
+        if (this.preloadManager.shouldPreload(currentTime, effectiveDuration, crossfadeSec)) {
+            this.hasPreloadedCurrentTrack = true;
             this.emit('requestPreload');
         }
     }
@@ -165,7 +173,9 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     public async playTrack(track: any, options: PlayTrackOptions = {}): Promise<void> {
+        const previousTrack = this.currentTrack;
         this.currentTrack = track;
+        this.hasPreloadedCurrentTrack = false;
         const currentToken = ++this.playToken;
         this.isPlaying = true;
         const streamUrl = track?.streamUrl || track?.src || (typeof track === 'string' ? track : '');
@@ -207,9 +217,23 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             this.emit('durationchange', trackDuration || incomingDeck.getDuration() || 0);
 
             const rawDuration = options.transitionDuration !== undefined ? options.transitionDuration : this.settings.crossfadeDuration;
-            const effectiveDuration = trackDuration !== undefined && trackDuration < 1
+            const outgoingDur = (outgoingDeck.getDuration() && outgoingDeck.getDuration() > 0 && isFinite(outgoingDeck.getDuration()))
+                ? outgoingDeck.getDuration()
+                : (typeof previousTrack?.duration === 'number' && previousTrack.duration > 0 ? previousTrack.duration : 0);
+            const outgoingRemaining = outgoingDur > 0 ? Math.max(0, outgoingDur - outgoingDeck.getCurrentTime()) : undefined;
+            const incomingDuration = trackDuration || (incomingDeck.getDuration() && incomingDeck.getDuration() > 0 && isFinite(incomingDeck.getDuration()) ? incomingDeck.getDuration() : 0);
+
+            let effectiveDuration = trackDuration !== undefined && trackDuration < 1
                 ? Math.min(rawDuration, Math.max(0.05, trackDuration / 2))
                 : rawDuration;
+
+            if (outgoingRemaining !== undefined) {
+                effectiveDuration = Math.min(effectiveDuration, outgoingRemaining);
+            }
+            if (incomingDuration > 0) {
+                effectiveDuration = Math.min(effectiveDuration, incomingDuration * 0.4);
+            }
+            effectiveDuration = Math.max(0.05, effectiveDuration);
 
             await this.transitionManager.performCrossfade(
                 outgoingDeck,
@@ -476,6 +500,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     public destroy(): void {
+        this.hasPreloadedCurrentTrack = false;
         this.transitionManager.destroy();
         this.preloadManager.reset();
         this.decks.forEach((deck) => {

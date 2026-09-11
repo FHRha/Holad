@@ -10,6 +10,7 @@ services:
     restart: unless-stopped
     ports:
       - "4000:4000"
+    extra_hosts: ["host.docker.internal:host-gateway"]
     environment:
       - PUID=1000
       - PGID=1000

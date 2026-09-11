@@ -199,7 +199,7 @@ export const createQueueSlice: StateCreator<
     triggerPlay();
     set((state) => {
       if (state.repeatMode === 'one') {
-        return { currentIndex: state.currentIndex, initialPosition: 0, isPlaying: true };
+        return { currentIndex: state.currentIndex, initialPosition: 0, isPlaying: true, playActionId: state.playActionId + 1 };
       }
       if (state.currentIndex < state.queue.length - 1) {
         let nextIdx = state.currentIndex + 1;
@@ -207,7 +207,7 @@ export const createQueueSlice: StateCreator<
           nextIdx++;
         }
         if (nextIdx < state.queue.length) {
-          return { currentIndex: nextIdx, isPlaying: true };
+          return { currentIndex: nextIdx, isPlaying: true, playActionId: state.playActionId + 1 };
         }
       } else if (state.repeatMode === 'all') {
         let firstIdx = 0;
@@ -215,7 +215,7 @@ export const createQueueSlice: StateCreator<
           firstIdx++;
         }
         if (firstIdx < state.queue.length) {
-          return { currentIndex: firstIdx, isPlaying: true };
+          return { currentIndex: firstIdx, isPlaying: true, playActionId: state.playActionId + 1 };
         }
       }
       return state;
@@ -231,7 +231,7 @@ export const createQueueSlice: StateCreator<
           prevIdx--;
         }
         if (prevIdx >= 0) {
-          return { currentIndex: prevIdx, isPlaying: true };
+          return { currentIndex: prevIdx, isPlaying: true, playActionId: state.playActionId + 1 };
         }
       }
       return state;

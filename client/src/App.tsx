@@ -38,6 +38,9 @@ import { useWindowVisibility } from './hooks/useWindowVisibility';
 import SettingsModal from './components/modals/SettingsModal';
 import OfflineModeModal from './components/modals/OfflineModeModal';
 import UnignoreTrackModal from './components/modals/UnignoreTrackModal';
+import { motion, AnimatePresence } from 'framer-motion';
+import { preloadAndDecodeImage } from './utils/assetPreloader';
+import { getCachedImageUrl } from './utils/imageCache';
 import TrayMenu from './components/player/TrayMenu';
 import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
@@ -357,7 +360,8 @@ function MobileBackground() {
       try {
         const localUri = await StorageManager.getLocalCoverUri(currentTrack.id);
         if (localUri && isMounted) {
-          setBgUrl(localUri);
+          await preloadAndDecodeImage(localUri);
+          if (isMounted) setBgUrl(localUri);
           return;
         }
       } catch {}
@@ -365,8 +369,17 @@ function MobileBackground() {
       // 2. Resolve via getCoverArtUrl
       const coverId = currentTrack.coverArt || currentTrack.albumId || currentTrack.id;
       if (coverId) {
-        const url = getCoverArtUrl(coverId, 800);
-        if (isMounted) setBgUrl(url);
+        const rawUrl = getCoverArtUrl(coverId, 800);
+        if (rawUrl) {
+          try {
+            const cachedUrl = await getCachedImageUrl(rawUrl);
+            await preloadAndDecodeImage(cachedUrl);
+            if (isMounted) setBgUrl(cachedUrl);
+          } catch {
+            await preloadAndDecodeImage(rawUrl);
+            if (isMounted) setBgUrl(rawUrl);
+          }
+        }
       } else if (isMounted) {
         setBgUrl('');
       }
@@ -378,21 +391,31 @@ function MobileBackground() {
     };
   }, [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
 
-  if (bgUrl) {
-    return (
-      <div className="md:hidden absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
-        <div 
-          className="absolute inset-0 bg-cover bg-center blur-[40px] opacity-60 saturate-150 scale-[1.15] transition-all duration-1000 transform-gpu will-change-transform"
-          style={{ backgroundImage: `url("${bgUrl}")` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black" />
-      </div>
-    );
-  }
-
   return (
     <div className="md:hidden absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-black/90 to-[var(--color-primary)] opacity-40" />
+      <AnimatePresence mode="popLayout">
+        {bgUrl ? (
+          <motion.div 
+            key={bgUrl}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.6 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: 'easeInOut' }}
+            className="absolute inset-0 bg-cover bg-center blur-[40px] saturate-150 scale-[1.15] transform-gpu will-change-transform"
+            style={{ backgroundImage: `url("${bgUrl}")` }}
+          />
+        ) : (
+          <motion.div
+            key="empty-bg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.4 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: 'easeInOut' }}
+            className="absolute inset-0 bg-gradient-to-b from-black via-black/90 to-[var(--color-primary)]"
+          />
+        )}
+      </AnimatePresence>
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black pointer-events-none" />
     </div>
   );
 }

@@ -3,6 +3,10 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
 import { Play, ChevronDown, Download, ListMusic, Radio, MessageSquareQuote, Activity, Users } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
+import { motion, AnimatePresence } from 'framer-motion';
+import { preloadAndDecodeImage } from '../../utils/assetPreloader';
+import { getCachedImageUrl } from '../../utils/imageCache';
+import { StorageManager } from '../../utils/StorageManager';
 
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from './TrackImage';
@@ -70,6 +74,47 @@ export default function FullScreenPlayerUI({
   // oxlint-disable-next-line
   const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300) : '', [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
 
+  const [displayedBgCover, setDisplayedBgCover] = useState<string>(() => {
+    if (!currentTrack) return '';
+    return getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!currentTrack?.id) return;
+
+    const resolveBackground = async () => {
+      let candidate = '';
+      try {
+        const uri = await StorageManager.getLocalCoverUri(currentTrack.id);
+        if (uri && isMounted) {
+          candidate = uri;
+        }
+      } catch {}
+
+      if (!candidate && coverArtLowRes) {
+        try {
+          candidate = await getCachedImageUrl(coverArtLowRes);
+        } catch {
+          candidate = coverArtLowRes;
+        }
+      }
+
+      if (candidate && isMounted) {
+        await preloadAndDecodeImage(candidate);
+        if (isMounted) {
+          setDisplayedBgCover(candidate);
+        }
+      }
+    };
+
+    resolveBackground();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentTrack?.id, coverArtLowRes]);
+
   const {
     lyricsText,
     lrcLines,
@@ -109,13 +154,23 @@ export default function FullScreenPlayerUI({
   return (
     <div className={`absolute inset-0 bg-background flex text-foreground overflow-hidden z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-500 ease-out`}>
       
-      {/* Blurred Background */}
-      <div 
-        className="absolute inset-0 z-0 bg-cover bg-center blur-[80px] opacity-80 saturate-150 scale-110 transition-all duration-1000"
-        style={{ backgroundImage: coverArtLowRes ? `url("${coverArtLowRes}")` : undefined }}
-      />
-      
-      <div className="absolute inset-0 z-0 bg-black/20" />
+      {/* Blurred Background with Smooth Dual-Layer Crossfade */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <AnimatePresence mode="popLayout">
+          {displayedBgCover && (
+            <motion.div 
+              key={displayedBgCover}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.8 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: 'easeInOut' }}
+              className="absolute inset-0 bg-cover bg-center blur-[80px] saturate-150 scale-110 transform-gpu will-change-transform"
+              style={{ backgroundImage: `url("${displayedBgCover}")` }}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+      <div className="absolute inset-0 z-0 bg-black/20 pointer-events-none" />
 
       {/* Top Bar for close button & extra controls */}
       <div className="absolute top-0 left-0 right-0 p-6 z-50 flex justify-between items-start pointer-events-none">
@@ -167,7 +222,12 @@ export default function FullScreenPlayerUI({
         {/* Left: Large Cover & Info */}
         <div className="flex-1 flex flex-col items-center justify-center max-w-[600px]">
           <div className="w-full aspect-square max-w-[500px] rounded-2xl overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] mb-10 border border-white/20 bg-muted">
-            <TrackImage src={coverArtHighRes} className="w-full h-full object-cover" alt={displayTrack.title} />
+            <TrackImage 
+              src={coverArtHighRes} 
+              trackId={displayTrack.id}
+              className="w-full h-full object-cover" 
+              alt={displayTrack.title} 
+            />
           </div>
           <h1 className="text-4xl lg:text-5xl font-bold mb-3 text-center drop-shadow-xl leading-tight text-white">{displayTrack.title}</h1>
           <ArtistLinks 

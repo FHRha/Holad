@@ -123,7 +123,8 @@ export default function BottomPlayer() {
       <div className="flex items-center gap-4 flex-1 min-w-0 max-w-[30%] md:min-w-[180px] lg:min-w-[250px]">
         <div className="w-[92px] h-[92px] rounded-md overflow-hidden relative group shadow-sm flex-shrink-0">
           <TrackImage 
-            src={getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 100)} 
+            src={getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 120)} 
+            trackId={currentTrack.id}
             alt="Cover" 
             className="w-full h-full object-cover" 
           />
@@ -306,7 +307,8 @@ export default function BottomPlayer() {
         <MiniProgressBar />
       
         <TrackImage 
-          src={getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 100)} 
+          src={getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 120)} 
+          trackId={currentTrack.id}
           className="w-9 h-9 rounded shadow flex-shrink-0 object-cover" 
           alt="" 
         />

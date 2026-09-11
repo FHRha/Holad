@@ -21,6 +21,7 @@ export default function ArtistView() {
   const {
     artist,
     artistInfo,
+    externalStats,
     topSongs,
     loading,
     handlePlayArtist,
@@ -37,6 +38,7 @@ export default function ArtistView() {
   }
 
   const albums = artist.album || [];
+  const biography = (artistInfo?.biography && artistInfo.biography.trim()) ? artistInfo.biography : externalStats?.data?.bio;
 
   return (
     <div className="flex-1 overflow-y-auto bg-transparent md:bg-card custom-scrollbar relative pb-24">
@@ -69,8 +71,14 @@ export default function ArtistView() {
               <h1 className="text-3xl sm:text-6xl md:text-8xl font-black text-foreground drop-shadow-lg truncate pb-1">
                 {artist.name}
               </h1>
-              <p className="text-sm sm:text-base text-foreground/60 font-medium mt-2">
-                {t('views.albums_count')} {artist.albumCount || albums.length}
+              <p className="text-sm sm:text-base text-foreground/60 font-medium mt-2 flex items-center justify-center sm:justify-start flex-wrap gap-x-2">
+                {externalStats?.data?.listeners ? (
+                  <>
+                    <span>{externalStats.data.listeners.toLocaleString()} {t('views.monthly_listeners')}</span>
+                    <span>•</span>
+                  </>
+                ) : null}
+                <span>{t('views.albums_count')} {artist.albumCount || albums.length}</span>
               </p>
             </div>
           </div>
@@ -151,12 +159,12 @@ export default function ArtistView() {
 
         {/* Biography & Extra Info */}
         <div className="lg:col-span-1 flex flex-col gap-6">
-          {artistInfo && artistInfo.biography && (
+          {biography && (
             <div className="bg-foreground/5 rounded-2xl p-6 border border-foreground/5">
               <h3 className="text-sm font-bold uppercase tracking-widest text-secondary mb-4">{t('views.about_artist')}</h3>
               <div 
                 className="text-sm text-foreground/80 leading-relaxed line-clamp-12"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(artistInfo.biography) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(biography) }}
               />
             </div>
           )}

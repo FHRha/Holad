@@ -4,6 +4,7 @@ import { getCachedImageUrl } from '../../utils/imageCache';
 import { useDownloadStore } from '../../store/downloadStore';
 import { StorageManager } from '../../utils/StorageManager';
 import { getCoverArtUrl } from '../../api/subsonic';
+import { preloadAndDecodeImage } from '../../utils/assetPreloader';
 
 interface TrackImageProps {
   src?: string;
@@ -12,18 +13,30 @@ interface TrackImageProps {
   trackId?: string;
 }
 
-export default function TrackImage({ src: rawSrc, className, alt = '', trackId }: TrackImageProps) {
+export default function TrackImage({ src: rawSrc, className = '', alt = '', trackId }: TrackImageProps) {
   const src = (!rawSrc || typeof rawSrc !== 'string' || rawSrc === 'undefined' || rawSrc === 'null' || !rawSrc.trim()) ? undefined : rawSrc;
-  const [error, setError] = useState(false);
-  const [retries, setRetries] = useState(0);
-  const [finalSrc, setFinalSrc] = useState<string | undefined>(undefined);
-  const [isVisible, setIsVisible] = useState(false);
+  
+  // Display buffer states: keep current image rendered while next one loads & decodes
+  const [displayedSrc, setDisplayedSrc] = useState<string | undefined>(undefined);
+  const [prevSrc, setPrevSrc] = useState<string | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<boolean>(false);
+  const [retries, setRetries] = useState<number>(0);
+  const [isVisible, setIsVisible] = useState<boolean>(false);
+  
   const containerRef = useRef<HTMLDivElement>(null);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeRequestIdRef = useRef<number>(0);
   
   const downloadItem = useDownloadStore(state => trackId ? state.downloads[trackId] : undefined);
 
+  // Visibility detection with IntersectionObserver and fallback
   useEffect(() => {
     if (!containerRef.current) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return;
+    }
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) {
         setIsVisible(true);
@@ -35,83 +48,143 @@ export default function TrackImage({ src: rawSrc, className, alt = '', trackId }
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-
     if (!isVisible) return;
 
-    // Check local cover art URI from download store first
-    if (downloadItem?.localCoverArtUri) {
-      setFinalSrc(downloadItem.localCoverArtUri);
-      return;
-    }
+    const requestId = ++activeRequestIdRef.current;
+    let isMounted = true;
+    setIsLoading(true);
 
-    if (!src && !trackId) {
-      setFinalSrc(undefined);
-      return;
-    }
-
-    const checkLocalAndFetch = async () => {
-      let resolvedSrc = src;
-      if (resolvedSrc && !resolvedSrc.startsWith('http') && !resolvedSrc.startsWith('/') && !resolvedSrc.startsWith('blob:') && !resolvedSrc.startsWith('data:') && !resolvedSrc.startsWith('asset:') && !resolvedSrc.startsWith('capacitor:') && !resolvedSrc.startsWith('file:') && !resolvedSrc.startsWith('_capacitor_')) {
-        resolvedSrc = getCoverArtUrl(resolvedSrc, 300);
-      }
-
-      // If src is already a local asset or file URI, use directly
-      if (resolvedSrc && (
-        resolvedSrc.startsWith('http://asset.localhost') ||
-        resolvedSrc.startsWith('asset://') ||
-        resolvedSrc.startsWith('_capacitor_file_') ||
-        resolvedSrc.startsWith('capacitor://') ||
-        resolvedSrc.startsWith('file://') ||
-        resolvedSrc.startsWith('blob:') ||
-        resolvedSrc.startsWith('data:')
-      )) {
-        if (isMounted) setFinalSrc(resolvedSrc);
+    const resolveAndApplyCover = async () => {
+      // 1. Check local cover art URI from download store
+      if (downloadItem?.localCoverArtUri) {
+        await applySource(downloadItem.localCoverArtUri, requestId);
         return;
       }
 
+      // 2. If neither src nor trackId provided, no cover can be resolved
+      if (!src && !trackId) {
+        if (isMounted && requestId === activeRequestIdRef.current) {
+          setIsLoading(false);
+          // Only clear displayedSrc if no image was ever shown, or smoothly transition
+          if (!displayedSrc) {
+            setDisplayedSrc(undefined);
+          }
+        }
+        return;
+      }
+
+      let candidateSrc = src;
+      // Convert raw ID or path to Subsonic cover art URL if not already a protocol URL
+      if (candidateSrc && 
+          !candidateSrc.startsWith('http') && 
+          !candidateSrc.startsWith('/') && 
+          !candidateSrc.startsWith('blob:') && 
+          !candidateSrc.startsWith('data:') && 
+          !candidateSrc.startsWith('asset:') && 
+          !candidateSrc.startsWith('capacitor:') && 
+          !candidateSrc.startsWith('file:') && 
+          !candidateSrc.startsWith('_capacitor_')) {
+        candidateSrc = getCoverArtUrl(candidateSrc, 300);
+      }
+
+      // 3. If candidate is already a local asset or file URI, apply directly
+      if (candidateSrc && (
+        candidateSrc.startsWith('http://asset.localhost') ||
+        candidateSrc.startsWith('asset://') ||
+        candidateSrc.startsWith('_capacitor_file_') ||
+        candidateSrc.startsWith('capacitor://') ||
+        candidateSrc.startsWith('file://') ||
+        candidateSrc.startsWith('blob:') ||
+        candidateSrc.startsWith('data:')
+      )) {
+        await applySource(candidateSrc, requestId);
+        return;
+      }
+
+      // 4. Check offline storage for trackId
       if (trackId && (downloadItem?.status === 'completed' || downloadItem?.localCoverArtUri)) {
         try {
           const localCover = await StorageManager.getLocalCoverUri(trackId);
-          if (localCover && isMounted) {
-            setFinalSrc(localCover);
+          if (localCover && isMounted && requestId === activeRequestIdRef.current) {
+            await applySource(localCover, requestId);
             return;
           }
         } catch {}
       }
 
-      if (!resolvedSrc && trackId) {
-        resolvedSrc = getCoverArtUrl(trackId, 300);
+      // 5. Fall back to trackId if candidateSrc not resolved yet
+      if (!candidateSrc && trackId) {
+        candidateSrc = getCoverArtUrl(trackId, 300);
       }
 
-      if (!resolvedSrc) {
-        if (isMounted) setFinalSrc(undefined);
+      if (!candidateSrc) {
+        if (isMounted && requestId === activeRequestIdRef.current) {
+          setIsLoading(false);
+        }
         return;
       }
 
-      // If we're retrying, append a timestamp to the original URL before caching
+      // 6. Append retry param if retrying
       const urlToFetch = retries > 0 
-        ? `${resolvedSrc}${resolvedSrc.includes('?') ? '&' : '?'}retry=${retries}`
-        : resolvedSrc;
-        
+        ? `${candidateSrc}${candidateSrc.includes('?') ? '&' : '?'}retry=${retries}`
+        : candidateSrc;
+
       try {
         const cachedUrl = await getCachedImageUrl(urlToFetch);
-        if (isMounted) {
-          setFinalSrc(cachedUrl);
+        if (isMounted && requestId === activeRequestIdRef.current) {
+          await applySource(cachedUrl, requestId);
         }
       } catch {
-        if (isMounted) {
-          setFinalSrc(urlToFetch);
+        if (isMounted && requestId === activeRequestIdRef.current) {
+          await applySource(urlToFetch, requestId);
         }
       }
     };
 
-    checkLocalAndFetch();
-    
+    const applySource = async (finalUrl: string, reqId: number) => {
+      // GPU decode the image before swapping to eliminate any white/black frames
+      await preloadAndDecodeImage(finalUrl);
+
+      if (!isMounted || reqId !== activeRequestIdRef.current) return;
+
+      setDisplayedSrc((prev) => {
+        if (prev === finalUrl) {
+          setIsLoading(false);
+          return prev;
+        }
+
+        // Buffer the previous image to crossfade smoothly
+        if (prev) {
+          setPrevSrc(prev);
+          if (transitionTimerRef.current) {
+            clearTimeout(transitionTimerRef.current);
+          }
+          transitionTimerRef.current = setTimeout(() => {
+            setPrevSrc(undefined);
+          }, 350);
+        }
+
+        setIsLoading(false);
+        setError(false);
+        return finalUrl;
+      });
+    };
+
+    resolveAndApplyCover();
+
     return () => {
       isMounted = false;
     };
   }, [src, trackId, retries, downloadItem?.localCoverArtUri, isVisible]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleError = () => {
     if (retries < 3) {
@@ -123,25 +196,39 @@ export default function TrackImage({ src: rawSrc, className, alt = '', trackId }
     }
   };
 
-  if (error || (!finalSrc && isVisible)) {
-    return (
-      <div ref={containerRef} className={`flex items-center justify-center bg-foreground/10 ${className}`}>
-        <Music className="w-1/2 h-1/2 text-[#808080]" />
-      </div>
-    );
-  }
+  // NEVER show <Music /> icon during track transitions if a cover is currently displayed or loading
+  const shouldShowPlaceholder = !displayedSrc && !prevSrc && (error || (!isLoading && isVisible));
 
   return (
     <div ref={containerRef} className={`relative overflow-hidden ${className}`}>
-      {finalSrc && (
+      {/* Display buffer: previous image sits underneath during crossfade */}
+      {prevSrc && (
         <img 
-          src={finalSrc} 
-          className="w-full h-full object-cover" 
+          src={prevSrc} 
+          className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" 
+          alt="" 
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Current displayed image: fades in smoothly on top */}
+      {displayedSrc && (
+        <img 
+          key={displayedSrc}
+          src={displayedSrc} 
+          className="w-full h-full object-cover relative z-10 animate-in fade-in duration-300 ease-in-out" 
           alt={alt} 
           onError={handleError}
           loading="lazy"
           decoding="async"
         />
+      )}
+
+      {/* Fallback placeholder: only when absolutely no image is available or loading */}
+      {shouldShowPlaceholder && (
+        <div className="absolute inset-0 flex items-center justify-center bg-foreground/10 z-20">
+          <Music className="w-1/2 h-1/2 text-[#808080]" />
+        </div>
       )}
     </div>
   );

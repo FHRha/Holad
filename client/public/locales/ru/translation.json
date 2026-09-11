@@ -321,6 +321,7 @@
     "no_tracks": "Нет данных о треках",
     "about_artist": "Об артисте",
     "albums_count": "альбомов",
+    "monthly_listeners": "слушателей в месяц",
     "radio_tracks_failed": "Не удалось найти треки для радио",
     "radio_start_error": "Ошибка запуска радио",
     "listening_history": "История прослушивания",

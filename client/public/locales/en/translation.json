@@ -321,6 +321,7 @@
     "no_tracks": "No track data",
     "about_artist": "About the artist",
     "albums_count": "albums",
+    "monthly_listeners": "monthly listeners",
     "radio_tracks_failed": "Failed to find tracks for radio",
     "radio_start_error": "Error starting radio",
     "listening_history": "Listening history",
