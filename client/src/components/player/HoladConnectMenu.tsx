@@ -20,6 +20,7 @@ export default function HoladConnectMenu() {
   const setActiveDevice = useHoladStore(s => s.setActiveDevice);
   const isConnected = useHoladStore(s => s.roomId !== null);
   const connectionStatus = useHoladStore(s => s.connectionStatus);
+  const connectError = useHoladStore(s => s.connectError);
   const roomId = useHoladStore(s => s.roomId);
   const connect = useHoladStore(s => s.connect);
 
@@ -201,6 +202,11 @@ export default function HoladConnectMenu() {
             {connectionStatus === 'error' && (
               <div className="px-3 py-3 flex flex-col items-center gap-2 text-center text-xs text-red-400">
                 <span>{t('player.connection_failed')}</span>
+                {connectError && (
+                  <span className="text-[10px] text-red-400/70 max-w-[220px] break-words">
+                    {connectError}
+                  </span>
+                )}
                 {roomId && (
                   <button
                     onClick={() => connect(roomId)}

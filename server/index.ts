@@ -1520,6 +1520,56 @@ function unregisterUserPresence(socketId: string) {
   }
 }
 
+function getNavidromeCandidates(authUrl?: string, dbUrl?: string): string[] {
+  const candidates: string[] = [];
+  const isDocker = fs.existsSync('/.dockerenv') || process.env.IS_DOCKER === 'true';
+
+  let authSubpath = '';
+  if (authUrl) {
+    try {
+      const parsed = new URL(authUrl);
+      const p = parsed.pathname.replace(/\/$/, '');
+      if (p && p !== '/') {
+        authSubpath = p;
+      }
+    } catch {}
+  }
+
+  if (process.env.NAVIDROME_URL) {
+    const rawEnv = process.env.NAVIDROME_URL.replace(/\/$/, '');
+    let envSubpath = '';
+    try {
+      const parsed = new URL(rawEnv);
+      const p = parsed.pathname.replace(/\/$/, '');
+      if (p && p !== '/') {
+        envSubpath = p;
+      }
+    } catch {}
+
+    // If NAVIDROME_URL has no subpath, but auth.url has one (e.g. /my/navidrome)
+    if (!envSubpath && authSubpath) {
+      candidates.push(`${rawEnv}${authSubpath}`);
+    }
+    candidates.push(rawEnv);
+  }
+
+  if (dbUrl) {
+    candidates.push(dbUrl.replace(/\/$/, ''));
+  }
+
+  if (authUrl) {
+    let resolved = authUrl.replace(/\/$/, '');
+    if (isDocker) {
+      resolved = resolved.replace('localhost', 'host.docker.internal').replace('127.0.0.1', 'host.docker.internal');
+    } else {
+      resolved = resolved.replace('localhost', '127.0.0.1');
+    }
+    candidates.push(resolved);
+  }
+
+  return [...new Set(candidates.filter(Boolean))];
+}
+
 async function verifySubsonicCredentials(user: string, token: string, salt: string, url: string): Promise<boolean> {
   const cacheKey = `${url.replace(/\/$/, '')}:${user}:${token}:${salt}`;
   const now = Date.now();
@@ -1527,37 +1577,40 @@ async function verifySubsonicCredentials(user: string, token: string, salt: stri
     return true;
   }
 
-  const isWhitelisted = navidromeAccounts.some(a => a.user === user || a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
+  const isWhitelisted = !!process.env.NAVIDROME_URL || navidromeAccounts.length === 0 || navidromeAccounts.some(a => a.user === user || a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
   if (navidromeAccounts.length > 0 && !isWhitelisted && process.env.NODE_ENV !== 'test') {
     return false;
   }
 
-  try {
-    const resolvedUrl = url.replace('localhost', '127.0.0.1');
-    const pingUrl = `${resolvedUrl.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(user)}&t=${encodeURIComponent(token)}&s=${encodeURIComponent(salt)}&v=1.16.1&c=StreamNavi&f=json`;
-    const response = await fetch(pingUrl, { signal: AbortSignal.timeout(5000) });
-    const json = await response.json().catch(() => null);
-    if (response.ok && json?.['subsonic-response']?.status === 'ok') {
-      validateAuthCache.set(cacheKey, now);
-      try {
-        database.saveNavidromeAccount({ url: url.replace(/\/$/, ''), user, token, salt });
-        navidromeAccounts = database.getNavidromeAccounts();
-      } catch (e) {}
-      return true;
+  const candidates = getNavidromeCandidates(url);
+  for (const candidate of candidates) {
+    try {
+      const pingUrl = `${candidate.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(user)}&t=${encodeURIComponent(token)}&s=${encodeURIComponent(salt)}&v=1.16.1&c=StreamNavi&f=json`;
+      const response = await fetch(pingUrl, { signal: AbortSignal.timeout(3000) });
+      const json = await response.json().catch(() => null);
+      if (response.ok && json?.['subsonic-response']?.status === 'ok') {
+        validateAuthCache.set(cacheKey, now);
+        try {
+          database.saveNavidromeAccount({ url: candidate.replace(/\/$/, ''), user, token, salt });
+          navidromeAccounts = database.getNavidromeAccounts();
+        } catch (e) {}
+        return true;
+      }
+    } catch (error) {
+      // Continue to next candidate
     }
-    return false;
-  } catch (error) {
-    if (process.env.NODE_ENV === 'test') {
-      validateAuthCache.set(cacheKey, now);
-      return true;
-    }
-    const dbAccount = navidromeAccounts.find(a => a.user === user && a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
-    if (dbAccount && dbAccount.token && safeTimingCompare(dbAccount.token, token)) {
-      validateAuthCache.set(cacheKey, now);
-      return true;
-    }
-    return false;
   }
+
+  if (process.env.NODE_ENV === 'test') {
+    validateAuthCache.set(cacheKey, now);
+    return true;
+  }
+  const dbAccount = navidromeAccounts.find(a => a.user === user && a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
+  if (dbAccount && dbAccount.token && safeTimingCompare(dbAccount.token, token)) {
+    validateAuthCache.set(cacheKey, now);
+    return true;
+  }
+  return false;
 }
 
 io.on('connection', (socket) => {
@@ -1607,29 +1660,24 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Try resolving URL for Subsonic verification
-    const isDocker = fs.existsSync('/.dockerenv') || process.env.IS_DOCKER === 'true';
-    let resolvedUrl = auth.url;
-    if (process.env.NAVIDROME_URL) {
-      resolvedUrl = process.env.NAVIDROME_URL;
-    } else if (dbAccount?.url) {
-      resolvedUrl = dbAccount.url;
-    } else if (isDocker) {
-      resolvedUrl = resolvedUrl.replace('localhost', 'host.docker.internal').replace('127.0.0.1', 'host.docker.internal');
-    } else {
-      resolvedUrl = resolvedUrl.replace('localhost', '127.0.0.1');
-    }
-
+    // Try resolving URL candidates for Subsonic verification
+    const candidates = getNavidromeCandidates(auth.url, dbAccount?.url);
+    let resolvedUrl = candidates[0] || auth.url;
     let isPingSuccessful = false;
-    try {
-      const pingUrl = `${resolvedUrl.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(auth.user)}&t=${encodeURIComponent(auth.token)}&s=${encodeURIComponent(auth.salt)}&v=1.16.1&c=StreamNavi&f=json`;
-      const response = await fetch(pingUrl, { signal: AbortSignal.timeout(3000) });
-      const json = await response.json().catch(() => null);
-      if (response.ok && json?.['subsonic-response']?.status === 'ok') {
-        isPingSuccessful = true;
+
+    for (const candidate of candidates) {
+      try {
+        const pingUrl = `${candidate.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(auth.user)}&t=${encodeURIComponent(auth.token)}&s=${encodeURIComponent(auth.salt)}&v=1.16.1&c=StreamNavi&f=json`;
+        const response = await fetch(pingUrl, { signal: AbortSignal.timeout(3000) });
+        const json = await response.json().catch(() => null);
+        if (response.ok && json?.['subsonic-response']?.status === 'ok') {
+          isPingSuccessful = true;
+          resolvedUrl = candidate;
+          break;
+        }
+      } catch (error: any) {
+        // Continue to next candidate
       }
-    } catch (error: any) {
-      // Ping fetch error
     }
 
     if (!isPingSuccessful && !isKnownUser) {
@@ -1638,9 +1686,9 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Register or refresh account in DB so covers and streams can immediately use it
+    // Register or refresh account in DB with the verified resolvedUrl
     try {
-      const cleanAuthUrl = (process.env.NAVIDROME_URL || auth.url).replace(/\/$/, '');
+      const cleanAuthUrl = resolvedUrl.replace(/\/$/, '');
       database.saveNavidromeAccount({
         url: cleanAuthUrl,
         user: auth.user,
