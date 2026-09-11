@@ -207,9 +207,12 @@ export class UpdateService {
             }
 
             const isNewer = compareVersions(latestVersion, currentVersion) > 0;
-            console.log(`[UpdateService] Current: "${currentVersion}", Latest: "${latestVersion}", isPrerelease: ${isPrerelease}, isNewer: ${isNewer}`);
+            // If user is currently on a pre-release and turned off pre-releases, allow switching back to latest stable release
+            const isStableRollback = !includePrereleases && currentVersion.includes('-') && !isPrerelease && compareVersions(latestVersion, currentVersion) !== 0;
+            const isAvailable = isNewer || isStableRollback;
+            console.log(`[UpdateService] Current: "${currentVersion}", Latest: "${latestVersion}", isPrerelease: ${isPrerelease}, isNewer: ${isNewer}, isStableRollback: ${isStableRollback}`);
             
-            if (isNewer) {
+            if (isAvailable) {
                 const platform = getPlatform();
                 const assets: any[] = Array.isArray(data.assets) ? data.assets : [];
 

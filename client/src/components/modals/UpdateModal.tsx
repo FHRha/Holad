@@ -9,6 +9,8 @@ import { useSettingsStore } from '../../store/settingsStore';
 export default function UpdateModal() {
   const { t } = useTranslation();
   const appIcon = useSettingsStore(state => state.appIcon);
+  const includePrereleases = useSettingsStore(state => state.includePrereleases);
+  const setIncludePrereleases = useSettingsStore(state => state.setIncludePrereleases);
   const { isUpdateModalOpen, setUpdateModalOpen, updateInfo, setUpdateProgress } = useUIStore();
 
   if (!isUpdateModalOpen || !updateInfo) return null;
@@ -176,11 +178,29 @@ export default function UpdateModal() {
             )}
 
             {!isBusy && (
+              <div className="flex items-center justify-center pt-2 pb-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-secondary hover:text-foreground transition-colors">
+                  <input 
+                    type="checkbox"
+                    checked={includePrereleases}
+                    onChange={async (e) => {
+                      const val = e.target.checked;
+                      setIncludePrereleases(val);
+                      await UpdateService.checkForUpdates(true);
+                    }}
+                    className="accent-primary w-4 h-4 rounded cursor-pointer"
+                  />
+                  <span>{t('settings.include_prereleases', 'Искать тестовые версии (Pre-release)')}</span>
+                </label>
+              </div>
+            )}
+
+            {!isBusy && (
               <button 
                 onClick={handleSkip}
-                className="flex items-center justify-center gap-3 w-full bg-transparent hover:bg-red-500/10 text-red-400 font-bold py-3 rounded-xl border border-transparent transition-colors mt-1"
+                className="flex items-center justify-center gap-3 w-full bg-transparent hover:bg-red-500/10 text-red-400 font-bold py-2.5 rounded-xl border border-transparent transition-colors"
               >
-                <SkipForward size={20} />
+                <SkipForward size={18} />
                 {t('update.skip', 'Skip for now')}
               </button>
             )}
