@@ -213,33 +213,67 @@ music.yourdomain.com {
 
 Holad automatically serves audio streams with `X-Accel-Buffering: no`, ensuring Nginx relays audio chunks to browsers immediately without buffering delays.
 
-To handle WebSockets properly without dropping HTTP Keep-Alive connections, add this `map` directive in your `http` block (or outside the `server` block):
+To handle WebSockets properly (Holad Connect and Jam sessions) without dropping HTTP Keep-Alive connections, add this `map` directive in your `http` block (or outside the `server` block):
 ```nginx
 map $http_upgrade $connection_upgrade {
     default upgrade;
     ''      close;
 }
 ```
+*(Or specify `proxy_set_header Connection "upgrade";` directly in the socket locations)*.
+
+> [!IMPORTANT]
+> **Critical Nginx Guidelines:**
+> 1. Always ensure `proxy_http_version 1.1;` is set (otherwise Nginx defaults to HTTP/1.0 which drops WebSockets).
+> 2. Do **NOT** add a trailing slash to `proxy_pass http://127.0.0.1:PORT;` when using subpaths (it strips the subpath and breaks Socket.IO routing).
+> 3. Include `proxy_buffering off;` and `proxy_read_timeout 86400s;` to prevent long-polling buffers from freezing and socket drops after 60 seconds.
 
 #### Option A: Dedicated Domain or Subdomain (Root `/`)
 ```nginx
 server {
     server_name music.yourdomain.com;
 
+    # If Navidrome runs on the same domain under /navidrome/
+    location /navidrome/ {
+        proxy_pass http://127.0.0.1:4533;
+        include snippets/proxy-params.conf;
+        proxy_buffering off;
+        client_max_body_size 0;
+    }
+
+    location = /navidrome {
+        return 301 /navidrome/;
+    }
+
+    # Audio stream without buffering
+    location /api/stream/ {
+        proxy_pass http://127.0.0.1:4000;
+        include snippets/proxy-params.conf;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+
+    # Main UI, WebSockets and REST API
     location / {
         proxy_pass http://127.0.0.1:4000;
+        include snippets/proxy-params.conf;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Connection $connection_upgrade; # or "upgrade"
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
     }
 }
 ```
 
-#### Option B: Subpath Deployment (e.g. `/Holad/`)
+#### Option B: Subpath Deployment (e.g. `BASE_PATH=/Holad/`)
 Set `BASE_PATH=/Holad` in your Docker environment. Everything in Holad (UI, login, Jam sessions, API, WebSockets, static assets) is encapsulated inside this subpath, so you only need **a single `location` block** in Nginx:
 
 ```nginx
@@ -248,17 +282,30 @@ server {
 
     # Single unified location for UI, API, and WebSockets
     location /Holad/ {
-        proxy_pass http://127.0.0.1:4000;
+        proxy_pass http://127.0.0.1:4000; # IMPORTANT: No trailing slash!
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Connection $connection_upgrade; # or "upgrade"
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+
+    location = /Holad {
+        return 301 /Holad/;
     }
 }
 ```
+
+> [!TIP]
+> **Navidrome with `ND_BASEURL`:**
+> If your Navidrome instance is configured with a subpath (e.g., `ND_BASEURL=/navidrome`), make sure to provide the full internal Docker URL including that subpath in Holad's configuration:
+> `NAVIDROME_URL=http://navidrome:4533/navidrome`
+> This ensures token validation and Holad Connect function properly.
 
 ---
 

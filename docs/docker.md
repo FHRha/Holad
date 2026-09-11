@@ -213,33 +213,67 @@ music.yourdomain.com {
 
 Сервер Holad автоматически отдаёт заголовок `X-Accel-Buffering: no` для потока аудио, поэтому Nginx мгновенно пересылает чанки в браузер без задержки на буферизацию.
 
-Для корректной работы WebSockets без разрыва соединений добавьте в блок `http` (или перед `server`):
+Для корректной работы WebSockets (Holad Connect и Jam-сессии) без разрыва соединений добавьте в блок `http` (или перед `server`):
 ```nginx
 map $http_upgrade $connection_upgrade {
     default upgrade;
     ''      close;
 }
 ```
+*(Или можно прямо указывать `proxy_set_header Connection "upgrade";` в блоках сокетов)*.
+
+> [!IMPORTANT]
+> **Критические правила для Nginx:**
+> 1. Всегда указывайте `proxy_http_version 1.1;` (без него Nginx использует HTTP/1.0, где WebSockets не поддерживаются).
+> 2. В `proxy_pass http://127.0.0.1:порт;` **НЕ ставьте завершающий слэш** при использовании подпутей (иначе Nginx вырежет подпуть из запросов Socket.IO).
+> 3. Добавляйте `proxy_buffering off;` и `proxy_read_timeout 86400s;`, чтобы Nginx не задерживал long-polling пакеты и не разрывал сокеты по таймауту 60 секунд.
 
 #### Вариант А: Размещение на отдельном домене (корень `/`)
 ```nginx
 server {
     server_name music.yourdomain.com;
 
+    # Если Navidrome работает на том же домене по подпути /navidrome/
+    location /navidrome/ {
+        proxy_pass http://127.0.0.1:4533;
+        include snippets/proxy-params.conf;
+        proxy_buffering off;
+        client_max_body_size 0;
+    }
+
+    location = /navidrome {
+        return 301 /navidrome/;
+    }
+
+    # Стрим аудио треков Holad без буферизации
+    location /api/stream/ {
+        proxy_pass http://127.0.0.1:4000;
+        include snippets/proxy-params.conf;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+
+    # Основной интерфейс, сокеты и REST API Holad
     location / {
         proxy_pass http://127.0.0.1:4000;
+        include snippets/proxy-params.conf;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Connection $connection_upgrade; # или "upgrade"
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
     }
 }
 ```
 
-#### Вариант Б: Размещение в подпапке (например, `/Holad/`)
+#### Вариант Б: Размещение в подпапке (например, `BASE_PATH=/Holad/`)
 Задайте в Docker-окружении `BASE_PATH=/Holad`. Вся работа Holad (интерфейс, вход, Jam-сессии, API и WebSockets) изолируется внутри префикса, поэтому в Nginx нужен **ровно один блок `location`**:
 
 ```nginx
@@ -248,17 +282,30 @@ server {
 
     # Единый блок для интерфейса, API и WebSockets
     location /Holad/ {
-        proxy_pass http://127.0.0.1:4000;
+        proxy_pass http://127.0.0.1:4000; # ВАЖНО: без завершающего слэша!
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Connection $connection_upgrade; # или "upgrade"
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+
+    location = /Holad {
+        return 301 /Holad/;
     }
 }
 ```
+
+> [!TIP]
+> **Navidrome с `ND_BASEURL`:**
+> Если ваш Navidrome настроен с подпутем (например, `ND_BASEURL=/navidrome` или `ND_BASEURL=/my/navidrome`), в конфигурации контейнера Holad обязательно указывайте полный внутренний адрес с этим подпутем:
+> `NAVIDROME_URL=http://navidrome:4533/navidrome`
+> Это необходимо для успешной валидации токенов и работы Holad Connect.
 
 ---
 
