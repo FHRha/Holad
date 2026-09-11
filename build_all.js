@@ -447,6 +447,7 @@ node dist/index.js
       }
 
       console.log("\n--- Scheduling Tauri Build (Desktop App) ---");
+      try {
         let tauriBuildCmd = 'npx @tauri-apps/cli build';
         const currentVer = getAppVersion();
         if (process.env.TAURI_BUNDLES) {
