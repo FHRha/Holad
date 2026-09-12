@@ -73,6 +73,20 @@ app.use(cors());
 
 // Middleware to support relative routing when hosted under custom base path or /Holad
 app.use((req, res, next) => {
+  const forwardedPrefix = typeof req.headers['x-forwarded-prefix'] === 'string'
+    ? req.headers['x-forwarded-prefix'].trim().replace(/\/$/, '')
+    : '';
+
+  if (forwardedPrefix) {
+    if (req.url === `${forwardedPrefix}/api`) {
+      req.url = '/api';
+      (req as any)._parsedUrl = undefined;
+    } else if (req.url.startsWith(`${forwardedPrefix}/api/`)) {
+      req.url = req.url.replace(`${forwardedPrefix}/api/`, '/api/');
+      (req as any)._parsedUrl = undefined;
+    }
+  }
+
   if (req.url === '/Holad/api') {
     req.url = '/api';
     (req as any)._parsedUrl = undefined;
@@ -85,6 +99,14 @@ app.use((req, res, next) => {
       (req as any)._parsedUrl = undefined;
     } else if (req.url.startsWith(`${normalizedBase}/api/`)) {
       req.url = req.url.replace(`${normalizedBase}/api/`, '/api/');
+      (req as any)._parsedUrl = undefined;
+    }
+  } else {
+    // Dynamic fallback for any arbitrary single-segment base path (e.g. /my-music/api/...)
+    // if BASE_PATH env was not explicitly set on the server
+    const apiMatch = req.url.match(/^(\/[^/]+)(\/api(?:\/.*|\?.*)?)$/);
+    if (apiMatch && apiMatch[1] !== '/api') {
+      req.url = apiMatch[2];
       (req as any)._parsedUrl = undefined;
     }
   }
