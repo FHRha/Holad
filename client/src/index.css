@@ -8,7 +8,7 @@
     --foreground: #1a1a1a;
     --foreground-rgb: 26, 26, 26;
     --card: #ffffff;
-    --secondary: #1a1a1a;
+    --secondary: #6b7280;
     --accent: #e5e7eb;
     --muted: #f3f4f6;
     --border: rgba(0, 0, 0, 0.1);
@@ -24,7 +24,7 @@
     --secondary: #b3b3b3;
     --accent: #282828;
     --muted: #181818;
-    --border: transparent;
+    --border: rgba(0, 0, 0, 0.4);
     --scrollbar-thumb: rgba(255, 255, 255, 0.15);
     --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
   }

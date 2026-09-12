@@ -10,6 +10,7 @@ import { useDownloadStore } from '../../store/downloadStore';
 import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
 import VolumeSlider from '../common/VolumeSlider';
 import Dropdown from '../common/Dropdown';
+import FlagIcon from '../common/FlagIcon';
 import { pushPreferences } from '../../api/preferences';
 import { pushIntegrations } from '../../api/integrations';
 import DeleteDownloadsModal from './DeleteDownloadsModal';
@@ -280,8 +281,8 @@ export default function SettingsModal({
                       }
                     }}
                     options={[
-                      { label: '🇷🇺 Русский', value: 'ru' },
-                      { label: '🇺🇸 English', value: 'en' }
+                      { label: 'Русский', value: 'ru', icon: <FlagIcon code="ru" /> },
+                      { label: 'English', value: 'en', icon: <FlagIcon code="en" /> }
                     ]}
                   />
                   <label className="flex items-center gap-3 cursor-pointer group mt-2">
@@ -1121,7 +1122,7 @@ function SettingSection({ title, children }: { title: string, children: React.Re
   return (
     <div className="flex flex-col gap-3">
       <h4 className="text-sm font-semibold text-secondary uppercase tracking-wider">{title}</h4>
-      <div className="bg-background/50 p-4 rounded-xl border border-white/5">
+      <div className="bg-black/[0.02] dark:bg-black/25 p-4 rounded-xl border border-black/10 dark:border-black/50">
         {children}
       </div>
     </div>

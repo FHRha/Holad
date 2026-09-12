@@ -42,7 +42,9 @@ const ARTIFACTS_DIR = path.join(ROOT_DIR, 'artifacts');
 const RELEASE_DIR = path.join(ARTIFACTS_DIR, 'holad-release');
 
 // Version injection
-const rawVersion = process.env.GITHUB_REF_NAME || process.env.RELEASE_VERSION;
+// Local builds default to 2.0.0-localtest unless in CI or explicitly overridden
+const isCi = !!(process.env.GITHUB_ACTIONS || process.env.CI);
+const rawVersion = process.env.GITHUB_REF_NAME || process.env.RELEASE_VERSION || (isCi ? null : '2.0.0-localtest');
 let appVersion = null;
 if (rawVersion) {
   const version = rawVersion.startsWith('v') ? rawVersion.substring(1) : rawVersion;
@@ -129,7 +131,7 @@ function getAppVersion() {
     const tauriConfig = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'tauri.conf.json'), 'utf8'));
     if (tauriConfig.version) return tauriConfig.version;
   } catch (e) {}
-  return '2.0.6';
+  return '2.0.0-localtest';
 }
 
 function getEnv(envOverrides = {}) {
@@ -325,6 +327,25 @@ async function main() {
   }
   if (!fs.existsSync(ARTIFACTS_DIR)) {
     fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
+  }
+
+  // Also clean up stale Tauri bundle and Capacitor APK directories to avoid copying obsolete versions
+  const tauriBundleDir = path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'target', 'release', 'bundle');
+  if (fs.existsSync(tauriBundleDir)) {
+    try {
+      fs.rmSync(tauriBundleDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+    } catch (e) {
+      console.warn("Warning: Could not clear previous Tauri bundles directory:", e.message);
+    }
+  }
+
+  const androidApkDir = path.join(ROOT_DIR, 'Capacitor', 'android', 'app', 'build', 'outputs', 'apk');
+  if (fs.existsSync(androidApkDir)) {
+    try {
+      fs.rmSync(androidApkDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+    } catch (e) {
+      console.warn("Warning: Could not clear previous Android APK directory:", e.message);
+    }
   }
 
   // 1. Ensure dependencies sequentially (avoids concurrent pnpm store lock deadlocks)
@@ -578,7 +599,7 @@ node dist/index.js
           const releaseApkName = currentVersion ? `Holad-Android-${currentVersion}.apk` : 'Holad-Android-Release.apk';
 
           if (fs.existsSync(targetApk)) {
-            const artifactName = buildType === 'assembleRelease' ? releaseApkName : 'Holad-Android-Debug.apk';
+            const artifactName = currentVersion ? `Holad-Android-${currentVersion}.apk` : (buildType === 'assembleRelease' ? 'Holad-Android-Release.apk' : 'Holad-Android-Debug.apk');
             console.log(`Copying Android APK to artifacts/${artifactName}...`);
             fs.copyFileSync(targetApk, path.join(ARTIFACTS_DIR, artifactName));
             copiedApk = true;
@@ -591,7 +612,7 @@ node dist/index.js
                 if (file.isDirectory()) {
                   findAndCopyApk(full);
                 } else if (file.isFile() && file.name.endsWith('.apk')) {
-                  const name = file.name.includes('release') ? releaseApkName : 'Holad-Android-Debug.apk';
+                  const name = currentVersion ? `Holad-Android-${currentVersion}.apk` : (file.name.includes('release') ? releaseApkName : 'Holad-Android-Debug.apk');
                   console.log(`Copying Android APK ${file.name} to artifacts/${name}...`);
                   fs.copyFileSync(full, path.join(ARTIFACTS_DIR, name));
                   copiedApk = true;

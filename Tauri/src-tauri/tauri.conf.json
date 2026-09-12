@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Holad",
-  "version": "2.0.6",
+  "version": "2.0.0-localtest",
   "identifier": "com.holad.desktop",
   "build": {
     "frontendDist": "../../client/dist",
@@ -41,7 +41,12 @@
         "width": 320,
         "height": 450,
         "resizable": false,
-        "backgroundColor": [0, 0, 0, 0]
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ]
       }
     ],
     "security": {
@@ -72,12 +77,19 @@
     },
     "resources": [
       "icons/taskbar/*"
-    ]
+    ],
+    "windows": {
+      "wix": {
+        "version": "2.0.0"
+      }
+    }
   },
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["holad"]
+        "schemes": [
+          "holad"
+        ]
       }
     },
     "shell": {

@@ -115,7 +115,6 @@ function AppContent() {
       const initTauri = async () => {
         try {
           const { invoke } = await import('@tauri-apps/api/core');
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
           
           const settings = useSettingsStore.getState();
           
