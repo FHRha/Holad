@@ -376,7 +376,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         engineRef.current.pause();
       } else if (audioMode === 'synced_audio' && isPlaying && isActiveDevice) {
         const currentProgress = useAudioStore.getState().progress;
-        const dur = engineRef.current.getDuration() || currentTrack?.duration || 0;
+        const engDur = engineRef.current.getDuration();
+        const validEngDur = engDur > 0 && isFinite(engDur) ? engDur : 0;
+        const validTrackDur = currentTrack?.duration && isFinite(currentTrack.duration) && currentTrack.duration > 0 ? currentTrack.duration : 0;
+        const dur = validEngDur || validTrackDur || 0;
         if (dur > 0 && currentProgress > 0) {
           const targetTime = (currentProgress / 100) * dur;
           engineRef.current.seek(targetTime);
@@ -494,7 +497,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         }
         lastTimeRef.current = currentTime;
 
-        const dur = engine.getDuration() || currentTrack.duration || 1;
+        const engDur = engine.getDuration();
+        const validEngDur = engDur > 0 && isFinite(engDur) ? engDur : 0;
+        const validTrackDur = currentTrack.duration && isFinite(currentTrack.duration) && currentTrack.duration > 0 ? currentTrack.duration : 0;
+        const dur = validEngDur || validTrackDur || 1;
         if (duration !== dur) setDuration(dur);
 
         const pct = (currentTime / dur) * 100;
@@ -521,7 +527,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         const isJamSession = Boolean(pStore.roomId);
         const canAdvanceTrack = !isJamSession || pStore.role === 'host' || pStore.role === 'cohost';
         const isEngineOnCurrentTrack = engine.getActiveTrackId() === currentTrack.id;
-        const actualDur = engine.getDuration() || currentTrack.duration || 0;
+        const actualDur = validEngDur || validTrackDur || 0;
 
         const effectiveCrossfade = actualDur <= 3
           ? 0

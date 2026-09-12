@@ -130,7 +130,10 @@ export class MobileAudioCore implements IAudioCore {
 
     pause(): void { this.audioElement.pause(); }
     async resume(): Promise<void> { await this.audioElement.play().catch(e => console.warn(e)); }
-    seek(time: number): void { this.audioElement.currentTime = time; }
+    seek(time: number): void {
+        if (!isFinite(time) || isNaN(time)) return;
+        this.audioElement.currentTime = time;
+    }
     
     setVolume(volume: number): void {
         if (this.primaryGain && this.audioCtx) {
@@ -241,7 +244,10 @@ export class MobileAudioCore implements IAudioCore {
     async preload(_url: string): Promise<void> {}
 
     getCurrentTime(): number { return this.audioElement.currentTime; }
-    getDuration(): number { return this.audioElement.duration || 0; }
+    getDuration(): number {
+        const d = this.audioElement.duration;
+        return d && !isNaN(d) && isFinite(d) ? d : 0;
+    }
     getState(): AudioState { return this.currentState; }
 
     on(event: 'timeupdate' | 'statechange' | 'ended' | 'durationchange' | 'error', listener: (...args: any[]) => void): void {

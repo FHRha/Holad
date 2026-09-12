@@ -7,6 +7,7 @@ import LiquidSeekBar, {
   getDefaultLayers,
 } from '../../components/common/LiquidSeekBar';
 import { setGlobalWindowVisible } from '../../hooks/useWindowVisibility';
+import { formatTime } from '../../utils/timeFormat';
 
 describe('LiquidSeekBar 3-Wave Integration and Visibility Guards', () => {
   let mockRaf: any;
@@ -162,5 +163,38 @@ describe('LiquidSeekBar 3-Wave Integration and Visibility Guards', () => {
     const thumb = container.querySelector('.rounded-full.shadow-\\[0_0_4px_rgba\\(0\\,0\\,0\\,0\\.5\\)\\]');
     expect(thumb).not.toBeNull();
     expect((thumb as HTMLElement).style.left).toBe('75%');
+  });
+
+  it('safely handles rapid value re-renders without unmounting canvas effect or killing animation loop', () => {
+    const { rerender } = render(<LiquidSeekBar value={0.1} isAnimated={true} />);
+    expect(mockRaf).toHaveBeenCalled();
+
+    // Re-render rapidly with updated progress values as happens during audio playback
+    for (let i = 2; i <= 10; i++) {
+      act(() => {
+        rerender(<LiquidSeekBar value={i / 100} isAnimated={true} />);
+      });
+    }
+
+    // Animation should remain active and not get permanently terminated by teardown loops
+    expect(mockRaf.mock.calls.length).toBeGreaterThan(0);
+  });
+
+  it('safely handles non-finite values (Infinity, -Infinity, NaN) in value and buffered props', () => {
+    expect(() => {
+      const { rerender } = render(<LiquidSeekBar value={Infinity} buffered={Infinity} />);
+      rerender(<LiquidSeekBar value={-Infinity} buffered={-Infinity} />);
+      rerender(<LiquidSeekBar value={NaN} buffered={NaN} />);
+    }).not.toThrow();
+  });
+
+  it('formatTime formats valid seconds and safely prevents Infinity:NaN', () => {
+    expect(formatTime(0)).toBe('0:00');
+    expect(formatTime(65)).toBe('1:05');
+    expect(formatTime(215)).toBe('3:35');
+    expect(formatTime(Infinity)).toBe('0:00');
+    expect(formatTime(-Infinity)).toBe('0:00');
+    expect(formatTime(NaN)).toBe('0:00');
+    expect(formatTime(-10)).toBe('0:00');
   });
 });

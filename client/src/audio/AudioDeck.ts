@@ -326,6 +326,7 @@ export class AudioDeck implements IAudioDeck {
     }
 
     public seek(positionSeconds: number): void {
+        if (!isFinite(positionSeconds) || isNaN(positionSeconds)) return;
         const duration = this.getDuration();
         const safePosition = Math.max(0, duration > 0 ? Math.min(positionSeconds, duration) : positionSeconds);
         this.element.currentTime = safePosition;
@@ -349,7 +350,7 @@ export class AudioDeck implements IAudioDeck {
     }
 
     public getDuration(): number {
-        return this.element.duration && !isNaN(this.element.duration) ? this.element.duration : 0;
+        return this.element.duration && !isNaN(this.element.duration) && isFinite(this.element.duration) ? this.element.duration : 0;
     }
 
     public getState(): AudioState {

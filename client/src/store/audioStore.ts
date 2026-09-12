@@ -77,18 +77,25 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
     
     const currentTrack = usePlayerStore.getState().queue[usePlayerStore.getState().currentIndex];
     const engine = getAudioEngine();
-    const targetDuration = engine.getDuration() || state.duration || (currentTrack ? currentTrack.duration : 0);
-    const targetTime = val * targetDuration;
+    const engDur = engine.getDuration();
+    const validEngDur = engDur > 0 && isFinite(engDur) ? engDur : 0;
+    const stateDur = state.duration > 0 && isFinite(state.duration) ? state.duration : 0;
+    const trackDur = currentTrack?.duration && isFinite(currentTrack.duration) && currentTrack.duration > 0 ? currentTrack.duration : 0;
+    const targetDuration = validEngDur || stateDur || trackDur;
+    const safeVal = typeof val === 'number' && isFinite(val) ? Math.max(0, Math.min(1, val)) : 0;
+    const targetTime = safeVal * targetDuration;
 
-    if (isDeviceActive) {
-      engine.seek(targetTime);
-    } else {
-      useHoladStore.getState().sendRemoteCommand('seek', targetTime * 1000);
-    }
+    if (isFinite(targetTime)) {
+      if (isDeviceActive) {
+        engine.seek(targetTime);
+      } else {
+        useHoladStore.getState().sendRemoteCommand('seek', targetTime * 1000);
+      }
 
-    const playerState = usePlayerStore.getState();
-    if (playerState.roomId && (playerState.role === 'host' || playerState.role === 'cohost')) {
-      jamSocket.syncSeek(targetTime);
+      const playerState = usePlayerStore.getState();
+      if (playerState.roomId && (playerState.role === 'host' || playerState.role === 'cohost')) {
+        jamSocket.syncSeek(targetTime);
+      }
     }
   }
 }));

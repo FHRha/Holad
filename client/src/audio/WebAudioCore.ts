@@ -86,6 +86,7 @@ export class WebAudioCore implements IAudioCore {
     }
 
     seek(time: number): void {
+        if (!isFinite(time) || isNaN(time)) return;
         this.audioElement.currentTime = time;
     }
 
@@ -121,7 +122,8 @@ export class WebAudioCore implements IAudioCore {
     }
 
     getDuration(): number {
-        return this.audioElement.duration || 0;
+        const d = this.audioElement.duration;
+        return d && !isNaN(d) && isFinite(d) ? d : 0;
     }
 
     getState(): AudioState {

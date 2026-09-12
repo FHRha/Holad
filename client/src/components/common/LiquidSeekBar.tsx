@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { subscribeWindowVisibility, getIsWindowVisible } from '../../hooks/useWindowVisibility';
 
 export interface WaveLayerConfig {
@@ -131,11 +131,11 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
   const [isDragging, setIsDragging] = useState(false);
   const lastUpdate = useRef(0);
 
-  const normalizedBuffered = typeof buffered === 'number' && !isNaN(buffered)
+  const normalizedBuffered = typeof buffered === 'number' && isFinite(buffered)
     ? (buffered > 1 ? Math.max(0, Math.min(100, buffered)) / 100 : Math.max(0, Math.min(1, buffered)))
     : 0;
 
-  const safeValue = typeof value === 'number' && !isNaN(value)
+  const safeValue = typeof value === 'number' && isFinite(value)
     ? Math.max(0, Math.min(1, value))
     : 0;
 
@@ -161,7 +161,7 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
   const renderRef = useRef<(() => void) | undefined>(undefined);
 
   const updateThumbAndProgress = (val: number) => {
-    const clamped = typeof val === 'number' && !isNaN(val) ? Math.max(0, Math.min(val, 1)) : 0;
+    const clamped = typeof val === 'number' && isFinite(val) ? Math.max(0, Math.min(val, 1)) : 0;
     currentValueRef.current = clamped;
     const percent = clamped * 100;
 
@@ -169,8 +169,9 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
       thumbRef.current.style.left = `${percent}%`;
     }
 
-    // Only trigger redraw if NOT currently in an animation loop (e.g. while paused)
-    if (!isAnimatedRef.current && !animationRef.current && renderRef.current) {
+    // Trigger redraw or restart animation loop if not currently animating
+    if (!animationRef.current && renderRef.current) {
+      lastTimeRef.current = performance.now();
       renderRef.current();
     }
   };
@@ -184,10 +185,11 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
   const lastValueRef = useRef<number>(safeValue);
 
   const updateValue = (clientX: number, isEnd = false) => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) return 0;
     const rect = containerRef.current.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return 0;
     const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    const newValue = rect.width > 0 ? x / rect.width : 0;
+    const newValue = Math.max(0, Math.min(1, x / rect.width));
 
     lastValueRef.current = newValue;
     updateThumbAndProgress(newValue);
@@ -267,8 +269,10 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
     };
   }, [color]);
 
-  // Active layers
-  const activeLayers = layers && layers.length > 0 ? layers : getDefaultLayers(waveCount);
+  // Active layers memoized so identity is stable across renders
+  const activeLayers = useMemo(() => {
+    return layers && layers.length > 0 ? layers : getDefaultLayers(waveCount);
+  }, [layers, waveCount]);
 
   // Canvas animation logic
   useEffect(() => {
@@ -281,6 +285,28 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
     let height = 0;
     let isWindowVisible = getIsWindowVisible() && !document.hidden;
     let isIntersecting = true;
+
+    const setupDimensions = (w: number, h: number) => {
+      if (w <= 0 || h <= 0) return;
+      width = w;
+      height = h;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.ceil(width * dpr);
+      canvas.height = Math.ceil(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+    };
+
+    // Synchronously initialize dimensions on mount if container already has layout
+    if (containerRef.current) {
+      const initialRect = containerRef.current.getBoundingClientRect();
+      if (initialRect.width > 0 && initialRect.height > 0) {
+        setupDimensions(initialRect.width, initialRect.height);
+      }
+    }
 
     const drawFlatLine = (activeWidth: number) => {
       if (!ctx || width <= 0 || height <= 0) return;
@@ -423,6 +449,14 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
         animationRef.current = undefined;
       }
 
+      // If dimensions are not yet set, measure synchronously
+      if ((width <= 0 || height <= 0) && containerRef.current) {
+        const r = containerRef.current.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          setupDimensions(r.width, r.height);
+        }
+      }
+
       const activeWidth = width * Math.max(0, Math.min(1, currentValueRef.current));
 
       // STRICT VISIBILITY GUARD:
@@ -481,20 +515,12 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
 
     renderRef.current = render;
 
-    const resizeObserver = new ResizeObserver(() => {
+    const resizeObserver = new ResizeObserver((entries) => {
       if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      width = rect.width;
-      height = rect.height;
-
-      canvas.width = Math.ceil(width * dpr);
-      canvas.height = Math.ceil(height * dpr);
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(dpr, dpr);
+      const entry = entries[0];
+      const w = entry ? entry.contentRect.width : containerRef.current.getBoundingClientRect().width;
+      const h = entry ? entry.contentRect.height : containerRef.current.getBoundingClientRect().height;
+      setupDimensions(w, h);
 
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
@@ -545,6 +571,9 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
         }
       }
     });
+
+    // Trigger initial render immediately
+    render();
 
     return () => {
       if (animationRef.current) {
