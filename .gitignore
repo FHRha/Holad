@@ -41,7 +41,9 @@ remaining-lint.json
 package-lock.json
 yarn.lock
 
-# SQLite Database
+# SQLite Database & Secrets
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+*.db*
+.encryption_key
