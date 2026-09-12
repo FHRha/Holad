@@ -20,6 +20,7 @@
       ]
     },
     "core:path:default",
-    "core:app:default"
+    "core:app:default",
+    "autostart:default"
   ]
 }

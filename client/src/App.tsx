@@ -122,12 +122,23 @@ function AppContent() {
           // Apply closeToTray setting
           await invoke('set_close_to_tray', { enabled: settings.closeToTray ?? true });
           
-            // Handle visibility on autostart
+          // Handle visibility on autostart
           const isAutostart = await invoke<boolean>('is_autostart_launch');
           if (isAutostart && settings.startMinimized === false) {
-            const win = getCurrentWindow();
-            await win.show();
-            await win.setFocus();
+            await invoke('show_main_window');
+          }
+
+          // Sync autostart state with OS registration
+          try {
+            const { isEnabled, enable, disable } = await import('@tauri-apps/plugin-autostart');
+            const osEnabled = await isEnabled();
+            if (settings.runOnStartup && !osEnabled) {
+              await enable();
+            } else if (!settings.runOnStartup && osEnabled) {
+              await disable();
+            }
+          } catch (autostartErr) {
+            console.error("Failed to sync autostart with OS:", autostartErr);
           }
         } catch (err) {
           console.error("Tauri initialization error:", err);

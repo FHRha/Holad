@@ -94,6 +94,23 @@ export default function SettingsModal({
           setActiveTab('appearance');
       }
   }, [isJamGuest, activeTab]);
+
+  // Sync autostart status with OS when settings modal is open
+  useEffect(() => {
+    if (isModalOpen && ('__TAURI_INTERNALS__' in window)) {
+      import('@tauri-apps/plugin-autostart').then(async ({ isEnabled }) => {
+        try {
+          const enabled = await isEnabled();
+          if (settings.runOnStartup !== enabled) {
+            settings.setRunOnStartup(enabled);
+          }
+        } catch (err) {
+          console.error('Failed to check autostart status:', err);
+        }
+      }).catch(() => {});
+    }
+  }, [isModalOpen]);
+
   const [resetState, setResetState] = useState<'idle' | 'confirm' | 'done'>('idle');
   const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null);
   const [customHexInput, setCustomHexInput] = useState('');
@@ -439,6 +456,7 @@ export default function SettingsModal({
                               else await disable();
                             } catch (err) {
                               console.error('Failed to toggle autostart', err);
+                              settings.setRunOnStartup(!checked);
                             }
                           }}
                           className="accent-primary w-4 h-4 rounded cursor-pointer"

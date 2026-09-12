@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { useAudioStore } from '../../store/audioStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import LiquidSeekBar from '../../components/common/LiquidSeekBar';
 import { MockAudioElement, MockTimeRanges } from '../mocks/mockAudio';
 import { resetAllStores } from '../helpers/testUtils';
@@ -84,5 +85,11 @@ describe('Tier 1 - F10: UI Buffering, Volume Slider & Settings Layout', () => {
 
     fireEvent.pointerDown(sliderContainer, { clientX: 70, clientY: 10 });
     expect(changedVal).toBeCloseTo(0.7, 1);
+  });
+
+  it('F10-6: settingsStore defaults startMinimized and runOnStartup to false', () => {
+    resetAllStores();
+    expect(useSettingsStore.getState().startMinimized).toBe(false);
+    expect(useSettingsStore.getState().runOnStartup).toBe(false);
   });
 });

@@ -44,8 +44,8 @@ export function resetAllStores(): void {
     startPage: '/',
     isCrossfadeEnabled: true,
     crossfadeDuration: 3,
-    runOnStartup: true,
-    startMinimized: true,
+    runOnStartup: false,
+    startMinimized: false,
     closeToTray: true,
   });
 

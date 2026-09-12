@@ -878,8 +878,8 @@ export function resetE2EHarness(): void {
     isGaplessEnabled: false,
     isLoudnessNormalizationEnabled: true,
     preloadNextTrack: true,
-    runOnStartup: true,
-    startMinimized: true,
+    runOnStartup: false,
+    startMinimized: false,
     closeToTray: true,
   });
 
