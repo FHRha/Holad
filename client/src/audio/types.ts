@@ -48,7 +48,7 @@ export interface IAudioDeck {
     load(src: string, position?: number): Promise<void>;
     play(): Promise<void>;
     pause(): void;
-    seek(positionSeconds: number): void;
+    seek(positionSeconds: number, maxDuration?: number): void;
     setVolume(volume: number): void;
     setPlaybackRate(rate: number): void;
     setLoop(loop: boolean): void;
@@ -57,7 +57,7 @@ export interface IAudioDeck {
     getDuration(): number;
     getState(): AudioState;
     getBufferedRanges(): BufferedRange[];
-    getBufferedPercent(): number;
+    getBufferedPercent(knownDuration?: number): number;
     releaseMedia?(): void;
     
     on(event: string, listener: (...args: any[]) => void): void;

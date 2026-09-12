@@ -325,11 +325,19 @@ export class AudioDeck implements IAudioDeck {
         this.setState('idle');
     }
 
-    public seek(positionSeconds: number): void {
+    public seek(positionSeconds: number, maxDuration?: number): void {
         if (!isFinite(positionSeconds) || isNaN(positionSeconds)) return;
-        const duration = this.getDuration();
-        const safePosition = Math.max(0, duration > 0 ? Math.min(positionSeconds, duration) : positionSeconds);
-        this.element.currentTime = safePosition;
+        this.targetPosition = positionSeconds;
+        const deckDuration = this.getDuration();
+        const effectiveDuration = (typeof maxDuration === 'number' && maxDuration > 0 && isFinite(maxDuration))
+            ? maxDuration
+            : (deckDuration > 0 ? deckDuration : 0);
+        const safePosition = Math.max(0, effectiveDuration > 0 ? Math.min(positionSeconds, effectiveDuration) : positionSeconds);
+        try {
+            this.element.currentTime = safePosition;
+        } catch {
+            // Some environments throw if metadata has not loaded yet
+        }
     }
 
     public setVolume(volume: number): void {
@@ -346,6 +354,9 @@ export class AudioDeck implements IAudioDeck {
     }
 
     public getCurrentTime(): number {
+        if (this.element.seeking && this.targetPosition > 0) {
+            return this.targetPosition;
+        }
         return this.element.currentTime || 0;
     }
 
@@ -373,8 +384,11 @@ export class AudioDeck implements IAudioDeck {
         return ranges;
     }
 
-    public getBufferedPercent(): number {
-        const duration = this.getDuration();
+    public getBufferedPercent(knownDuration?: number): number {
+        const deckDuration = this.getDuration();
+        const duration = (typeof knownDuration === 'number' && knownDuration > 0 && isFinite(knownDuration))
+            ? knownDuration
+            : deckDuration;
         if (duration <= 0) return 0;
 
         const buffered = this.element.buffered;

@@ -20,15 +20,15 @@ interface AudioStore {
   handleSeekEnd: (val: number) => void;
 }
 
-let activeAudioListener: { el: HTMLAudioElement; handler: () => void } | null = null;
+let activeAudioListener: { el: HTMLAudioElement; handler: () => void; events: string[] } | null = null;
 
 export const useAudioStore = create<AudioStore>((set, get) => ({
   audioElement: null,
   setAudioElement: (el) => {
     if (activeAudioListener) {
-      activeAudioListener.el.removeEventListener('progress', activeAudioListener.handler);
-      activeAudioListener.el.removeEventListener('loadedmetadata', activeAudioListener.handler);
-      activeAudioListener.el.removeEventListener('timeupdate', activeAudioListener.handler);
+      activeAudioListener.events.forEach(evt => {
+        activeAudioListener!.el.removeEventListener(evt, activeAudioListener!.handler);
+      });
       activeAudioListener = null;
     }
 
@@ -36,11 +36,30 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
 
     if (el) {
       const updateBuffer = () => {
-        const targetDuration = el.duration && !isNaN(el.duration) && el.duration !== Infinity ? el.duration : get().duration || 1;
+        const currentTrack = usePlayerStore.getState().queue[usePlayerStore.getState().currentIndex];
+        const trackDur = currentTrack?.duration && isFinite(currentTrack.duration) && currentTrack.duration > 0 ? currentTrack.duration : 0;
+        const validElDur = el.duration && !isNaN(el.duration) && isFinite(el.duration) && el.duration > 0 ? el.duration : 0;
+        const stateDur = get().duration > 0 && isFinite(get().duration) ? get().duration : 0;
+        const targetDuration = validElDur || trackDur || stateDur;
+
         if (el.buffered && el.buffered.length > 0 && targetDuration > 0) {
           try {
-            const end = el.buffered.end(el.buffered.length - 1);
-            const pct = Math.min(100, Math.max(0, (end / targetDuration) * 100));
+            const curTime = el.currentTime || 0;
+            let currentRangeEnd = 0;
+            for (let i = 0; i < el.buffered.length; i++) {
+              const start = el.buffered.start(i);
+              const end = el.buffered.end(i);
+              if (start <= curTime + 1 && end >= curTime) {
+                currentRangeEnd = Math.max(currentRangeEnd, end);
+              }
+            }
+            if (currentRangeEnd === 0) {
+              for (let i = 0; i < el.buffered.length; i++) {
+                const end = el.buffered.end(i);
+                if (end > currentRangeEnd) currentRangeEnd = end;
+              }
+            }
+            const pct = Math.min(100, Math.max(0, (currentRangeEnd / targetDuration) * 100));
             set({ buffered: pct });
           } catch {
             // ignore
@@ -50,10 +69,9 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
         }
       };
 
-      el.addEventListener('progress', updateBuffer);
-      el.addEventListener('loadedmetadata', updateBuffer);
-      el.addEventListener('timeupdate', updateBuffer);
-      activeAudioListener = { el, handler: updateBuffer };
+      const events = ['progress', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough'];
+      events.forEach(evt => el.addEventListener(evt, updateBuffer));
+      activeAudioListener = { el, handler: updateBuffer, events };
       updateBuffer();
     }
   },
@@ -70,7 +88,6 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
   },
   handleSeekEnd: (val) => {
     const state = get();
-    set({ isSeeking: false });
     
     const store = useHoladStore.getState();
     const isDeviceActive = store.roomId === null || store.activeDeviceId === store.deviceId || store.activeDeviceId === null;
@@ -85,6 +102,8 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
     const safeVal = typeof val === 'number' && isFinite(val) ? Math.max(0, Math.min(1, val)) : 0;
     const targetTime = safeVal * targetDuration;
 
+    set({ progress: safeVal * 100 });
+
     if (isFinite(targetTime)) {
       if (isDeviceActive) {
         engine.seek(targetTime);
@@ -97,5 +116,9 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
         jamSocket.syncSeek(targetTime);
       }
     }
+
+    setTimeout(() => {
+      set({ isSeeking: false });
+    }, 150);
   }
 }));

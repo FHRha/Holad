@@ -333,13 +333,8 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     public seek(positionSeconds: number): void {
         const activeDeck = this.getActiveDeck();
         const curTrackDur = typeof this.currentTrack?.duration === 'number' ? this.currentTrack.duration : 0;
-        if (curTrackDur > 0 && activeDeck.getDuration() < curTrackDur) {
-            try {
-                (activeDeck.element as any).duration = curTrackDur;
-            } catch { /* Browser restriction fallback: property is read-only or locked */ }
-        }
-        activeDeck.seek(positionSeconds);
-        this.emit('timeupdate', activeDeck.getCurrentTime());
+        activeDeck.seek(positionSeconds, curTrackDur);
+        this.emit('timeupdate', positionSeconds, this.deckTrackIds[this.activeIndex]);
     }
 
     public setVolume(volume: number, _isMobile: boolean = false): void {
@@ -451,7 +446,10 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     public getDuration(): number {
-        return this.getActiveDeck().getDuration();
+        const deckDur = this.getActiveDeck().getDuration();
+        if (deckDur > 0 && isFinite(deckDur)) return deckDur;
+        const trackDur = typeof this.currentTrack?.duration === 'number' ? this.currentTrack.duration : 0;
+        return trackDur > 0 && isFinite(trackDur) ? trackDur : 0;
     }
 
     public getState(): AudioState {

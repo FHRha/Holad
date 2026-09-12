@@ -364,11 +364,17 @@ export default function FullScreenPlayerUI({
                             if (getAudioEngine()) {
                               getAudioEngine().resume().catch(console.error);
                               usePlayerStore.getState().setIsPlaying(true);
+                              const curDur = useAudioStore.getState().duration || currentTrack?.duration || 1;
+                              useAudioStore.getState().setIsSeeking(true);
+                              useAudioStore.getState().setProgress(Math.max(0, Math.min(100, (line.time / curDur) * 100)));
                               getAudioEngine().seek(line.time);
                               const pState = usePlayerStore.getState();
                               if (pState.roomId && (pState.role === 'host' || pState.role === 'cohost')) {
                                 jamSocket.syncSeek(line.time);
                               }
+                              setTimeout(() => {
+                                useAudioStore.getState().setIsSeeking(false);
+                              }, 150);
                             }
                             setIsUserScrolled(false);
                           }}

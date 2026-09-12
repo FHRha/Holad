@@ -293,7 +293,11 @@ app.get('/api/ping', (req, res) => {
   res.json({ ok: true, server: 'holad' });
 });
 
-app.get('/api/version', (_req, res) => {
+const versionRoutes = ['/api/version', '/Holad/api/version'];
+if (normalizedBase && !versionRoutes.includes(`${normalizedBase}/api/version`)) {
+  versionRoutes.push(`${normalizedBase}/api/version`);
+}
+app.get(versionRoutes, (_req, res) => {
   res.json({ version: getAppVersion() });
 });
 
@@ -1311,14 +1315,12 @@ function pipeAudioStream(upstreamResponse: Response, req: express.Request, res: 
   res.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
   // Instruct Nginx, Caddy, Cloudflare and other reverse proxies not to buffer this real-time audio stream
   res.set('X-Accel-Buffering', 'no');
-  res.set('Cache-Control', 'no-cache, no-transform');
+  res.set('Cache-Control', 'private, max-age=3600, no-transform');
+  res.set('Accept-Ranges', 'bytes');
   res.set('Content-Type', upstreamResponse.headers.get('content-type') || 'audio/mpeg');
   
   const contentLength = upstreamResponse.headers.get('content-length');
   if (contentLength) res.set('Content-Length', contentLength);
-  if (upstreamResponse.headers.get('accept-ranges')) {
-    res.set('Accept-Ranges', upstreamResponse.headers.get('accept-ranges') || 'bytes');
-  }
   if (upstreamResponse.headers.get('content-range')) {
     res.set('Content-Range', upstreamResponse.headers.get('content-range') || '');
   }
