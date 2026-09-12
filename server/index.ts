@@ -105,8 +105,10 @@ app.use((req, res, next) => {
     // Dynamic fallback for any arbitrary single-segment base path (e.g. /my-music/api/...)
     // if BASE_PATH env was not explicitly set on the server
     const apiMatch = req.url.match(/^(\/[^/]+)(\/api(?:\/.*|\?.*)?)$/);
-    if (apiMatch && apiMatch[1] !== '/api') {
-      req.url = apiMatch[2];
+    const prefix = apiMatch?.[1];
+    const targetPath = apiMatch?.[2];
+    if (prefix && prefix !== '/api' && targetPath) {
+      req.url = targetPath;
       (req as any)._parsedUrl = undefined;
     }
   }
