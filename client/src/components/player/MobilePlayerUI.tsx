@@ -41,7 +41,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const isConnected = useHoladStore(s => s.roomId !== null);
   const activeDeviceId = useHoladStore(s => s.activeDeviceId);
   const localDeviceId = useHoladStore(s => s.deviceId);
-  const devices = useHoladStore(s => s.devices);
   
   const isJamRoute = window.location.pathname.startsWith('/jam');
   const searchParams = new URLSearchParams(window.location.search);
@@ -164,8 +163,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const handlePlayPause = () => {
     if (role === 'listener') return; 
     
-    const isDeviceActive = !isConnected || activeDeviceId === localDeviceId || (activeDeviceId === null && devices.length <= 1);
-    if (!isPlaying && isDeviceActive) {
+    if (!isPlaying && (!isConnected || activeDeviceId === localDeviceId || activeDeviceId === null)) {
       getAudioEngine().resume().catch(() => {});
     }
     

@@ -113,8 +113,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
         deck.on('ended', () => {
             if (deckIndex === this.activeIndex) {
-                const trackId = this.deckTrackIds[deckIndex] || this.currentTrack?.id;
-                this.emit('ended', trackId);
+                this.emit('ended', this.deckTrackIds[deckIndex]);
             }
         });
 
@@ -228,31 +227,22 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                 ? Math.min(rawDuration, Math.max(0.05, trackDuration / 2))
                 : rawDuration;
 
-            if (outgoingRemaining !== undefined && outgoingRemaining > 0) {
-                effectiveDuration = Math.min(effectiveDuration, Math.max(0.5, outgoingRemaining));
+            if (outgoingRemaining !== undefined) {
+                effectiveDuration = Math.min(effectiveDuration, outgoingRemaining);
             }
             if (incomingDuration > 0) {
-                effectiveDuration = Math.min(effectiveDuration, Math.max(0.5, incomingDuration * 0.4));
+                effectiveDuration = Math.min(effectiveDuration, incomingDuration * 0.4);
             }
-            effectiveDuration = Math.max(0.1, effectiveDuration);
+            effectiveDuration = Math.max(0.05, effectiveDuration);
 
-            if (outgoingDeck.element.ended || outgoingDeck.element.paused) {
-                if (this.pipeline) {
-                    this.pipeline.setDeckGain(incomingIndex, 1.0, 0);
-                    this.pipeline.setDeckGain(outgoingIndex, 0.0, 0);
-                }
-                incomingDeck.setVolume(this.volume * this.volumeMultiplier);
-                await incomingDeck.play();
-            } else {
-                await this.transitionManager.performCrossfade(
-                    outgoingDeck,
-                    incomingDeck,
-                    { duration: effectiveDuration, curve: this.settings.crossfadeCurve },
-                    this.pipeline || undefined,
-                    outgoingIndex,
-                    this.volume * this.volumeMultiplier
-                );
-            }
+            await this.transitionManager.performCrossfade(
+                outgoingDeck,
+                incomingDeck,
+                { duration: effectiveDuration, curve: this.settings.crossfadeCurve },
+                this.pipeline || undefined,
+                outgoingIndex,
+                this.volume * this.volumeMultiplier
+            );
         } else if (this.settings.isGaplessEnabled && this.preloadManager.isTrackPreloaded(track?.id)) {
             // Gapless handover
             const outgoingIndex = this.activeIndex;
@@ -287,9 +277,6 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             );
         } else {
             // Standard direct play
-            this.preloadManager.cancelPreload(standbyDeck);
-            this.deckTrackIds[(1 - this.activeIndex) as 0 | 1] = null;
-
             if (this.pipeline) {
                 await this.pipeline.unlockContext();
                 if (this.playToken !== currentToken || !this.isPlaying) return;
@@ -392,7 +379,6 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
     public async preloadNextTrack(track: any): Promise<void> {
         if (!this.settings.preloadNextTrack) return;
-        this.deckTrackIds[(1 - this.activeIndex) as 0 | 1] = track?.id || null;
         const standbyDeck = this.getStandbyDeck();
         await this.preloadManager.preloadTrack(track, standbyDeck);
     }

@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { WebAudioCore } from '../../audio/WebAudioCore';
 import { MobileAudioCore } from '../../audio/MobileAudioCore';
-import { AudioDeck } from '../../audio/AudioDeck';
 import { resetAllStores } from '../helpers/testUtils';
 
 describe('Tier 2 - B8: Corrupted Audio Source & Error Recovery', () => {
@@ -93,18 +92,4 @@ describe('Tier 2 - B8: Corrupted Audio Source & Error Recovery', () => {
     expect(count).toBe(0);
     webAudio.destroy();
   });
-
-  it('B8-6: AudioDeck error fallback does not trigger play() when deck was paused or preloading', () => {
-    const deck = new AudioDeck('test-deck');
-    const playSpy = vi.fn();
-    deck.element.play = playSpy;
-
-    // Simulate error event on primary element with anonymous crossorigin
-    const errorEvent = new Event('error');
-    deck.element.dispatchEvent(errorEvent);
-
-    expect(playSpy).not.toHaveBeenCalled();
-    deck.destroy();
-  });
 });
-

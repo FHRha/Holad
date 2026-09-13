@@ -91,6 +91,31 @@ export class TransitionManager {
             incomingDeck.setVolume(0.0 * masterVolume);
         }
 
+        try {
+            await incomingDeck.play();
+        } catch (e) {
+            console.warn('Crossfade incoming deck play error:', e);
+            
+            if (usePipeline) {
+                pipeline.setDeckGain(outgoingIndex, 1.0, 0);
+                pipeline.setDeckGain(incomingIndex, 0.0, 0);
+            } else {
+                outgoingDeck.setVolume(1.0 * masterVolume);
+                // oxlint-disable-next-line
+                incomingDeck.setVolume(0.0 * masterVolume);
+            }
+            
+            if (this.abortController) {
+                this.abortController.abort();
+            }
+        }
+
+        if (signal.aborted) {
+            this.isTransitioning = false;
+            return;
+        }
+
+
         if (usePipeline) {
             const startTime = pipeline.context.currentTime + 0.02;
             pipeline.scheduleCrossfade(outgoingIndex, incomingIndex, durationSeconds, curve, startTime);
@@ -120,30 +145,6 @@ export class TransitionManager {
                     this.transitionInterval = null;
                 }
             }, stepTime);
-        }
-
-        try {
-            await incomingDeck.play();
-        } catch (e) {
-            console.warn('Crossfade incoming deck play error:', e);
-            
-            if (usePipeline) {
-                pipeline.setDeckGain(outgoingIndex, 1.0, 0);
-                pipeline.setDeckGain(incomingIndex, 0.0, 0);
-            } else {
-                outgoingDeck.setVolume(1.0 * masterVolume);
-                // oxlint-disable-next-line
-                incomingDeck.setVolume(0.0 * masterVolume);
-            }
-            
-            if (this.abortController) {
-                this.abortController.abort();
-            }
-        }
-
-        if (signal.aborted) {
-            this.isTransitioning = false;
-            return;
         }
 
         return new Promise<void>((resolve) => {
@@ -182,7 +183,7 @@ export class TransitionManager {
 
                 outgoingDeck.pause();
                 resolve();
-            }, Math.round(durationSeconds * 1000) + 100);
+            }, durationSeconds * 1000);
         });
     }
 

@@ -25,7 +25,6 @@ export class AudioDeck implements IAudioDeck {
     private listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
     private boundHandlers: Map<string, (...args: any[]) => void> = new Map();
     private isTainted: boolean = false;
-    private rawSrc: string = '';
 
     constructor(id: string, element?: HTMLAudioElement) {
         this.id = id;
@@ -159,7 +158,6 @@ export class AudioDeck implements IAudioDeck {
                 this.isTainted = true;
                 
                 const currentTime = this.state === 'loading' ? this.targetPosition : oldElement.currentTime;
-                const wasPlaying = !oldElement.paused && this.state === 'playing';
                 
                 oldElement.pause();
                 oldElement.removeAttribute('src');
@@ -167,9 +165,7 @@ export class AudioDeck implements IAudioDeck {
                 
                 this.element.load();
                 this.element.currentTime = currentTime;
-                if (wasPlaying) {
-                    this.element.play().catch(() => {});
-                }
+                this.element.play().catch(() => {});
                 return;
             }
             this.setState('error');
@@ -216,27 +212,12 @@ export class AudioDeck implements IAudioDeck {
 
             this.element.preload = 'auto';
 
-            let isSameSource = Boolean(this.rawSrc && this.rawSrc === src);
-            if (!isSameSource && typeof window !== 'undefined' && src) {
-                try {
-                    const resolvedNew = new URL(src, window.location.href).href;
-                    const resolvedCurrent = this.element.src ? new URL(this.element.src, window.location.href).href : '';
-                    if (resolvedNew && resolvedCurrent && resolvedNew === resolvedCurrent) {
-                        isSameSource = true;
-                    }
-                } catch {}
-            }
-
-            this.rawSrc = src;
-
-            if (!isSameSource) {
+            if (this.element.src !== src) {
                 this.element.src = src;
                 this.element.load();
             } else {
                 try {
-                    if (Math.abs(this.element.currentTime - position) > 0.05) {
-                        this.element.currentTime = position;
-                    }
+                    this.element.currentTime = position;
                 } catch {}
             }
         
@@ -337,13 +318,8 @@ export class AudioDeck implements IAudioDeck {
         }
     }
 
-    public getRawSrc(): string {
-        return this.rawSrc;
-    }
-
     public releaseMedia(): void {
         this.pause();
-        this.rawSrc = '';
         this.element.removeAttribute('src');
         this.element.load();
         this.setState('idle');
@@ -455,7 +431,6 @@ export class AudioDeck implements IAudioDeck {
 
     public destroy(): void {
         this.pause();
-        this.rawSrc = '';
         this.element.src = '';
         
         // Remove all attached media event listeners

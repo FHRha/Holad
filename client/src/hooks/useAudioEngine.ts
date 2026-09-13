@@ -51,8 +51,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const holadDeviceId = useHoladStore(s => s.deviceId);
   const holadActiveDeviceId = useHoladStore(s => s.activeDeviceId);
   const isHoladConnected = useHoladStore(s => s.roomId !== null);
-  const holadDevices = useHoladStore(s => s.devices);
-  const isActiveDevice = !isHoladConnected || holadActiveDeviceId === holadDeviceId || (holadActiveDeviceId === null && holadDevices.length <= 1);
+  const isActiveDevice = !isHoladConnected || holadActiveDeviceId === holadDeviceId || holadActiveDeviceId === null;
 
   const { src: audioSrc, trackId: srcTrackId, isLoading: srcLoading, isAvailable } = useTrackSource(currentTrack);
 
@@ -207,7 +206,6 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
   // Preload next track
   const preloadUpcomingTrack = useCallback(() => {
-    if (!isActiveDevice) return;
     if (!settings.preloadNextTrack || settings.preloadMode === 'disabled') return;
 
     // If wifi_only is selected, check if connection is cellular or metered
@@ -267,6 +265,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     if (prevTrackIdRef.current === currentTrack.id && !didDeviceBecomeActive && !hasPlayActionChanged) return;
 
     const isAutoSkip = crossfadeTriggeredRef.current === prevTrackIdRef.current;
+    crossfadeTriggeredRef.current = null;
     prevTrackIdRef.current = currentTrack.id;
     preloadTrackAssets(currentTrack).catch(() => {});
 
@@ -279,24 +278,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const wasPlayingEngine = prevIsPlayingRef.current;
     const isMidTransition = engineRef.current.isTransitioning();
 
-    if (!isActiveDevice) {
-      crossfadeTriggeredRef.current = null;
-      // Remote controller device: ensure local audio engine and elements are completely paused and unloaded
-      engineRef.current.pause();
-      if (audioRefs[0]?.current) {
-        audioRefs[0].current.pause();
-        audioRefs[0].current.removeAttribute('src');
-        audioRefs[0].current.load();
-      }
-      if (audioRefs[1]?.current) {
-        audioRefs[1].current.pause();
-        audioRefs[1].current.removeAttribute('src');
-        audioRefs[1].current.load();
-      }
-      return;
-    }
-
-    if (isPlayingStore && !isSpeakerDj) {
+    if (isPlayingStore && isActiveDevice && !isSpeakerDj) {
       const activeDeckIdx = engineRef.current.getActiveDeckIndex();
       const shouldCrossfade = isCrossfade && wasPlayingEngine && !didDeviceBecomeActive && !isMidTransition;
       const nextDeckIdx = (shouldCrossfade ? (1 - activeDeckIdx) : activeDeckIdx) as 0 | 1;
@@ -316,9 +298,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         setActiveIndex(newActiveIdx as 0 | 1);
         const newEl = audioRefs[newActiveIdx]?.current;
         if (newEl) setAudioElement(newEl);
-        crossfadeTriggeredRef.current = null;
       }).catch((e) => {
-        crossfadeTriggeredRef.current = null;
         console.warn('Track playback initiation error:', e);
       });
 
@@ -326,7 +306,6 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         setInitialPosition(0);
       }
     } else {
-      crossfadeTriggeredRef.current = null;
       const activeDeckIdx = engineRef.current.getActiveDeckIndex();
       setActiveIndex(activeDeckIdx as 0 | 1);
       const activeEl = audioRefs[activeDeckIdx]?.current;
@@ -341,27 +320,13 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         engineRef.current.pause();
       }
     }
-  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition, playActionId]);
+  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition]);
 
   // Handle play/pause toggle
-  const prevIsPlayingStoreRef = useRef<boolean>(isPlaying);
-  const prevTrackIdForPlayPauseRef = useRef<string | null>(currentTrack?.id || null);
-
   useEffect(() => {
     if (!currentTrack) return;
 
-    const wasPlaying = prevIsPlayingStoreRef.current;
-    prevIsPlayingStoreRef.current = isPlaying;
-
-    const isSameTrack = prevTrackIdForPlayPauseRef.current === currentTrack.id;
-    prevTrackIdForPlayPauseRef.current = currentTrack.id;
-
-    if (wasPlaying === isPlaying) return;
-
     if (isPlaying && isActiveDevice && !isSpeakerDj) {
-      if (!isSameTrack || (engineRef.current.getActiveTrackId() && engineRef.current.getActiveTrackId() !== currentTrack.id)) {
-        return;
-      }
       engineRef.current.resume().catch((e) => {
         console.error('Playback resume error:', e);
       });
@@ -459,18 +424,6 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   useEffect(() => {
     const handleInteraction = () => {
       engineRef.current.getWebAudioPipeline()?.unlockContext();
-      
-      const holadState = useHoladStore.getState();
-      const isDeviceActive = !holadState.roomId || 
-        holadState.activeDeviceId === holadState.deviceId || 
-        (holadState.activeDeviceId === null && holadState.devices.length <= 1);
-
-      if (!isDeviceActive) {
-        audioRefs[0]?.current?.pause();
-        audioRefs[1]?.current?.pause();
-        return;
-      }
-
       // Force unlock HTML Audio elements on mobile by playing and immediately pausing them
       // BUT only if they are not actively playing a track, otherwise we break the user's first play action.
       const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
@@ -590,8 +543,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
           !engine.isTransitioning()
         ) {
           const remaining = actualDur - currentTime;
-          // Add 0.3s headroom so React render / dispatch delays do not cause outgoing track to hit EOF
-          if (remaining > 0 && remaining <= (effectiveCrossfade + 0.3) && currentTime > effectiveCrossfade) {
+          if (remaining > 0 && remaining <= effectiveCrossfade && currentTime > effectiveCrossfade) {
             crossfadeTriggeredRef.current = currentTrack.id;
             if (isJamSession) {
               jamSocket.trackEnded(currentTrack.id, pStore.currentIndex, pStore.repeatMode);
@@ -605,12 +557,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
     const handleEnded = (emittedTrackId?: string) => {
       flushPositionToLocalStorage();
-      if (!isActiveDevice) return;
       if (!currentTrack) return;
-      if (!emittedTrackId || emittedTrackId !== currentTrack.id) return;
-      if (engine.isTransitioning()) return;
-      if (crossfadeTriggeredRef.current === currentTrack.id) return;
-
+      if (emittedTrackId && emittedTrackId !== currentTrack.id) return;
       const pStore = usePlayerStore.getState();
       const isJamSession = Boolean(pStore.roomId);
       if (isJamSession && pStore.role !== 'host' && pStore.role !== 'cohost') return;
@@ -621,6 +569,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         return;
       }
 
+      if (engine.isTransitioning()) return;
+      if (crossfadeTriggeredRef.current === currentTrack.id) return;
+      
       if (isJamSession) {
         jamSocket.trackEnded(currentTrack.id, pStore.currentIndex, pStore.repeatMode);
       } else {
@@ -644,6 +595,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   }, [currentTrack, isActiveDevice, duration, role, sleepTimer, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer, flushPositionToLocalStorage]);
 
   // Holad Syncing: only broadcast if there are multiple devices in the room (remote controller/listener)
+  const holadDevices = useHoladStore(s => s.devices);
   const hasRemoteDevices = holadDevices.length > 1;
 
   useEffect(() => {

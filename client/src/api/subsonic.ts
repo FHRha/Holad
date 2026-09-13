@@ -22,9 +22,9 @@ export const getStreamUrl = (id: string) => {
   const params = getAuthParams();
   const targetServerUrl = url ? url.replace(/\/$/, '') : '';
 
-  let formatParam = 'format=raw';
-  if (streamingQuality === 'opus-256') {
-    formatParam = 'format=opus&maxBitRate=256';
+  let formatParam = 'format=opus&maxBitRate=256';
+  if (streamingQuality === 'raw') {
+    formatParam = 'format=raw';
   } else if (streamingQuality === 'opus-192') {
     formatParam = 'format=opus&maxBitRate=192';
   } else if (streamingQuality === 'opus-128') {
@@ -32,7 +32,7 @@ export const getStreamUrl = (id: string) => {
   } else if (streamingQuality === 'mp3-320') {
     formatParam = 'format=mp3&maxBitRate=320';
   } else {
-    formatParam = 'format=raw';
+    formatParam = 'format=opus&maxBitRate=256';
   }
 
   if (!isAuthenticated) {
