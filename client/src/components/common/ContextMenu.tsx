@@ -179,7 +179,7 @@ export default function ContextMenu() {
   const isAlbum = type === 'album';
   const isLiked = isAlbum ? (likedAlbumIds || []).includes(item?.id) : (likedTrackIds || []).includes(item?.id);
   const isInQueue = !isAlbum && (queue || []).some((t: Track) => t?.id === item?.id);
-  const isDownloaded = item ? isItemDownloaded(downloads, item.id, item.albumId) : false;
+  const isDownloaded = item ? isItemDownloaded(downloads, item.id, item.albumId, item) : false;
 
   const handleAction = async (action: () => void | Promise<void>, shouldClose = true) => {
     try {

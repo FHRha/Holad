@@ -4,6 +4,7 @@ import { join } from '@tauri-apps/api/path';
 import { useDownloadStore, isItemDownloaded } from '../store/downloadStore';
 import type { DownloadItem } from '../store/downloadStore';
 import { isOffline } from './networkStatus';
+import { generateTrackFingerprint } from './trackFingerprint';
 
 const activeAbortControllers = new Map<string, AbortController>();
 
@@ -246,13 +247,23 @@ export const handleDownload = async (id: string, name: string, type: 'track' | '
               localCoverArtUri,
               sizeBytes
             });
+            const fingerprint = generateTrackFingerprint({
+              id: song.id,
+              title: trackName,
+              artist: song.artist || album.artist,
+              album: albumName,
+              albumId: album.id,
+              duration: song.duration,
+              path: filePath
+            });
             useDownloadStore.getState().completeDownload(song.id, filePath, {
               localCoverArtUri,
               artist: song.artist || album.artist,
               album: albumName,
               albumId: album.id,
               duration: song.duration,
-              sizeBytes
+              sizeBytes,
+              fingerprint
             });
           } catch (e: any) {
             if (signal.aborted) throw e;
@@ -346,13 +357,23 @@ export const handleDownload = async (id: string, name: string, type: 'track' | '
           return;
         }
 
+        const fingerprint = generateTrackFingerprint({
+          id,
+          title: trackName,
+          artist: track.artist,
+          album: track.album,
+          albumId: track.albumId,
+          duration: track.duration,
+          path: filePath
+        });
         completeDownload(id, filePath, {
           localCoverArtUri,
           artist: track.artist,
           album: track.album,
           albumId: track.albumId,
           duration: track.duration,
-          sizeBytes
+          sizeBytes,
+          fingerprint
         });
       }
     } catch (err: any) {

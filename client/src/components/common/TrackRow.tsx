@@ -44,7 +44,7 @@ const TrackRow = memo(function TrackRow({
   const toggleTrackLike = usePlayerStore(s => s.toggleTrackLike);
   const toggleTrackExclude = usePlayerStore(s => s.toggleTrackExclude);
   const isGuest = usePlayerStore(s => !s.roomId && s.role !== 'host');
-  const isDownloaded = useDownloadStore(s => isItemDownloaded(s.downloads, track.id, track.albumId));
+  const isDownloaded = useDownloadStore(s => isItemDownloaded(s.downloads, track.id, track.albumId, track));
   const openMenu = useContextMenuStore(s => s.openMenu);
 
   const handlePlay = useCallback((e?: React.MouseEvent) => {

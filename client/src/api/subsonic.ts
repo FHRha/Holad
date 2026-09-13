@@ -97,8 +97,11 @@ export const getArtist = async (id: string) => {
   return data['subsonic-response']?.artist;
 };
 
-export const getTopSongs = async (artist: string, count: number = 1000): Promise<any[]> => {
-  const url = buildUrl('getTopSongs', { artist, count: count.toString() });
+export const getTopSongs = async (artist: string, count: number = 1000, artistId?: string): Promise<any[]> => {
+  const params: Record<string, string> = { count: count.toString() };
+  if (artist) params.artist = artist;
+  if (artistId) params.id = artistId;
+  const url = buildUrl('getTopSongs', params);
   try {
     const response = await fetchWithRetry(url);
     const data = await response.json();

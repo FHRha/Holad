@@ -2,6 +2,7 @@ import { writeFile, mkdir, exists, remove, copyFile, readDir } from '@tauri-apps
 import { join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useDownloadStore } from '../store/downloadStore';
+import { findDownloadedTrackMatch } from './trackFingerprint';
 import { toast } from 'sonner';
 
 // Check if we are running inside Tauri
@@ -390,18 +391,48 @@ export class StorageManager {
         }
       }
     }
-    return this.getLocalTrackUri(trackIdOrPath, trackTitle, albumId);
+    return this.getLocalTrackUri(trackIdOrPath, trackTitle, albumId, trackMeta);
   }
 
-  static async getTrackAudioUri(trackId: string, trackTitle?: string, albumId?: string): Promise<string | null> {
-    return this.resolveAudioUri(trackId, trackTitle, albumId);
+  static async getTrackAudioUri(trackId: string, trackTitle?: string, albumId?: string, trackMeta?: any): Promise<string | null> {
+    return this.resolveAudioUri(trackId, trackTitle, albumId, trackMeta);
   }
 
-  static async getLocalTrackUri(trackId: string, trackTitle?: string, albumId?: string): Promise<string | null> {
+  static async getLocalTrackUri(
+    trackId: string,
+    trackTitle?: string,
+    albumId?: string,
+    trackMeta?: any
+  ): Promise<string | null> {
     const { downloads } = useDownloadStore.getState();
 
     // 1. Check if track was downloaded directly
-    const trackDownload = downloads[trackId];
+    let trackDownload = downloads[trackId];
+
+    // If not found by direct ID, attempt reconciliation via fingerprint & metadata
+    if (!trackDownload && (trackTitle || trackMeta)) {
+      const candidate = {
+        id: trackId,
+        title: trackTitle || trackMeta?.title || trackMeta?.name,
+        albumId: albumId || trackMeta?.albumId,
+        artist: trackMeta?.artist,
+        album: trackMeta?.album,
+        duration: trackMeta?.duration,
+        track: trackMeta?.track ?? trackMeta?.trackNumber,
+        fingerprint: trackMeta?.fingerprint,
+        fileName: trackMeta?.fileName ?? trackMeta?.path,
+        path: trackMeta?.path
+      };
+      const matched = findDownloadedTrackMatch(downloads, candidate);
+      if (matched && matched.status === 'completed' && matched.path) {
+        trackDownload = matched;
+        if (trackId && matched.id !== trackId) {
+          try {
+            useDownloadStore.getState().aliasDownloadId(matched.id, trackId);
+          } catch {}
+        }
+      }
+    }
     if (trackDownload && trackDownload.status === 'completed' && trackDownload.path) {
       if (isTauri()) {
         try {

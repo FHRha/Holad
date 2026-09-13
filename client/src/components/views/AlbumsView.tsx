@@ -79,7 +79,7 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
     if (activeFilter === 'Favorites') {
       result = albums.filter(a => a.userRating && a.userRating >= 4);
     } else if (activeFilter === 'Downloaded' || activeFilter === 'Offline' || isOffline) {
-      result = albums.filter(a => isItemDownloaded(downloads, a.id, a.id));
+      result = albums.filter(a => isItemDownloaded(downloads, a.id, a.id, a));
     }
     return result;
   })();

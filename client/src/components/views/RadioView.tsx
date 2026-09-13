@@ -167,7 +167,7 @@ export default function RadioView() {
     // Fetch top tracks for each
     const tracksPromises = shuffled.map(async (a) => {
       try {
-        const topSongs = await getTopSongs(a.name, 10);
+        const topSongs = await getTopSongs(a.name, 10, a.id);
         if (topSongs && topSongs.length > 0) {
           return topSongs;
         }

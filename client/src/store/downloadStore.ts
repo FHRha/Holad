@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { findDownloadedTrackMatch } from '../utils/trackFingerprint';
 
 export interface DownloadItem {
   id: string;
@@ -24,6 +25,8 @@ export interface DownloadItem {
   timestamp: number;
   genre?: string;
   title?: string;
+  fingerprint?: string;
+  aliasedFrom?: string;
 }
 
 interface DownloadState {
@@ -41,6 +44,7 @@ interface DownloadState {
   completeDownload: (id: string, path: string, extra?: Partial<DownloadItem>) => void;
   errorDownload: (id: string, error: string) => void;
   removeDownload: (id: string) => void;
+  aliasDownloadId: (sourceId: string, targetId: string) => void;
   clearHistory: () => void;
   getDownloadedTracks: () => DownloadItem[];
   getDownloadedAlbums: () => DownloadItem[];
@@ -173,6 +177,20 @@ export const useDownloadStore = create<DownloadState>()(
         delete newDownloads[id];
         return { downloads: newDownloads };
       }),
+      aliasDownloadId: (sourceId, targetId) => set((state) => {
+        if (!state.downloads[sourceId] || state.downloads[targetId]) return state;
+        const source = state.downloads[sourceId];
+        return {
+          downloads: {
+            ...state.downloads,
+            [targetId]: {
+              ...source,
+              id: targetId,
+              aliasedFrom: sourceId
+            }
+          }
+        };
+      }),
       clearHistory: () => set((state) => {
         // Only clear completed/error/cancelled/paused ones, keep downloading/queued ones
         const newDownloads = { ...state.downloads };
@@ -252,9 +270,59 @@ export const verifyDownloads = async () => {
   }
 };
 
-export const isItemDownloaded = (downloads: Record<string, DownloadItem>, trackId: string, albumId?: string) => {
+export const isItemDownloaded = (
+  downloads: Record<string, DownloadItem>,
+  trackId: string,
+  albumId?: string,
+  trackMeta?: any
+): boolean => {
   if (downloads[trackId] && downloads[trackId].status === 'completed') return true;
   if (albumId && downloads[albumId] && downloads[albumId].status === 'completed') return true;
+
+  if (trackMeta && typeof trackMeta === 'object') {
+    const candidate = {
+      id: trackId,
+      albumId,
+      title: trackMeta.title || trackMeta.name,
+      artist: trackMeta.artist,
+      album: trackMeta.album,
+      duration: trackMeta.duration,
+      track: trackMeta.track ?? trackMeta.trackNumber,
+      trackNumber: trackMeta.trackNumber ?? trackMeta.track,
+      path: trackMeta.path,
+      fileName: trackMeta.fileName ?? trackMeta.path,
+      fingerprint: trackMeta.fingerprint
+    };
+    const matched = findDownloadedTrackMatch(downloads, candidate);
+    if (matched && matched.status === 'completed') {
+      if (trackId && matched.id !== trackId) {
+        try {
+          useDownloadStore.getState().aliasDownloadId(matched.id, trackId);
+        } catch {}
+      }
+      return true;
+    }
+
+    // Also check album-level completed downloads
+    const albumTitle = (trackMeta.title || trackMeta.name || trackMeta.album || '').toLowerCase().trim();
+    const albumArtist = (trackMeta.artist || '').toLowerCase().trim();
+    if (albumTitle) {
+      const foundAlbum = Object.values(downloads).find(
+        d => d.type === 'album' && d.status === 'completed' &&
+             (d.name || d.title || d.album || '').toLowerCase().trim() === albumTitle &&
+             (!albumArtist || !d.artist || d.artist.toLowerCase().trim() === albumArtist)
+      );
+      if (foundAlbum) {
+        if (trackId && foundAlbum.id !== trackId) {
+          try {
+            useDownloadStore.getState().aliasDownloadId(foundAlbum.id, trackId);
+          } catch {}
+        }
+        return true;
+      }
+    }
+  }
+
   return false;
 };
 

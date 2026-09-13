@@ -374,7 +374,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                     <div className="flex flex-col">
                       <span className="flex items-center gap-1.5 text-[15px] font-bold text-foreground truncate">
                         <span className="truncate">{track.title || track.name}</span>
-                        {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                        {isItemDownloaded(downloads, track.id, track.albumId, track) && <Download size={14} className="text-primary shrink-0" />}
                       </span>
                       <span className="text-[13px] text-secondary truncate">{track.artist}</span>
                     </div>

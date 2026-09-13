@@ -61,7 +61,25 @@ export default function HeroAlbumCard({ album }: { album: any }) {
   const excludedAlbumIds = usePlayerStore(state => state.excludedAlbumIds);
   const { openMenu } = useContextMenuStore();
   const setIsProcessing = usePlayerStore(state => state.setIsProcessing);
-  const downloadItem = useDownloadStore(state => state.downloads[album.id]);
+  const downloadItem = useDownloadStore(state => {
+    if (state.downloads[album.id]) return state.downloads[album.id];
+    const albumTitle = (album.title || album.name || '').toLowerCase().trim();
+    const albumArtist = (album.artist || '').toLowerCase().trim();
+    if (albumTitle) {
+      const found = Object.values(state.downloads).find(
+        d => d.type === 'album' &&
+             (d.name || d.title || d.album || '').toLowerCase().trim() === albumTitle &&
+             (!albumArtist || !d.artist || d.artist.toLowerCase().trim() === albumArtist)
+      );
+      if (found) {
+        if (album.id && found.id !== album.id) {
+          try { useDownloadStore.getState().aliasDownloadId(found.id, album.id); } catch {}
+        }
+        return found;
+      }
+    }
+    return undefined;
+  });
   const isDownloaded = downloadItem?.status === 'completed';
   const isDownloading = downloadItem?.status === 'downloading';
   

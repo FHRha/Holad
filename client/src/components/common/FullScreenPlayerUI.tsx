@@ -451,7 +451,7 @@ export default function FullScreenPlayerUI({
                             <div className="flex-1 min-w-0 flex flex-col justify-center select-none pointer-events-none">
                               <p className={`flex items-center gap-2 truncate text-base font-semibold ${isPlayingQueue ? 'text-primary drop-shadow-md' : 'text-white/90'}`}>
                                 <span className="truncate">{track.title}</span>
-                                {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                                {isItemDownloaded(downloads, track.id, track.albumId, track) && <Download size={14} className="text-primary shrink-0" />}
                               </p>
                               <ArtistLinks artistString={track.artist} artistId={(track as any).artistId} className="truncate text-sm text-white/60" />
                             </div>
@@ -485,7 +485,7 @@ export default function FullScreenPlayerUI({
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
                       <p className="flex items-center gap-2 truncate text-base font-semibold text-white/90">
                         <span className="truncate">{track.title}</span>
-                        {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                        {isItemDownloaded(downloads, track.id, track.albumId, track) && <Download size={14} className="text-primary shrink-0" />}
                       </p>
                       <ArtistLinks artistString={track.artist} artistId={(track as any).artistId} className="truncate text-sm text-white/60" />
                     </div>

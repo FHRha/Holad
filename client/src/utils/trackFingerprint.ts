@@ -256,3 +256,48 @@ export function isTrackExcluded(
   return false;
 }
 
+/**
+ * Matches a track candidate against a dictionary of downloaded items.
+ * Handles ID mismatches (e.g. Navidrome 128-bit Base62 migration vs legacy IDs)
+ * using deterministic fingerprinting and confidence scoring.
+ */
+export function findDownloadedTrackMatch<T extends { status?: string; id?: string; fingerprint?: string }>(
+  downloads: Record<string, T>,
+  candidate: TrackMetadataInput
+): T | null {
+  if (!downloads || !candidate) return null;
+
+  // 1. Direct ID match (fastest O(1))
+  if (candidate.id && downloads[candidate.id] && downloads[candidate.id].status === 'completed') {
+    return downloads[candidate.id];
+  }
+
+  const items = Object.values(downloads);
+  if (items.length === 0) return null;
+
+  // 2. Precomputed / computed fingerprint match
+  const candidateFp = candidate.fingerprint || generateTrackFingerprint(candidate);
+  for (const item of items) {
+    if (item.status !== 'completed') continue;
+    if (item.fingerprint && item.fingerprint === candidateFp) {
+      return item;
+    }
+    const itemFp = (item as any).fingerprint || generateTrackFingerprint(item as unknown as TrackMetadataInput);
+    if (itemFp === candidateFp) {
+      return item;
+    }
+  }
+
+  // 3. Multi-tier confidence fuzzy match (threshold >= 0.88)
+  for (const item of items) {
+    if (item.status !== 'completed') continue;
+    const score = matchTrackConfidence(item as unknown as TrackMetadataInput, candidate);
+    if (score >= 0.88) {
+      return item;
+    }
+  }
+
+  return null;
+}
+
+

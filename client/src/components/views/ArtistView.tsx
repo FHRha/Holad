@@ -145,7 +145,7 @@ export default function ArtistView() {
                   
                   <div className="flex-1 min-w-0 flex items-center gap-2">
                     <p className="font-medium text-sm sm:text-base text-foreground truncate">{track.title}</p>
-                    {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                    {isItemDownloaded(downloads, track.id, track.albumId, track) && <Download size={14} className="text-primary shrink-0" />}
                   </div>
                   
                   <div className="text-xs sm:text-sm text-secondary/70 font-medium">

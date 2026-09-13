@@ -29,7 +29,7 @@ export default function TracksView() {
     if (activeFilter === 'Favorites') {
       result = result.filter(t => t.userRating && t.userRating >= 4);
     } else if (activeFilter === 'Downloaded' || activeFilter === 'Offline' || isOffline) {
-      result = result.filter(t => isItemDownloaded(downloads, t.id, t.albumId));
+      result = result.filter(t => isItemDownloaded(downloads, t.id, t.albumId, t));
     }
     return result;
   }, [tracks, activeFilter, isOffline, downloads]);

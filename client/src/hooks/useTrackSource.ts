@@ -15,7 +15,7 @@ export async function resolveTrackAudioSource(track: any): Promise<TrackAudioSou
   }
 
   try {
-    const localUri = await StorageManager.getLocalTrackUri(track.id, track.title || track.name, track.albumId);
+    const localUri = await StorageManager.getLocalTrackUri(track.id, track.title || track.name, track.albumId, track);
     if (localUri) {
       return { src: localUri, isLocal: true, isAvailable: true };
     }

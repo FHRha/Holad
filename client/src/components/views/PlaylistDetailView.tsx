@@ -128,7 +128,7 @@ export default function PlaylistDetailView() {
                // If offline, ensure it's downloaded
                if (isOffline) {
                  const { downloads } = useDownloadStore.getState();
-                 if (isItemDownloaded(downloads, track.id, track.albumId)) {
+                 if (isItemDownloaded(downloads, track.id, track.albumId, track)) {
                    resolvedEntries.push(track);
                  }
                } else {

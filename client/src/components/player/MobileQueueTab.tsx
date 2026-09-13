@@ -136,7 +136,7 @@ export default function MobileQueueTab() {
                         <div className="flex-1 min-w-0 flex flex-col justify-center pointer-events-none select-none">
                           <p className={`flex items-center gap-2 truncate text-base font-medium ${isPlaying ? 'text-primary' : 'text-foreground'}`}>
                             <span className="truncate">{track.title}</span>
-                            {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                            {isItemDownloaded(downloads, track.id, track.albumId, track) && <Download size={14} className="text-primary shrink-0" />}
                           </p>
                           <p className="truncate text-sm text-secondary">
                             {formatArtistName(track.artist)}

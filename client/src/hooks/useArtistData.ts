@@ -38,7 +38,7 @@ export function useArtistData(id: string | undefined) {
         }).catch(() => {});
 
         Promise.all([
-          getTopSongs(artistData.name, 1000).catch(() => []),
+          getTopSongs(artistData.name, 1000, artistData.id).catch(() => []),
           searchAll(artistData.name, 1000).catch(() => ({ song: [] }))
         ]).then(([topRes, searchRes]) => {
           

@@ -898,7 +898,7 @@ export default function RightSidebar() {
                             <div className="flex-1 min-w-0 flex flex-col justify-center select-none pointer-events-none">
                               <p className={`flex items-center gap-2 truncate text-sm font-medium ${isPlaying ? 'text-primary' : 'text-foreground'}`}>
                                 <span className="truncate">{track.title}</span>
-                                {isItemDownloaded(downloads, track.id, track.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                                {isItemDownloaded(downloads, track.id, track.albumId, track) && <Download size={14} className="text-primary shrink-0" />}
                               </p>
                               <p className="truncate text-xs text-secondary">{formatArtistName(track.artist)}</p>
                             </div>

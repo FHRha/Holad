@@ -173,7 +173,7 @@ export default function HistoryView() {
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="flex items-center gap-2 font-bold text-[15px] truncate">
                         <span className="truncate">{title}</span>
-                        {isItemDownloaded(downloads, id, undefined) && <Download size={14} className="text-primary shrink-0" />}
+                        {isItemDownloaded(downloads, id, undefined, { id, title, artist, coverArt }) && <Download size={14} className="text-primary shrink-0" />}
                       </span>
                       <ArtistLinks artistString={artist} className="text-xs text-secondary truncate" />
                     </div>
@@ -246,7 +246,7 @@ export default function HistoryView() {
                   <div className="flex flex-col min-w-0 flex-1">
                     <span className="flex items-center gap-2 font-bold text-[14px] truncate">
                       <span className="truncate">{entry.title}</span>
-                      {isItemDownloaded(downloads, entry.id, entry.albumId) && <Download size={14} className="text-primary shrink-0" />}
+                      {isItemDownloaded(downloads, entry.id, entry.albumId, entry) && <Download size={14} className="text-primary shrink-0" />}
                     </span>
                     <ArtistLinks artistString={entry.artist} className="text-[12px] text-secondary truncate" />
                   </div>

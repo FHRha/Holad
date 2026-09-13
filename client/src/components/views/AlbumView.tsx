@@ -165,7 +165,7 @@ export default function AlbumView() {
             {album.song?.slice(0, visibleCount).map((track: any, index: number) => {
               const currentPlaying = queue[currentIndex]?.id === track.id;
               const isTrackLiked = likedTrackIds.includes(track.id);
-              const isTrackDownloaded = isItemDownloaded(downloads, track.id, track.albumId || album.id);
+              const isTrackDownloaded = isItemDownloaded(downloads, track.id, track.albumId || album.id, track);
               const isExcluded = isTrackExcluded(track, excludedTrackIds, excludedAlbumIds, excludedFingerprints);
               
               return (

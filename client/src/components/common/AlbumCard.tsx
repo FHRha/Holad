@@ -23,7 +23,25 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
   const setIsProcessing = usePlayerStore(state => state.setIsProcessing);
   const isGuest = usePlayerStore(state => !!state.roomId && state.role !== 'host');
   const { openMenu } = useContextMenuStore();
-  const downloadItem = useDownloadStore(state => state.downloads[album.id]);
+  const downloadItem = useDownloadStore(state => {
+    if (state.downloads[album.id]) return state.downloads[album.id];
+    const albumTitle = (album.title || album.name || '').toLowerCase().trim();
+    const albumArtist = (album.artist || '').toLowerCase().trim();
+    if (albumTitle) {
+      const found = Object.values(state.downloads).find(
+        d => d.type === 'album' &&
+             (d.name || d.title || d.album || '').toLowerCase().trim() === albumTitle &&
+             (!albumArtist || !d.artist || d.artist.toLowerCase().trim() === albumArtist)
+      );
+      if (found) {
+        if (album.id && found.id !== album.id) {
+          try { useDownloadStore.getState().aliasDownloadId(found.id, album.id); } catch {}
+        }
+        return found;
+      }
+    }
+    return undefined;
+  });
   const isDownloaded = downloadItem?.status === 'completed';
   const isDownloading = downloadItem?.status === 'downloading';
 
