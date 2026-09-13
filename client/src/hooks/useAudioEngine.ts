@@ -573,7 +573,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
           !engine.isTransitioning()
         ) {
           const remaining = actualDur - currentTime;
-          if (remaining > 0 && remaining <= effectiveCrossfade && currentTime > effectiveCrossfade) {
+          // Add 0.3s headroom so React render / dispatch delays do not cause outgoing track to hit EOF
+          if (remaining > 0 && remaining <= (effectiveCrossfade + 0.3) && currentTime > effectiveCrossfade) {
             crossfadeTriggeredRef.current = currentTrack.id;
             if (isJamSession) {
               jamSocket.trackEnded(currentTrack.id, pStore.currentIndex, pStore.repeatMode);

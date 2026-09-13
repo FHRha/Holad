@@ -21,11 +21,15 @@ try {
 }
 
 // Reuse persistent HTTP/HTTPS sockets with upstream servers (Navidrome) to avoid TCP/TLS handshake latency
+// and force IPv4 DNS resolution to prevent 5-second AAAA IPv6 timeouts on dual-stack/IPv6-less networks
 setGlobalDispatcher(new Agent({
   keepAliveTimeout: 60_000,
   keepAliveMaxTimeout: 120_000,
   connections: 50,
   pipelining: 1,
+  connect: {
+    lookup: (hostname, opts, cb) => dns.lookup(hostname, { ...opts, family: 4, verbatim: false }, cb)
+  }
 }));
 
 dotenv.config();
@@ -580,7 +584,7 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
       const headers: Record<string, string> = {};
       if (req.headers.range) headers['Range'] = req.headers.range;
       
-      const response = await fetch(url, { headers });
+      const response = await fetch(url, { headers, signal: req.signal });
       
       if (response.status === 401 || response.status === 403) {
         console.warn(`Account ${account.user} failed auth.`);
@@ -1423,7 +1427,7 @@ app.get(streamRoutes, async (req, res) => {
       const headers: Record<string, string> = {};
       if (req.headers.range) headers['Range'] = req.headers.range;
       
-      const response = await fetch(streamUrl, { headers });
+      const response = await fetch(streamUrl, { headers, signal: req.signal });
       if (!response.ok && response.status !== 206) return res.status(response.status).send('Failed to fetch stream');
       
       pipeAudioStream(response, req, res);

@@ -227,13 +227,13 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                 ? Math.min(rawDuration, Math.max(0.05, trackDuration / 2))
                 : rawDuration;
 
-            if (outgoingRemaining !== undefined) {
-                effectiveDuration = Math.min(effectiveDuration, outgoingRemaining);
+            if (outgoingRemaining !== undefined && outgoingRemaining > 0) {
+                effectiveDuration = Math.min(effectiveDuration, Math.max(0.5, outgoingRemaining));
             }
             if (incomingDuration > 0) {
-                effectiveDuration = Math.min(effectiveDuration, incomingDuration * 0.4);
+                effectiveDuration = Math.min(effectiveDuration, Math.max(0.5, incomingDuration * 0.4));
             }
-            effectiveDuration = Math.max(0.05, effectiveDuration);
+            effectiveDuration = Math.max(0.1, effectiveDuration);
 
             await this.transitionManager.performCrossfade(
                 outgoingDeck,

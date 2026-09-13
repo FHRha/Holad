@@ -34,6 +34,9 @@ export class PreloadManager {
             try {
                 const resolved = await resolveTrackAudioSource(track);
                 streamUrl = resolved.src;
+                if (streamUrl && typeof track === 'object') {
+                    track.streamUrl = streamUrl;
+                }
             } catch (e) {
                 console.warn(`PreloadManager: Failed to resolve track URL for ${track.id}:`, e);
             }
