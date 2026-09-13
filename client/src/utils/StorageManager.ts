@@ -375,7 +375,12 @@ export class StorageManager {
     this.createdBlobUrls.clear();
   }
 
-  static async resolveAudioUri(trackIdOrPath: string, trackTitle?: string, albumId?: string): Promise<string | null> {
+  static async resolveAudioUri(
+    trackIdOrPath: string,
+    trackTitle?: string,
+    albumId?: string,
+    trackMeta?: any
+  ): Promise<string | null> {
     if (!trackIdOrPath) return null;
     if (isTauri()) {
       if (trackIdOrPath.startsWith('http://asset.localhost') || trackIdOrPath.startsWith('asset://')) {
