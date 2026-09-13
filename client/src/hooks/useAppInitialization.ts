@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../store/playerStore';
+import { useAudioStore } from '../store/audioStore';
 import { useAuthStore } from '../store/authStore';
 import { fetchStarred, getPlayQueue, savePlayQueue, getCoverArtUrl } from '../api/subsonic';
 import { fetchExclusions } from '../api/exclusions';
@@ -178,11 +179,23 @@ export function useAppInitialization() {
             initialPosition: pos
           });
 
+          const trackDur = mappedTracks[initialIndex]?.duration || 0;
+          if (trackDur > 0) {
+            useAudioStore.getState().setDuration(trackDur);
+            if (pos > 0) {
+              useAudioStore.getState().setProgress(((pos / 1000) / trackDur) * 100);
+            }
+          }
+
           if (pos === 0) {
             fetchPlaybackState().then(pbState => {
               if (pbState && pbState.position && (pbState.song_id === queueData.current || pbState.song_id === mappedTracks[initialIndex]?.id)) {
                 if (!usePlayerStore.getState().isPlaying) {
-                  usePlayerStore.setState({ initialPosition: pbState.position * 1000 });
+                  const fetchedPosMs = pbState.position * 1000;
+                  usePlayerStore.setState({ initialPosition: fetchedPosMs });
+                  if (trackDur > 0) {
+                    useAudioStore.getState().setProgress(((pbState.position) / trackDur) * 100);
+                  }
                 }
               }
             }).catch(() => {});
@@ -196,11 +209,25 @@ export function useAppInitialization() {
           if (currentTrack) {
             savePlayQueue(trackIds, currentTrack.id, 0).catch(() => {});
           }
+          let localPos = 0;
+          const savedTrack = localStorage.getItem('holad_track');
+          const savedTime = localStorage.getItem('holad_time');
+          if (savedTrack && savedTrack === currentTrack?.id && savedTime) {
+            localPos = parseFloat(savedTime) * 1000;
+          }
           usePlayerStore.setState({
             originalQueue: currentStore.originalQueue && currentStore.originalQueue.length > 0 ? currentStore.originalQueue : localQueue,
             currentIndex: activeIndex,
-            isPlaying: false
+            isPlaying: false,
+            initialPosition: localPos
           });
+          const trackDur = currentTrack?.duration || 0;
+          if (trackDur > 0) {
+            useAudioStore.getState().setDuration(trackDur);
+            if (localPos > 0) {
+              useAudioStore.getState().setProgress(((localPos / 1000) / trackDur) * 100);
+            }
+          }
         }
       }).catch(e => console.error("Failed to fetch play queue", e));
     }

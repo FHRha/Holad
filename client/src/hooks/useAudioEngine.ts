@@ -313,8 +313,14 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
       engineRef.current.setDeckTrackId(activeDeckIdx as 0 | 1, currentTrack.id);
 
+      const targetPosSec = initialPosition > 0 ? initialPosition / 1000 : 0;
       const deck = engineRef.current.getActiveDeck();
-      deck.load(audioSrc, initialPosition > 0 ? initialPosition / 1000 : 0).catch(() => {});
+      deck.load(audioSrc, targetPosSec).catch(() => {});
+      if (targetPosSec > 0) {
+        const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
+        useAudioStore.getState().setDuration(dur);
+        useAudioStore.getState().setProgress((targetPosSec / dur) * 100);
+      }
       if (initialPosition > 0) setInitialPosition(0);
       if (isSpeakerDj) {
         engineRef.current.pause();
@@ -324,19 +330,18 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
   // Handle async initialPosition restoring for the first track
   useEffect(() => {
-    if (initialPosition > 0 && currentTrack) {
+    if (initialPosition > 0 && currentTrack && audioSrc && !srcLoading) {
+      const posSec = initialPosition / 1000;
+      const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
       if (!isPlaying) {
-        const posSec = initialPosition / 1000;
-        const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
         const deck = engineRef.current.getActiveDeck();
         deck.seek(posSec, dur);
+        useAudioStore.getState().setDuration(dur);
         useAudioStore.getState().setProgress((posSec / dur) * 100);
-        setInitialPosition(0);
-      } else {
-        setInitialPosition(0);
       }
+      setInitialPosition(0);
     }
-  }, [initialPosition, currentTrack, isPlaying, setInitialPosition]);
+  }, [initialPosition, currentTrack, audioSrc, srcLoading, isPlaying, setInitialPosition]);
 
   // Handle play/pause toggle
   useEffect(() => {
@@ -472,12 +477,14 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       if (currentTrack) {
         const trackIds = queue.map((t) => t.id);
         const pos = Math.floor(engineRef.current.getCurrentTime() * 1000);
-        savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
+        if (pos > 0) {
+          savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
+        }
       }
     };
     if (currentTrack && role !== 'listener' && !isJamUrl) {
-      saveState();
       if (isPlaying) {
+        saveState();
         interval = setInterval(saveState, 60000);
       }
     }

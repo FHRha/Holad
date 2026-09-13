@@ -216,8 +216,9 @@ export class AudioDeck implements IAudioDeck {
                 this.element.src = src;
                 this.element.load();
             } else {
+                const target = this.targetPosition > 0 ? this.targetPosition : position;
                 try {
-                    this.element.currentTime = position;
+                    this.element.currentTime = target;
                 } catch {}
             }
         
@@ -226,8 +227,9 @@ export class AudioDeck implements IAudioDeck {
             
             await new Promise<void>((resolve, reject) => {
                 if (this.element.readyState >= 1) {
+                    const target = this.targetPosition > 0 ? this.targetPosition : position;
                     try {
-                        this.element.currentTime = position;
+                        this.element.currentTime = target;
                     } catch {}
                     resolve();
                 } else {
@@ -235,16 +237,18 @@ export class AudioDeck implements IAudioDeck {
                     // Safety timeout: on mobile WebViews, if metadata takes >1500ms, resolve so play() can start immediately
                     const timer = setTimeout(() => {
                         cleanup();
+                        const target = this.targetPosition > 0 ? this.targetPosition : position;
                         try {
-                            this.element.currentTime = position;
+                            this.element.currentTime = target;
                         } catch {}
                         resolve();
                     }, 1500);
 
                     const onReady = () => {
                         cleanup();
+                        const target = this.targetPosition > 0 ? this.targetPosition : position;
                         try {
-                            this.element.currentTime = position;
+                            this.element.currentTime = target;
                         } catch {}
                         resolve();
                     };
@@ -327,12 +331,12 @@ export class AudioDeck implements IAudioDeck {
 
     public seek(positionSeconds: number, maxDuration?: number): void {
         if (!isFinite(positionSeconds) || isNaN(positionSeconds)) return;
-        this.targetPosition = positionSeconds;
         const deckDuration = this.getDuration();
         const effectiveDuration = (typeof maxDuration === 'number' && maxDuration > 0 && isFinite(maxDuration))
             ? maxDuration
             : (deckDuration > 0 ? deckDuration : 0);
         const safePosition = Math.max(0, effectiveDuration > 0 ? Math.min(positionSeconds, effectiveDuration) : positionSeconds);
+        this.targetPosition = safePosition;
         try {
             this.element.currentTime = safePosition;
         } catch {
@@ -354,7 +358,7 @@ export class AudioDeck implements IAudioDeck {
     }
 
     public getCurrentTime(): number {
-        if (this.element.seeking && this.targetPosition > 0) {
+        if (this.targetPosition > 0 && (this.element.seeking || this.state === 'loading' || (this.state === 'idle' && this.element.currentTime === 0))) {
             return this.targetPosition;
         }
         return this.element.currentTime || 0;
