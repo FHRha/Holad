@@ -42,15 +42,31 @@ const ARTIFACTS_DIR = path.join(ROOT_DIR, 'artifacts');
 const RELEASE_DIR = path.join(ARTIFACTS_DIR, 'holad-release');
 
 // Version injection
+function toValidSemver(v) {
+  const clean = (v || '').replace(/^v/i, '').trim();
+  const [core, ...preParts] = clean.split('-');
+  if (preParts.length === 0) return core;
+  // In SemVer 2.0.0, numeric identifiers in pre-release must not have leading zeroes.
+  // Rust semver crate (used by Tauri and Cargo) enforces this strictly.
+  const preCleaned = preParts.join('-').split('.').map(part => {
+    if (/^\d+$/.test(part)) {
+      return parseInt(part, 10).toString();
+    }
+    return part;
+  }).join('.');
+  return `${core}-${preCleaned}`;
+}
+
 // Local builds default to 2.0.0-localtest unless in CI or explicitly overridden
 const isCi = !!(process.env.GITHUB_ACTIONS || process.env.CI);
 const rawVersion = process.env.GITHUB_REF_NAME || process.env.RELEASE_VERSION || (isCi ? null : '2.0.0-localtest');
 let appVersion = null;
 if (rawVersion) {
   const version = rawVersion.startsWith('v') ? rawVersion.substring(1) : rawVersion;
+  const semverVersion = toValidSemver(version);
   appVersion = version;
   process.env.RELEASE_VERSION = version;
-  console.log(`Injecting version ${version} into project files...`);
+  console.log(`Injecting version ${version} (SemVer: ${semverVersion}) into project files...`);
   
   [
     path.join(ROOT_DIR, 'client', 'package.json'),
@@ -61,8 +77,8 @@ if (rawVersion) {
     if (fs.existsSync(file)) {
       try {
         const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-        data.version = version;
         if (file.endsWith('tauri.conf.json')) {
+          data.version = semverVersion;
           const coreParts = version.split('-')[0].split('.').map(n => parseInt(n, 10) || 0);
           while (coreParts.length < 3) coreParts.push(0);
           const [wMaj, wMin, wPat] = coreParts;
@@ -72,9 +88,11 @@ if (rawVersion) {
           if (!data.bundle.windows) data.bundle.windows = {};
           if (!data.bundle.windows.wix) data.bundle.windows.wix = {};
           data.bundle.windows.wix.version = wixVersion;
+        } else {
+          data.version = version;
         }
         fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
-        console.log(`Updated version in ${path.basename(path.dirname(file))}/${path.basename(file)} to ${version}`);
+        console.log(`Updated version in ${path.basename(path.dirname(file))}/${path.basename(file)} to ${file.endsWith('tauri.conf.json') ? semverVersion : version}`);
       } catch (e) {
         console.warn(`Could not update version in ${file}:`, e.message);
       }
@@ -86,9 +104,9 @@ if (rawVersion) {
   if (fs.existsSync(cargoTomlPath)) {
     try {
       let cargoContent = fs.readFileSync(cargoTomlPath, 'utf8');
-      cargoContent = cargoContent.replace(/^version\s*=\s*"[^"]*"/m, `version = "${version}"`);
+      cargoContent = cargoContent.replace(/^version\s*=\s*"[^"]*"/m, `version = "${semverVersion}"`);
       fs.writeFileSync(cargoTomlPath, cargoContent);
-      console.log(`Updated version in Tauri/src-tauri/Cargo.toml to ${version}`);
+      console.log(`Updated version in Tauri/src-tauri/Cargo.toml to ${semverVersion}`);
     } catch (e) {
       console.warn(`Could not update version in Cargo.toml:`, e.message);
     }
@@ -99,9 +117,9 @@ if (rawVersion) {
   if (fs.existsSync(cargoLockPath)) {
     try {
       let lockContent = fs.readFileSync(cargoLockPath, 'utf8');
-      lockContent = lockContent.replace(/(\[\[package\]\]\r?\nname\s*=\s*"holad"\r?\nversion\s*=\s*)"[^"]*"/, `$1"${version}"`);
+      lockContent = lockContent.replace(/(\[\[package\]\]\r?\nname\s*=\s*"holad"\r?\nversion\s*=\s*)"[^"]*"/, `$1"${semverVersion}"`);
       fs.writeFileSync(cargoLockPath, lockContent);
-      console.log(`Updated version in Tauri/src-tauri/Cargo.lock to ${version}`);
+      console.log(`Updated version in Tauri/src-tauri/Cargo.lock to ${semverVersion}`);
     } catch (e) {
       console.warn(`Could not update version in Cargo.lock:`, e.message);
     }
@@ -120,9 +138,10 @@ if (rawVersion) {
       const [maj, min, pat] = coreParts;
       let testNum = 999;
       if (version.includes('-')) {
-        const preMatch = version.match(/(?:test|beta|rc|alpha)?\.?(\d+)/i);
-        if (preMatch && preMatch[1]) {
-          testNum = Math.min(parseInt(preMatch[1], 10), 998);
+        const pre = version.split('-')[1];
+        const preMatch = pre ? pre.match(/\d+/) : null;
+        if (preMatch) {
+          testNum = Math.min(parseInt(preMatch[0], 10), 998);
         } else {
           testNum = 0;
         }
