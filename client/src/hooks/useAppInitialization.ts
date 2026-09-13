@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../store/playerStore';
 import { useAuthStore } from '../store/authStore';
-import { fetchStarred, getPlayQueue, getCoverArtUrl } from '../api/subsonic';
+import { fetchStarred, getPlayQueue, savePlayQueue, getCoverArtUrl } from '../api/subsonic';
 import { fetchExclusions } from '../api/exclusions';
 import { syncHistoryWithServer } from '../api/history';
 import { fetchPreferences } from '../api/preferences';
@@ -113,7 +113,12 @@ export function useAppInitialization() {
     if (!isJamRoute && !roomToJoin && !queueFetched.current) {
       queueFetched.current = true;
       getPlayQueue().then(queueData => {
-        if (queueData && queueData.entry) {
+        const currentStore = usePlayerStore.getState();
+        const localQueue = currentStore.queue || [];
+        const localIndex = currentStore.currentIndex;
+        const localCurrentTrack = localIndex >= 0 && localIndex < localQueue.length ? localQueue[localIndex] : null;
+
+        if (queueData && Array.isArray(queueData.entry) && queueData.entry.length > 0) {
           const mappedTracks: Track[] = queueData.entry.map((t: any) => ({
             id: t.id,
             title: t.title,
@@ -127,17 +132,40 @@ export function useAppInitialization() {
             suffix: t.suffix
           }));
           
-          let initialIndex = 0;
+          // Reconcile current index:
+          // 1. Check if queueData.current matches an id in mappedTracks
+          let initialIndex = -1;
           if (queueData.current) {
-            const idx = mappedTracks.findIndex(t => t.id === queueData.current);
-            if (idx !== -1) initialIndex = idx;
+            initialIndex = mappedTracks.findIndex(t => t.id === queueData.current);
+          }
+          // 2. If not found, check if localCurrentTrack id matches
+          if (initialIndex === -1 && localCurrentTrack?.id) {
+            initialIndex = mappedTracks.findIndex(t => t.id === localCurrentTrack.id);
+          }
+          // 3. If not found, check title + artist matching (in case Navidrome 0.64.0 migrated IDs!)
+          if (initialIndex === -1 && localCurrentTrack?.title) {
+            const locTitle = localCurrentTrack.title.toLowerCase().trim();
+            const locArtist = (localCurrentTrack.artist || '').toLowerCase().trim();
+            initialIndex = mappedTracks.findIndex(t => 
+              t.title?.toLowerCase().trim() === locTitle && 
+              (!locArtist || t.artist?.toLowerCase().trim() === locArtist)
+            );
+          }
+          // 4. If still not found, preserve user's localIndex if valid
+          if (initialIndex === -1 && localIndex >= 0 && localIndex < mappedTracks.length) {
+            initialIndex = localIndex;
+          }
+          // 5. Fallback to 0 if nothing matched
+          if (initialIndex === -1) {
+            initialIndex = 0;
           }
 
           let pos = queueData.position || 0;
           if (pos === 0) {
             const savedTrack = localStorage.getItem('holad_track');
             const savedTime = localStorage.getItem('holad_time');
-            if (savedTrack === queueData.current && savedTime) {
+            const activeId = mappedTracks[initialIndex]?.id;
+            if (savedTrack && (savedTrack === queueData.current || savedTrack === activeId) && savedTime) {
               pos = parseFloat(savedTime) * 1000;
             }
           }
@@ -152,11 +180,25 @@ export function useAppInitialization() {
 
           if (pos === 0) {
             fetchPlaybackState().then(pbState => {
-              if (pbState && pbState.position && pbState.song_id === queueData.current) {
+              if (pbState && pbState.position && (pbState.song_id === queueData.current || pbState.song_id === mappedTracks[initialIndex]?.id)) {
                 usePlayerStore.setState({ initialPosition: pbState.position * 1000 });
               }
             }).catch(() => {});
           }
+        } else if (localQueue.length > 0) {
+          // Server has no play queue, but user has an existing local queue in localStorage.
+          // Preserve local queue and sync it to server so both stay in sync!
+          const activeIndex = Math.max(0, Math.min(localQueue.length - 1, localIndex >= 0 ? localIndex : 0));
+          const currentTrack = localQueue[activeIndex];
+          const trackIds = localQueue.map(t => t.id);
+          if (currentTrack) {
+            savePlayQueue(trackIds, currentTrack.id, 0).catch(() => {});
+          }
+          usePlayerStore.setState({
+            originalQueue: currentStore.originalQueue && currentStore.originalQueue.length > 0 ? currentStore.originalQueue : localQueue,
+            currentIndex: activeIndex,
+            isPlaying: false
+          });
         }
       }).catch(e => console.error("Failed to fetch play queue", e));
     }

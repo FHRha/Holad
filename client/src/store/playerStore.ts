@@ -52,6 +52,7 @@ export const usePlayerStore = create<PlayerState>()(
           mobileVolume: state.mobileVolume,
           volumeMultiplier: state.volumeMultiplier,
           queue: state.queue,
+          originalQueue: state.originalQueue,
           currentIndex: state.currentIndex,
           isShuffle: state.isShuffle,
           repeatMode: state.repeatMode,
@@ -73,6 +74,27 @@ export const usePlayerStore = create<PlayerState>()(
           persistedState.userName = undefined;
         }
         return persistedState;
+      },
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const q = Array.isArray(state.queue) ? state.queue.filter(Boolean) : [];
+        const origQ = Array.isArray(state.originalQueue) && state.originalQueue.length > 0 
+          ? state.originalQueue.filter(Boolean) 
+          : q;
+        
+        let idx = typeof state.currentIndex === 'number' ? state.currentIndex : -1;
+        if (q.length === 0) {
+          idx = -1;
+        } else if (idx < 0 || idx >= q.length) {
+          idx = 0;
+        }
+
+        usePlayerStore.setState({
+          queue: q,
+          originalQueue: origQ,
+          currentIndex: idx,
+          isPlaying: false,
+        });
       },
     }
   )

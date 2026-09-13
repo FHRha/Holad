@@ -112,7 +112,7 @@ export const useSettingsStore = create<SettingsState>()(
       isGaplessEnabled: false,
       isLoudnessNormalizationEnabled: false,
       preloadNextTrack: true,
-      streamingQuality: 'opus-256',
+      streamingQuality: 'raw',
       preloadMode: 'wifi_only',
       preloadLookahead: 15,
       preloadCovers: true,
