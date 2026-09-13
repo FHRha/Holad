@@ -161,13 +161,37 @@ export function useAppInitialization() {
             initialIndex = 0;
           }
 
+          const savedTrack = localStorage.getItem('holad_track');
+          const savedTime = localStorage.getItem('holad_time');
+          const savedUpdatedStr = localStorage.getItem('holad_time_updated');
+          const localUpdated = savedUpdatedStr ? parseInt(savedUpdatedStr, 10) : 0;
+          const activeId = mappedTracks[initialIndex]?.id;
+
+          let localPos = 0;
+          if (savedTrack && (savedTrack === queueData.current || savedTrack === activeId) && savedTime) {
+            const parsed = parseFloat(savedTime) * 1000;
+            if (!isNaN(parsed) && parsed > 0) {
+              localPos = parsed;
+            }
+          }
+
           let pos = queueData.position || 0;
-          if (pos === 0) {
-            const savedTrack = localStorage.getItem('holad_track');
-            const savedTime = localStorage.getItem('holad_time');
-            const activeId = mappedTracks[initialIndex]?.id;
-            if (savedTrack && (savedTrack === queueData.current || savedTrack === activeId) && savedTime) {
-              pos = parseFloat(savedTime) * 1000;
+          const serverChangedMs = queueData.changed ? new Date(queueData.changed).getTime() : 0;
+
+          if (localPos > 0) {
+            if (pos === 0) {
+              pos = localPos;
+            } else if (serverChangedMs > 0 && localUpdated > 0) {
+              // If local position was updated after the server queue was changed, use local
+              if (localUpdated >= serverChangedMs - 2000) {
+                pos = localPos;
+              }
+            } else {
+              // On the same device, if local position is more advanced than periodic server sync,
+              // prefer localPos so user isn't kicked back to an older timer (e.g. from 2:10 to 0:50)
+              if (localPos > pos || Math.abs(localPos - pos) > 2000) {
+                pos = localPos;
+              }
             }
           }
 
@@ -187,33 +211,38 @@ export function useAppInitialization() {
             }
           }
 
-          if (pos === 0) {
-            fetchPlaybackState().then(pbState => {
-              if (pbState && pbState.position && (pbState.song_id === queueData.current || pbState.song_id === mappedTracks[initialIndex]?.id)) {
-                if (!usePlayerStore.getState().isPlaying) {
-                  const fetchedPosMs = pbState.position * 1000;
+          fetchPlaybackState().then(pbState => {
+            if (pbState && pbState.position && (pbState.song_id === queueData.current || pbState.song_id === mappedTracks[initialIndex]?.id)) {
+              const fetchedPosMs = pbState.position * 1000;
+              const currentStore = usePlayerStore.getState();
+              if (!currentStore.isPlaying) {
+                const currentInitPos = currentStore.initialPosition;
+                if (currentInitPos === 0 || (pbState.updated_at && localUpdated && pbState.updated_at > localUpdated + 1000 && Math.abs(fetchedPosMs - currentInitPos) > 3000)) {
                   usePlayerStore.setState({ initialPosition: fetchedPosMs });
                   if (trackDur > 0) {
                     useAudioStore.getState().setProgress(((pbState.position) / trackDur) * 100);
                   }
                 }
               }
-            }).catch(() => {});
-          }
+            }
+          }).catch(() => {});
         } else if (localQueue.length > 0) {
           // Server has no play queue, but user has an existing local queue in localStorage.
           // Preserve local queue and sync it to server so both stay in sync!
           const activeIndex = Math.max(0, Math.min(localQueue.length - 1, localIndex >= 0 ? localIndex : 0));
           const currentTrack = localQueue[activeIndex];
           const trackIds = localQueue.map(t => t.id);
-          if (currentTrack) {
-            savePlayQueue(trackIds, currentTrack.id, 0).catch(() => {});
-          }
           let localPos = 0;
           const savedTrack = localStorage.getItem('holad_track');
           const savedTime = localStorage.getItem('holad_time');
           if (savedTrack && savedTrack === currentTrack?.id && savedTime) {
-            localPos = parseFloat(savedTime) * 1000;
+            const parsed = parseFloat(savedTime) * 1000;
+            if (!isNaN(parsed) && parsed > 0) {
+              localPos = parsed;
+            }
+          }
+          if (currentTrack) {
+            savePlayQueue(trackIds, currentTrack.id, localPos).catch(() => {});
           }
           usePlayerStore.setState({
             originalQueue: currentStore.originalQueue && currentStore.originalQueue.length > 0 ? currentStore.originalQueue : localQueue,

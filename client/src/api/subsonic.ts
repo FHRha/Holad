@@ -56,13 +56,21 @@ export const getPlayQueue = async () => {
   return data['subsonic-response']?.playQueue;
 };
 
-export const savePlayQueue = async (trackIds: string[], currentId: string, positionMillis: number) => {
+export const savePlayQueue = async (trackIds: string[], currentId: string, positionMillis: number, useKeepalive = false) => {
   // buildUrl might encode params automatically if we use URLSearchParams, but trackIds has duplicate keys "id"
   // so we manually construct it if needed.
-  let url = buildUrl('savePlayQueue', { current: currentId, position: positionMillis.toString() });
+  let url = buildUrl('savePlayQueue', { current: currentId, position: Math.round(positionMillis).toString() });
   // append ids
   const idParams = trackIds.map(id => `id=${id}`).join('&');
   url += `&${idParams}`;
+  if (useKeepalive) {
+    try {
+      fetch(url, { keepalive: true }).catch(() => {});
+      return;
+    } catch {
+      // Fallback to standard fetch
+    }
+  }
   await fetchWithRetry(url);
 };
 

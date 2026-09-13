@@ -63,11 +63,15 @@ if (rawVersion) {
         const data = JSON.parse(fs.readFileSync(file, 'utf8'));
         data.version = version;
         if (file.endsWith('tauri.conf.json')) {
-          const numericVersion = version.split('-')[0].trim();
+          const coreParts = version.split('-')[0].split('.').map(n => parseInt(n, 10) || 0);
+          while (coreParts.length < 3) coreParts.push(0);
+          const [wMaj, wMin, wPat] = coreParts;
+          // Windows WiX MSI requires ProductVersion maj <= 255, min <= 255, build <= 65535
+          const wixVersion = `${Math.min(wMaj, 255)}.${Math.min(wMin, 255)}.${Math.min(wPat, 65535)}`;
           if (!data.bundle) data.bundle = {};
           if (!data.bundle.windows) data.bundle.windows = {};
           if (!data.bundle.windows.wix) data.bundle.windows.wix = {};
-          data.bundle.windows.wix.version = numericVersion;
+          data.bundle.windows.wix.version = wixVersion;
         }
         fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
         console.log(`Updated version in ${path.basename(path.dirname(file))}/${path.basename(file)} to ${version}`);
@@ -109,8 +113,26 @@ if (rawVersion) {
     try {
       let gradleContent = fs.readFileSync(buildGradlePath, 'utf8');
       gradleContent = gradleContent.replace(/versionName\s+"[^"]*"/, `versionName "${version}"`);
+
+      // Calculate versionCode from version string (e.g. 2.1.5-test.10 -> 20105010)
+      const coreParts = version.split('-')[0].split('.').map(n => parseInt(n, 10) || 0);
+      while (coreParts.length < 3) coreParts.push(0);
+      const [maj, min, pat] = coreParts;
+      let testNum = 999;
+      if (version.includes('-')) {
+        const preMatch = version.match(/(?:test|beta|rc|alpha)?\.?(\d+)/i);
+        if (preMatch && preMatch[1]) {
+          testNum = Math.min(parseInt(preMatch[1], 10), 998);
+        } else {
+          testNum = 0;
+        }
+      }
+      const rawVCode = maj * 10000000 + min * 100000 + pat * 1000 + testNum;
+      const vCode = Math.min(Math.max(1, rawVCode), 2147483647);
+      gradleContent = gradleContent.replace(/versionCode\s+\d+/, `versionCode ${vCode}`);
+
       fs.writeFileSync(buildGradlePath, gradleContent);
-      console.log(`Updated versionName in Capacitor/android/app/build.gradle to ${version}`);
+      console.log(`Updated versionName in Capacitor/android/app/build.gradle to ${version} (versionCode ${vCode})`);
     } catch (e) {
       console.warn(`Could not update versionName in build.gradle:`, e.message);
     }

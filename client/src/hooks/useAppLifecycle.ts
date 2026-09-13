@@ -27,6 +27,7 @@ export function useAppLifecycle() {
         if (currentTrack) {
           localStorage.setItem('holad_track', currentTrack.id);
           localStorage.setItem('holad_time', currentTime.toString());
+          localStorage.setItem('holad_time_updated', Date.now().toString());
         }
       }
 

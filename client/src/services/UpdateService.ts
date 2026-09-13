@@ -34,9 +34,9 @@ export function compareVersions(v1: string, v2: string): number {
     if (p1.pre && !p2.pre) return -1;
     if (!p1.pre && !p2.pre) return 0;
 
-    // Both have pre-release identifiers, compare segment by segment
-    const parts1 = p1.pre!.split('.');
-    const parts2 = p2.pre!.split('.');
+    // Both have pre-release identifiers, compare segment by segment (split by . or -)
+    const parts1 = p1.pre!.split(/[.-]/);
+    const parts2 = p2.pre!.split(/[.-]/);
     const maxPreLen = Math.max(parts1.length, parts2.length);
 
     for (let i = 0; i < maxPreLen; i++) {
@@ -45,20 +45,21 @@ export function compareVersions(v1: string, v2: string): number {
         if (seg1 === undefined) return -1;
         if (seg2 === undefined) return 1;
 
-        const num1 = parseInt(seg1, 10);
-        const num2 = parseInt(seg2, 10);
-        const isNum1 = !isNaN(num1) && String(num1) === seg1;
-        const isNum2 = !isNaN(num2) && String(num2) === seg2;
+        const isDigits1 = /^\d+$/.test(seg1);
+        const isDigits2 = /^\d+$/.test(seg2);
 
-        if (isNum1 && isNum2) {
+        if (isDigits1 && isDigits2) {
+            const num1 = parseInt(seg1, 10);
+            const num2 = parseInt(seg2, 10);
             if (num1 > num2) return 1;
             if (num1 < num2) return -1;
-        } else if (isNum1 && !isNum2) {
+        } else if (isDigits1 && !isDigits2) {
             return -1;
-        } else if (!isNum1 && isNum2) {
+        } else if (!isDigits1 && isDigits2) {
             return 1;
         } else {
-            const cmp = seg1.localeCompare(seg2);
+            // Natural sort with numeric collation to support tokens like test10 vs test9, beta10 vs beta2
+            const cmp = seg1.localeCompare(seg2, undefined, { numeric: true, sensitivity: 'base' });
             if (cmp !== 0) return cmp > 0 ? 1 : -1;
         }
     }
@@ -174,8 +175,10 @@ export class UpdateService {
             }
 
             const includePrereleases = useSettingsStore.getState().includePrereleases;
+            // Fetch list of releases so we can sort them by SemVer ourselves,
+            // avoiding GitHub API ASCII sorting where e.g. test.10 is sorted below test.2
             const apiUrl = includePrereleases
-                ? 'https://api.github.com/repos/FHRha/Holad/releases?per_page=10'
+                ? 'https://api.github.com/repos/FHRha/Holad/releases?per_page=50'
                 : this.GITHUB_RELEASES_API;
 
             const response = await fetch(apiUrl);
@@ -187,7 +190,17 @@ export class UpdateService {
             const rawData = await response.json();
             let data: any = null;
             if (Array.isArray(rawData)) {
-                data = rawData.find((r: any) => !r.draft) || null;
+                const validReleases = rawData.filter((r: any) => {
+                    if (!r || r.draft || !r.tag_name) return false;
+                    if (!includePrereleases && (r.prerelease || r.tag_name.includes('-'))) return false;
+                    return true;
+                });
+
+                if (validReleases.length > 0) {
+                    // Sort descending: newest SemVer version first
+                    validReleases.sort((a: any, b: any) => compareVersions(b.tag_name, a.tag_name));
+                    data = validReleases[0];
+                }
             } else {
                 data = rawData;
             }

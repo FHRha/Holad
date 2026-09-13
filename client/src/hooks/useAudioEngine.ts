@@ -69,6 +69,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       try {
         localStorage.setItem('holad_time', latestPositionRef.current.toString());
         localStorage.setItem('holad_track', latestTrackIdRef.current);
+        localStorage.setItem('holad_time_updated', Date.now().toString());
         lastLocalStorageWriteRef.current = performance.now();
       } catch {
         // ignore storage errors
@@ -76,14 +77,16 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     }
   }, []);
 
-  const flushPlayQueueToServer = useCallback(() => {
+  const flushPlayQueueToServer = useCallback((useKeepalive = false) => {
     const isJamUrl = isJamPath();
     const pStore = usePlayerStore.getState();
     const trk = pStore.queue[pStore.currentIndex];
     if (trk && pStore.role !== 'listener' && !isJamUrl) {
       const trackIds = pStore.queue.map((t) => t.id);
       const pos = Math.floor(engineRef.current.getCurrentTime() * 1000);
-      savePlayQueue(trackIds, trk.id, pos).catch(() => {});
+      if (pos >= 0) {
+        savePlayQueue(trackIds, trk.id, pos, useKeepalive).catch(() => {});
+      }
     }
   }, []);
 
@@ -91,7 +94,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   useEffect(() => {
     const handleUnload = () => {
       flushPositionToLocalStorage();
-      flushPlayQueueToServer();
+      flushPlayQueueToServer(true);
     };
 
     window.addEventListener('beforeunload', handleUnload);
@@ -353,6 +356,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       });
     } else {
       flushPositionToLocalStorage();
+      flushPlayQueueToServer();
       engineRef.current.pause();
       if (isActiveDevice) {
         savePlaybackState({
@@ -362,7 +366,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         });
       }
     }
-  }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, volume]);
+  }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, flushPlayQueueToServer, volume]);
 
   // Save playback state on tab close or hide
   useEffect(() => {
@@ -469,7 +473,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     };
   }, []);
 
-  // Save history state & Subsonic playqueue (every 60s during playback, and on track change / pause)
+  // Save history state & Subsonic playqueue (every 15s during playback)
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     const isJamUrl = isJamPath();
@@ -484,8 +488,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     };
     if (currentTrack && role !== 'listener' && !isJamUrl) {
       if (isPlaying) {
-        saveState();
-        interval = setInterval(saveState, 60000);
+        interval = setInterval(saveState, 15000);
       }
     }
     return () => clearInterval(interval);
