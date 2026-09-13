@@ -270,59 +270,119 @@ export const verifyDownloads = async () => {
   }
 };
 
+// O(1) In-Memory Lookup Indices for Download Queries
+let lastIndexedDownloads: Record<string, DownloadItem> | null = null;
+const completedFingerprintMap = new Map<string, DownloadItem>();
+const completedTitleArtistMap = new Map<string, DownloadItem>();
+const completedAlbumMap = new Map<string, DownloadItem>();
+const negativeMatchCache = new Set<string>();
+
+function ensureDownloadsIndex(downloads: Record<string, DownloadItem>) {
+  if (downloads === lastIndexedDownloads) return;
+  lastIndexedDownloads = downloads;
+  completedFingerprintMap.clear();
+  completedTitleArtistMap.clear();
+  completedAlbumMap.clear();
+  negativeMatchCache.clear();
+
+  for (const item of Object.values(downloads)) {
+    if (item.status !== 'completed') continue;
+    if (item.fingerprint) {
+      completedFingerprintMap.set(item.fingerprint, item);
+    }
+    if (item.type === 'album') {
+      const albName = (item.name || item.title || item.album || '').toLowerCase().trim();
+      if (albName) completedAlbumMap.set(albName, item);
+    } else {
+      const t = (item.title || item.name || '').toLowerCase().trim();
+      const a = (item.artist || '').toLowerCase().trim();
+      if (t) {
+        completedTitleArtistMap.set(`${t}|${a}`, item);
+        if (!completedTitleArtistMap.has(t)) {
+          completedTitleArtistMap.set(t, item);
+        }
+      }
+    }
+  }
+}
+
 export const isItemDownloaded = (
   downloads: Record<string, DownloadItem>,
   trackId: string,
   albumId?: string,
   trackMeta?: any
 ): boolean => {
-  if (downloads[trackId] && downloads[trackId].status === 'completed') return true;
-  if (albumId && downloads[albumId] && downloads[albumId].status === 'completed') return true;
+  if (!downloads) return false;
+  if (trackId && downloads[trackId]?.status === 'completed') return true;
+  if (albumId && downloads[albumId]?.status === 'completed') return true;
+  if (!trackMeta || typeof trackMeta !== 'object') return false;
 
-  if (trackMeta && typeof trackMeta === 'object') {
-    const candidate = {
-      id: trackId,
-      albumId,
-      title: trackMeta.title || trackMeta.name,
-      artist: trackMeta.artist,
-      album: trackMeta.album,
-      duration: trackMeta.duration,
-      track: trackMeta.track ?? trackMeta.trackNumber,
-      trackNumber: trackMeta.trackNumber ?? trackMeta.track,
-      path: trackMeta.path,
-      fileName: trackMeta.fileName ?? trackMeta.path,
-      fingerprint: trackMeta.fingerprint
-    };
-    const matched = findDownloadedTrackMatch(downloads, candidate);
-    if (matched && matched.status === 'completed') {
-      if (trackId && matched.id !== trackId) {
-        try {
-          useDownloadStore.getState().aliasDownloadId(matched.id, trackId);
-        } catch {}
+  // Fast check: if this track ID was already verified as not downloaded in current downloads state
+  if (trackId && negativeMatchCache.has(trackId)) return false;
+
+  ensureDownloadsIndex(downloads);
+
+  // 1. Direct fingerprint match O(1)
+  if (trackMeta.fingerprint) {
+    const match = completedFingerprintMap.get(trackMeta.fingerprint);
+    if (match) {
+      if (trackId && match.id !== trackId && !downloads[trackId]) {
+        try { useDownloadStore.getState().aliasDownloadId(match.id, trackId); } catch {}
       }
       return true;
     }
+  }
 
-    // Also check album-level completed downloads
-    const albumTitle = (trackMeta.title || trackMeta.name || trackMeta.album || '').toLowerCase().trim();
-    const albumArtist = (trackMeta.artist || '').toLowerCase().trim();
-    if (albumTitle) {
-      const foundAlbum = Object.values(downloads).find(
-        d => d.type === 'album' && d.status === 'completed' &&
-             (d.name || d.title || d.album || '').toLowerCase().trim() === albumTitle &&
-             (!albumArtist || !d.artist || d.artist.toLowerCase().trim() === albumArtist)
-      );
-      if (foundAlbum) {
-        if (trackId && foundAlbum.id !== trackId) {
-          try {
-            useDownloadStore.getState().aliasDownloadId(foundAlbum.id, trackId);
-          } catch {}
-        }
-        return true;
+  // 2. Title + Artist match O(1)
+  const title = (trackMeta.title || trackMeta.name || '').toLowerCase().trim();
+  const artist = (trackMeta.artist || '').toLowerCase().trim();
+  if (title) {
+    const match = completedTitleArtistMap.get(`${title}|${artist}`) || (artist ? null : completedTitleArtistMap.get(title));
+    if (match) {
+      if (trackId && match.id !== trackId && !downloads[trackId]) {
+        try { useDownloadStore.getState().aliasDownloadId(match.id, trackId); } catch {}
       }
+      return true;
     }
   }
 
+  // 3. Album match O(1)
+  const albumName = (trackMeta.album || (trackMeta.type === 'album' ? trackMeta.name || trackMeta.title : '')).toLowerCase().trim();
+  if (albumName) {
+    const match = completedAlbumMap.get(albumName);
+    if (match) {
+      if (trackId && match.id !== trackId && !downloads[trackId]) {
+        try { useDownloadStore.getState().aliasDownloadId(match.id, trackId); } catch {}
+      }
+      return true;
+    }
+  }
+
+  // 4. Fallback: single-candidate match
+  const candidate = {
+    id: trackId,
+    albumId,
+    title: trackMeta.title || trackMeta.name,
+    artist: trackMeta.artist,
+    album: trackMeta.album,
+    duration: trackMeta.duration,
+    track: trackMeta.track ?? trackMeta.trackNumber,
+    trackNumber: trackMeta.trackNumber ?? trackMeta.track,
+    path: trackMeta.path,
+    fileName: trackMeta.fileName ?? trackMeta.path,
+    fingerprint: trackMeta.fingerprint
+  };
+  const matched = findDownloadedTrackMatch(downloads, candidate);
+  if (matched && matched.status === 'completed') {
+    if (trackId && matched.id !== trackId && !downloads[trackId]) {
+      try { useDownloadStore.getState().aliasDownloadId(matched.id, trackId); } catch {}
+    }
+    return true;
+  }
+
+  if (trackId) {
+    negativeMatchCache.add(trackId);
+  }
   return false;
 };
 

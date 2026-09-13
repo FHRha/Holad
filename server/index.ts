@@ -2445,7 +2445,7 @@ io.on('connection', (socket) => {
         room.devices = room.devices.filter(d => d.socketId !== socket.id);
         
         if (room.activeDeviceId === holadData.deviceId) {
-          room.activeDeviceId = null;
+          room.activeDeviceId = room.devices.length > 0 ? room.devices[0].id : null;
         }
         
         io.to(`holad_${holadData.roomId}`).emit('holad_devices', { devices: room.devices, activeDeviceId: room.activeDeviceId });

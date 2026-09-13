@@ -7,7 +7,7 @@ import { isTrackExcluded } from '../../utils/trackFingerprint';
 
 const triggerPlay = () => {
   const store = useHoladStore.getState();
-  const isDeviceActive = store.roomId === null || store.activeDeviceId === store.deviceId || store.activeDeviceId === null;
+  const isDeviceActive = store.roomId === null || store.activeDeviceId === store.deviceId || (store.activeDeviceId === null && store.devices.length <= 1);
   if (isDeviceActive) {
     const storeAudioEl = useAudioStore.getState().audioElement;
     if (storeAudioEl) {

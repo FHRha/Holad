@@ -51,7 +51,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const holadDeviceId = useHoladStore(s => s.deviceId);
   const holadActiveDeviceId = useHoladStore(s => s.activeDeviceId);
   const isHoladConnected = useHoladStore(s => s.roomId !== null);
-  const isActiveDevice = !isHoladConnected || holadActiveDeviceId === holadDeviceId || holadActiveDeviceId === null;
+  const holadDevices = useHoladStore(s => s.devices);
+  const isActiveDevice = !isHoladConnected || holadActiveDeviceId === holadDeviceId || (holadActiveDeviceId === null && holadDevices.length <= 1);
 
   const { src: audioSrc, trackId: srcTrackId, isLoading: srcLoading, isAvailable } = useTrackSource(currentTrack);
 
@@ -206,6 +207,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
   // Preload next track
   const preloadUpcomingTrack = useCallback(() => {
+    if (!isActiveDevice) return;
     if (!settings.preloadNextTrack || settings.preloadMode === 'disabled') return;
 
     // If wifi_only is selected, check if connection is cellular or metered
@@ -278,7 +280,23 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const wasPlayingEngine = prevIsPlayingRef.current;
     const isMidTransition = engineRef.current.isTransitioning();
 
-    if (isPlayingStore && isActiveDevice && !isSpeakerDj) {
+    if (!isActiveDevice) {
+      // Remote controller device: ensure local audio engine and elements are completely paused and unloaded
+      engineRef.current.pause();
+      if (audioRefs[0]?.current) {
+        audioRefs[0].current.pause();
+        audioRefs[0].current.removeAttribute('src');
+        audioRefs[0].current.load();
+      }
+      if (audioRefs[1]?.current) {
+        audioRefs[1].current.pause();
+        audioRefs[1].current.removeAttribute('src');
+        audioRefs[1].current.load();
+      }
+      return;
+    }
+
+    if (isPlayingStore && !isSpeakerDj) {
       const activeDeckIdx = engineRef.current.getActiveDeckIndex();
       const shouldCrossfade = isCrossfade && wasPlayingEngine && !didDeviceBecomeActive && !isMidTransition;
       const nextDeckIdx = (shouldCrossfade ? (1 - activeDeckIdx) : activeDeckIdx) as 0 | 1;
@@ -424,6 +442,18 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   useEffect(() => {
     const handleInteraction = () => {
       engineRef.current.getWebAudioPipeline()?.unlockContext();
+      
+      const holadState = useHoladStore.getState();
+      const isDeviceActive = !holadState.roomId || 
+        holadState.activeDeviceId === holadState.deviceId || 
+        (holadState.activeDeviceId === null && holadState.devices.length <= 1);
+
+      if (!isDeviceActive) {
+        audioRefs[0]?.current?.pause();
+        audioRefs[1]?.current?.pause();
+        return;
+      }
+
       // Force unlock HTML Audio elements on mobile by playing and immediately pausing them
       // BUT only if they are not actively playing a track, otherwise we break the user's first play action.
       const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
@@ -595,7 +625,6 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   }, [currentTrack, isActiveDevice, duration, role, sleepTimer, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer, flushPositionToLocalStorage]);
 
   // Holad Syncing: only broadcast if there are multiple devices in the room (remote controller/listener)
-  const holadDevices = useHoladStore(s => s.devices);
   const hasRemoteDevices = holadDevices.length > 1;
 
   useEffect(() => {
