@@ -1,25 +1,10 @@
 import type { StateCreator } from 'zustand';
 import type { PlayerState } from '../playerStore';
 import type { Track } from '../../types';
-import { useHoladStore } from '../holadStore';
-import { useAudioStore } from '../audioStore';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
 
-const triggerPlay = () => {
-  const store = useHoladStore.getState();
-  const isDeviceActive = store.roomId === null || store.activeDeviceId === store.deviceId || (store.activeDeviceId === null && store.devices.length <= 1);
-  if (isDeviceActive) {
-    const storeAudioEl = useAudioStore.getState().audioElement;
-    if (storeAudioEl) {
-      if (!storeAudioEl.ended) {
-        storeAudioEl.play().catch(() => {});
-      }
-    } else {
-      const firstPlayer = document.querySelector('.main-audio-player') as HTMLAudioElement;
-      if (firstPlayer && !firstPlayer.ended) firstPlayer.play().catch(() => {});
-    }
-  }
-};
+// Direct DOM audio playback removed. Playback is managed exclusively by AudioEngine via useAudioEngine.
+const triggerPlay = () => {};
 
 export const sanitizeTracks = (tracks: Track[]): Track[] => {
   if (!Array.isArray(tracks)) return [];

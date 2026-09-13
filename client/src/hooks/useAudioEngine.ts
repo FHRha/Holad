@@ -267,7 +267,6 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     if (prevTrackIdRef.current === currentTrack.id && !didDeviceBecomeActive && !hasPlayActionChanged) return;
 
     const isAutoSkip = crossfadeTriggeredRef.current === prevTrackIdRef.current;
-    crossfadeTriggeredRef.current = null;
     prevTrackIdRef.current = currentTrack.id;
     preloadTrackAssets(currentTrack).catch(() => {});
 
@@ -281,6 +280,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const isMidTransition = engineRef.current.isTransitioning();
 
     if (!isActiveDevice) {
+      crossfadeTriggeredRef.current = null;
       // Remote controller device: ensure local audio engine and elements are completely paused and unloaded
       engineRef.current.pause();
       if (audioRefs[0]?.current) {
@@ -316,7 +316,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         setActiveIndex(newActiveIdx as 0 | 1);
         const newEl = audioRefs[newActiveIdx]?.current;
         if (newEl) setAudioElement(newEl);
+        crossfadeTriggeredRef.current = null;
       }).catch((e) => {
+        crossfadeTriggeredRef.current = null;
         console.warn('Track playback initiation error:', e);
       });
 
@@ -324,6 +326,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         setInitialPosition(0);
       }
     } else {
+      crossfadeTriggeredRef.current = null;
       const activeDeckIdx = engineRef.current.getActiveDeckIndex();
       setActiveIndex(activeDeckIdx as 0 | 1);
       const activeEl = audioRefs[activeDeckIdx]?.current;
@@ -338,13 +341,27 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         engineRef.current.pause();
       }
     }
-  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition]);
+  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition, playActionId]);
 
   // Handle play/pause toggle
+  const prevIsPlayingStoreRef = useRef<boolean>(isPlaying);
+  const prevTrackIdForPlayPauseRef = useRef<string | null>(currentTrack?.id || null);
+
   useEffect(() => {
     if (!currentTrack) return;
 
+    const wasPlaying = prevIsPlayingStoreRef.current;
+    prevIsPlayingStoreRef.current = isPlaying;
+
+    const isSameTrack = prevTrackIdForPlayPauseRef.current === currentTrack.id;
+    prevTrackIdForPlayPauseRef.current = currentTrack.id;
+
+    if (wasPlaying === isPlaying) return;
+
     if (isPlaying && isActiveDevice && !isSpeakerDj) {
+      if (!isSameTrack || (engineRef.current.getActiveTrackId() && engineRef.current.getActiveTrackId() !== currentTrack.id)) {
+        return;
+      }
       engineRef.current.resume().catch((e) => {
         console.error('Playback resume error:', e);
       });
@@ -588,8 +605,12 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
     const handleEnded = (emittedTrackId?: string) => {
       flushPositionToLocalStorage();
+      if (!isActiveDevice) return;
       if (!currentTrack) return;
-      if (emittedTrackId && emittedTrackId !== currentTrack.id) return;
+      if (!emittedTrackId || emittedTrackId !== currentTrack.id) return;
+      if (engine.isTransitioning()) return;
+      if (crossfadeTriggeredRef.current === currentTrack.id) return;
+
       const pStore = usePlayerStore.getState();
       const isJamSession = Boolean(pStore.roomId);
       if (isJamSession && pStore.role !== 'host' && pStore.role !== 'cohost') return;
@@ -600,9 +621,6 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         return;
       }
 
-      if (engine.isTransitioning()) return;
-      if (crossfadeTriggeredRef.current === currentTrack.id) return;
-      
       if (isJamSession) {
         jamSocket.trackEnded(currentTrack.id, pStore.currentIndex, pStore.repeatMode);
       } else {

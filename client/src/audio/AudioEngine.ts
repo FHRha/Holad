@@ -113,7 +113,8 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
         deck.on('ended', () => {
             if (deckIndex === this.activeIndex) {
-                this.emit('ended', this.deckTrackIds[deckIndex]);
+                const trackId = this.deckTrackIds[deckIndex] || this.currentTrack?.id;
+                this.emit('ended', trackId);
             }
         });
 
@@ -277,6 +278,9 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             );
         } else {
             // Standard direct play
+            this.preloadManager.cancelPreload(standbyDeck);
+            this.deckTrackIds[(1 - this.activeIndex) as 0 | 1] = null;
+
             if (this.pipeline) {
                 await this.pipeline.unlockContext();
                 if (this.playToken !== currentToken || !this.isPlaying) return;
@@ -379,6 +383,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
     public async preloadNextTrack(track: any): Promise<void> {
         if (!this.settings.preloadNextTrack) return;
+        this.deckTrackIds[(1 - this.activeIndex) as 0 | 1] = track?.id || null;
         const standbyDeck = this.getStandbyDeck();
         await this.preloadManager.preloadTrack(track, standbyDeck);
     }
