@@ -70,4 +70,34 @@ describe('Tier 2 - B3: Queue Boundary States', () => {
     expect(usePlayerStore.getState().queue.length).toBe(2);
     expect(usePlayerStore.getState().currentIndex).toBeLessThanOrEqual(1);
   });
+
+  it('B3-7: Changing tracks via nextTrack, prevTrack, playTrack, or setQueueAndPlay resets initialPosition to 0', () => {
+    const tracks = createMockAlbumTracks(4);
+    usePlayerStore.getState().setQueue(tracks);
+    usePlayerStore.getState().setCurrentIndex(1);
+    usePlayerStore.getState().setInitialPosition(30000);
+
+    // nextTrack
+    usePlayerStore.getState().nextTrack();
+    expect(usePlayerStore.getState().currentIndex).toBe(2);
+    expect(usePlayerStore.getState().initialPosition).toBe(0);
+
+    // prevTrack
+    usePlayerStore.getState().setInitialPosition(25000);
+    usePlayerStore.getState().prevTrack();
+    expect(usePlayerStore.getState().currentIndex).toBe(1);
+    expect(usePlayerStore.getState().initialPosition).toBe(0);
+
+    // playTrack
+    usePlayerStore.getState().setInitialPosition(20000);
+    usePlayerStore.getState().playTrack(3);
+    expect(usePlayerStore.getState().currentIndex).toBe(3);
+    expect(usePlayerStore.getState().initialPosition).toBe(0);
+
+    // setQueueAndPlay
+    usePlayerStore.getState().setInitialPosition(15000);
+    usePlayerStore.getState().setQueueAndPlay(tracks, 0);
+    expect(usePlayerStore.getState().currentIndex).toBe(0);
+    expect(usePlayerStore.getState().initialPosition).toBe(0);
+  });
 });

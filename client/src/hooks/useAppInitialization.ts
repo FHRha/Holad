@@ -181,7 +181,9 @@ export function useAppInitialization() {
           if (pos === 0) {
             fetchPlaybackState().then(pbState => {
               if (pbState && pbState.position && (pbState.song_id === queueData.current || pbState.song_id === mappedTracks[initialIndex]?.id)) {
-                usePlayerStore.setState({ initialPosition: pbState.position * 1000 });
+                if (!usePlayerStore.getState().isPlaying) {
+                  usePlayerStore.setState({ initialPosition: pbState.position * 1000 });
+                }
               }
             }).catch(() => {});
           }

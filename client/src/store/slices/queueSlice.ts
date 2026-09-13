@@ -120,7 +120,7 @@ export const createQueueSlice: StateCreator<
       if (filtered.length === 0) return state;
       let newIndex = filtered.findIndex(t => t.id === targetTrackId);
       if (newIndex === -1) newIndex = 0;
-      return { queue: filtered, originalQueue: filtered, currentIndex: newIndex, isPlaying: true, isShuffle: false, playActionId: state.playActionId + 1 };
+      return { queue: filtered, originalQueue: filtered, currentIndex: newIndex, initialPosition: 0, isPlaying: true, isShuffle: false, playActionId: state.playActionId + 1 };
     });
   },
   playNext: (tracks) => {
@@ -192,7 +192,7 @@ export const createQueueSlice: StateCreator<
   
   playTrack: (index) => set((state) => {
     triggerPlay();
-    return { currentIndex: index, isPlaying: true, playActionId: state.playActionId + 1 };
+    return { currentIndex: index, initialPosition: 0, isPlaying: true, playActionId: state.playActionId + 1 };
   }),
   
   nextTrack: () => {
@@ -207,7 +207,7 @@ export const createQueueSlice: StateCreator<
           nextIdx++;
         }
         if (nextIdx < state.queue.length) {
-          return { currentIndex: nextIdx, isPlaying: true, playActionId: state.playActionId + 1 };
+          return { currentIndex: nextIdx, initialPosition: 0, isPlaying: true, playActionId: state.playActionId + 1 };
         }
       } else if (state.repeatMode === 'all') {
         let firstIdx = 0;
@@ -215,7 +215,7 @@ export const createQueueSlice: StateCreator<
           firstIdx++;
         }
         if (firstIdx < state.queue.length) {
-          return { currentIndex: firstIdx, isPlaying: true, playActionId: state.playActionId + 1 };
+          return { currentIndex: firstIdx, initialPosition: 0, isPlaying: true, playActionId: state.playActionId + 1 };
         }
       }
       return state;
@@ -231,7 +231,7 @@ export const createQueueSlice: StateCreator<
           prevIdx--;
         }
         if (prevIdx >= 0) {
-          return { currentIndex: prevIdx, isPlaying: true, playActionId: state.playActionId + 1 };
+          return { currentIndex: prevIdx, initialPosition: 0, isPlaying: true, playActionId: state.playActionId + 1 };
         }
       }
       return state;

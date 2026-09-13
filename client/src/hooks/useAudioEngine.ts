@@ -322,6 +322,22 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     }
   }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition]);
 
+  // Handle async initialPosition restoring for the first track
+  useEffect(() => {
+    if (initialPosition > 0 && currentTrack) {
+      if (!isPlaying) {
+        const posSec = initialPosition / 1000;
+        const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
+        const deck = engineRef.current.getActiveDeck();
+        deck.seek(posSec, dur);
+        useAudioStore.getState().setProgress((posSec / dur) * 100);
+        setInitialPosition(0);
+      } else {
+        setInitialPosition(0);
+      }
+    }
+  }, [initialPosition, currentTrack, isPlaying, setInitialPosition]);
+
   // Handle play/pause toggle
   useEffect(() => {
     if (!currentTrack) return;
