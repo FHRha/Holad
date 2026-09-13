@@ -1396,8 +1396,8 @@ app.get(streamRoutes, async (req, res) => {
   // If client provided its own credentials, bypass failover
   if (u && t && s) {
     try {
-      const streamFormat = format ? `&format=${encodeURIComponent(format as string)}` : '&format=opus';
-      const streamBitRate = maxBitRate ? `&maxBitRate=${encodeURIComponent(maxBitRate as string)}` : (format === 'opus' || !format ? '&maxBitRate=256' : '');
+      const streamFormat = format ? `&format=${encodeURIComponent(format as string)}` : '&format=raw';
+      const streamBitRate = maxBitRate ? `&maxBitRate=${encodeURIComponent(maxBitRate as string)}` : (format === 'opus' ? '&maxBitRate=256' : '');
       const streamEstLen = estimateContentLength !== undefined ? `&estimateContentLength=${encodeURIComponent(estimateContentLength as string)}` : '&estimateContentLength=true';
       const authParams = `u=${u}&t=${t}&s=${s}&v=${v||'1.16.1'}&c=${c||'StreamNavi'}&f=${f||'json'}${streamFormat}${streamBitRate}${streamEstLen}`;
       let targetServer = navidromeAccounts[0]?.url || '';
@@ -1442,8 +1442,8 @@ app.get(streamRoutes, async (req, res) => {
   await executeWithFailover(req, res,
     (account) => {
       const authParams = getSubsonicAuthParams(account);
-      const streamFormat = format ? `&format=${encodeURIComponent(format as string)}` : '&format=opus';
-      const streamBitRate = maxBitRate ? `&maxBitRate=${encodeURIComponent(maxBitRate as string)}` : (format === 'opus' || !format ? '&maxBitRate=256' : '');
+      const streamFormat = format ? `&format=${encodeURIComponent(format as string)}` : '&format=raw';
+      const streamBitRate = maxBitRate ? `&maxBitRate=${encodeURIComponent(maxBitRate as string)}` : (format === 'opus' ? '&maxBitRate=256' : '');
       return `${account.url.replace(/\/$/, '')}/rest/stream?id=${id}&${authParams}${streamFormat}${streamBitRate}&estimateContentLength=true`;
     },
     async (response) => {

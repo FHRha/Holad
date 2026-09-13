@@ -236,14 +236,23 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             }
             effectiveDuration = Math.max(0.1, effectiveDuration);
 
-            await this.transitionManager.performCrossfade(
-                outgoingDeck,
-                incomingDeck,
-                { duration: effectiveDuration, curve: this.settings.crossfadeCurve },
-                this.pipeline || undefined,
-                outgoingIndex,
-                this.volume * this.volumeMultiplier
-            );
+            if (outgoingDeck.element.ended || outgoingDeck.element.paused) {
+                if (this.pipeline) {
+                    this.pipeline.setDeckGain(incomingIndex, 1.0, 0);
+                    this.pipeline.setDeckGain(outgoingIndex, 0.0, 0);
+                }
+                incomingDeck.setVolume(this.volume * this.volumeMultiplier);
+                await incomingDeck.play();
+            } else {
+                await this.transitionManager.performCrossfade(
+                    outgoingDeck,
+                    incomingDeck,
+                    { duration: effectiveDuration, curve: this.settings.crossfadeCurve },
+                    this.pipeline || undefined,
+                    outgoingIndex,
+                    this.volume * this.volumeMultiplier
+                );
+            }
         } else if (this.settings.isGaplessEnabled && this.preloadManager.isTrackPreloaded(track?.id)) {
             // Gapless handover
             const outgoingIndex = this.activeIndex;

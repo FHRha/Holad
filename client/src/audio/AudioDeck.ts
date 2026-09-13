@@ -159,6 +159,7 @@ export class AudioDeck implements IAudioDeck {
                 this.isTainted = true;
                 
                 const currentTime = this.state === 'loading' ? this.targetPosition : oldElement.currentTime;
+                const wasPlaying = !oldElement.paused && this.state === 'playing';
                 
                 oldElement.pause();
                 oldElement.removeAttribute('src');
@@ -166,7 +167,9 @@ export class AudioDeck implements IAudioDeck {
                 
                 this.element.load();
                 this.element.currentTime = currentTime;
-                this.element.play().catch(() => {});
+                if (wasPlaying) {
+                    this.element.play().catch(() => {});
+                }
                 return;
             }
             this.setState('error');
