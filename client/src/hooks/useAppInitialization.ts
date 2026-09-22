@@ -119,6 +119,12 @@ export function useAppInitialization() {
         const localIndex = currentStore.currentIndex;
         const localCurrentTrack = localIndex >= 0 && localIndex < localQueue.length ? localQueue[localIndex] : null;
 
+        // If the room already synchronized an active queue from another playing device, don't overwrite it
+        const holadState = useHoladStore.getState();
+        if (holadState.roomId && holadState.activeDeviceId && holadState.activeDeviceId !== holadState.deviceId && localQueue.length > 0) {
+          return;
+        }
+
         if (queueData && Array.isArray(queueData.entry) && queueData.entry.length > 0) {
           const mappedTracks: Track[] = queueData.entry.map((t: any) => ({
             id: t.id,
@@ -195,6 +201,7 @@ export function useAppInitialization() {
             }
           }
 
+          useHoladStore.getState().setIsApplyingRemoteState(true);
           usePlayerStore.setState({
             queue: mappedTracks,
             originalQueue: mappedTracks,
@@ -202,6 +209,9 @@ export function useAppInitialization() {
             isPlaying: false, 
             initialPosition: pos
           });
+          setTimeout(() => {
+            useHoladStore.getState().setIsApplyingRemoteState(false);
+          }, 50);
 
           const trackDur = mappedTracks[initialIndex]?.duration || 0;
           if (trackDur > 0) {
@@ -244,12 +254,16 @@ export function useAppInitialization() {
           if (currentTrack) {
             savePlayQueue(trackIds, currentTrack.id, localPos).catch(() => {});
           }
+          useHoladStore.getState().setIsApplyingRemoteState(true);
           usePlayerStore.setState({
             originalQueue: currentStore.originalQueue && currentStore.originalQueue.length > 0 ? currentStore.originalQueue : localQueue,
             currentIndex: activeIndex,
             isPlaying: false,
             initialPosition: localPos
           });
+          setTimeout(() => {
+            useHoladStore.getState().setIsApplyingRemoteState(false);
+          }, 50);
           const trackDur = currentTrack?.duration || 0;
           if (trackDur > 0) {
             useAudioStore.getState().setDuration(trackDur);

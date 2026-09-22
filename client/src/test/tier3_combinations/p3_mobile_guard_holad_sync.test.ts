@@ -44,4 +44,64 @@ describe('Tier 3 - P3: Mobile Autoplay Guard + Remote Holad Sync + Local Queue',
     usePlayerStore.getState().setIsPlaying(true);
     expect(usePlayerStore.getState().isPlaying).toBe(true);
   });
+
+  it('P3-4: When remote device is idle (isRemotePlaying=false), selecting a queue claims active role locally', () => {
+    let emittedEvent: string | null = null;
+    let emittedPayload: any = null;
+
+    const mockSocket = {
+      emit: (event: string, payload: any) => {
+        emittedEvent = event;
+        emittedPayload = payload;
+      }
+    } as any;
+
+    useHoladStore.setState({
+      socket: mockSocket,
+      deviceId: 'mobile-client-99',
+      activeDeviceId: 'desktop-host-1',
+      roomId: 'user-room',
+      devices: [
+        { id: 'mobile-client-99', name: 'Mobile' },
+        { id: 'desktop-host-1', name: 'Desktop' }
+      ],
+      isRemotePlaying: false, // Desktop is idle in other room
+    });
+    useHoladStore.getState().setupStoreSubscriptions();
+
+    // Selecting a track/queue on mobile should claim active device locally
+    usePlayerStore.getState().setQueueAndPlay(createMockAlbumTracks(3), 0);
+
+    expect(emittedEvent).toBe('holad_setActiveDevice');
+    expect(emittedPayload).toBe('mobile-client-99');
+    expect(usePlayerStore.getState().isPlaying).toBe(true);
+  });
+
+  it('P3-5: Safe setActiveDevice emits direct holad_setActiveDevice if previous active device is offline', () => {
+    let emittedEvent: string | null = null;
+    let emittedPayload: any = null;
+
+    const mockSocket = {
+      emit: (event: string, payload: any) => {
+        emittedEvent = event;
+        emittedPayload = payload;
+      }
+    } as any;
+
+    useHoladStore.setState({
+      socket: mockSocket,
+      deviceId: 'mobile-client-99',
+      activeDeviceId: 'desktop-host-offline',
+      roomId: 'user-room',
+      devices: [
+        { id: 'mobile-client-99', name: 'Mobile' } // desktop-host-offline is NOT in devices
+      ],
+    });
+
+    useHoladStore.getState().setActiveDevice('mobile-client-99');
+
+    // Should immediately emit holad_setActiveDevice without waiting for offline device to reply
+    expect(emittedEvent).toBe('holad_setActiveDevice');
+    expect(emittedPayload).toBe('mobile-client-99');
+  });
 });

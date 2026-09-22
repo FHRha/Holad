@@ -1493,6 +1493,7 @@ interface HoladRoom {
 }
 
 const holadRooms = new Map<string, HoladRoom>();
+const holadGraceTimers = new Map<string, NodeJS.Timeout>();
 
 const broadcastParticipants = (roomId: string) => {
   const room = rooms.get(roomId);
@@ -1790,6 +1791,13 @@ io.on('connection', (socket) => {
       holadRooms.set(normalizedRoom, room);
     }
     
+    // Clear any pending grace disconnect timer for this device
+    const timerKey = `${normalizedRoom}:${deviceId}`;
+    if (holadGraceTimers.has(timerKey)) {
+      clearTimeout(holadGraceTimers.get(timerKey)!);
+      holadGraceTimers.delete(timerKey);
+    }
+
     room.devices = room.devices.filter(d => d.id !== deviceId);
     room.devices.push({ id: deviceId, name: deviceName, socketId: socket.id });
     
@@ -1830,6 +1838,13 @@ io.on('connection', (socket) => {
     if (!data) return;
     const room = holadRooms.get(data.roomId);
     if (room) {
+      // Clear any pending grace timers for this room
+      for (const [key, timer] of holadGraceTimers.entries()) {
+        if (key.startsWith(`${data.roomId}:`)) {
+          clearTimeout(timer);
+          holadGraceTimers.delete(key);
+        }
+      }
       room.activeDeviceId = deviceId;
       const payload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
       socket.emit('holad_devices', payload);
@@ -2449,12 +2464,35 @@ io.on('connection', (socket) => {
         room.devices = room.devices.filter(d => d.socketId !== socket.id);
         
         if (room.activeDeviceId === holadData.deviceId) {
-          room.activeDeviceId = room.devices[0]?.id ?? null;
+          // The active device disconnected!
+          // DO NOT automatically transfer activeDeviceId to another device (e.g. room.devices[0]).
+          // Hold a 45-second Grace Period for mobile sleep / network blips / screen lock.
+          const timerKey = `${holadData.roomId}:${holadData.deviceId}`;
+          if (holadGraceTimers.has(timerKey)) {
+            clearTimeout(holadGraceTimers.get(timerKey)!);
+          }
+          const timer = setTimeout(() => {
+            holadGraceTimers.delete(timerKey);
+            const currentRoom = holadRooms.get(holadData.roomId);
+            if (currentRoom && currentRoom.activeDeviceId === holadData.deviceId) {
+              // Grace period expired without reconnect. Set to null.
+              // NEVER auto-assign to another idle device!
+              currentRoom.activeDeviceId = null;
+              io.to(`holad_${holadData.roomId}`).emit('holad_devices', {
+                devices: currentRoom.devices,
+                activeDeviceId: null
+              });
+              if (currentRoom.devices.length === 0) {
+                holadRooms.delete(holadData.roomId);
+              }
+            }
+          }, 45000);
+          holadGraceTimers.set(timerKey, timer);
         }
         
         io.to(`holad_${holadData.roomId}`).emit('holad_devices', { devices: room.devices, activeDeviceId: room.activeDeviceId });
         
-        if (room.devices.length === 0) {
+        if (room.devices.length === 0 && !holadGraceTimers.has(`${holadData.roomId}:${holadData.deviceId}`)) {
           holadRooms.delete(holadData.roomId);
         }
       }

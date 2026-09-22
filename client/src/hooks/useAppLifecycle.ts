@@ -8,7 +8,7 @@ import { isCapacitor, isTauri } from '../utils/StorageManager';
 
 export function useAppLifecycle() {
   useEffect(() => {
-    const handleExit = () => {
+    const handleExit = (isTerminating = false) => {
       const playerStore = usePlayerStore.getState();
       const audioStore = useAudioStore.getState();
       const engine = getAudioEngine();
@@ -36,7 +36,7 @@ export function useAppLifecycle() {
          holadState.socket.emit('holad_updateState', {
             roomId: holadState.roomId,
             deviceId: holadState.deviceId,
-            isPlaying: false,
+            isPlaying: isTerminating ? false : playerStore.isPlaying,
             currentIndex: playerStore.currentIndex,
             queue: playerStore.queue,
             currentTime: currentTime,
@@ -45,7 +45,7 @@ export function useAppLifecycle() {
     };
 
     const handleBeforeUnload = () => {
-      handleExit();
+      handleExit(true);
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
@@ -53,7 +53,7 @@ export function useAppLifecycle() {
     if (isCapacitor()) {
       App.addListener('appStateChange', ({ isActive }: any) => {
         if (!isActive) {
-          handleExit();
+          handleExit(false);
         }
       }).then((listener: any) => {
         capacitorListener = listener;
@@ -64,7 +64,7 @@ export function useAppLifecycle() {
     if (isTauri()) {
       import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
         getCurrentWindow().onCloseRequested(() => {
-          handleExit();
+          handleExit(true);
         }).then(unlisten => {
           unlistenTauri = unlisten;
         });

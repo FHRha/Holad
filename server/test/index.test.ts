@@ -543,5 +543,98 @@ describe('Exclusions REST API & Socket.io Broadcast', () => {
     expect(getRes.body.excludedTrackIds).toEqual(['track-10', 'track-20']);
     expect(getRes.body.excludedAlbumIds).toEqual(['album-10']);
   });
+
+  it('should maintain Grace Period when active device disconnects and NOT auto-switch to desktop', async () => {
+    // Connect Phone (Device A)
+    const phoneSocket = Client(`http://localhost:${port}`, { path: '/Holad/socket.io' });
+    await new Promise<void>((r) => phoneSocket.on('connect', r));
+
+    await new Promise<any>((r) => {
+      phoneSocket.emit('holad_joinRoom', {
+        roomId: account.user,
+        deviceId: 'mobile-phone-1',
+        deviceName: 'Mobile Phone',
+        auth: { user: account.user, token: 'mock-token', salt: 'mock-salt', url: account.url }
+      });
+      phoneSocket.once('holad_devices', r);
+    });
+
+    // Explicitly set mobile-phone-1 as active device
+    await new Promise<any>((r) => {
+      phoneSocket.emit('holad_setActiveDevice', 'mobile-phone-1');
+      phoneSocket.once('holad_devices', r);
+    });
+
+    // Connect Desktop (Device B)
+    const desktopSocket = Client(`http://localhost:${port}`, { path: '/Holad/socket.io' });
+    await new Promise<void>((r) => desktopSocket.on('connect', r));
+
+    const desktopDevices = await new Promise<any>((r) => {
+      desktopSocket.emit('holad_joinRoom', {
+        roomId: account.user,
+        deviceId: 'desktop-pc-1',
+        deviceName: 'Desktop PC',
+        auth: { user: account.user, token: 'mock-token', salt: 'mock-salt', url: account.url }
+      });
+      desktopSocket.once('holad_devices', r);
+    });
+    expect(desktopDevices.activeDeviceId).toBe('mobile-phone-1');
+
+    // Wait 50ms to drain any duplicate join events
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Device A (Phone) disconnects (simulating screen lock / network drop)
+    const disconnectUpdatePromise = new Promise<any>((r) => {
+      const handler = (payload: any) => {
+        if (!payload.devices.some((d: any) => d.id === 'mobile-phone-1')) {
+          desktopSocket.off('holad_devices', handler);
+          r(payload);
+        }
+      };
+      desktopSocket.on('holad_devices', handler);
+    });
+
+    phoneSocket.disconnect();
+    const payloadAfterDisconnect = await disconnectUpdatePromise;
+
+    // Verify PC did NOT steal activeDeviceId!
+    expect(payloadAfterDisconnect.activeDeviceId).toBe('mobile-phone-1');
+    expect(payloadAfterDisconnect.devices.some((d: any) => d.id === 'desktop-pc-1')).toBe(true);
+
+    // Phone reconnects within Grace Period
+    const phoneSocket2 = Client(`http://localhost:${port}`, { path: '/Holad/socket.io' });
+    await new Promise<void>((r) => phoneSocket2.on('connect', r));
+
+    const payloadAfterReconnect = await new Promise<any>((r) => {
+      phoneSocket2.emit('holad_joinRoom', {
+        roomId: account.user,
+        deviceId: 'mobile-phone-1',
+        deviceName: 'Mobile Phone',
+        auth: { user: account.user, token: 'mock-token', salt: 'mock-salt', url: account.url }
+      });
+      phoneSocket2.once('holad_devices', r);
+    });
+
+    // Verify phone seamlessly retained its active role
+    expect(payloadAfterReconnect.activeDeviceId).toBe('mobile-phone-1');
+    expect(payloadAfterReconnect.devices.some((d: any) => d.id === 'mobile-phone-1')).toBe(true);
+    expect(payloadAfterReconnect.devices.some((d: any) => d.id === 'desktop-pc-1')).toBe(true);
+
+    // Explicit manual switch to Desktop
+    const payloadAfterManualSwitch = await new Promise<any>((r) => {
+      const handler = (payload: any) => {
+        if (payload.activeDeviceId === 'desktop-pc-1') {
+          desktopSocket.off('holad_devices', handler);
+          r(payload);
+        }
+      };
+      desktopSocket.on('holad_devices', handler);
+      desktopSocket.emit('holad_setActiveDevice', 'desktop-pc-1');
+    });
+    expect(payloadAfterManualSwitch.activeDeviceId).toBe('desktop-pc-1');
+
+    phoneSocket2.disconnect();
+    desktopSocket.disconnect();
+  }, 15000);
 });
 
