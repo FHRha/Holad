@@ -3,7 +3,7 @@ import { WebAudioPipeline } from './WebAudioPipeline';
 import { PreloadManager } from './PreloadManager';
 import { TransitionManager } from './TransitionManager';
 import type { AudioEngineSettings, AudioState, IAudioCore, IAudioDeck, IAudioEngine, IWebAudioPipeline, PlayTrackOptions } from './types';
-import { isCapacitor } from '../utils/StorageManager';
+import { isCapacitor, isMobileClient } from '../utils/StorageManager';
 
 export class AudioEngine implements IAudioEngine, IAudioCore {
     private static instance: AudioEngine | null = null;
@@ -57,7 +57,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     private initPipeline(): void {
-        if (isCapacitor()) {
+        if (isCapacitor() || isMobileClient()) {
             this.pipeline = null;
             this.decks[0].setVolume(this.volume * this.volumeMultiplier);
             this.decks[1].setVolume(this.volume * this.volumeMultiplier);

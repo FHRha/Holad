@@ -77,6 +77,21 @@ export class TransitionManager {
         this.abortController = new AbortController();
         const signal = this.abortController.signal;
 
+        const isHidden = typeof document !== 'undefined' && document.hidden;
+        if (!usePipeline && isHidden) {
+            incomingDeck.setVolume(1.0 * masterVolume);
+            try {
+                await incomingDeck.play();
+            } catch (e) {
+                console.warn('Crossfade incoming deck play error (background):', e);
+            }
+            outgoingDeck.pause();
+            outgoingDeck.setVolume(0);
+            this.isTransitioning = false;
+            this.abortController = null;
+            return;
+        }
+
         // Ensure outgoingDeck is audible (not reset to 0) and incoming deck starts silent
         if (usePipeline) {
             if (pipeline.getDeckGain(outgoingIndex) === 0) {
@@ -115,6 +130,28 @@ export class TransitionManager {
             return;
         }
 
+        const handleVisibility = () => {
+            if (typeof document !== 'undefined' && document.hidden) {
+                if (this.transitionInterval) {
+                    clearInterval(this.transitionInterval);
+                    this.transitionInterval = null;
+                }
+                if (usePipeline) {
+                    pipeline.setDeckGain(outgoingIndex, 0.0, 0);
+                    pipeline.setDeckGain(incomingIndex, 1.0, 0);
+                } else {
+                    outgoingDeck.setVolume(0);
+                    incomingDeck.setVolume(1.0 * masterVolume);
+                }
+                outgoingDeck.pause();
+                if (this.abortController) {
+                    this.abortController.abort();
+                }
+            }
+        };
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', handleVisibility);
+        }
 
         if (usePipeline) {
             const startTime = pipeline.context.currentTime + 0.02;
@@ -148,7 +185,14 @@ export class TransitionManager {
         }
 
         return new Promise<void>((resolve) => {
+            const cleanup = () => {
+                if (typeof document !== 'undefined') {
+                    document.removeEventListener('visibilitychange', handleVisibility);
+                }
+            };
+
             const onAbort = () => {
+                cleanup();
                 if (this.transitionInterval) {
                     clearInterval(this.transitionInterval);
                     this.transitionInterval = null;
@@ -162,6 +206,7 @@ export class TransitionManager {
             signal.addEventListener('abort', onAbort, { once: true });
 
             const timeoutId = setTimeout(() => {
+                cleanup();
                 if (this.transitionInterval) {
                     clearInterval(this.transitionInterval);
                     this.transitionInterval = null;

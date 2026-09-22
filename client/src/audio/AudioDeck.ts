@@ -225,55 +225,22 @@ export class AudioDeck implements IAudioDeck {
             // Force the UI to reset immediately
             this.emit('timeupdate', position);
             
-            await new Promise<void>((resolve, reject) => {
+            if (position > 0) {
                 if (this.element.readyState >= 1) {
                     const target = this.targetPosition > 0 ? this.targetPosition : position;
                     try {
                         this.element.currentTime = target;
                     } catch {}
-                    resolve();
                 } else {
-                    let cleanup = () => {};
-                    // Safety timeout: on mobile WebViews, if metadata takes >1500ms, resolve so play() can start immediately
-                    const timer = setTimeout(() => {
-                        cleanup();
-                        const target = this.targetPosition > 0 ? this.targetPosition : position;
-                        try {
-                            this.element.currentTime = target;
-                        } catch {}
-                        resolve();
-                    }, 1500);
-
                     const onReady = () => {
-                        cleanup();
                         const target = this.targetPosition > 0 ? this.targetPosition : position;
                         try {
                             this.element.currentTime = target;
                         } catch {}
-                        resolve();
                     };
-
-                    const onError = () => {
-                        cleanup();
-                        reject(this.element.error || new Error('Audio element load error'));
-                    };
-
-                    cleanup = () => {
-                        clearTimeout(timer);
-                        this.element.removeEventListener('loadedmetadata', onReady);
-                        this.element.removeEventListener('loadeddata', onReady);
-                        this.element.removeEventListener('canplay', onReady);
-                        this.element.removeEventListener('durationchange', onReady);
-                        this.element.removeEventListener('error', onError);
-                    };
-
-                    this.element.addEventListener('loadedmetadata', onReady);
-                    this.element.addEventListener('loadeddata', onReady);
-                    this.element.addEventListener('canplay', onReady);
-                    this.element.addEventListener('durationchange', onReady);
-                    this.element.addEventListener('error', onError);
+                    this.element.addEventListener('loadedmetadata', onReady, { once: true });
                 }
-            });
+            }
         } catch (err) {
             this.setState('error');
             this.emit('error', err);

@@ -22,6 +22,12 @@ export const isCapacitor = () => {
   return cap.isNative === true;
 };
 
+// Check if running on mobile client (Capacitor or mobile browser)
+export const isMobileClient = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return !isTauri() && (isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+};
+
 export class StorageManager {
   static async getDefaultDownloadDir(): Promise<string> {
     if (isTauri()) {
