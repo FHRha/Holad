@@ -132,20 +132,17 @@ export class TransitionManager {
 
         const handleVisibility = () => {
             if (typeof document !== 'undefined' && document.hidden) {
-                if (this.transitionInterval) {
-                    clearInterval(this.transitionInterval);
-                    this.transitionInterval = null;
-                }
-                if (usePipeline) {
-                    pipeline.setDeckGain(outgoingIndex, 0.0, 0);
-                    pipeline.setDeckGain(incomingIndex, 1.0, 0);
-                } else {
+                if (!usePipeline) {
+                    if (this.transitionInterval) {
+                        clearInterval(this.transitionInterval);
+                        this.transitionInterval = null;
+                    }
                     outgoingDeck.setVolume(0);
                     incomingDeck.setVolume(1.0 * masterVolume);
-                }
-                outgoingDeck.pause();
-                if (this.abortController) {
-                    this.abortController.abort();
+                    outgoingDeck.pause();
+                    if (this.abortController) {
+                        this.abortController.abort();
+                    }
                 }
             }
         };

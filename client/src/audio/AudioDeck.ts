@@ -31,11 +31,11 @@ export class AudioDeck implements IAudioDeck {
         if (element) {
             this.element = element;
         } else {
-            this.element = typeof document !== 'undefined' ? document.createElement('audio') : (new Audio() as HTMLAudioElement);
+            this.element = typeof Audio !== 'undefined' ? (new Audio() as HTMLAudioElement) : (typeof document !== 'undefined' ? document.createElement('audio') : ({} as HTMLAudioElement));
             this.element.style.display = 'none';
             this.element.id = `audio-deck-${id}`;
-            if (typeof document !== 'undefined' && document.body) {
-                document.body.appendChild(this.element);
+            if (typeof document !== 'undefined' && document.body && typeof document.body.appendChild === 'function') {
+                try { document.body.appendChild(this.element); } catch {}
             }
         }
         
@@ -225,22 +225,62 @@ export class AudioDeck implements IAudioDeck {
             // Force the UI to reset immediately
             this.emit('timeupdate', position);
             
-            if (position > 0) {
+            await new Promise<void>((resolve, reject) => {
                 if (this.element.readyState >= 1) {
                     const target = this.targetPosition > 0 ? this.targetPosition : position;
-                    try {
-                        this.element.currentTime = target;
-                    } catch {}
-                } else {
-                    const onReady = () => {
-                        const target = this.targetPosition > 0 ? this.targetPosition : position;
+                    if (target > 0) {
                         try {
                             this.element.currentTime = target;
                         } catch {}
-                    };
-                    this.element.addEventListener('loadedmetadata', onReady, { once: true });
+                    }
+                    resolve();
+                    return;
                 }
-            }
+
+                let cleanup = () => {};
+                // Safety timeout: on mobile WebViews/slow networks, if metadata takes >1000ms, resolve so play() can start
+                const timer = setTimeout(() => {
+                    cleanup();
+                    const target = this.targetPosition > 0 ? this.targetPosition : position;
+                    if (target > 0) {
+                        try {
+                            this.element.currentTime = target;
+                        } catch {}
+                    }
+                    resolve();
+                }, 1000);
+
+                const onReady = () => {
+                    cleanup();
+                    const target = this.targetPosition > 0 ? this.targetPosition : position;
+                    if (target > 0) {
+                        try {
+                            this.element.currentTime = target;
+                        } catch {}
+                    }
+                    resolve();
+                };
+
+                const onError = () => {
+                    cleanup();
+                    reject(this.element.error || new Error('Audio element load error'));
+                };
+
+                cleanup = () => {
+                    clearTimeout(timer);
+                    this.element.removeEventListener('loadedmetadata', onReady);
+                    this.element.removeEventListener('loadeddata', onReady);
+                    this.element.removeEventListener('canplay', onReady);
+                    this.element.removeEventListener('durationchange', onReady);
+                    this.element.removeEventListener('error', onError);
+                };
+
+                this.element.addEventListener('loadedmetadata', onReady);
+                this.element.addEventListener('loadeddata', onReady);
+                this.element.addEventListener('canplay', onReady);
+                this.element.addEventListener('durationchange', onReady);
+                this.element.addEventListener('error', onError);
+            });
         } catch (err) {
             this.setState('error');
             this.emit('error', err);

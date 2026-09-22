@@ -3,7 +3,7 @@ import { WebAudioPipeline } from './WebAudioPipeline';
 import { PreloadManager } from './PreloadManager';
 import { TransitionManager } from './TransitionManager';
 import type { AudioEngineSettings, AudioState, IAudioCore, IAudioDeck, IAudioEngine, IWebAudioPipeline, PlayTrackOptions } from './types';
-import { isCapacitor, isMobileClient } from '../utils/StorageManager';
+import { isCapacitor } from '../utils/StorageManager';
 
 export class AudioEngine implements IAudioEngine, IAudioCore {
     private static instance: AudioEngine | null = null;
@@ -57,7 +57,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     private initPipeline(): void {
-        if (isCapacitor() || isMobileClient()) {
+        if (isCapacitor()) {
             this.pipeline = null;
             this.decks[0].setVolume(this.volume * this.volumeMultiplier);
             this.decks[1].setVolume(this.volume * this.volumeMultiplier);
@@ -202,7 +202,10 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             }
 
             if (this.pipeline) {
-                await this.pipeline.unlockContext();
+                await Promise.race([
+                    this.pipeline.unlockContext(),
+                    new Promise((r) => setTimeout(r, 200))
+                ]);
                 if (this.playToken !== currentToken || !this.isPlaying) return;
             }
 
@@ -259,7 +262,10 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             }
 
             if (this.pipeline) {
-                await this.pipeline.unlockContext();
+                await Promise.race([
+                    this.pipeline.unlockContext(),
+                    new Promise((r) => setTimeout(r, 200))
+                ]);
                 if (this.playToken !== currentToken || !this.isPlaying) return;
             }
 
@@ -278,7 +284,10 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         } else {
             // Standard direct play
             if (this.pipeline) {
-                await this.pipeline.unlockContext();
+                await Promise.race([
+                    this.pipeline.unlockContext(),
+                    new Promise((r) => setTimeout(r, 200))
+                ]);
                 if (this.playToken !== currentToken || !this.isPlaying) return;
             }
 
