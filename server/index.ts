@@ -530,6 +530,9 @@ app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, re
     
     if (!response.ok) {
        console.error(`[AUTH] Navidrome returned HTTP ${response.status} for ${pingUrl.replace(/&t=[^&]+&s=[^&]+/, '&t=***&s=***')}`);
+       if (response.status === 429) {
+         return res.status(429).json({ error: 'Navidrome rate limit exceeded (HTTP 429). Too many failed attempts, please wait a moment and try again.' });
+       }
        return res.status(response.status).json({ error: `Navidrome server returned HTTP ${response.status}. Please check your Navidrome URL.` });
     }
     

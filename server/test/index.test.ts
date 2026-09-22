@@ -255,6 +255,32 @@ describe('API Endpoints', () => {
     expect(resHoladSubsonic.status).toBe(404);
     expect(resHoladSubsonic.text).toBe('Cover art not found');
   });
+
+  it('should handle Navidrome 0.64.1 authentication rate limit (429) gracefully in /api/save-credentials', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers(),
+      text: async () => 'Too Many Requests'
+    } as any);
+
+    try {
+      const targetUrl = navidromeAccounts[0]?.url || 'http://mock-navidrome.local';
+      const res = await request(app)
+        .post('/api/save-credentials')
+        .send({
+          url: targetUrl,
+          username: 'test_rate_limited_user',
+          token: 'token123',
+          salt: 'salt123'
+        });
+
+      expect(res.status).toBe(429);
+      expect(res.body.error).toContain('rate limit exceeded');
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
 });
 
 describe('Exclusions Database', () => {
