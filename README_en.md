@@ -181,5 +181,4 @@ echo "127.0.0.1 YOUR_DOMAIN" | sudo tee -a /etc/hosts
 
 ## License
 
-This project is distributed under the **Holad Non-Commercial License**. 
-You are free to use, study, and modify the code for personal, non-commercial purposes. Any commercial use (selling, integrating into paid products, monetizing) is strictly prohibited without explicit permission from the creator (FHRha). See the [LICENSE](LICENSE) file for details.
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**. See the [LICENSE](LICENSE) file for details.
