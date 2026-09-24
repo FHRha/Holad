@@ -344,7 +344,7 @@ app.get(versionRoutes, (_req, res) => {
 
 const artistImageCache = new Map<string, { url: string | null; ts: number }>();
 app.get(['/api/artist-image/:name', '/Holad/api/artist-image/:name'], async (req, res) => {
-  const name = (req.params.name || '').trim();
+  const name = String(req.params.name || '').trim();
   if (!name) return res.json({ url: null });
   const cacheKey = name.toLowerCase();
   const cached = artistImageCache.get(cacheKey);
