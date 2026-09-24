@@ -510,6 +510,35 @@ node dist/index.js
 
       console.log("\n--- Scheduling Tauri Build (Desktop App) ---");
       try {
+        const tauriTargetDir = path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'target');
+        if (fs.existsSync(tauriTargetDir)) {
+          try {
+            const buildDir = path.join(tauriTargetDir, 'release', 'build');
+            if (fs.existsSync(buildDir)) {
+              const dirs = fs.readdirSync(buildDir);
+              let needsClean = false;
+              for (const d of dirs) {
+                const dPath = path.join(buildDir, d);
+                if (fs.statSync(dPath).isDirectory()) {
+                  const depFiles = fs.readdirSync(dPath).filter(f => f.endsWith('.d'));
+                  for (const df of depFiles) {
+                    const content = fs.readFileSync(path.join(dPath, df), 'utf8');
+                    if (content.includes(':\\') && !content.toLowerCase().includes(ROOT_DIR.toLowerCase())) {
+                      needsClean = true;
+                      break;
+                    }
+                  }
+                }
+                if (needsClean) break;
+              }
+              if (needsClean) {
+                console.log('[Tauri] Stale Cargo target artifacts from previous drive/folder detected. Running cargo clean...');
+                await runCommand('Cargo Clean', 'cargo clean', path.join(ROOT_DIR, 'Tauri', 'src-tauri'), env);
+              }
+            }
+          } catch (e) {}
+        }
+
         let tauriBuildCmd = 'npx @tauri-apps/cli build';
         const currentVer = getAppVersion();
         if (process.env.TAURI_BUNDLES) {
