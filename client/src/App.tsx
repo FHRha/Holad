@@ -3,29 +3,12 @@ import { useAppLifecycle } from './hooks/useAppLifecycle';
 import Sidebar from './components/layout/Sidebar';
 import MainContent from './components/layout/MainContent';
 import MobileBottomNav from './components/layout/MobileBottomNav';
-import AlbumsView from './components/views/AlbumsView';
-import FavoritesView from './components/views/FavoritesView';
-import LibraryView from './components/layout/LibraryView';
 import BottomPlayer from './components/player/BottomPlayer';
 import RightSidebar from './components/layout/RightSidebar';
-import JamLayout from './components/layout/JamLayout';
 import { usePlayerStore } from './store/playerStore';
 import ContextMenu from './components/common/ContextMenu';
-import AlbumView from './components/views/AlbumView';
-import TracksView from './components/views/TracksView';
-import ArtistView from './components/views/ArtistView';
-import ArtistsView from './components/views/ArtistsView';
 import LoginView from './components/views/LoginView';
-import RadioView from './components/views/RadioView';
-import MobileSettingsView from './components/views/MobileSettingsView';
-import HistoryView from './components/views/HistoryView';
-import DownloadsView from './components/views/DownloadsView';
-import FriendsView from './components/views/FriendsView';
-import PlaylistsView from './components/views/PlaylistsView';
-import PlaylistDetailView from './components/views/PlaylistDetailView';
 import TopBar from './components/layout/TopBar';
-import NowPlayingModal from './components/common/NowPlayingModal';
-import MobileSearchOverlay from './components/modals/MobileSearchOverlay';
 import { GlobalDndProvider } from './components/common/dnd/GlobalDndProvider';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
@@ -34,9 +17,7 @@ import { useDocumentTitle } from './hooks/useDocumentTitle';
 import { useTaskbarControls } from './hooks/useTaskbarControls';
 import { useTrayIntegration } from './hooks/useTrayIntegration';
 import { useWindowVisibility } from './hooks/useWindowVisibility';
-import SettingsModal from './components/modals/SettingsModal';
 import OfflineModeModal from './components/modals/OfflineModeModal';
-import UnignoreTrackModal from './components/modals/UnignoreTrackModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { preloadAndDecodeImage } from './utils/assetPreloader';
 import { getCachedImageUrl } from './utils/imageCache';
@@ -44,23 +25,46 @@ import TrayMenu from './components/player/TrayMenu';
 import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
 import { useDemoStore } from './store/demoStore';
-import DemoCapacityView from './components/views/DemoCapacityView';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { isTauri, isCapacitor, StorageManager } from './utils/StorageManager';
 import { getCoverArtUrl } from './api/subsonic';
 import { applyAppIcon } from './utils/appIconHelper';
 import ServerConnectionView from './components/views/ServerConnectionView';
+import { useDownloadStore } from './store/downloadStore';
+import { Toaster } from 'sonner';
+import { getBasePath, isJamPath } from './utils/basePath';
+
+// Dynamic lazy imports for views
+const AlbumsView = lazy(() => import('./components/views/AlbumsView'));
+const ArtistView = lazy(() => import('./components/views/ArtistView'));
+const ArtistsView = lazy(() => import('./components/views/ArtistsView'));
+const TracksView = lazy(() => import('./components/views/TracksView'));
+const AlbumView = lazy(() => import('./components/views/AlbumView'));
+const PlaylistsView = lazy(() => import('./components/views/PlaylistsView'));
+const PlaylistDetailView = lazy(() => import('./components/views/PlaylistDetailView'));
+const FavoritesView = lazy(() => import('./components/views/FavoritesView'));
+const HistoryView = lazy(() => import('./components/views/HistoryView'));
+const DownloadsView = lazy(() => import('./components/views/DownloadsView'));
+const RadioView = lazy(() => import('./components/views/RadioView'));
+const FriendsView = lazy(() => import('./components/views/FriendsView'));
+const MobileSettingsView = lazy(() => import('./components/views/MobileSettingsView'));
+const JamLayout = lazy(() => import('./components/layout/JamLayout'));
+const LibraryView = lazy(() => import('./components/layout/LibraryView'));
+
+// Dynamic lazy imports for modals and overlays
+const SettingsModal = lazy(() => import('./components/modals/SettingsModal'));
+const NowPlayingModal = lazy(() => import('./components/common/NowPlayingModal'));
+const MobileSearchOverlay = lazy(() => import('./components/modals/MobileSearchOverlay'));
+const UpdateModal = lazy(() => import('./components/modals/UpdateModal'));
+const UnignoreTrackModal = lazy(() => import('./components/modals/UnignoreTrackModal'));
+const JamJoinDialog = lazy(() => import('./components/modals/JamJoinDialog'));
+const DemoCapacityView = lazy(() => import('./components/views/DemoCapacityView'));
 
 export const isMobileDevice = () => {
   if (typeof window === 'undefined') return false;
   if (isTauri()) return false;
   return isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
 };
-import { useDownloadStore } from './store/downloadStore';
-import { Toaster } from 'sonner';
-import UpdateModal from './components/modals/UpdateModal';
-import JamJoinDialog from './components/modals/JamJoinDialog';
-import { getBasePath, isJamPath } from './utils/basePath';
 
 function LegacyHoladRedirect() {
   const loc = useLocation();
@@ -269,7 +273,9 @@ function AppContent() {
   if (isPoolExhausted && !isJamUrl) {
     return (
       <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden font-sans relative">
-        <DemoCapacityView />
+        <Suspense fallback={<div className="flex-1 bg-background" />}>
+          <DemoCapacityView />
+        </Suspense>
       </div>
     );
   }
@@ -280,64 +286,68 @@ function AppContent() {
       <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden font-sans relative">
         <MobileBackground />
         <div className="flex flex-1 overflow-hidden relative z-10">
-          <Routes>
-            <Route path="/login" element={isDemoMode ? <Navigate to="/" replace /> : (!isAuthenticated ? <LoginView /> : <Navigate to="/" replace />)} />
-            <Route path="/jam/*" element={<JamLayout />} />
-            <Route path="/join" element={<JamJoinDialog />} />
-            
-            {/* Backward compatibility redirects for legacy /Holad/* URLs */}
-            <Route path="/Holad" element={<Navigate to="/" replace />} />
-            <Route path="/Holad/*" element={<LegacyHoladRedirect />} />
-            
-            <Route path="/*" element={
-              isAuthenticated ? (
-              <>
-                <Sidebar />
-                <div className="flex-1 overflow-hidden relative">
-                  <div className="absolute inset-0 flex flex-col">
-                    <div className="hidden md:block">
-                      <TopBar />
-                    </div>
-                    <div className="flex-1 overflow-hidden flex flex-col relative hide-scrollbar">
-                      <Routes>
-                        <Route path="/" element={startPage && startPage !== '/' ? <Navigate to={startPage} replace /> : <MainContent />} />
-                        <Route path="/library/*" element={<LibraryView />} />
-                        <Route path="/albums" element={<AlbumsView />} />
-                        <Route path="/artists" element={<ArtistsView />} />
-                        <Route path="/artist/:id" element={<ArtistView />} />
-                        <Route path="/tracks" element={<TracksView />} />
-                        <Route path="/album/:id" element={<AlbumView />} />
-                        <Route path="/playlists" element={<PlaylistsView />} />
-                        <Route path="/playlist/:id" element={<PlaylistDetailView />} />
-                        <Route path="/favorites" element={<FavoritesView />} />
-                        <Route path="/history" element={<HistoryView />} />
-                        <Route path="/downloads" element={<DownloadsView />} />
-                        <Route path="/radio" element={<RadioView />} />
-                        <Route path="/friends" element={<FriendsView />} />
-                        <Route path="/settings" element={<MobileSettingsView />} />
-                        <Route path="*" element={<MainContent />} />
-                      </Routes>
+          <Suspense fallback={<div className="flex-1 bg-background" />}>
+            <Routes>
+              <Route path="/login" element={isDemoMode ? <Navigate to="/" replace /> : (!isAuthenticated ? <LoginView /> : <Navigate to="/" replace />)} />
+              <Route path="/jam/*" element={<JamLayout />} />
+              <Route path="/join" element={<JamJoinDialog />} />
+              
+              {/* Backward compatibility redirects for legacy /Holad/* URLs */}
+              <Route path="/Holad" element={<Navigate to="/" replace />} />
+              <Route path="/Holad/*" element={<LegacyHoladRedirect />} />
+              
+              <Route path="/*" element={
+                isAuthenticated ? (
+                <>
+                  <Sidebar />
+                  <div className="flex-1 overflow-hidden relative">
+                    <div className="absolute inset-0 flex flex-col">
+                      <div className="hidden md:block">
+                        <TopBar />
+                      </div>
+                      <main className="flex-1 overflow-hidden flex flex-col relative hide-scrollbar">
+                        <Suspense fallback={<div className="flex-1 bg-background" />}>
+                          <Routes>
+                            <Route path="/" element={startPage && startPage !== '/' ? <Navigate to={startPage} replace /> : <MainContent />} />
+                            <Route path="/library/*" element={<LibraryView />} />
+                            <Route path="/albums" element={<AlbumsView />} />
+                            <Route path="/artists" element={<ArtistsView />} />
+                            <Route path="/artist/:id" element={<ArtistView />} />
+                            <Route path="/tracks" element={<TracksView />} />
+                            <Route path="/album/:id" element={<AlbumView />} />
+                            <Route path="/playlists" element={<PlaylistsView />} />
+                            <Route path="/playlist/:id" element={<PlaylistDetailView />} />
+                            <Route path="/favorites" element={<FavoritesView />} />
+                            <Route path="/history" element={<HistoryView />} />
+                            <Route path="/downloads" element={<DownloadsView />} />
+                            <Route path="/radio" element={<RadioView />} />
+                            <Route path="/friends" element={<FriendsView />} />
+                            <Route path="/settings" element={<MobileSettingsView />} />
+                            <Route path="*" element={<MainContent />} />
+                          </Routes>
+                        </Suspense>
+                      </main>
                     </div>
                   </div>
-                </div>
-                <RightSidebar />
-              </>
-              ) : (isDemoMode ? (
-                <div className="flex flex-col h-full w-full items-center justify-center bg-background text-foreground">
-                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : (
-                <Navigate to="/login" replace />
-              ))
-            } />
-          </Routes>
-          
-          <NowPlayingModal />
-          <MobileSearchOverlay />
-          {isSettingsOpen && <SettingsModal />}
-          {isOfflineModalOpen && <OfflineModeModal isOpen={isOfflineModalOpen} onClose={() => setOfflineModalOpen(false)} />}
-          <UpdateModal />
-          <UnignoreTrackModal />
+                  <RightSidebar />
+                </>
+                ) : (isDemoMode ? (
+                  <div className="flex flex-col h-full w-full items-center justify-center bg-background text-foreground">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <Navigate to="/login" replace />
+                ))
+              } />
+            </Routes>
+            
+            <NowPlayingModal />
+            <MobileSearchOverlay />
+            {isSettingsOpen && <SettingsModal />}
+            {isOfflineModalOpen && <OfflineModeModal isOpen={isOfflineModalOpen} onClose={() => setOfflineModalOpen(false)} />}
+            <UpdateModal />
+            <UnignoreTrackModal />
+          </Suspense>
         </div>
         
         {showBottomPlayer && <BottomPlayer />}
@@ -377,7 +387,7 @@ function MobileBackground() {
       // 2. Resolve via getCoverArtUrl
       const coverId = currentTrack.coverArt || currentTrack.albumId || currentTrack.id;
       if (coverId) {
-        const rawUrl = getCoverArtUrl(coverId, 800);
+        const rawUrl = getCoverArtUrl(coverId, 160);
         if (rawUrl) {
           try {
             const cachedUrl = await getCachedImageUrl(rawUrl);

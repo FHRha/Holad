@@ -17,12 +17,16 @@ export interface ImageCacheStats {
 export class LRUImageMemoryManager {
   private cache = new Map<string, ImageCacheEntry>();
   private fetchingCache = new Map<string, Promise<string>>();
+  private fetchQueue: Array<() => void> = [];
+  private activeFetches: number = 0;
+  private readonly maxConcurrentFetches: number = 4;
   public currentBytes: number = 0;
   public limitMB: number = 48;
   private accessCounter: number = 0;
 
-  constructor(limitMB: number = 48) {
+  constructor(limitMB: number = 48, maxConcurrentFetches: number = 4) {
     this.limitMB = this.clampLimit(limitMB);
+    this.maxConcurrentFetches = maxConcurrentFetches > 0 ? maxConcurrentFetches : 4;
   }
 
   private clampLimit(mb: number): number {
@@ -75,6 +79,35 @@ export class LRUImageMemoryManager {
     }
   }
 
+  private enqueueFetch<T>(task: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const run = () => {
+        this.activeFetches++;
+        task()
+          .then(resolve, reject)
+          .finally(() => {
+            this.activeFetches--;
+            this.processQueue();
+          });
+      };
+
+      if (this.activeFetches < this.maxConcurrentFetches) {
+        run();
+      } else {
+        this.fetchQueue.push(run);
+      }
+    });
+  }
+
+  private processQueue(): void {
+    while (this.activeFetches < this.maxConcurrentFetches && this.fetchQueue.length > 0) {
+      const next = this.fetchQueue.shift();
+      if (next) {
+        next();
+      }
+    }
+  }
+
   public async getCachedImageUrl(originalUrl: string): Promise<string> {
     if (!originalUrl) return originalUrl;
 
@@ -103,7 +136,15 @@ export class LRUImageMemoryManager {
       return this.fetchingCache.get(originalUrl)!;
     }
 
-    const fetchPromise = (async () => {
+    const fetchPromise = this.enqueueFetch(async () => {
+      // Re-check cache in case a previous request populated it while waiting in queue
+      if (this.cache.has(originalUrl)) {
+        const entry = this.cache.get(originalUrl)!;
+        entry.accessSeq = ++this.accessCounter;
+        entry.lastAccessed = Date.now();
+        return entry.blobUrl;
+      }
+
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 15000);
@@ -124,15 +165,15 @@ export class LRUImageMemoryManager {
           lastAccessed: Date.now(),
         });
         this.currentBytes += sizeBytes;
-        this.fetchingCache.delete(originalUrl);
 
         return objectUrl;
       } catch (error) {
         console.debug('Failed to fetch and cache image (fallback to original):', error);
-        this.fetchingCache.delete(originalUrl);
         return originalUrl; // Graceful fallback
+      } finally {
+        this.fetchingCache.delete(originalUrl);
       }
-    })();
+    });
 
     this.fetchingCache.set(originalUrl, fetchPromise);
     return fetchPromise;

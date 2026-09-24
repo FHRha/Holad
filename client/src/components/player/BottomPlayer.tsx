@@ -179,24 +179,41 @@ export default function BottomPlayer() {
           <button 
             onClick={toggleShuffle} 
             disabled={role === 'listener'}
+            aria-label={t('player.shuffle', 'В случайном порядке')}
             className={`transition-colors disabled:opacity-50 ${isShuffle ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
           >
             <Shuffle size={20} />
           </button>
-          <button onClick={prevTrack} disabled={role === 'listener'} className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"><SkipBack size={24} fill="currentColor" /></button>
+          <button 
+            onClick={prevTrack} 
+            disabled={role === 'listener'} 
+            aria-label={t('player.previous', 'Предыдущий трек')}
+            className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            <SkipBack size={24} fill="currentColor" />
+          </button>
           
           <button 
             onClick={handlePlayPause} 
             disabled={role === 'listener'}
+            aria-label={isPlaying ? t('player.pause', 'Пауза') : t('player.play', 'Воспроизведение')}
             className="w-12 h-12 rounded-full bg-foreground text-background flex items-center justify-center hover:bg-foreground/90 transition-colors disabled:opacity-50 shadow-md"
           >
             {isPlaying ? <Pause fill="currentColor" size={20} className="stroke-none" /> : <Play fill="currentColor" size={20} className="stroke-none translate-x-[2px]" />}
           </button>
           
-          <button onClick={nextTrack} disabled={role === 'listener'} className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"><SkipForward size={24} fill="currentColor" /></button>
+          <button 
+            onClick={nextTrack} 
+            disabled={role === 'listener'} 
+            aria-label={t('player.next', 'Следующий трек')}
+            className="text-secondary hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            <SkipForward size={24} fill="currentColor" />
+          </button>
           <button 
             onClick={cycleRepeatMode} 
             disabled={role === 'listener'}
+            aria-label={repeatMode === 'one' ? t('player.repeat_one', 'Повтор одного трека') : repeatMode === 'all' ? t('player.repeat_all', 'Повтор всех треков') : t('player.repeat', 'Повтор')}
             className={`transition-colors disabled:opacity-50 ${repeatMode !== 'none' ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
           >
             {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
@@ -215,6 +232,7 @@ export default function BottomPlayer() {
                   onClick={handleLike} 
                   disabled={role === 'listener'}
                   className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-foreground/5 disabled:opacity-50 text-secondary hover:text-foreground"
+                  aria-label={currentTrack && likedTrackIds.includes(currentTrack.id) ? t('player.tooltip_like_remove') : t('player.tooltip_like_add')}
                   title={currentTrack && likedTrackIds.includes(currentTrack.id) ? t('player.tooltip_like_remove') : t('player.tooltip_like_add')}
                 >
                   <Heart size={16} fill={currentTrack && likedTrackIds.includes(currentTrack.id) ? "currentColor" : "none"} className={currentTrack && likedTrackIds.includes(currentTrack.id) ? "text-primary" : ""} />
@@ -224,6 +242,7 @@ export default function BottomPlayer() {
                   onClick={handleBookmark} 
                   disabled={role === 'listener'}
                   className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-foreground/5 disabled:opacity-50 ${isBookmarked ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+                  aria-label={isBookmarked ? t('player.tooltip_bookmark_remove') : t('player.tooltip_bookmark_add')}
                   title={isBookmarked ? t('player.tooltip_bookmark_remove') : t('player.tooltip_bookmark_add')}
                 >
                   <Bookmark size={16} fill={isBookmarked ? "currentColor" : "none"} />
@@ -233,6 +252,7 @@ export default function BottomPlayer() {
                   onClick={() => currentTrack && toggleTrackExclude(currentTrack.id, currentTrack)} 
                   disabled={role === 'listener'}
                   className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-foreground/5 disabled:opacity-50 text-secondary hover:text-foreground"
+                  aria-label={currentTrack && isTrackExcluded(currentTrack, excludedTrackIds, excludedAlbumIds, excludedFingerprints) ? t('player.tooltip_exclude_remove') : t('player.tooltip_exclude_add')}
                   title={currentTrack && isTrackExcluded(currentTrack, excludedTrackIds, excludedAlbumIds, excludedFingerprints) ? t('player.tooltip_exclude_remove') : t('player.tooltip_exclude_add')}
                 >
                   <Ban size={16} className={currentTrack && isTrackExcluded(currentTrack, excludedTrackIds, excludedAlbumIds, excludedFingerprints) ? "text-red-500" : ""} />
@@ -248,6 +268,7 @@ export default function BottomPlayer() {
                 <button 
                   onClick={toggleNowPlaying}
                   className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-foreground/5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+                  aria-label={isNowPlayingOpen ? t('player.tooltip_fullscreen_exit') : t('player.tooltip_fullscreen')}
                   title={isNowPlayingOpen ? t('player.tooltip_fullscreen_exit') : t('player.tooltip_fullscreen')}
                 >
                   <Maximize2 size={16} />
@@ -271,12 +292,13 @@ export default function BottomPlayer() {
                   return (
                     <button 
                       key={star} 
-                      className={`transition-colors p-0 flex items-center justify-center w-4 h-4 ${isFilled ? 'text-primary' : 'text-foreground/50 hover:text-foreground/80'}`}
+                      className={`transition-colors p-1 flex items-center justify-center w-6 h-6 rounded-md hover:bg-foreground/5 ${isFilled ? 'text-primary' : 'text-foreground/50 hover:text-foreground/80'}`}
                       onClick={() => {
                         if (!currentTrack) return;
                         const newRating = currentRating === star ? 0 : star;
                         setTrackRating(currentTrack.id, newRating);
                       }}
+                      aria-label={currentRating === star ? t('player.tooltip_rate_reset') : t('player.tooltip_rate_star', { star })}
                       title={currentRating === star ? t('player.tooltip_rate_reset') : t('player.tooltip_rate_star', { star })}
                     >
                       <Star size={16} strokeWidth={2} fill={isFilled ? "currentColor" : "none"} />
@@ -381,6 +403,7 @@ export default function BottomPlayer() {
 
       <button 
         onClick={(e) => { e.stopPropagation(); setIsPlaying(!isPlaying); }}
+        aria-label={isPlaying ? t('player.pause', 'Пауза') : t('player.play', 'Воспроизведение')}
         className="w-8 h-8 flex items-center justify-center text-foreground hover:text-primary transition-colors"
       >
         {isPlaying ? <Pause fill="currentColor" size={20} /> : <Play fill="currentColor" size={20} className="ml-1" />}
@@ -388,6 +411,7 @@ export default function BottomPlayer() {
       
       <button 
         onClick={(e) => { e.stopPropagation(); nextTrack(); }}
+        aria-label={t('player.next', 'Следующий трек')}
         className="w-8 h-8 flex items-center justify-center text-foreground hover:text-primary transition-colors"
       >
         <SkipForward fill="currentColor" size={20} />
@@ -402,14 +426,14 @@ export default function BottomPlayer() {
         id="main-audio-player-0"
         className="main-audio-player"
         playsInline
-        preload="auto"
+        preload={isPlaying ? "auto" : "none"}
         ref={audioRef0}
       />
       <audio
         id="main-audio-player-1"
         className="main-audio-player"
         playsInline
-        preload="auto"
+        preload={isPlaying ? "auto" : "none"}
         ref={audioRef1}
       />
       {DesktopPlayer}

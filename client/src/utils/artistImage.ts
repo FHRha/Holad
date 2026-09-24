@@ -1,3 +1,5 @@
+import { getHoladServerUrl } from './serverConfig';
+
 const CACHE_PREFIX = 'artist_img_v2_';
 const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 
@@ -43,50 +45,15 @@ export async function fetchArtistImage(artistName: string): Promise<string | nul
   }
 
   const fetchDeezer = async (retries = 2): Promise<string | null> => {
-    return new Promise((resolve) => {
-      const callbackName = 'deezer_cb_' + Math.round(100000 * Math.random());
-      const script = document.createElement('script');
-      
-      let timeoutId = setTimeout(() => {
-        handleFail();
-      }, 5000); // 5s timeout for JSONP
-
-      const cleanup = () => {
-        clearTimeout(timeoutId);
-        if (script.parentNode) script.parentNode.removeChild(script);
-      };
-      
-      const handleFail = () => {
-        cleanup();
-        // Prevent ReferenceError if script loads late
-        (window as any)[callbackName] = () => {
-          delete (window as any)[callbackName];
-        };
-        if (retries > 0) resolve(fetchDeezer(retries - 1));
-        else resolve(null);
-      };
-
-      (window as any)[callbackName] = (data: any) => {
-        cleanup();
-        delete (window as any)[callbackName];
-        let url: string | null = null;
-        if (data && data.data && data.data.length > 0) {
-          const exactMatches = data.data.filter((a: any) => a.name.toLowerCase() === searchQuery.toLowerCase());
-          let bestArtist = data.data[0];
-          if (exactMatches.length > 0) {
-            bestArtist = exactMatches.reduce((prev: any, current: any) => (prev.nb_fan || 0) > (current.nb_fan || 0) ? prev : current);
-          } else {
-            bestArtist = data.data.slice(0, 5).reduce((prev: any, current: any) => (prev.nb_fan || 0) > (current.nb_fan || 0) ? prev : current);
-          }
-          url = bestArtist.picture_xl || bestArtist.picture_big || bestArtist.picture_medium || null;
-        }
-        resolve(url);
-      };
-
-      script.src = `https://api.deezer.com/search/artist?q=${encodeURIComponent(searchQuery)}&output=jsonp&callback=${callbackName}`;
-      script.onerror = handleFail;
-      document.body.appendChild(script);
-    });
+    try {
+      const res = await fetch(`${getHoladServerUrl()}/api/artist-image/${encodeURIComponent(searchQuery)}`);
+      if (!res.ok) throw new Error('Deezer proxy error');
+      const data = await res.json();
+      return data?.url || null;
+    } catch {
+      if (retries > 0) return fetchDeezer(retries - 1);
+      return null;
+    }
   };
 
   const fetchApple = async (retries = 2): Promise<string | null> => {
