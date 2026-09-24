@@ -35,7 +35,18 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
     set({ audioElement: el });
 
     if (el) {
+      let lastSrc = el.currentSrc || el.src;
+      let isFullyLoaded = false;
+
       const updateBuffer = () => {
+        const currentSrc = el.currentSrc || el.src;
+        if (currentSrc !== lastSrc) {
+          lastSrc = currentSrc;
+          isFullyLoaded = false;
+        } else if (isFullyLoaded && get().buffered === 100) {
+          return;
+        }
+
         const currentTrack = usePlayerStore.getState().queue[usePlayerStore.getState().currentIndex];
         const trackDur = currentTrack?.duration && isFinite(currentTrack.duration) && currentTrack.duration > 0 ? currentTrack.duration : 0;
         const validElDur = el.duration && !isNaN(el.duration) && isFinite(el.duration) && el.duration > 0 ? el.duration : 0;
@@ -59,17 +70,21 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
                 if (end > currentRangeEnd) currentRangeEnd = end;
               }
             }
-            const pct = Math.min(100, Math.max(0, (currentRangeEnd / targetDuration) * 100));
-            set({ buffered: pct });
+            let pct = Math.min(100, Math.max(0, (currentRangeEnd / targetDuration) * 100));
+            if (pct >= 99.5) {
+              pct = 100;
+              isFullyLoaded = true;
+            }
+            get().setBuffered(pct);
           } catch {
             // ignore
           }
-        } else {
-          set({ buffered: 0 });
+        } else if (currentSrc !== lastSrc || targetDuration <= 0) {
+          get().setBuffered(0);
         }
       };
 
-      const events = ['progress', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough'];
+      const events = ['progress', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'timeupdate', 'seeked'];
       events.forEach(evt => el.addEventListener(evt, updateBuffer));
       activeAudioListener = { el, handler: updateBuffer, events };
       updateBuffer();
@@ -78,7 +93,16 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
   progress: 0,
   setProgress: (progress) => set({ progress }),
   buffered: 0,
-  setBuffered: (buffered) => set({ buffered }),
+  setBuffered: (buffered) => {
+    const current = get().buffered;
+    if (typeof buffered !== 'number' || !isFinite(buffered)) {
+      if (current !== 0) set({ buffered: 0 });
+      return;
+    }
+    if (current === buffered) return;
+    if (current > 0 && Math.abs(buffered - current) < 0.5 && buffered !== 100 && buffered !== 0) return;
+    set({ buffered });
+  },
   duration: 0,
   setDuration: (duration) => set({ duration }),
   isSeeking: false,

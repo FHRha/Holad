@@ -98,6 +98,7 @@ export interface IAudioEngine {
     getActiveTrackId?(): string | null;
     setDeckTrackId?(deckIndex: 0 | 1, trackId: string | null): void;
     getWebAudioPipeline(): IWebAudioPipeline | undefined;
+    getBufferedPercent?(knownDuration?: number): number;
     destroy(): void;
 }
 

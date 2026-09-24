@@ -423,6 +423,10 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         return this.decks[this.activeIndex];
     }
 
+    public getBufferedPercent(knownDuration?: number): number {
+        return this.getActiveDeck()?.getBufferedPercent(knownDuration) ?? 0;
+    }
+
     public getStandbyDeck(): AudioDeck {
         return this.decks[(1 - this.activeIndex) as 0 | 1];
     }

@@ -609,14 +609,23 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       preloadUpcomingTrack();
     };
 
+    const handleProgress = (pct: number) => {
+      if (!isActiveDevice) return;
+      if (typeof pct === 'number' && isFinite(pct)) {
+        useAudioStore.getState().setBuffered(pct);
+      }
+    };
+
     engine.on('timeupdate', handleTimeUpdate);
     engine.on('ended', handleEnded);
     engine.on('requestPreload', handleRequestPreload);
+    engine.on('progress', handleProgress);
 
     return () => {
       engine.off('timeupdate', handleTimeUpdate);
       engine.off('ended', handleEnded);
       engine.off('requestPreload', handleRequestPreload);
+      engine.off('progress', handleProgress);
     };
   }, [currentTrack, isActiveDevice, duration, role, sleepTimer, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer, flushPositionToLocalStorage]);
 
