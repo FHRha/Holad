@@ -608,14 +608,12 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
       <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-white/20 rounded-full" />
 
       {/* Buffered track (gray bar representing loaded audio) */}
-      <div
-        className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-white/40 rounded-full pointer-events-none transition-[width,opacity] duration-300 ease-out"
-        style={{
-          width: `${normalizedBuffered * 100}%`,
-          opacity: normalizedBuffered > 0 ? 1 : 0,
-          transform: 'translateZ(0)',
-        }}
-      />
+      {normalizedBuffered > 0 && (
+        <div
+          className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-white/40 rounded-full pointer-events-none transition-all duration-300"
+          style={{ width: `${normalizedBuffered * 100}%` }}
+        />
+      )}
 
       {/* Canvas container: wave renders strictly from 0 to activeWidth with zero clipping artifacts */}
       <div
