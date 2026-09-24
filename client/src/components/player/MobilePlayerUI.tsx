@@ -269,6 +269,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                   trackId={currentTrack.id}
                   className="w-full h-full rounded-3xl shadow-2xl object-cover border border-border bg-card" 
                   alt={currentTrack.title} 
+                  priority={true}
                 />
               </div>
             </div>

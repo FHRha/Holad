@@ -11,9 +11,10 @@ interface TrackImageProps {
   className?: string;
   alt?: string;
   trackId?: string;
+  priority?: boolean;
 }
 
-export default function TrackImage({ src: rawSrc, className = '', alt = '', trackId }: TrackImageProps) {
+export default function TrackImage({ src: rawSrc, className = '', alt = '', trackId, priority }: TrackImageProps) {
   const src = (!rawSrc || typeof rawSrc !== 'string' || rawSrc === 'undefined' || rawSrc === 'null' || !rawSrc.trim()) ? undefined : rawSrc;
   
   // Display buffer states: keep current image rendered while next one loads & decodes
@@ -22,7 +23,7 @@ export default function TrackImage({ src: rawSrc, className = '', alt = '', trac
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
   const [retries, setRetries] = useState<number>(0);
-  const [isVisible, setIsVisible] = useState<boolean>(false);
+  const [isVisible, setIsVisible] = useState<boolean>(Boolean(priority));
   
   const containerRef = useRef<HTMLDivElement>(null);
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -32,6 +33,10 @@ export default function TrackImage({ src: rawSrc, className = '', alt = '', trac
 
   // Visibility detection with IntersectionObserver and fallback
   useEffect(() => {
+    if (priority) {
+      setIsVisible(true);
+      return;
+    }
     if (!containerRef.current) return;
     if (typeof IntersectionObserver === 'undefined') {
       setIsVisible(true);
@@ -45,7 +50,7 @@ export default function TrackImage({ src: rawSrc, className = '', alt = '', trac
     });
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [priority]);
 
   useEffect(() => {
     if (!isVisible) return;
@@ -218,7 +223,8 @@ export default function TrackImage({ src: rawSrc, className = '', alt = '', trac
           className="w-full h-full object-cover relative z-10 animate-in fade-in duration-300 ease-in-out" 
           alt={alt} 
           onError={handleError}
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "low"}
           decoding="async"
         />
       )}

@@ -144,6 +144,7 @@ export default function BottomPlayer() {
             trackId={currentTrack.id}
             alt="Cover" 
             className="w-full h-full object-cover" 
+            priority={true}
           />
         </div>
         <div className="flex flex-col leading-tight justify-center gap-0.5 flex-1 min-w-0">
@@ -390,6 +391,7 @@ export default function BottomPlayer() {
           trackId={currentTrack.id}
           className="w-9 h-9 rounded shadow flex-shrink-0 object-cover" 
           alt="" 
+          priority={true}
         />
       
       <div className="flex-1 min-w-0 flex flex-col justify-center">

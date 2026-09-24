@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Heart, Star, MoreHorizontal, SkipForward, ListPlus, Download, Ban } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
@@ -133,38 +133,22 @@ export default function HeroAlbumCard({ album }: { album: any }) {
   };
 
   const [finalCoverUrl, setFinalCoverUrl] = useState<string | undefined>(undefined);
-  const [isVisible, setIsVisible] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const coverUrl = getCoverArtUrl(album.coverArt || album.id);
 
   useEffect(() => {
-    if (!containerRef.current) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        setIsVisible(true);
-        observer.disconnect();
-      }
-    });
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
     let isMounted = true;
-    if (!isVisible) return;
     getCachedImageUrl(coverUrl).then(url => {
       if (isMounted) setFinalCoverUrl(url);
     }).catch(() => {
       if (isMounted) setFinalCoverUrl(coverUrl);
     });
     return () => { isMounted = false; };
-  }, [coverUrl, isVisible]);
+  }, [coverUrl]);
 
   useEffect(() => {
-    if (!isVisible) return;
     extractDominantColor(coverUrl).then(color => setDominantColor(color));
-  }, [coverUrl, isVisible]);
+  }, [coverUrl]);
 
   const isLight = isLightColor(dominantColor);
 
@@ -218,7 +202,6 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
   return (
     <div 
-      ref={containerRef}
       className="group relative rounded-xl cursor-pointer flex flex-col p-6 flex-shrink-0 h-full"
       style={{
         backgroundColor: dominantColor ? dominantColor : 'var(--card)'
@@ -231,10 +214,11 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
       <div className="relative aspect-square overflow-hidden rounded-lg shadow-2xl mb-5 mx-2 bg-black/20">
         <img 
-          src={finalCoverUrl} 
+          src={finalCoverUrl || coverUrl} 
           alt={album.name} 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          loading="lazy"
+          loading="eager"
+          fetchPriority="high"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             if (target.src.includes('&size=')) {

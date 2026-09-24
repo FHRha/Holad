@@ -224,6 +224,7 @@ export default function FullScreenPlayerUI({
               trackId={displayTrack.id}
               className="w-full h-full object-cover" 
               alt={displayTrack.title} 
+              priority={true}
             />
           </div>
           <h1 className="text-4xl lg:text-5xl font-bold mb-3 text-center drop-shadow-xl leading-tight text-white">{displayTrack.title}</h1>
