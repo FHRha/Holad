@@ -4,6 +4,7 @@ import express, { type Express } from 'express';
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import cors from 'cors';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import md5 from 'md5';
 import crypto from 'crypto';
@@ -74,6 +75,7 @@ httpServer.prependListener('request', normalizeSocketUrl);
 httpServer.prependListener('upgrade', normalizeSocketUrl);
 
 app.use(cors());
+app.use(compression());
 
 // Middleware to support relative routing when hosted under custom base path or /Holad
 app.use((req, res, next) => {
@@ -338,6 +340,41 @@ if (normalizedBase && !versionRoutes.includes(`${normalizedBase}/api/version`)) 
 }
 app.get(versionRoutes, (_req, res) => {
   res.json({ version: getAppVersion() });
+});
+
+const artistImageCache = new Map<string, { url: string | null; ts: number }>();
+app.get(['/api/artist-image/:name', '/Holad/api/artist-image/:name'], async (req, res) => {
+  const name = (req.params.name || '').trim();
+  if (!name) return res.json({ url: null });
+  const cacheKey = name.toLowerCase();
+  const cached = artistImageCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < 7 * 86400 * 1000) {
+    res.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+    return res.json({ url: cached.url });
+  }
+  try {
+    const deezerUrl = `https://api.deezer.com/search/artist?q=${encodeURIComponent(name)}`;
+    const response = await fetch(deezerUrl, {
+      headers: { 'User-Agent': 'Holad/1.0.0' },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.data && data.data.length > 0) {
+        const exactMatches = data.data.filter((a: any) => a.name.toLowerCase() === name.toLowerCase());
+        const best = exactMatches.length > 0
+          ? exactMatches.reduce((p: any, c: any) => ((p.nb_fan || 0) > (c.nb_fan || 0) ? p : c))
+          : data.data[0];
+        const img = best?.picture_xl || best?.picture_big || best?.picture_medium || null;
+        artistImageCache.set(cacheKey, { url: img, ts: Date.now() });
+        res.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+        return res.json({ url: img });
+      }
+    }
+  } catch {}
+  artistImageCache.set(cacheKey, { url: null, ts: Date.now() });
+  res.set('Cache-Control', 'public, max-age=3600');
+  return res.json({ url: null });
 });
 
 const PLAYLIST_ID_REGEX = /^[a-zA-Z0-9_\-\:]{1,128}$/;

@@ -17,6 +17,7 @@
   "packageManager": "pnpm@10.28.2",
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
+    "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/md5": "^2.3.6",
@@ -32,6 +33,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
+    "compression": "^1.7.5",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
