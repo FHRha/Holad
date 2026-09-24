@@ -172,7 +172,6 @@ export default function FullScreenPlayerUI({
       </div>
       <div className="absolute inset-0 z-0 bg-black/20 pointer-events-none" />
 
-      {/* Top Bar for close button & extra controls */}
       <div className="absolute top-0 left-0 right-0 p-6 z-50 flex justify-between items-start pointer-events-none">
         <div className="flex-1 pointer-events-auto flex items-center gap-4">
           {onClose && !isListenerPage && (
@@ -216,10 +215,8 @@ export default function FullScreenPlayerUI({
         </div>
       </div>
 
-      {/* Main Content Area */}
       <div className="relative z-10 flex w-full h-full p-10 gap-16 pt-24 pb-20 items-stretch justify-center max-w-[1600px] mx-auto">
         
-        {/* Left: Large Cover & Info */}
         <div className="flex-1 flex flex-col items-center justify-center max-w-[600px]">
           <div className="w-full aspect-square max-w-[500px] rounded-2xl overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] mb-10 border border-white/20 bg-muted">
             <TrackImage 
@@ -249,10 +246,8 @@ export default function FullScreenPlayerUI({
           </div>
         </div>
 
-        {/* Right: Tabs and Content */}
         <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-foreground/10 rounded-3xl border border-white/20 backdrop-blur-2xl overflow-hidden shadow-2xl relative">
           
-          {/* Sync Button Floating Over Lyrics */}
           {activeTab === 'lyrics' && isUserScrolled && lrcLines.length > 0 && (
             <button 
               onClick={forceSync}
@@ -262,7 +257,6 @@ export default function FullScreenPlayerUI({
             </button>
           )}
           
-          {/* Pill-shaped Tabs */}
           <div className="relative flex items-center justify-center gap-2 px-6 py-6 border-b border-white/10 text-sm font-bold tracking-wider text-white/60">
             <div className="absolute left-6">
               <LanguageSelector align="left" />
@@ -306,7 +300,6 @@ export default function FullScreenPlayerUI({
             </button>
           </div>
 
-          {/* Content Area */}
           <div 
             className="flex-1 overflow-y-auto custom-scrollbar p-6 relative"
             onScroll={() => {

@@ -218,7 +218,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-300">
-      {/* Blurred Background with Dual-Layer Smooth Dissolve */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <AnimatePresence mode="popLayout">
           {effectiveBgCover && (
@@ -236,7 +235,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       </div>
       <div className="absolute inset-0 z-0 bg-black/40 pointer-events-none" />
 
-      {/* Top Bar */}
       <div className="relative z-10 flex items-center justify-between px-4 py-4 w-full">
         {!isListenerPage ? (
           <button 
@@ -260,10 +258,8 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      {/* Main Content Area */}
       <div className={`relative z-10 flex-1 flex flex-col items-center justify-between w-full max-w-md mx-auto min-h-0 ${activeTab === 'player' ? 'px-6 pb-6 overflow-y-auto hide-scrollbar' : 'px-0 pb-0 overflow-hidden'}`}>
         
-        {/* Conditional Content based on Active Tab */}
         <div className={`w-full flex-1 flex flex-col justify-start min-h-0 overflow-hidden ${activeTab === 'player' ? 'mb-2 mt-2' : 'h-full'}`}>
           {activeTab === 'player' && (
             <div className="w-full h-full flex items-center justify-center transition-opacity duration-300">
@@ -288,10 +284,8 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        {/* Info & Controls Section (Visible only on player tab) */}
         {activeTab === 'player' && (
           <div className="w-full flex flex-col gap-5 mt-auto">
-            {/* Track Info */}
             <div className="flex items-center justify-between">
               <div className="flex flex-col overflow-hidden mr-4">
                 <h1 className="text-2xl font-bold text-foreground truncate drop-shadow-md">{currentTrack.title}</h1>
@@ -313,7 +307,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            {/* Progress Bar */}
             <div className="w-full flex flex-col gap-2">
               <LiquidSeekBar 
                 ref={seekbarRef}
@@ -330,7 +323,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            {/* Main Playback Controls */}
             <div className="flex items-center justify-between w-full px-2">
               <button 
                 onClick={toggleShuffle} 
@@ -373,7 +365,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               </button>
             </div>
 
-            {/* Secondary Controls Row */}
             <div className="flex items-center justify-between w-full px-4 pt-2 text-secondary">
               <button onClick={() => setShowSleepTimerMenu(true)} className={`hover:text-foreground transition-colors active:scale-95 ${sleepTimer.type ? 'text-primary' : ''}`}>
                 <Moon size={20} />
@@ -397,7 +388,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      {/* Very Bottom: Navigation Tabs */}
       <div className="relative z-10 w-full h-[72px] flex-shrink-0 bg-background/40 backdrop-blur-md transform-gpu will-change-transform border-t border-border flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
         <button onClick={() => setActiveTab('player')} className={`p-3 rounded-full transition-colors ${activeTab === 'player' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
           <Music size={24} />
@@ -418,7 +408,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      {/* Sleep Timer Modal */}
       {showSleepTimerMenu && (
         <div className="absolute inset-0 z-[200] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div 

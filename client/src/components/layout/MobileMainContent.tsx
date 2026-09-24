@@ -238,7 +238,6 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
 
   return (
     <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32">
-      {/* Search & Filter Chips */}
       <div className="px-4 pt-4 pb-2 sticky top-0 bg-background/80 backdrop-blur-xl z-10">
         <div className="flex items-center gap-3 mb-4">
           <div 
@@ -287,7 +286,6 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
 
       <div className="px-4 py-4 flex flex-col gap-8">
         
-        {/* Listening History */}
         <section onClick={() => navigate('/history')} className="cursor-pointer group">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-foreground tracking-tight group-hover:text-primary transition-colors">{t('views.listening_history')}</h2>
@@ -301,7 +299,6 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
           </div>
         </section>
 
-        {/* On the wave */}
         <ScrollableSection title={t('views.on_the_wave')}>
             <button 
               onClick={startRandomRadio}
@@ -345,7 +342,6 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
           </div>
         ) : (
           <>
-            {/* Recently Played */}
             <ScrollableSection title={isOffline || activeFilter === 'Downloaded' ? t('views.downloaded_tracks') : t('views.recently_played')} onRefresh={() => setRefreshRecentKey(k => k + 1)}>
                 {actualRecent.map(track => (
                   <LongPressWrapper 
@@ -382,7 +378,6 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                 ))}
             </ScrollableSection>
 
-            {/* Frequently Listened */}
             <ScrollableSection title={isOffline || activeFilter === 'Downloaded' ? t('views.downloaded_albums') : t('views.frequently_played')} onRefresh={() => setRefreshFrequentKey(k => k + 1)}>
                 {actualFrequent.map(album => (
                   <LongPressWrapper 

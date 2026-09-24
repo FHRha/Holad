@@ -43,7 +43,6 @@ export default function ArtistView() {
   return (
     <div className="flex-1 overflow-y-auto bg-transparent md:bg-card custom-scrollbar relative pb-24">
       
-      {/* Header section */}
       <div className="relative w-full h-80 sm:h-96">
         <div className="absolute inset-0 z-0">
           <div className="w-full h-full overflow-hidden blur-3xl opacity-30">
@@ -85,7 +84,6 @@ export default function ArtistView() {
         </div>
       </div>
 
-      {/* Action buttons */}
       <div className="p-4 sm:p-6 sm:px-10 flex items-center justify-center sm:justify-start gap-4">
         <button 
           onClick={handlePlayArtist}
@@ -110,7 +108,6 @@ export default function ArtistView() {
 
       <div className="px-6 sm:px-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
         
-        {/* Top Songs */}
         <div className="lg:col-span-2">
           <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.popular_tracks', 'Популярное')}</h2>
           {topSongs.length === 0 ? (
@@ -131,7 +128,6 @@ export default function ArtistView() {
                     {index + 1}
                   </div>
                   
-                  {/* Track Cover */}
                   <div className="relative w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-foreground/5">
                     <TrackImage 
                       src={track.coverArt} 
@@ -157,7 +153,6 @@ export default function ArtistView() {
           )}
         </div>
 
-        {/* Biography & Extra Info */}
         <div className="lg:col-span-1 flex flex-col gap-6">
           {biography && (
             <div className="bg-foreground/5 rounded-2xl p-6 border border-foreground/5">
@@ -171,7 +166,6 @@ export default function ArtistView() {
         </div>
       </div>
 
-      {/* New Releases Carousel */}
       {albums.length > 0 && (
         <div className="p-6 sm:p-10 pt-10">
           <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.new_releases', 'Новые релизы')}</h2>
@@ -185,7 +179,6 @@ export default function ArtistView() {
         </div>
       )}
 
-      {/* Albums Grid */}
       <div className="p-6 sm:p-10">
         <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.albums')}</h2>
         {albums.length === 0 ? (

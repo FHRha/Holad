@@ -197,7 +197,6 @@ export default function StorageDangerZone({
         </p>
 
         <div className="grid grid-cols-1 gap-3">
-          {/* Action 1: Clear Image Cache */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-background/60 border border-white/5">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-white/5 text-secondary flex-shrink-0">
@@ -237,7 +236,6 @@ export default function StorageDangerZone({
             </button>
           </div>
 
-          {/* Action 2: Clear Metadata Cache */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-background/60 border border-white/5">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-white/5 text-secondary flex-shrink-0">
@@ -277,7 +275,6 @@ export default function StorageDangerZone({
             </button>
           </div>
 
-          {/* Action 3: Delete All Downloaded Music */}
           {(isTauri() || isCapacitor()) && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-background/60 border border-red-500/20">
               <div className="flex items-center gap-3">

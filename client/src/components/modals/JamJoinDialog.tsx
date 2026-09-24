@@ -54,7 +54,6 @@ export default function JamJoinDialog() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
       <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-md w-full p-6 text-foreground relative overflow-hidden flex flex-col items-center text-center">
-        {/* Decorative background glow */}
         <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-40 h-40 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="w-16 h-16 rounded-2xl bg-primary/20 text-primary flex items-center justify-center mb-4 shadow-lg ring-1 ring-primary/30">

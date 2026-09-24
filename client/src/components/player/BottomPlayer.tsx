@@ -174,7 +174,6 @@ export default function BottomPlayer() {
         </div>
       </div>
 
-      {/* Controls (Center) */}
       <div className="flex flex-col items-center justify-center flex-[1.5] lg:flex-[2] min-w-[200px] gap-3 mt-0 mx-2">
         <div className="flex items-center justify-center gap-4">
           <button 
@@ -208,13 +207,10 @@ export default function BottomPlayer() {
       </div>
 
       <div className="flex items-center gap-3 lg:gap-4 justify-end flex-1 min-w-0 max-w-[36%] md:min-w-[180px] lg:min-w-[380px] text-secondary pr-2">
-        {/* Left Block: Single Action Icons (2 Rows) */}
         <div className="flex flex-col gap-1.5 items-end shrink-0">
-          {/* Top Row: Like (Избранное), Bookmark (Отложенное), Ban (Игнор) */}
           <div className="flex items-center gap-1 justify-end h-7">
             {!hideSocialActions && (
               <>
-                {/* Like (Избранное) */}
                 <button 
                   onClick={handleLike} 
                   disabled={role === 'listener'}
@@ -224,7 +220,6 @@ export default function BottomPlayer() {
                   <Heart size={16} fill={currentTrack && likedTrackIds.includes(currentTrack.id) ? "currentColor" : "none"} className={currentTrack && likedTrackIds.includes(currentTrack.id) ? "text-primary" : ""} />
                 </button>
 
-                {/* Bookmark (Отложенное) */}
                 <button 
                   onClick={handleBookmark} 
                   disabled={role === 'listener'}
@@ -234,7 +229,6 @@ export default function BottomPlayer() {
                   <Bookmark size={16} fill={isBookmarked ? "currentColor" : "none"} />
                 </button>
 
-                {/* Ban (Игнор / Не рекомендовать) */}
                 <button 
                   onClick={() => currentTrack && toggleTrackExclude(currentTrack.id, currentTrack)} 
                   disabled={role === 'listener'}
@@ -247,7 +241,6 @@ export default function BottomPlayer() {
             )}
           </div>
 
-          {/* Bottom Row: Holad Connect, Fullscreen Player */}
           <div className="flex items-center gap-1 justify-end h-7">
             {!(isJamRoute && role !== 'host') && (
               <>
@@ -266,9 +259,7 @@ export default function BottomPlayer() {
 
         {/* Right Block: 2 Rows (Top: Stars + AutoDJ, Bottom: Volume + Percentage) */}
         <div className="flex flex-col gap-1.5 items-end shrink-0">
-          {/* Top row: Stars (tight, 16px, matching stroke) & ABTO-DJ */}
           <div className="flex items-center justify-between w-full h-7">
-            {/* Star Rating */}
             {!hideSocialActions && (
               <div 
                 className={`flex items-center gap-0.5 ml-1.5 ${role === 'listener' ? 'pointer-events-none opacity-50' : ''}`} 
@@ -295,7 +286,6 @@ export default function BottomPlayer() {
               </div>
             )}
 
-            {/* Auto DJ Toggle */}
             {!hideAutoDJ && (
               <button 
                 onClick={toggleAutoDj}
@@ -312,7 +302,6 @@ export default function BottomPlayer() {
             )}
           </div>
 
-          {/* Bottom row: Volume Mute, Volume Slider, Percentage */}
           <div 
             className="flex items-center gap-2 justify-end h-7"
             onWheel={(e) => {
@@ -330,7 +319,6 @@ export default function BottomPlayer() {
               {volume === 0 ? <VolumeX size={19} /> : <Volume2 size={19} />}
             </button>
 
-            {/* Volume Slider Capsule */}
             <div 
               className="hidden md:block w-[80px] lg:w-[96px] flex-shrink-0"
               title={`${t('player.tooltip_volume_slider')} (${Math.round(volume * 100)}%)`}
@@ -352,7 +340,6 @@ export default function BottomPlayer() {
               />
             </div>
 
-            {/* Volume percentage number */}
             <span 
               ref={percentTextRef} 
               className="hidden md:block text-xs font-bold w-8 text-right flex-shrink-0 text-secondary tabular-nums"

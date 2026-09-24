@@ -152,7 +152,6 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
                 onClick={isThisLoading ? undefined : () => startGenreRadio(genre.value)}
                 className={`w-full h-full relative overflow-hidden rounded-xl cursor-pointer group transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${colorClass}`}
               >
-                {/* Huge rotated icon in bottom right like Spotify images */}
                 <div className="absolute -bottom-6 -right-6 transform rotate-12 opacity-30 group-hover:opacity-40 transition-opacity">
                   <Music size={100} className="text-black drop-shadow-lg" />
                 </div>

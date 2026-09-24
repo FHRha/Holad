@@ -51,7 +51,6 @@ export default function MobileSearchOverlay() {
       id="mobile-search-overlay"
       className="md:hidden fixed inset-0 z-[100] flex flex-col animate-in slide-in-from-bottom-4 duration-300 bg-gradient-to-b from-black via-black/95 to-primary/30"
     >
-      {/* Top Search Bar */}
       <div className="flex items-center gap-2 px-3 py-3 border-b border-white/5 bg-background">
         <button 
           onClick={() => setSearchOpen(false)}
@@ -79,7 +78,6 @@ export default function MobileSearchOverlay() {
         </div>
       </div>
 
-      {/* Results Area */}
       <div className="flex-1 overflow-y-auto px-4 py-4 hide-scrollbar">
         {!query && (
           <div className="h-full flex flex-col items-center justify-center opacity-70 px-8 text-center -mt-20">
@@ -102,7 +100,6 @@ export default function MobileSearchOverlay() {
 
         {!loading && (
           <div className="space-y-8 pb-32">
-            {/* Tracks */}
             {results.song.length > 0 && (
               <section>
                 <h3 className="text-sm font-bold tracking-widest text-secondary mb-4 flex items-center gap-2">
@@ -149,7 +146,6 @@ export default function MobileSearchOverlay() {
               </section>
             )}
 
-            {/* Albums */}
             {results.album.length > 0 && (
               <section>
                 <h3 className="text-sm font-bold tracking-widest text-secondary mb-4 flex items-center gap-2">
@@ -182,7 +178,6 @@ export default function MobileSearchOverlay() {
               </section>
             )}
 
-            {/* Artists */}
             {results.artist.length > 0 && (
               <section>
                 <h3 className="text-sm font-bold tracking-widest text-secondary mb-4 flex items-center gap-2">

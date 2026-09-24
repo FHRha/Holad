@@ -86,7 +86,6 @@ export default function AudioVisualizer() {
     };
   }, [audioElement]);
 
-  // Sync state changes with the running engine
   useEffect(() => {
     if (engineRef.current) {
       engineRef.current.evaluateRunningState();
@@ -123,7 +122,6 @@ export default function AudioVisualizer() {
 
   return (
     <div className="relative w-full h-full flex items-center justify-center p-4 overflow-hidden">
-      {/* Visualizer Style Switcher Dropdown in Top-Right corner */}
       <div className="absolute top-4 right-4 z-20 w-44 sm:w-52">
         <Dropdown
           options={styleOptions}
@@ -133,7 +131,6 @@ export default function AudioVisualizer() {
         />
       </div>
 
-      {/* Visualizer Canvas */}
       <canvas 
         ref={canvasRef} 
         className="w-full max-w-[1100px] h-[450px] max-h-full block"

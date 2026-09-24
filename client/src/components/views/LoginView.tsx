@@ -86,13 +86,11 @@ export default function LoginView() {
 
   return (
     <div className="h-full w-full bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Language & Theme Selectors */}
       <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
         <ThemeSelector />
         <LanguageSelector />
       </div>
 
-      {/* Abstract Background */}
       <div className="absolute inset-0 pointer-events-none opacity-20">
         <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] bg-primary/30 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-blue-500/20 rounded-full blur-[100px]" />

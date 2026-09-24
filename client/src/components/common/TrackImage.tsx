@@ -211,7 +211,6 @@ export default function TrackImage({ src: rawSrc, className = '', alt = '', trac
         />
       )}
 
-      {/* Current displayed image: fades in smoothly on top */}
       {displayedSrc && (
         <img 
           key={displayedSrc}

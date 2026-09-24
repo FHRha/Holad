@@ -31,7 +31,6 @@ export default function StorageStatsBar({
     total: formatBytes(stats.totalBytes),
   });
 
-  // Calculate visual segment percentages with minimum sliver for non-zero values
   const getVisualWidth = (bytes: number, pct: number): number => {
     if (bytes <= 0) return 0;
     return Math.max(0.6, pct);
@@ -62,7 +61,6 @@ export default function StorageStatsBar({
 
   return (
     <div className={`flex flex-col gap-4 bg-background/50 rounded-xl border border-white/5 ${isMobile ? 'p-3' : 'p-4'} ${className}`}>
-      {/* Header with Title, Usage Summary & Refresh Button */}
       <div className="flex items-center justify-between">
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
@@ -118,9 +116,7 @@ export default function StorageStatsBar({
         </div>
       </div>
 
-      {/* Legend / Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
-        {/* 1. Audio Metric */}
         {isNative && (
           <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/5">
             <div className="w-3 h-3 rounded-full bg-[#3b82f6] flex-shrink-0" />
@@ -136,7 +132,6 @@ export default function StorageStatsBar({
           </div>
         )}
 
-        {/* 2. Images Metric */}
         <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/5">
           <div className="w-3 h-3 rounded-full bg-[#a855f7] flex-shrink-0" />
           <div className="flex flex-col min-w-0">
@@ -150,7 +145,6 @@ export default function StorageStatsBar({
           </div>
         </div>
 
-        {/* 3. Metadata Metric */}
         <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/5">
           <div className="w-3 h-3 rounded-full bg-[#f59e0b] flex-shrink-0" />
           <div className="flex flex-col min-w-0">
@@ -164,7 +158,6 @@ export default function StorageStatsBar({
           </div>
         </div>
 
-        {/* 4. Free Space Metric */}
         <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/5">
           <div className="w-3 h-3 rounded-full bg-[#3f3f46] flex-shrink-0" />
           <div className="flex flex-col min-w-0">

@@ -149,7 +149,6 @@ export default function TracksView() {
 
   return (
     <div className="flex h-full bg-transparent md:bg-background text-foreground md:pb-0 relative">
-      {/* LEFT SIDEBAR: FILTERS */}
       <div className="hidden md:flex w-64 border-r border-foreground/5 dark:border-0 bg-card flex-col p-4 overflow-y-auto custom-scrollbar">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold">{t('views.filters')}</h2>
@@ -166,7 +165,6 @@ export default function TracksView() {
           </button>
         </div>
 
-        {/* Liked Filter */}
         <div className="mb-6">
           <h3 className="text-xs font-semibold text-secondary uppercase mb-3">{t('views.liked')}</h3>
           <div className="flex bg-foreground/5 rounded-lg overflow-hidden">
@@ -176,7 +174,6 @@ export default function TracksView() {
           </div>
         </div>
 
-        {/* Rated Filter */}
         <div className="mb-6">
           <h3 className="text-xs font-semibold text-secondary uppercase mb-3">{t('views.rated')}</h3>
           <div className="flex bg-foreground/5 rounded-lg overflow-hidden">
@@ -186,7 +183,6 @@ export default function TracksView() {
           </div>
         </div>
 
-        {/* Artist Filter */}
         <div className="flex flex-col min-h-[160px] mb-6">
           <h3 className="text-xs font-semibold text-secondary uppercase mb-3">{t('views.artist')}</h3>
           <div className="relative mb-3">
@@ -220,7 +216,6 @@ export default function TracksView() {
           </div>
         </div>
 
-        {/* Album Filter */}
         <div className="flex-1 flex flex-col min-h-[160px]">
           <h3 className="text-xs font-semibold text-secondary uppercase mb-3">{t('views.albums')}</h3>
           <div className="relative mb-3">
@@ -249,7 +244,6 @@ export default function TracksView() {
         </div>
       </div>
 
-      {/* RIGHT MAIN CONTENT: TABLE / MOBILE LIST */}
       <div className="flex-1 flex flex-col p-0 md:p-6 overflow-hidden">
         <div className="hidden md:flex items-center justify-between mb-6">
           <h1 className="text-2xl font-black flex items-center gap-3">
@@ -262,7 +256,6 @@ export default function TracksView() {
         </div>
 
         <div className="flex flex-col flex-1 bg-transparent md:bg-card md:rounded-xl md:border border-foreground/5 dark:border-0 overflow-hidden">
-          {/* Table Header */}
           <div className="hidden md:flex items-center px-6 py-3 border-b border-foreground/5 text-[11px] font-bold tracking-widest text-secondary uppercase bg-background">
             <div className="w-10 text-center">#</div>
             <div className="flex-1 min-w-[200px]">{t('views.title')}</div>
@@ -273,7 +266,6 @@ export default function TracksView() {
             {!isGuest && <div className="w-24 flex justify-center gap-4 ml-4"><Heart size={14} /><Ban size={14} /></div>}
           </div>
 
-          {/* Table Body */}
           <div className="flex-1 overflow-hidden pt-2 px-4 md:px-0 relative">
             {loading ? (
               <div className="flex items-center justify-center h-full text-secondary">{t('views.loading')}</div>

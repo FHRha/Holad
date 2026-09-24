@@ -96,7 +96,6 @@ export default function SettingsModal({
       }
   }, [isJamGuest, activeTab]);
 
-  // Sync autostart status with OS when settings modal is open
   useEffect(() => {
     if (isModalOpen && ('__TAURI_INTERNALS__' in window)) {
       import('@tauri-apps/plugin-autostart').then(async ({ isEnabled }) => {
@@ -178,7 +177,6 @@ export default function SettingsModal({
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-card w-full max-w-4xl rounded-xl shadow-2xl border border-white/10 flex h-[88vh] md:h-[600px] max-h-[800px] overflow-hidden">
         
-        {/* Sidebar */}
         <div className="w-60 bg-background/50 border-r border-white/5 flex flex-col p-4 shrink-0">
           <h2 className="text-lg font-bold mb-4 px-2">{t('sidebar.settings')}</h2>
           
@@ -249,7 +247,6 @@ export default function SettingsModal({
           )}
         </div>
 
-        {/* Content */}
         <div className="flex-1 flex flex-col relative overflow-hidden min-w-0">
           <div className="flex items-center justify-between p-6 pb-2 shrink-0 z-20 bg-card">
             <h3 className="text-xl font-bold">
@@ -670,15 +667,12 @@ export default function SettingsModal({
                 <h3 className="text-xl font-bold mb-2">{t('settings.custom_color_select')}</h3>
                 
                 <div className="flex flex-col items-center justify-center flex-1 w-full max-w-md mx-auto space-y-4">
-                  {/* Big Preview */}
                   <div 
                     className="w-20 h-20 rounded-full shadow-2xl border-4 border-white/10 transition-colors duration-100"
                     style={{ backgroundColor: customHexInput }}
                   />
 
-                  {/* True HSL Color Picker */}
                   <div className="w-full space-y-4 bg-background/50 p-5 rounded-2xl border border-white/5">
-                    {/* Hue Slider */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs text-secondary font-medium">
                         <span>{t('settings.hue')}</span>
@@ -692,7 +686,6 @@ export default function SettingsModal({
                       />
                     </div>
 
-                    {/* Saturation Slider */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs text-secondary font-medium">
                         <span>{t('settings.saturation')}</span>
@@ -706,7 +699,6 @@ export default function SettingsModal({
                       />
                     </div>
 
-                    {/* Lightness Slider */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs text-secondary font-medium">
                         <span>{t('settings.lightness')}</span>
@@ -721,7 +713,6 @@ export default function SettingsModal({
                     </div>
                   </div>
 
-                  {/* Manual HEX input */}
                   <div className="w-full relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary font-mono">HEX</span>
                     <input 
@@ -1015,7 +1006,6 @@ export default function SettingsModal({
                     {settings.isLoudnessNormalizationEnabled && (
                       <div className="pt-2 pb-1 space-y-6 opacity-100 transition-opacity border-t border-white/5 mt-2">
                         
-                        {/* Threshold */}
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
                             <span>{t('settings.audio_compressor_threshold', 'Порог срабатывания (Threshold)')}</span>
@@ -1035,7 +1025,6 @@ export default function SettingsModal({
                           </div>
                         </div>
 
-                        {/* Ratio */}
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
                             <span>{t('settings.audio_compressor_ratio', 'Степень сжатия (Ratio)')}</span>
@@ -1056,7 +1045,6 @@ export default function SettingsModal({
                           </div>
                         </div>
 
-                        {/* Attack */}
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
                             <span>{t('settings.audio_compressor_attack', 'Атака (Attack)')}</span>
@@ -1077,7 +1065,6 @@ export default function SettingsModal({
                           </div>
                         </div>
 
-                        {/* Release */}
                         <div>
                           <div className="flex justify-between text-xs text-secondary mb-2">
                             <span>{t('settings.audio_compressor_release', 'Восстановление (Release)')}</span>
@@ -1210,16 +1197,12 @@ function StorageSettingsTab({ t }: { t: any }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* 1. Partitioned Storage Statistics Bar */}
       <StorageStatsBar key={statsKey} onRefreshRequested={refreshStats} />
 
-      {/* 2. Storage Limit Control */}
       <StorageLimitControl />
 
-      {/* 3. Image Memory Limit Control */}
       <ImageMemoryLimitControl />
 
-      {/* 3.5. Download Concurrency Control */}
       <SettingSection title={t('settings.download_concurrency')}>
         <div className="flex flex-col gap-2">
           <p className="text-xs text-secondary mb-2">
@@ -1264,7 +1247,6 @@ function StorageSettingsTab({ t }: { t: any }) {
         </SettingSection>
       )}
 
-      {/* 4. Downloaded Music Library Grid */}
       {(isTauri() || isCapacitor()) && (
         <DownloadedMusicGrid 
           onRefreshRequested={refreshStats} 
@@ -1272,7 +1254,6 @@ function StorageSettingsTab({ t }: { t: any }) {
         />
       )}
 
-      {/* 5. Danger Zone Block */}
       <StorageDangerZone onActionComplete={refreshStats} />
 
       {showDeleteModal && (

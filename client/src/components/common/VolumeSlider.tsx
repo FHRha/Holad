@@ -36,7 +36,6 @@ export default function VolumeSlider({
     }
   }, [onPercentageChange]);
 
-  // Sync visuals from props ONLY when not actively dragging
   useEffect(() => {
     if (!isDraggingRef.current) {
       applyVisuals(value);

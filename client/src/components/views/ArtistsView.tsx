@@ -114,7 +114,6 @@ export default function ArtistsView() {
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col bg-transparent md:bg-card relative md:p-0">
-      {/* Header section similar to Albums */}
       <div className="hidden md:flex sticky top-0 z-20 bg-card/90 backdrop-blur p-6 pb-4 border-b border-white/5 items-center justify-between shrink-0">
         <h1 className="text-2xl font-bold text-foreground">{t('views.artists')}</h1>
         
@@ -131,7 +130,6 @@ export default function ArtistsView() {
       </div>
       
       <div className="flex-1 overflow-hidden flex flex-col px-4 pt-4 md:p-6">
-        {/* Mobile search */}
         <div className="relative w-full mb-6 md:hidden shrink-0">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b3b3b3]" />
           <input 

@@ -142,7 +142,6 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
   const currentValueRef = useRef(safeValue);
   currentValueRef.current = safeValue;
 
-  // Imperative handle
   React.useImperativeHandle(ref, () => ({
     setValue: (val: number) => {
       if (!isDragging) {
@@ -151,7 +150,6 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
     }
   }), [isDragging]);
 
-  // Animation Refs
   const timeRef = useRef(0);
   const animationRef = useRef<number | undefined>(undefined);
   const amplitudeMultiplierRef = useRef(isAnimated ? 1 : 0);
@@ -435,7 +433,6 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
         ctx.lineTo(pointsX[pointCount - 1], pointsY[pointCount - 1]);
       }
 
-      // Close polygon to the bottom line at activeWidth
       ctx.lineTo(activeWidth, baseBottom);
       ctx.closePath();
       ctx.fillStyle = colorString;
@@ -604,7 +601,6 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
       ref={containerRef}
       style={{ transform: 'translateZ(0)' }}
     >
-      {/* Background track (thin line) */}
       <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-white/20 rounded-full" />
 
       {/* Buffered track (gray bar representing loaded audio) */}
@@ -628,7 +624,6 @@ const LiquidSeekBar = React.forwardRef<LiquidSeekBarRef, LiquidSeekBarProps>(({
         />
       </div>
 
-      {/* Thumb knob */}
       <div
         ref={thumbRef}
         className="absolute top-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.5)] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"

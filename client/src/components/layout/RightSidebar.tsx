@@ -246,7 +246,6 @@ export default function RightSidebar() {
         className={`hidden md:flex flex-col h-full text-sm relative z-[60] flex-shrink-0 transition-[max-width,background-color] ${isSmall ? 'bg-gradient-to-r from-transparent to-background/90 border-l border-transparent' : 'bg-background border-l border-neutral-200 dark:border-white/5'}`}
         style={{ width: rightSidebarWidth, maxWidth: '35vw' }}
       >
-        {/* Resizer */}
         <div 
           className="absolute top-0 left-0 w-2 h-full cursor-col-resize hover:bg-foreground/10 active:bg-white/20 transition-colors z-20"
           onMouseDown={handleMouseDown}
@@ -284,7 +283,6 @@ export default function RightSidebar() {
                 </div>
               )}
 
-              {/* View Switch Button */}
               <button
                 onClick={() => setActiveTab(activeTab === 'queue' ? 'social' : 'queue')}
                 className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors text-xs font-semibold ${
@@ -342,7 +340,6 @@ export default function RightSidebar() {
 
         {activeTab === 'social' && !isSmall ? (
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 space-y-4 hide-scrollbar">
-            {/* Jam Card */}
             {roomId ? (
               <div className="bg-neutral-100 dark:bg-[#141414] rounded-2xl p-3.5 shadow-sm space-y-3">
                 <div className="space-y-1">
@@ -357,7 +354,6 @@ export default function RightSidebar() {
                   </div>
                 </div>
 
-                {/* Audio Mode Selector */}
                 <div className="space-y-1.5">
                   <button
                     type="button"
@@ -484,7 +480,6 @@ export default function RightSidebar() {
               </div>
             )}
 
-            {/* Incoming Jam Invites */}
             {activeInvites.length > 0 && (
               <div className="space-y-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-secondary px-1">
@@ -543,7 +538,6 @@ export default function RightSidebar() {
               </div>
             )}
 
-            {/* Friends List */}
             <div className="space-y-2">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-secondary">
@@ -620,9 +614,7 @@ export default function RightSidebar() {
               )}
             </div>
 
-            {/* Add Friend Section */}
             <div className="space-y-3 pt-2 border-t border-neutral-200 dark:border-white/5">
-              {/* User's own tag display */}
               <div className="flex items-center justify-between p-2.5 bg-neutral-100 dark:bg-[#141414] rounded-xl">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center text-xs shrink-0 ring-1 ring-primary/25">
@@ -649,7 +641,6 @@ export default function RightSidebar() {
                 </button>
               </div>
 
-              {/* Add Friend Search Input */}
               <div className="space-y-2">
                 <form
                   onSubmit={async (e) => {
@@ -684,7 +675,6 @@ export default function RightSidebar() {
                   )}
                 </form>
 
-                {/* Live Search Results List */}
                 {friendSearchInput.trim().length > 0 && (
                   <div className="space-y-1.5 max-h-64 overflow-y-auto">
                     {isSearching ? (
@@ -714,7 +704,6 @@ export default function RightSidebar() {
                             key={user.user_id}
                             className="p-2.5 bg-neutral-100 dark:bg-[#141414] rounded-xl space-y-2"
                           >
-                            {/* User Row */}
                             <div className="flex items-center justify-between gap-2 min-w-0">
                               <div className="flex items-center gap-2.5 min-w-0">
                                 <div className="relative shrink-0">
@@ -753,7 +742,6 @@ export default function RightSidebar() {
                               ) : null}
                             </div>
 
-                            {/* Action Buttons Row */}
                             {(!isFriend && !isPendingOut) || (roomId && !userInJam) ? (
                               <div className="flex items-stretch gap-1.5 pt-1.5 border-t border-neutral-200 dark:border-white/5">
                                 {!isFriend && !isPendingOut && (
@@ -803,7 +791,6 @@ export default function RightSidebar() {
                 )}
               </div>
 
-              {/* Incoming Requests */}
               {pendingRequests.incoming.length > 0 && (
                 <div className="space-y-1.5 mt-3">
                   <div className="flex items-center gap-1.5 px-1">
@@ -852,7 +839,6 @@ export default function RightSidebar() {
             </div>
           </div>
         ) : (
-          /* Queue List */
           <div className={`flex-1 overflow-y-auto overflow-x-hidden ${isSmall ? 'p-1' : 'p-2'} space-y-1 relative`} onScroll={handleScroll}>
             {isProcessing && (
               <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center">

@@ -40,7 +40,6 @@ export default function StorageLimitControl({ className = '', isMobile = false }
       data-testid="storage-limit-control"
       className={`flex flex-col gap-4 bg-background/50 rounded-xl border border-white/5 ${isMobile ? 'p-3' : 'p-4'} ${className}`}
     >
-      {/* Title & Current Limit Badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <HardDrive size={18} className="text-primary" />
@@ -56,12 +55,10 @@ export default function StorageLimitControl({ className = '', isMobile = false }
         </span>
       </div>
 
-      {/* Description */}
       <p className="text-xs text-secondary leading-relaxed">
         {t('settings.storage_limit_desc')}
       </p>
 
-      {/* Preset Chips */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
         {STORAGE_PRESETS.map((preset) => {
           const isSelected = totalStorageLimitGb === preset.value;
@@ -87,7 +84,6 @@ export default function StorageLimitControl({ className = '', isMobile = false }
         })}
       </div>
 
-      {/* Warning Banners */}
       {isOverLimit && (
         <div
           data-testid="storage-limit-warning-over"

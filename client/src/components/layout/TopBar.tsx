@@ -118,7 +118,6 @@ export default function TopBar() {
           )}
         </div>
 
-        {/* Dropdown Results */}
         {isSearchOpen && (query.trim().length >= 2 || loading) && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-card transform-gpu border border-border rounded-xl shadow-2xl max-h-[70vh] overflow-y-auto hide-scrollbar p-4 animate-in fade-in slide-in-from-top-2 duration-200 z-[60]">
             
@@ -136,7 +135,6 @@ export default function TopBar() {
 
             {!loading && (
               <div className="space-y-6">
-                {/* Tracks */}
                 {results.song.length > 0 && (
                   <section>
                     <h3 className="text-xs font-bold uppercase tracking-widest text-secondary mb-3 flex items-center gap-2">
@@ -172,7 +170,6 @@ export default function TopBar() {
                   </section>
                 )}
 
-                {/* Albums */}
                 {results.album.length > 0 && (
                   <section>
                     <h3 className="text-xs font-bold uppercase tracking-widest text-secondary mb-3 flex items-center gap-2">
@@ -202,7 +199,6 @@ export default function TopBar() {
                   </section>
                 )}
 
-                {/* Artists */}
                 {results.artist.length > 0 && (
                   <section>
                     <h3 className="text-xs font-bold uppercase tracking-widest text-secondary mb-3 flex items-center gap-2">

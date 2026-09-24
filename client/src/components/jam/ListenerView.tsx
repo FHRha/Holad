@@ -58,24 +58,20 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
 
   return (
     <div className="flex-1 h-full relative overflow-hidden flex text-foreground z-10 w-full">
-      {/* Hidden Audio Player for standalone mode */}
       <audio 
         ref={audioRef} 
         src={audioSrc} 
         onEnded={() => {/* next track logic if needed */}}
         autoPlay
       />
-      {/* Blurred Background */}
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center blur-3xl opacity-30 scale-110"
         style={{ backgroundImage: `url(${currentTrack.coverArt})` }}
       />
       <div className="absolute inset-0 z-0 bg-background/40" />
 
-      {/* Main Content Area */}
       <div className="relative z-10 flex w-full h-full p-10 gap-10">
         
-        {/* Left: Large Cover & Info */}
         <div className="flex-1 flex flex-col items-center justify-center">
           <div className="w-[400px] h-[400px] rounded-lg overflow-hidden shadow-2xl mb-8 border border-border bg-muted">
             <img src={currentTrack.coverArt} className="w-full h-full object-cover" alt="" />
@@ -101,7 +97,6 @@ export default function ListenerView({ trackId }: { trackId?: string }) {
           </button>
         </div>
 
-        {/* Right: Queue Table */}
         <div className="w-[600px] bg-background/40 rounded-xl border border-border flex flex-col backdrop-blur-md">
           <div className="relative flex items-center justify-center gap-6 px-6 py-4 border-b border-border text-xs font-semibold tracking-wider text-secondary uppercase z-50">
             <div className="absolute left-6">

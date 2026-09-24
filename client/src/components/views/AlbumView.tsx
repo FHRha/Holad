@@ -55,14 +55,12 @@ export default function AlbumView() {
 
   return (
     <div className="flex-1 overflow-y-auto relative h-full bg-transparent md:bg-background custom-scrollbar">
-      {/* Background Gradient */}
       <div 
         className="absolute top-0 left-0 right-0 h-[500px] opacity-30 pointer-events-none transition-colors duration-1000"
         style={{ background: `linear-gradient(to bottom, ${dominantColor}, transparent)` }}
       />
 
       <div className="relative z-10 px-4 md:px-8 py-6 md:py-10 flex flex-col gap-6 md:gap-10 min-h-full pb-32 md:pb-10">
-        {/* Header Section */}
         {(() => {
           const firstSong = album.song?.[0];
           const displayYear = album.year || firstSong?.year || '2023';
@@ -94,7 +92,6 @@ export default function AlbumView() {
             
             <div className="text-lg md:text-xl font-bold text-foreground mb-4 w-max"><ArtistLinks artistString={album.artist} artistId={album.artistId} /></div>
             
-            {/* Action Buttons */}
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 w-full">
               <button onClick={handlePlayAll} className="w-14 h-14 md:w-auto md:h-auto md:px-8 md:py-3 bg-primary md:bg-foreground text-background rounded-full font-bold text-sm flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-xl">
                 <Play fill="currentColor" size={24} className="md:size-18 ml-1 md:ml-0" /> <span className="hidden md:inline">{t('views.play')}</span>
@@ -151,9 +148,7 @@ export default function AlbumView() {
         );
         })()}
 
-        {/* Content Section */}
         <div className="flex flex-col lg:flex-row gap-10 mt-6">
-          {/* Tracks List */}
           <div className="flex-1 flex flex-col">
             <div className="hidden md:flex px-4 py-2 text-xs font-semibold tracking-widest text-secondary border-b border-white/10 uppercase mb-2">
               <div className="w-12 text-center">#</div>
@@ -244,7 +239,6 @@ export default function AlbumView() {
             )}
           </div>
 
-          {/* Metadata Sidebar */}
           {(() => {
             const firstSong = album.song?.[0];
             const displayGenre = album.genre || firstSong?.genre;

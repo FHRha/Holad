@@ -51,7 +51,6 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
 
   return (
     <div className={`flex flex-col gap-4 bg-background/50 rounded-xl border border-white/5 ${isMobile ? 'p-3' : 'p-4'} ${className}`}>
-      {/* Title & Badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ImageIcon size={18} className="text-primary" />
@@ -64,12 +63,10 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
         </span>
       </div>
 
-      {/* Description */}
       <p className="text-xs text-secondary leading-relaxed">
         {t('settings.image_cache_desc')}
       </p>
 
-      {/* Preset Chips */}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-1">
         {PRESETS.map((preset) => {
           const isSelected = imageCacheLimitMb === preset.value;
@@ -90,7 +87,6 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
         })}
       </div>
 
-      {/* Continuous Range Slider */}
       <div className="space-y-2 pt-2">
         <input
           type="range"
@@ -109,7 +105,6 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
         </div>
       </div>
 
-      {/* Live Usage Gauge & Purge Button */}
       <div className="pt-3 border-t border-white/5 flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-1.5 text-secondary min-w-0">
@@ -130,7 +125,6 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
           </button>
         </div>
 
-        {/* Progress Bar */}
         <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
           <div
             className={`h-full transition-all duration-300 ${

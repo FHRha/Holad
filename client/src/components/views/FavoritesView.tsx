@@ -102,7 +102,6 @@ export default function FavoritesView() {
 
   return (
     <>
-      {/* DESKTOP UI */}
       <div ref={setDesktopScrollParent} className="hidden md:block flex-1 bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar">
         <div className="flex items-center gap-6 text-xl font-bold mb-10 text-foreground border-b border-white/5 pb-4">
           <h1 className="text-2xl text-foreground">{t('views.favorites')}</h1>
@@ -147,7 +146,6 @@ export default function FavoritesView() {
         )}
       </div>
 
-      {/* MOBILE UI */}
       <div ref={setMobileScrollParent} className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32 w-full">
         <div className="px-4 pt-4 pb-2 sticky top-0 bg-black/40 backdrop-blur-xl z-10 w-full">
           <div 

@@ -141,7 +141,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
 
   const hasFriendNotifications = pendingRequests.incoming.length > 0 || activeInvites.length > 0;
 
-  // Handle clicking outside to close
   useEffect(() => {
     if (!isOpen) return;
     isClosing.current = false;
@@ -196,13 +195,11 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
 
   return createPortal(
     <>
-      {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] animate-in fade-in duration-200 md:hidden"
         onClick={handleClose}
       />
       
-      {/* Bottom Sheet */}
       <div 
         ref={menuRef}
         className="fixed z-[9999] bottom-0 left-0 right-0 bg-[#161616] border-t border-white/10 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.6)] overflow-hidden pb-6 animate-in slide-in-from-bottom-full duration-300 md:hidden flex flex-col will-change-transform"
@@ -212,7 +209,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
         }}
         onContextMenu={(e) => e.preventDefault()}
       >
-        {/* Header Draggable Zone */}
         <div 
           className="touch-none select-none shrink-0 bg-[#161616]"
           onPointerDown={(e) => {
@@ -246,12 +242,10 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
             if (dragMode.current === 'touch') cancelDrag();
           }}
         >
-          {/* Dedicated Top Drag Handle */}
           <div className="w-full pt-3 pb-2 flex items-center justify-center cursor-grab active:cursor-grabbing">
             <div className="w-12 h-1.5 bg-white/30 rounded-full hover:bg-white/50 transition-colors" />
           </div>
 
-          {/* Header Row with Title and Close Button */}
           <div className="px-4 pb-2.5 flex items-center justify-between border-b border-white/5">
             <div className="flex items-center gap-2">
               <UsersRound size={18} className="text-primary" />
@@ -270,7 +264,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
           </div>
         </div>
 
-        {/* Tab Bar Switcher */}
         <div className="px-4 py-2.5 shrink-0 border-b border-white/5 bg-[#161616]">
           <div className="flex bg-[#222222] p-1 rounded-2xl gap-1">
             <button
@@ -312,7 +305,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
           </div>
         </div>
 
-        {/* Scrollable Content */}
         <div 
           ref={contentRef}
           className="flex-1 overflow-y-auto px-4 py-3 space-y-4 hide-scrollbar overscroll-y-contain"
@@ -365,7 +357,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
         >
           {activeTab === 'friends' ? (
             <>
-              {/* My Tag Card */}
               <div className="flex items-center justify-between p-3 bg-[#1e1e1e] border border-white/5 rounded-2xl shadow-sm">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-sm shrink-0 ring-1 ring-primary/30">
@@ -387,7 +378,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
                 </button>
               </div>
 
-              {/* Incoming Jam Invites */}
               {activeInvites.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-primary px-1 flex items-center gap-1">
@@ -447,7 +437,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
                 </div>
               )}
 
-              {/* Incoming Friend Requests */}
               {pendingRequests.incoming.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-secondary px-1">
@@ -488,7 +477,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
                 </div>
               )}
 
-              {/* Add Friend Input & Live Search */}
               <div className="space-y-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-secondary px-1">
                   {t('social.add_friend', 'Добавить в друзья')}
@@ -526,7 +514,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
                   )}
                 </form>
 
-                {/* Search Results Dropdown */}
                 {friendSearchInput.trim().length > 0 && (
                   <div className="space-y-2 bg-[#1b1b1b] border border-white/10 rounded-2xl p-2 max-h-64 overflow-y-auto">
                     {isSearching ? (
@@ -591,7 +578,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
                               ) : null}
                             </div>
 
-                            {/* Action Buttons Row */}
                             {(!isFriend && !isPendingOut) || (roomId && !userInJam) ? (
                               <div className="flex items-stretch gap-1.5 pt-1.5 border-t border-white/5">
                                 {!isFriend && !isPendingOut && (
@@ -639,7 +625,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
                 )}
               </div>
 
-              {/* Friends List */}
               <div className="space-y-2 pt-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-secondary px-1">
                   {t('social.tab_friends', 'Друзья')} ({friends.length})
@@ -717,7 +702,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
                 )}
               </div>
 
-              {/* Outgoing Requests */}
               {pendingRequests.outgoing.length > 0 && (
                 <div className="space-y-2 pt-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-secondary px-1">
@@ -745,9 +729,7 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
               )}
             </>
           ) : (
-            /* Jam Session Tab */
             <div className="space-y-4">
-              {/* Audio Mode Selectors */}
               <div className="space-y-2 bg-[#1e1e1e] border border-white/5 rounded-2xl p-3.5">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-secondary px-1">
                   {t('social.mode_jam_playback', 'Режим воспроизведения Jam')}
@@ -806,7 +788,6 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
                 </div>
               </div>
 
-              {/* Jam Session Controls */}
               <div className="bg-[#1e1e1e] border border-white/5 rounded-2xl p-4">
                 <JamSessionControl />
               </div>

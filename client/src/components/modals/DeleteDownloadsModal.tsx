@@ -118,7 +118,6 @@ export default function DeleteDownloadsModal({ onClose }: Props) {
         </div>
 
         <div className="p-4 bg-background border-b border-white/5 shrink-0 flex flex-col sm:flex-row gap-3">
-          {/* Tabs */}
           <div className="flex items-center gap-1.5 bg-background/50 p-1 rounded-xl border border-white/5 text-xs font-medium">
             <button
               onClick={() => setActiveFilter('all')}
@@ -140,7 +139,6 @@ export default function DeleteDownloadsModal({ onClose }: Props) {
             </button>
           </div>
 
-          {/* Search */}
           <div className="relative flex-1">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" />
             <input

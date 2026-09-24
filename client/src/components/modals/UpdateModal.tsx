@@ -92,7 +92,6 @@ export default function UpdateModal() {
             </p>
           </div>
 
-          {/* Progress or Error view */}
           {isDownloading && (
             <div className="flex flex-col gap-2 p-3 bg-white/5 rounded-xl border border-white/10">
               <div className="flex items-center justify-between text-xs font-medium text-secondary">

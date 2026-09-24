@@ -154,7 +154,6 @@ export default function ContextMenu() {
     }
   };
 
-  // Handle clicking outside to close
   useEffect(() => {
     if (!isOpen) return;
     const handleClick = (e: MouseEvent) => {
@@ -166,7 +165,6 @@ export default function ContextMenu() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [isOpen, closeMenu]);
 
-  // Handle scrolling to close
   useEffect(() => {
     if (!isOpen) return;
     const handleScroll = () => closeMenu();
@@ -463,11 +461,6 @@ export default function ContextMenu() {
 
   if (typeof document === 'undefined') return null;
 
-  // Wait, I can't do async synchronously for rendering. Let's pass a function or just fetch it in the modal if needed, OR just pass `[item.id]` and if it's an album... Actually, I wrote handleAddToPlaylist which gets tracks. 
-  // Wait, I can pass `[item.id]` if it's a track. But for Album?
-  // Let's modify AddToPlaylistModal to accept an async function `getTrackIds: () => Promise<string[]>` instead of `trackIds: string[]`.
-  // Wait, I already created `AddToPlaylistModal.tsx` and used it in `RightSidebar.tsx`. `RightSidebar` uses `trackIds`. Let's keep `trackIds` but for Album in ContextMenu, I can fetch them when opening the modal!
-  
   const handleOpenPlaylistModal = async () => {
     try {
       if (isAlbum) {
@@ -490,7 +483,6 @@ export default function ContextMenu() {
           onClose={() => { setIsPlaylistModalOpen(false); closeMenu(); }}
           trackIds={modalTrackIds}
         />
-        {/* Backdrop */}
         <div 
           className="fixed inset-0 bg-black/60 z-[9998] animate-in fade-in duration-200"
           onClick={closeMenu}
@@ -504,7 +496,6 @@ export default function ContextMenu() {
           }}
           onContextMenu={(e) => e.preventDefault()}
         >
-          {/* Header with Drag Handle */}
           <div 
             className="px-4 pt-2 pb-4 border-b border-border touch-none"
             onTouchStart={(e) => {
@@ -602,7 +593,6 @@ export default function ContextMenu() {
               </div>
             ) : type !== 'playlist' ? (
               <>
-                {/* Action Grid */}
                 <div className="grid grid-cols-4 gap-2">
                   <MobileIconBtn icon={Play} label={t('common.play_now')} onClick={() => handleAction(onPlayNow)} />
                   <MobileIconBtn 
@@ -644,7 +634,6 @@ export default function ContextMenu() {
                   )}
                 </div>
 
-                {/* Rating */}
                 {!isGuest && (
                   <div className="bg-foreground/5 rounded-2xl p-4 flex flex-col items-center gap-2">
                     <span className="text-xs text-secondary font-medium">{t('common.rate')}</span>
@@ -694,7 +683,6 @@ export default function ContextMenu() {
         onClose={() => { setIsPlaylistModalOpen(false); closeMenu(); }}
         trackIds={modalTrackIds}
       />
-      {/* Desktop Backdrop: shield against click-through and handle outside clicks */}
       <div 
         className="fixed inset-0 z-[9998] bg-transparent"
         onClick={(e) => {
@@ -719,7 +707,6 @@ export default function ContextMenu() {
         }}
         onContextMenu={(e) => e.preventDefault()} // prevent native menu on the custom menu
       >
-      {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center gap-3">
         <img 
           src={getCoverArtUrl(item.coverArt || item.albumId || item.id, 300)} 
@@ -835,7 +822,6 @@ export default function ContextMenu() {
                   color={isExcluded ? "text-red-500" : "text-foreground"} 
                 />
                 
-                {/* Rating inline */}
                 <div className="flex items-center justify-between px-4 py-2 hover:bg-foreground/10 transition-colors cursor-default">
                   <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
                     <Star size={16} />

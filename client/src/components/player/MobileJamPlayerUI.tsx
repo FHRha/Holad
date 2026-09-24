@@ -108,14 +108,12 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
 
   return (
     <div className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-300">
-      {/* Blurred Background */}
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center blur-[60px] opacity-60 saturate-150 scale-110 transform-gpu will-change-transform"
         style={{ backgroundImage: coverArtLowRes ? `url("${coverArtLowRes}")` : undefined }}
       />
       <div className="absolute inset-0 z-0 bg-background/40" />
 
-      {/* Top Bar */}
       <div className="relative z-10 flex items-center justify-between px-4 py-4 w-full">
         {showMinimizeButton ? (
           <button 
@@ -142,10 +140,8 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
         )}
       </div>
 
-      {/* Main Content Area */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-between px-6 pb-6 w-full max-w-md mx-auto min-h-0 overflow-y-auto hide-scrollbar">
         
-        {/* Conditional Content based on Active Tab */}
         <div className="w-full flex-1 flex flex-col justify-center min-h-0 overflow-hidden mb-6 mt-2">
           {activeTab === 'player' && (
             <div className="w-full h-full flex items-center justify-center">
@@ -162,9 +158,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
           )}
         </div>
 
-        {/* Info & Controls Section (Always visible) */}
         <div className="w-full flex flex-col gap-6 mt-6">
-          {/* Track Info */}
           <div className="flex items-center justify-between">
             <div className="flex flex-col overflow-hidden mr-4">
               <h1 className="text-2xl font-bold text-foreground truncate drop-shadow-md">{currentTrack.title}</h1>
@@ -172,7 +166,6 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             </div>
           </div>
 
-          {/* Progress Bar */}
           <div className="w-full flex items-center gap-3 text-xs font-medium text-secondary">
             <span className="min-w-[40px] text-right font-medium">{formatTime((progress / 100) * (duration || 0))}</span>
             <LiquidSeekBar 
@@ -186,7 +179,6 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             <span className="min-w-[40px] text-left font-medium text-secondary">{formatTime(duration || 0)}</span>
           </div>
 
-          {/* Main Playback Controls */}
           <div className="flex items-center justify-between w-full px-2">
             <button 
               onClick={toggleShuffle} 
@@ -229,7 +221,6 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             </button>
           </div>
 
-          {/* Secondary Controls Row */}
           {role !== 'listener' && (
             <div className="flex items-center justify-between w-full px-4 pt-2 text-secondary">
               <button onClick={() => setShowSleepTimerMenu(true)} className={`hover:text-foreground transition-colors active:scale-95 ${sleepTimer.type ? 'text-primary' : ''}`}>
@@ -251,7 +242,6 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
         </div>
       </div>
 
-      {/* Very Bottom: Navigation Tabs */}
       <div className="relative z-10 w-full h-[72px] flex-shrink-0 bg-background/40 backdrop-blur-md transform-gpu will-change-transform border-t border-border flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
         <button onClick={() => setActiveTab('player')} className={`p-3 rounded-full transition-colors ${activeTab === 'player' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
           <Music size={24} />
@@ -269,7 +259,6 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
         </button>
       </div>
 
-      {/* Sleep Timer Modal */}
       {showSleepTimerMenu && (
         <div className="absolute inset-0 z-[200] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div 
@@ -311,7 +300,6 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
         </div>
       )}
 
-      {/* Session Menu Modal */}
       {showSessionMenu && (
         <div className="absolute inset-0 z-[200] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div 

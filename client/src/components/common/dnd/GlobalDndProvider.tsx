@@ -57,12 +57,9 @@ export function GlobalDndProvider({ children }: { children: React.ReactNode }) {
     if (track) {
       setActiveTrack(track);
       
-      // Calculate where the user grabbed the item horizontally
       const rect = active.rect.current.initial;
       if (rect) {
-        // We need the mouse position. dnd-kit doesn't pass the exact mouse pos in dragStart easily,
-        // but we can estimate or we can capture it in a global listener.
-        // Actually, we can just use the global window.lastMouseX that we can set.
+        // Fallback to center if global cursor position is not available
         const mouseX = (window as any).lastMouseX || rect.left + rect.width / 2;
         const relativeX = mouseX - rect.left;
         const percentage = Math.max(0, Math.min(1, relativeX / rect.width));

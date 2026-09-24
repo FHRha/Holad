@@ -623,7 +623,6 @@ export class VisualizerEngine {
       this.waveMirrorGradient = mirrorGrad;
     }
 
-    // Calculate wave points with organic bell windowing
     for (let i = 0; i < pointsCount; i++) {
       const edgeWindow = Math.sin((i / (pointsCount - 1)) * Math.PI);
       const targetAmp = this.rawBandValues[i] * maxAmplitude * edgeWindow * punchBoost * fadeMultiplier;

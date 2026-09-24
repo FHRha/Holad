@@ -43,7 +43,6 @@ export default function TrayMenu() {
     // Add a class to hide scrollbars just in case
     document.body.style.overflow = 'hidden';
 
-    // Sync Zustand across windows
     const handleStorage = (e: StorageEvent) => {
       if (e.key === 'holad-settings') {
         useSettingsStore.persist.rehydrate();
@@ -73,7 +72,6 @@ export default function TrayMenu() {
     };
   }, []);
 
-  // Sync Accent Color
   useEffect(() => {
     const hexColor = COLORS[accentColor] || (accentColor?.startsWith('#') ? accentColor : COLORS.green);
     const rgbStr = hexToRgb(hexColor);
@@ -161,7 +159,6 @@ export default function TrayMenu() {
   return (
     <div className="w-max h-max overflow-hidden bg-transparent">
       <div id="tray-menu-content" className="w-max min-w-[200px] max-w-[320px] bg-zinc-900 text-white rounded-xl border border-white/10 flex flex-col p-1.5 select-none" data-tauri-drag-region>
-        {/* Header */}
         <div className="flex items-center gap-2 p-2 mb-1 border-b border-white/5 pointer-events-none">
           <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
             <Music className="text-primary w-3.5 h-3.5" />
@@ -171,7 +168,6 @@ export default function TrayMenu() {
           </div>
         </div>
 
-        {/* Track Info */}
         <div className="px-2 py-2 mb-1 border-b border-white/5 pb-3 flex items-center gap-3 pointer-events-none">
           {currentTrack ? (
             <>
@@ -192,7 +188,6 @@ export default function TrayMenu() {
           )}
         </div>
 
-        {/* Controls */}
         <div className="flex flex-col gap-0.5 mt-1">
           <button onClick={() => handleAction('play_pause')} className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-foreground/10 transition-colors text-xs font-medium w-full text-left">
             {isPlaying ? <Pause className="w-4 h-4 text-primary" /> : <Play className="w-4 h-4 text-primary" />}
@@ -214,7 +209,6 @@ export default function TrayMenu() {
 
         <div className="h-px bg-white/5 my-1.5 mx-1"></div>
 
-        {/* Actions */}
         <div className="flex flex-col gap-0.5">
           <button 
             onClick={() => handleAction('favorite')}

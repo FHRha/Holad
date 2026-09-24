@@ -164,7 +164,6 @@ export default function RadioView() {
     // Pick 5 random artists
     const shuffled = [...allArtists].sort(() => Math.random() - 0.5).slice(0, 5);
     
-    // Fetch top tracks for each
     const tracksPromises = shuffled.map(async (a) => {
       try {
         const topSongs = await getTopSongs(a.name, 10, a.id);
@@ -208,7 +207,6 @@ export default function RadioView() {
     <div className="flex-1 bg-transparent md:bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar pt-10 pb-32 md:pb-8">
       <div className="max-w-6xl mx-auto space-y-12">
         
-        {/* Main Stations */}
         <section>
           <h2 className="text-2xl font-bold text-foreground mb-6">{t('views.radio_main')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -251,7 +249,6 @@ export default function RadioView() {
           </div>
         </section>
 
-        {/* Genre Stations */}
         {visibleGenres.length > 0 && (
           <section>
             <h2 className="text-2xl font-bold text-foreground mb-6">{t('views.radio_genres')}</h2>

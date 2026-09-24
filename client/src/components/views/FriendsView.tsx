@@ -91,7 +91,6 @@ export default function FriendsView() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-transparent md:bg-background custom-scrollbar pb-32 md:pb-12">
-      {/* Header */}
       <div className="px-4 pt-4 pb-2 md:px-8 md:pt-8 md:pb-4 flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <button 
@@ -110,7 +109,6 @@ export default function FriendsView() {
           </div>
         </div>
 
-        {/* Tab switcher */}
         <div className="flex max-w-md bg-card border border-border p-1 rounded-2xl gap-1">
           <button
             onClick={() => setActiveTab('friends')}
@@ -151,11 +149,9 @@ export default function FriendsView() {
         </div>
       </div>
 
-      {/* Main Container */}
       <div className="px-4 md:px-8 max-w-3xl space-y-4 pt-2">
         {activeTab === 'friends' ? (
           <>
-            {/* My Tag Card */}
             <div className="flex items-center justify-between p-4 bg-card border border-border rounded-2xl shadow-sm">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-11 h-11 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-base shrink-0 ring-1 ring-primary/30">
@@ -177,7 +173,6 @@ export default function FriendsView() {
               </button>
             </div>
 
-            {/* Incoming Jam Invites */}
             {activeInvites.length > 0 && (
               <div className="space-y-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-primary px-1 flex items-center gap-1.5">
@@ -237,7 +232,6 @@ export default function FriendsView() {
               </div>
             )}
 
-            {/* Incoming Friend Requests */}
             {pendingRequests.incoming.length > 0 && (
               <div className="space-y-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-secondary px-1">
@@ -278,7 +272,6 @@ export default function FriendsView() {
               </div>
             )}
 
-            {/* Add Friend Input & Live Search */}
             <div className="space-y-2">
               <span className="text-xs font-bold uppercase tracking-wider text-secondary px-1">
                 {t('social.add_friend', 'Добавить в друзья')}
@@ -316,7 +309,6 @@ export default function FriendsView() {
                 )}
               </form>
 
-              {/* Search Results Dropdown */}
               {friendSearchInput.trim().length > 0 && (
                 <div className="space-y-2 bg-card border border-border rounded-2xl p-3 max-h-72 overflow-y-auto shadow-xl">
                   {isSearching ? (
@@ -428,7 +420,6 @@ export default function FriendsView() {
               )}
             </div>
 
-            {/* Friends List */}
             <div className="space-y-2 pt-3">
               <span className="text-xs font-bold uppercase tracking-wider text-secondary px-1">
                 {t('social.tab_friends', 'Друзья')} ({friends.length})
@@ -506,7 +497,6 @@ export default function FriendsView() {
               )}
             </div>
 
-            {/* Outgoing Requests */}
             {pendingRequests.outgoing.length > 0 && (
               <div className="space-y-2 pt-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-secondary px-1">
@@ -534,7 +524,6 @@ export default function FriendsView() {
             )}
           </>
         ) : (
-          /* Jam Session Tab */
           <div className="space-y-4">
             <div className="space-y-3 bg-card border border-border rounded-2xl p-4 shadow-sm">
               <span className="text-xs font-bold uppercase tracking-wider text-secondary px-1">
@@ -594,7 +583,6 @@ export default function FriendsView() {
               </div>
             </div>
 
-            {/* Jam Session Controls */}
             <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
               <JamSessionControl />
             </div>

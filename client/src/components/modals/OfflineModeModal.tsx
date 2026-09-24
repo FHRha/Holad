@@ -51,7 +51,6 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
         className="bg-card w-full max-w-md rounded-2xl shadow-2xl border border-white/10 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="p-6 pb-4 flex items-start justify-between">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-inner">
@@ -77,7 +76,6 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
           </button>
         </div>
 
-        {/* Body */}
         <div className="px-6 py-2 flex flex-col gap-4 text-sm text-secondary">
           <p className="leading-relaxed text-secondary/90">
             {t('offline_modal.description')}
@@ -98,7 +96,6 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
             </div>
           </div>
 
-          {/* Don't show again Checkbox */}
           <label className="flex items-center gap-3 cursor-pointer select-none py-2 px-1 rounded-lg hover:bg-white/5 transition-colors group">
             <input
               type="checkbox"
@@ -113,7 +110,6 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
           </label>
         </div>
 
-        {/* Footer */}
         <div className="p-6 pt-4 border-t border-white/5 bg-white/[0.02] flex items-center justify-end gap-2.5">
           <button
             onClick={handleToggle}

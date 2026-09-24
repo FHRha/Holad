@@ -769,7 +769,6 @@ export default function MobileSettingsView() {
       icon: <HardDrive className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-6 mt-4">
-          {/* 1. Storage Stats Bar (Mobile Optimized) */}
           <div className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
               {t('settings.storage_usage')}
@@ -777,7 +776,6 @@ export default function MobileSettingsView() {
             <StorageStatsBar isMobile={true} key={statsKey} onRefreshRequested={refreshStats} />
           </div>
 
-          {/* 2. Storage Limit Control */}
           <div className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
               {t('settings.storage_limit_title')}
@@ -785,7 +783,6 @@ export default function MobileSettingsView() {
             <StorageLimitControl isMobile={true} />
           </div>
 
-          {/* 3. Image Memory Limit Control */}
           <div className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
               {t('settings.memory_limit')}
@@ -793,7 +790,6 @@ export default function MobileSettingsView() {
             <ImageMemoryLimitControl isMobile={true} />
           </div>
 
-          {/* 3. Downloaded Music Library Grid */}
           <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
             <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
               {t('settings.downloaded_music')}
@@ -805,7 +801,6 @@ export default function MobileSettingsView() {
             />
           </div>
 
-          {/* 4. Danger Zone Block */}
           <StorageDangerZone isMobile={true} onActionComplete={refreshStats} />
         </div>
       )

@@ -52,7 +52,6 @@ export default function LibraryView() {
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-transparent md:bg-[#121212] overflow-hidden relative md:pb-0">
-      {/* Desktop Liquid Glass Top Navigation */}
       <div className="hidden md:flex absolute top-4 left-4 right-4 z-50 bg-primary/10 backdrop-blur-2xl border border-primary/20 rounded-2xl shadow-lg shadow-primary/5 p-2 items-center justify-between overflow-x-auto hide-scrollbar gap-2">
         <NavTab to="/library/tracks" label={t('sidebar.tracks')} />
         <NavTab to="/library/albums" label={t('sidebar.albums')} />
@@ -60,7 +59,6 @@ export default function LibraryView() {
         <NavTab to="/library/playlists" label={t('sidebar.playlists')} />
       </div>
 
-      {/* Mobile Top Section */}
       <div className="md:hidden px-4 pt-4 pb-2 shrink-0 bg-background/80 backdrop-blur-xl z-10 relative">
         <div 
           className="flex items-center bg-card rounded-xl px-3 py-2.5 mb-4 border border-border cursor-text"
@@ -103,7 +101,6 @@ export default function LibraryView() {
           </button>
         </div>
         
-        {/* Mobile Tabs */}
         <div className="flex bg-card rounded-2xl p-1 gap-1 overflow-x-auto hide-scrollbar">
           <MobileNavTab to="/library/tracks" label={t('sidebar.tracks')} />
           <MobileNavTab to="/library/albums" label={t('sidebar.albums')} />
@@ -119,7 +116,6 @@ export default function LibraryView() {
           <Route path="/albums" element={<AlbumsView viewMode={viewMode} />} />
           <Route path="/artists" element={<ArtistsView />} />
           <Route path="/playlists" element={<PlaylistsView />} />
-          {/* Other routes will be added later */}
           <Route path="*" element={<div className="p-8 text-center text-secondary">{t('common.in_development')}</div>} />
         </Routes>
       </div>

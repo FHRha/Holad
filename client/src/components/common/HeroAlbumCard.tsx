@@ -243,7 +243,6 @@ export default function HeroAlbumCard({ album }: { album: any }) {
           }}
         />
 
-        {/* Rating Square */}
         {rating > 0 && (
           <div className="absolute top-0 right-0 w-8 h-8 bg-primary text-background text-sm font-bold rounded-bl-lg z-10 flex items-center justify-center [@media(hover:hover)]:group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
             {rating}
@@ -265,7 +264,6 @@ export default function HeroAlbumCard({ album }: { album: any }) {
           </div>
         )}
 
-        {/* Hover Overlay Buttons on Image */}
         <div className="absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 hidden md:flex [@media(hover:none)]:!hidden flex-col justify-between p-3 bg-black/50 z-20">
           <div className="flex justify-between items-start">
             <Heart 

@@ -79,13 +79,11 @@ export default function UnignoreTrackModal() {
   if (isMobile) {
     return createPortal(
       <>
-        {/* Backdrop */}
         <div 
           className="fixed inset-0 bg-black/60 z-[9998] animate-in fade-in duration-200"
           onClick={closeUnignoreModal}
         />
 
-        {/* Bottom Sheet */}
         <div 
           ref={sheetRef}
           className="fixed z-[9999] bottom-0 left-0 right-0 bg-card border-t border-black/10 dark:border-transparent rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] overflow-hidden px-5 pt-3 pb-8 animate-in slide-in-from-bottom-full duration-300"
@@ -110,12 +108,10 @@ export default function UnignoreTrackModal() {
             onPointerUp={(e) => handleDragEnd(e.clientY)}
             onPointerCancel={() => handleDragEnd()}
           >
-            {/* Header Drag Handle */}
             <div className="w-full pt-1 pb-3 flex justify-center cursor-grab active:cursor-grabbing">
               <div className="w-12 h-1.5 bg-foreground/20 rounded-full" />
             </div>
 
-            {/* Track Information Card */}
             <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-foreground/5 border border-black/5 dark:border-transparent mb-4 pointer-events-none">
               {coverUrl ? (
                 <img 
@@ -134,19 +130,16 @@ export default function UnignoreTrackModal() {
               </div>
             </div>
 
-            {/* Ignored Warning Badge */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 dark:border-transparent text-xs font-semibold mb-3 pointer-events-none">
               <Ban size={14} className="shrink-0" />
               <span>{t('common.unignore_track_title', 'Трек в игноре')}</span>
             </div>
 
-            {/* Explanation */}
             <p className="text-sm text-foreground/80 leading-relaxed mb-6 pointer-events-none">
               {t('common.unignore_track_desc', 'Этот трек находится в списке игнорируемых. Хотите убрать его из игнора и начать воспроизведение?')}
             </p>
           </div>
 
-          {/* Action Buttons in a Single Row with Equal Height */}
           <div className="flex items-center gap-3 w-full">
             <button
               onClick={closeUnignoreModal}
@@ -180,7 +173,6 @@ export default function UnignoreTrackModal() {
         onClick={(e) => e.stopPropagation()}
         onContextMenu={(e) => e.preventDefault()}
       >
-        {/* Modal Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 dark:border-transparent flex items-center justify-center text-red-500">
@@ -196,7 +188,6 @@ export default function UnignoreTrackModal() {
           </button>
         </div>
 
-        {/* Track Preview */}
         <div className="flex items-center gap-3 p-2.5 rounded-xl bg-foreground/5 border border-black/5 dark:border-transparent">
           {coverUrl ? (
             <img 
@@ -215,12 +206,10 @@ export default function UnignoreTrackModal() {
           </div>
         </div>
 
-        {/* Text */}
         <p className="text-sm text-foreground/80 leading-relaxed">
           {t('common.unignore_track_desc', 'Этот трек находится в списке игнорируемых. Хотите убрать его из игнора и начать воспроизведение?')}
         </p>
 
-        {/* Actions in a Single Row with Equal Height */}
         <div className="flex items-center gap-3 w-full pt-2">
           <button
             onClick={closeUnignoreModal}

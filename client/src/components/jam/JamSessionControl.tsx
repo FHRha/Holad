@@ -60,7 +60,6 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      {/* Participants List */}
       <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
         {participants.map((p) => (
           <div key={p.id} className="flex items-center justify-between bg-foreground/5 rounded-lg p-2">
@@ -93,7 +92,6 @@ export default function JamSessionControl({ hideCreate }: { hideCreate?: boolean
 
       <div className="h-[1px] w-full bg-foreground/10 my-1" />
 
-      {/* Controls */}
       <div className="flex flex-col gap-2 mt-2">
         <button 
           onClick={handleCopyLink}

@@ -203,7 +203,6 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
           }}
         />
 
-        {/* Top Banner (Rating Square - Desktop Only) */}
         {rating > 0 && (
           <div className="hidden md:flex absolute top-0 right-0 w-8 h-8 bg-primary text-background text-sm font-bold rounded-bl-lg z-10 items-center justify-center [@media(hover:hover)]:group-hover:opacity-0 transition-opacity duration-300 pointer-events-none">
             {rating}
@@ -225,7 +224,6 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
           </div>
         )}
 
-        {/* Mobile Info Overlay (Stars and Heart) */}
         <div className="md:hidden absolute bottom-2 left-2 right-2 flex justify-between items-center z-10 pointer-events-none">
           {rating > 0 && (
             <div className="flex items-center gap-1 text-primary text-xs font-bold bg-background/40 px-1.5 py-0.5 rounded-full pointer-events-auto">
@@ -240,7 +238,6 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
           )}
         </div>
 
-        {/* Hover Overlay Buttons on Image */}
         <div className={`absolute inset-0 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-all duration-300 flex [@media(hover:none)]:!hidden flex-col ${!isGuest ? 'justify-between' : 'justify-center items-center'} p-3 bg-background/50`}>
           {!isGuest && (
             <div className="flex justify-between items-start z-20 w-full">

@@ -77,7 +77,6 @@ export default function DownloadsView() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6 md:p-8 hide-scrollbar">
-      {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-black mb-2">{t('views.downloads')}</h1>
@@ -115,7 +114,6 @@ export default function DownloadsView() {
         </div>
       </div>
 
-      {/* Active & Queued Downloads Section (if any in progress) */}
       {activeOrFailedItems.length > 0 && (
         <div className="flex flex-col gap-3 mb-8">
           <h3 className="text-sm font-bold text-secondary uppercase tracking-wider">
@@ -226,7 +224,6 @@ export default function DownloadsView() {
         </div>
       )}
 
-      {/* Main Downloaded Music Grid & Library */}
       <DownloadedMusicGrid />
     </div>
   );

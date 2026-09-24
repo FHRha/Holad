@@ -252,7 +252,6 @@ export default function DownloadedMusicGrid({
 
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
-      {/* Header with Stats & Batch Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-background/50 p-4 rounded-xl border border-white/5">
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
@@ -267,7 +266,6 @@ export default function DownloadedMusicGrid({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Download Entire Library Button */}
           <button
             type="button"
             onClick={handleDownloadEntireLibrary}
@@ -296,7 +294,6 @@ export default function DownloadedMusicGrid({
             )}
           </button>
 
-          {/* Manage Downloads Modal Button */}
           {onManageClick && (
             <button
               type="button"
@@ -309,7 +306,6 @@ export default function DownloadedMusicGrid({
             </button>
           )}
 
-          {/* View Mode Toggle */}
           <div className="flex items-center bg-black/30 p-1 rounded-xl border border-white/5">
             <button
               type="button"
@@ -331,7 +327,6 @@ export default function DownloadedMusicGrid({
         </div>
       </div>
 
-      {/* Library feedback banner */}
       {libraryDownloadedMsg && (
         <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-xl text-xs animate-in fade-in">
           <Check size={16} className="text-green-400 shrink-0" />
@@ -339,10 +334,8 @@ export default function DownloadedMusicGrid({
         </div>
       )}
 
-      {/* Filter Tabs and Search Bar */}
       {completedItems.length > 0 && (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Tabs */}
           <div className="flex items-center gap-1.5 bg-background/50 p-1 rounded-xl border border-white/5 text-xs font-medium">
             <button
               type="button"
@@ -367,7 +360,6 @@ export default function DownloadedMusicGrid({
             </button>
           </div>
 
-          {/* Quick Search */}
           <div className="relative flex-1 sm:max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" />
             <input
@@ -381,9 +373,7 @@ export default function DownloadedMusicGrid({
         </div>
       )}
 
-      {/* Main Content: Grid or List */}
       {completedItems.length === 0 ? (
-        /* Empty State */
         <div className="flex flex-col items-center justify-center py-12 px-4 rounded-2xl bg-background/30 border border-dashed border-white/10 text-center">
           <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-3">
             <Music size={26} className="text-primary" />
@@ -405,13 +395,11 @@ export default function DownloadedMusicGrid({
           </button>
         </div>
       ) : filteredItems.length === 0 ? (
-        /* Search No Results */
         <div className="flex flex-col items-center justify-center py-10 text-secondary text-xs">
           <Search size={24} className="mb-2 text-[#808080]" />
           <span>{t('settings.no_matching_downloads')}</span>
         </div>
       ) : viewMode === 'grid' ? (
-        /* Grid Layout */
         <div className={`grid ${isMobile ? 'grid-cols-2 gap-2.5' : 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'}`}>
           {filteredItems.map(item => (
             <DownloadedCardItem
@@ -424,7 +412,6 @@ export default function DownloadedMusicGrid({
           ))}
         </div>
       ) : (
-        /* List Layout */
         <div className="flex flex-col gap-2">
           {filteredItems.map(item => (
             <DownloadedRowItem
@@ -504,7 +491,6 @@ function DownloadedCardItem({
         );
       }}
     >
-      {/* Cover Image Container */}
       <div className="relative aspect-square rounded-lg overflow-hidden bg-black/40 mb-2">
         {coverUrl ? (
             <img 
@@ -520,12 +506,10 @@ function DownloadedCardItem({
           </div>
         )}
 
-        {/* Type Badge */}
         <div className="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-[10px] font-bold text-white uppercase tracking-wider">
           {item.type === 'album' ? t('settings.album') : t('settings.track')}
         </div>
 
-        {/* Hover / Direct Play Button Overlay */}
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
           <button
             type="button"
@@ -537,7 +521,6 @@ function DownloadedCardItem({
           </button>
         </div>
 
-        {/* Delete button (top right) */}
         <button
           type="button"
           onClick={onDelete}
@@ -549,7 +532,6 @@ function DownloadedCardItem({
         </button>
       </div>
 
-      {/* Info */}
       <div className="flex flex-col min-w-0">
         <span className="text-xs font-bold text-foreground truncate" title={item.name}>
           {item.name}
@@ -629,7 +611,6 @@ function DownloadedRowItem({
       }}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        {/* Thumbnail with quick play button */}
         <div className="relative w-11 h-11 rounded-lg overflow-hidden bg-black/40 flex-shrink-0">
           {coverUrl ? (
             <img 
@@ -654,7 +635,6 @@ function DownloadedRowItem({
           </button>
         </div>
 
-        {/* Text Info */}
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-foreground truncate" title={item.name}>
@@ -670,7 +650,6 @@ function DownloadedRowItem({
         </div>
       </div>
 
-      {/* Meta & Delete Action */}
       <div className="flex items-center gap-3 shrink-0">
         <div className="hidden sm:flex flex-col text-right font-mono text-[10px] text-secondary">
           <span>{formatBytes(item.sizeBytes || item.totalBytes || 0)}</span>

@@ -108,7 +108,6 @@ export default function HistoryView() {
         </div>
       </div>
 
-      {/* Main Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
         <StatBlock icon={<Music size={24} />} value={stats.totalPlays} label={t('views.stat_tracks')} color="text-blue-400" bg="bg-blue-400/10" />
         <StatBlock icon={<Clock size={24} />} value={formatDuration(stats.totalListeningSeconds, t)} label={t('views.stat_time')} color="text-primary" bg="bg-primary/10" />
@@ -117,7 +116,6 @@ export default function HistoryView() {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Left Column: Top lists */}
         <div className="flex-[1.5] flex flex-col gap-8">
           
           <section className="bg-[#121212]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-5">
@@ -218,7 +216,6 @@ export default function HistoryView() {
           </section>
         </div>
 
-        {/* Right Column: History List */}
         <div className="flex-1 flex flex-col">
           <section className="bg-[#121212]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex-1 flex flex-col h-[600px]">
             <div className="flex items-center gap-2 mb-4">

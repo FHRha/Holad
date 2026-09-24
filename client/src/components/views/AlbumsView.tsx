@@ -159,7 +159,6 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
       />
       </div>
 
-      {/* Mobile Alphabetical Scrollbar */}
       <div className="md:hidden fixed right-0 top-[220px] bottom-[180px] w-6 flex flex-col items-center justify-between z-20 pointer-events-none">
         <div className="flex flex-col items-center gap-1 my-auto pointer-events-auto h-full overflow-y-auto hide-scrollbar py-2">
           {letters.map((letter, idx) => (

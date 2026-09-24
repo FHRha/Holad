@@ -45,16 +45,13 @@ export default function FlagIcon({ code, className = '', size = 'md' }: FlagIcon
           className="w-full h-full block"
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* 13 stripes */}
           <path fill="#bd3d44" d="M0 0h640v480H0z" />
           <path
             stroke="#ffffff"
             strokeWidth="37"
             d="M0 55.5h640M0 129.5h640M0 203.5h640M0 277.5h640M0 351.5h640M0 425.5h640"
           />
-          {/* Blue canton */}
           <path fill="#192f5d" d="M0 0h260v259H0z" />
-          {/* Star pattern */}
           <g fill="#ffffff">
             <g id="us-s">
               <g id="us-sx">

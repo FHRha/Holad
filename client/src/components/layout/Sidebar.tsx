@@ -223,7 +223,6 @@ export default function Sidebar() {
         </div>
       </div>
       
-      {/* Resizer */}
       <div 
         className="absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-foreground/10 active:bg-white/20 transition-colors z-20"
         onMouseDown={handleMouseDown}
@@ -272,7 +271,6 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
       }`}
       title={tooltip}
     >
-      {/* Icon Container */}
       <div className={`relative flex items-center justify-center ${!isWide ? 'w-full' : 'flex-shrink-0'}`}>
         {!isWide && isActive && (
           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-md" />
@@ -280,9 +278,7 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
 
         {isDownloading ? (
           <div className="relative w-7 h-7 flex items-center justify-center">
-            {/* Circular Progress Ring */}
             <svg className="w-7 h-7 -rotate-90" viewBox="0 0 32 32">
-              {/* Background Track */}
               <circle
                 cx="16"
                 cy="16"
@@ -291,7 +287,6 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
                 strokeWidth="2.5"
                 fill="none"
               />
-              {/* Animated Progress Ring */}
               <circle
                 cx="16"
                 cy="16"
@@ -310,7 +305,6 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
           <Download size={isWide ? 20 : 22} className="flex-shrink-0" />
         )}
 
-        {/* Compact Mode Badge (Top-Right of icon) */}
         {!isWide && totalActive > 0 && (
           <span className="absolute -top-1.5 right-1 min-w-[16px] h-4 px-1 flex items-center justify-center text-[9px] font-bold bg-primary text-black rounded-full shadow-md animate-in zoom-in-50 duration-200">
             {totalActive > 99 ? '99+' : totalActive}
@@ -318,7 +312,6 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
         )}
       </div>
 
-      {/* Expanded / Wide Mode Info */}
       {isWide ? (
         <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center justify-between gap-1">
@@ -336,7 +329,6 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
             ) : null}
           </div>
 
-          {/* Dynamic Status Text & Mini Progress Bar */}
           {isDownloading && (
             <div className="w-full mt-1 flex flex-col gap-1">
               <div className="flex items-center justify-between text-[10px] text-secondary">
@@ -359,7 +351,6 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
           )}
         </div>
       ) : (
-        /* Compact Mode Label */
         <span className="text-[10px] font-bold leading-normal mt-1 px-1 text-center truncate w-full pb-0.5">
           {isDownloading ? `${avgProgress}%` : t('sidebar.downloads')}
         </span>
