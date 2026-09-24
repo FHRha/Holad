@@ -69,6 +69,7 @@ export default function AlbumView() {
             <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-end text-center md:text-left relative">
               <button 
                 onClick={() => navigate(-1)}
+                aria-label={t('common.back', 'Назад')}
                 className="md:hidden absolute -top-2 left-0 p-2 rounded-full bg-black/40 hover:bg-black/60 text-foreground transition-colors z-20"
               >
                 <ArrowLeft size={20} />
@@ -93,7 +94,11 @@ export default function AlbumView() {
             <div className="text-lg md:text-xl font-bold text-foreground mb-4 w-max"><ArtistLinks artistString={album.artist} artistId={album.artistId} /></div>
             
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 w-full">
-              <button onClick={handlePlayAll} className="w-14 h-14 md:w-auto md:h-auto md:px-8 md:py-3 bg-primary md:bg-foreground text-background rounded-full font-bold text-sm flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-xl">
+              <button 
+                onClick={handlePlayAll} 
+                aria-label={t('views.play', 'Воспроизведение')}
+                className="w-14 h-14 md:w-auto md:h-auto md:px-8 md:py-3 bg-primary md:bg-foreground text-black md:text-background rounded-full font-bold text-sm flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-xl"
+              >
                 <Play fill="currentColor" size={24} className="md:size-18 ml-1 md:ml-0" /> <span className="hidden md:inline">{t('views.play')}</span>
               </button>
               
@@ -126,11 +131,19 @@ export default function AlbumView() {
                     ))}
                   </div>
                   
-                  <button onClick={handleLike} className="hover:scale-110 transition-transform ml-2">
+                  <button 
+                    onClick={handleLike} 
+                    aria-label={isLiked ? t('player.tooltip_like_remove') : t('player.tooltip_like_add')}
+                    className="hover:scale-110 transition-transform ml-2"
+                  >
                     <Heart size={28} className={isLiked ? "text-primary" : "text-foreground/70 hover:text-foreground"} fill={isLiked ? "currentColor" : "none"} />
                   </button>
                   
-                  <button onClick={() => toggleAlbumExclude(album.id)} className="hover:scale-110 transition-transform ml-2">
+                  <button 
+                    onClick={() => toggleAlbumExclude(album.id)} 
+                    aria-label={excludedAlbumIds.includes(album.id) ? t('player.tooltip_exclude_remove') : t('player.tooltip_exclude_add')}
+                    className="hover:scale-110 transition-transform ml-2"
+                  >
                     <Ban size={28} className={excludedAlbumIds.includes(album.id) ? "text-red-500" : "text-foreground/70 hover:text-foreground"} />
                   </button>
                 </>
@@ -138,6 +151,7 @@ export default function AlbumView() {
               
               <button 
                 onClick={(e) => openMenu(e.clientX, e.clientY, album, 'album')}
+                aria-label={t('common.more_options', 'Ещё действия')}
                 className="text-foreground/70 hover:text-foreground transition-colors ml-2"
               >
                 <MoreHorizontal size={28} />

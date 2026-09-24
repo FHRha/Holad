@@ -233,6 +233,7 @@ export default function HoladConnectMenu() {
     <div className="relative" ref={menuRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={t('player.connect_to_device', 'Подключиться к устройству')}
         className={`transition-colors flex items-center justify-center w-7 h-7 rounded-lg hover:bg-foreground/5 ${isActive ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
         title={t('player.connect_to_device')}
       >

@@ -107,7 +107,7 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
   const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const coverUrl = getCoverArtUrl(album.coverArt || album.id, 300);
+  const coverUrl = getCoverArtUrl(album.coverArt || album.id, typeof window !== 'undefined' && window.innerWidth < 768 ? 160 : 300);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -264,6 +264,7 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
           <div className="flex items-center justify-center gap-2 lg:gap-4 mt-2">
             <button 
               onClick={handlePlayNext}
+              aria-label="Играть следующим"
               className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-background/40 hover:bg-black/60 text-foreground flex items-center justify-center transition-colors"
             >
               <ListPlus size={20} strokeWidth={1.5} />
@@ -271,6 +272,7 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
 
             <button 
               onClick={handlePlayNow}
+              aria-label="Слушать альбом"
               className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform shadow-xl"
             >
               <Play fill="currentColor" size={24} className="ml-1" />
@@ -278,6 +280,7 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
 
             <button 
               onClick={handleAddToQueue}
+              aria-label="Добавить в очередь"
               className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-background/40 hover:bg-black/60 text-foreground flex items-center justify-center transition-colors"
             >
               <SkipForward size={20} strokeWidth={1.5} />

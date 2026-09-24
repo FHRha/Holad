@@ -116,6 +116,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
         <div className="flex gap-2">
           <button 
             onClick={() => scroll('left')} 
+            aria-label="Прокрутить назад"
             className={`w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 hover:bg-foreground/10 transition-colors ${!canScrollLeft ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollLeft}
           >
@@ -123,6 +124,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
           </button>
           <button 
             onClick={() => scroll('right')} 
+            aria-label="Прокрутить вперёд"
             className={`w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 hover:bg-foreground/10 transition-colors ${!canScrollRight ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollRight}
           >
@@ -134,14 +136,17 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
+        tabIndex={0}
+        role="region"
+        aria-label={title}
         className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar py-4 -my-4"
         style={{ scrollSnapType: 'x mandatory' }}
       >
         {visibleGenres.map((genre, idx) => {
           const spotifyColors = [
-            'bg-[#E13300]', 'bg-[#1E3264]', 'bg-[#E8115B]', 'bg-[#148A08]', 
-            'bg-[#509BF5]', 'bg-[#FF4632]', 'bg-[#BA5D07]', 'bg-[#7358FF]', 
-            'bg-[#8D67AB]', 'bg-[#477D95]', 'bg-[#E1118C]', 'bg-[#006450]'
+            'bg-[#BA2500]', 'bg-[#1E3264]', 'bg-[#C20E4A]', 'bg-[#0E6E06]', 
+            'bg-[#1960B8]', 'bg-[#C42818]', 'bg-[#944703]', 'bg-[#5B3EE6]', 
+            'bg-[#6E428C]', 'bg-[#2E586C]', 'bg-[#BA0D72]', 'bg-[#006450]'
           ];
           const colorClass = spotifyColors[idx % spotifyColors.length];
           const isThisLoading = loadingStation === genre.value;
@@ -162,7 +167,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
                   </h3>
                   
                   <div className="flex justify-between items-end">
-                    <p className="text-xs text-white/80 font-bold drop-shadow-md">
+                    <p className="text-xs text-white font-black drop-shadow-md">
                       {genre.songCount} {t('views.tracks')}
                     </p>
                     <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out shadow-xl transform translate-y-2 group-hover:translate-y-0">

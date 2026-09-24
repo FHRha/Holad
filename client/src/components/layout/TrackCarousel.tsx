@@ -63,6 +63,7 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
         <div className="flex gap-2">
           <button 
             onClick={() => scroll('left')} 
+            aria-label="Прокрутить назад"
             className={`w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 hover:bg-foreground/10 transition-colors ${!canScrollLeft ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollLeft}
           >
@@ -70,6 +71,7 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
           </button>
           <button 
             onClick={() => scroll('right')} 
+            aria-label="Прокрутить вперёд"
             className={`w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 hover:bg-foreground/10 transition-colors ${!canScrollRight ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollRight}
           >
@@ -81,6 +83,9 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
+        tabIndex={0}
+        role="region"
+        aria-label={title}
         className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar py-4 -my-4"
         style={{ scrollSnapType: 'x mandatory' }}
       >

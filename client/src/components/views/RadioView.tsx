@@ -255,9 +255,9 @@ export default function RadioView() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {visibleGenres.map((genre: any, idx: number) => {
                 const spotifyColors = [
-                  'bg-[#E13300]', 'bg-[#1E3264]', 'bg-[#E8115B]', 'bg-[#148A08]', 
-                  'bg-[#509BF5]', 'bg-[#FF4632]', 'bg-[#BA5D07]', 'bg-[#7358FF]', 
-                  'bg-[#8D67AB]', 'bg-[#477D95]', 'bg-[#E1118C]', 'bg-[#006450]'
+                  'bg-[#BA2500]', 'bg-[#1E3264]', 'bg-[#C20E4A]', 'bg-[#0E6E06]', 
+                  'bg-[#1960B8]', 'bg-[#C42818]', 'bg-[#944703]', 'bg-[#5B3EE6]', 
+                  'bg-[#6E428C]', 'bg-[#2E586C]', 'bg-[#BA0D72]', 'bg-[#006450]'
                 ];
                 const colorClass = spotifyColors[idx % spotifyColors.length];
                 

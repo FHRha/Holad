@@ -288,6 +288,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
           <div className="flex items-center justify-center gap-3 lg:gap-5">
             <button 
               onClick={handlePlayNext}
+              aria-label="Играть следующим"
               className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
             >
               <ListPlus size={20} strokeWidth={1.5} />
@@ -295,6 +296,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
             <button 
               onClick={handlePlayNow}
+              aria-label="Слушать альбом"
               className="w-14 h-14 lg:w-16 lg:h-16 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform shadow-xl"
             >
               <Play fill="currentColor" size={24} className="ml-1" />
@@ -302,6 +304,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
             <button 
               onClick={handleAddToQueue}
+              aria-label="Добавить в очередь"
               className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
             >
               <SkipForward size={20} strokeWidth={1.5} />

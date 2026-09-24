@@ -44,6 +44,7 @@ export default function ThemeSelector({ align = 'right' }: { align?: 'left' | 'r
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={t('settings.theme_title', 'Тема оформления')}
         className="w-10 h-10 rounded-full bg-foreground/5 hover:bg-foreground/10 flex items-center justify-center text-secondary hover:text-foreground transition-colors cursor-pointer"
         title={t('settings.theme_title') || 'Theme'}
       >

@@ -13,10 +13,6 @@ import ThemeSelector from '../common/ThemeSelector';
 
 export default function LoginView() {
   const isDemoMode = useDemoStore(state => state.isDemoMode);
-  if (isDemoMode) {
-    return <Navigate to="/" replace />;
-  }
-
   const { t } = useTranslation();
   const [url, setUrl] = useState(useAuthStore.getState().url || 'https://');
   const [username, setUsername] = useState(useAuthStore.getState().user || '');
@@ -28,6 +24,10 @@ export default function LoginView() {
   
   const navigate = useNavigate();
   const { setCredentials, setAuthenticated } = useAuthStore();
+
+  if (isDemoMode) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +85,7 @@ export default function LoginView() {
   };
 
   return (
-    <div className="h-full w-full bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <main className="h-full w-full bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
         <ThemeSelector />
         <LanguageSelector />
@@ -153,7 +153,8 @@ export default function LoginView() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-foreground transition-colors"
+                aria-label={showPassword ? t('views.hide_password', 'Скрыть пароль') : t('views.show_password', 'Показать пароль')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center p-1 text-secondary hover:text-foreground transition-colors"
               >
                 {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
               </button>
@@ -193,6 +194,6 @@ export default function LoginView() {
           )}
         </form>
       </div>
-    </div>
+    </main>
   );
 }

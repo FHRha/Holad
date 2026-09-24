@@ -20,6 +20,7 @@ import LongPressWrapper from '../common/LongPressWrapper';
 import { formatGenre } from '../../utils/formatters';
 
 function ScrollableSection({ title, children, onRefresh }: { title: string, children: React.ReactNode, onRefresh?: () => void }) {
+  const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -46,20 +47,29 @@ function ScrollableSection({ title, children, onRefresh }: { title: string, chil
         <h2 className="text-2xl font-bold text-foreground tracking-tight">{title}</h2>
         <div className="flex items-center gap-3 text-secondary">
           {onRefresh && (
-            <button onClick={() => {
-              onRefresh();
-              scrollRef.current?.scrollTo({ left: 0, behavior: 'smooth' });
-            }} className="hover:text-foreground transition-colors active:scale-95">
+            <button 
+              onClick={() => {
+                onRefresh();
+                scrollRef.current?.scrollTo({ left: 0, behavior: 'smooth' });
+              }} 
+              aria-label={t('common.refresh', 'Обновить')}
+              className="hover:text-foreground transition-colors active:scale-95"
+            >
               <RefreshCw size={20} />
             </button>
           )}
           {canScrollLeft && (
-            <button onClick={() => scroll('left')} className="hover:text-foreground transition-colors active:scale-95">
+            <button 
+              onClick={() => scroll('left')} 
+              aria-label={t('common.scroll_left', 'Прокрутить назад')}
+              className="hover:text-foreground transition-colors active:scale-95"
+            >
               <ChevronLeft size={24} />
             </button>
           )}
           <button 
             onClick={() => scroll('right')} 
+            aria-label={t('common.scroll_right', 'Прокрутить вперёд')}
             className={`transition-colors active:scale-95 ${canScrollRight ? 'hover:text-foreground' : 'opacity-30 cursor-not-allowed'}`}
             disabled={!canScrollRight}
           >
@@ -70,6 +80,9 @@ function ScrollableSection({ title, children, onRefresh }: { title: string, chil
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
+        tabIndex={0}
+        role="region"
+        aria-label={title}
         className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 -mx-4 px-4 snap-x snap-mandatory scroll-pl-4"
         style={{ scrollSnapType: 'x mandatory' }}
       >
@@ -251,6 +264,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
           </div>
           <button 
             onClick={() => setIsJamModalOpen(true)}
+            aria-label={t('social.tab_friends_button', 'Друзья')}
             className={`relative h-[44px] w-[44px] flex-shrink-0 flex items-center justify-center rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all ${roomId ? 'bg-primary text-black' : 'bg-card border border-border text-secondary'}`}
             title={t('social.tab_friends_button', 'Друзья')}
           >
@@ -303,7 +317,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
             <button 
               onClick={startRandomRadio}
               disabled={loadingStation === 'random'}
-              className="flex-shrink-0 flex items-center bg-primary text-primary-foreground border border-transparent rounded-full pl-4 pr-3 py-2 font-bold text-[15px] transition-all hover:scale-105 active:scale-95 shadow-md disabled:opacity-50"
+              className="flex-shrink-0 flex items-center bg-primary text-black border border-transparent rounded-full pl-4 pr-3 py-2 font-bold text-[15px] transition-all hover:scale-105 active:scale-95 shadow-md disabled:opacity-50"
             >
               {loadingStation === 'random' ? <Loader2 size={18} className="animate-spin mr-2" /> : <Shuffle size={18} className="mr-2" />}
               {t('common.shuffle')}
@@ -311,9 +325,9 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
             </button>
             {visibleGenres.map((g, idx) => {
               const spotifyColors = [
-                'bg-[#E13300]', 'bg-[#1E3264]', 'bg-[#E8115B]', 'bg-[#148A08]', 
-                'bg-[#509BF5]', 'bg-[#FF4632]', 'bg-[#BA5D07]', 'bg-[#7358FF]', 
-                'bg-[#8D67AB]', 'bg-[#477D95]', 'bg-[#E1118C]', 'bg-[#006450]'
+                'bg-[#BA2500]', 'bg-[#1E3264]', 'bg-[#C20E4A]', 'bg-[#0E6E06]', 
+                'bg-[#1960B8]', 'bg-[#C42818]', 'bg-[#944703]', 'bg-[#5B3EE6]', 
+                'bg-[#6E428C]', 'bg-[#2E586C]', 'bg-[#BA0D72]', 'bg-[#006450]'
               ];
               const colorClass = spotifyColors[idx % spotifyColors.length];
 
@@ -443,7 +457,7 @@ function FilterChip({ icon, label, isActive, onClick, testId }: { icon: React.Re
       data-testid={testId}
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
         isActive 
-          ? 'bg-primary text-primary-foreground border-transparent shadow-md' 
+          ? 'bg-primary text-black border-transparent shadow-md' 
           : 'bg-card border-border text-secondary hover:text-foreground hover:bg-muted'
       }`}
     >

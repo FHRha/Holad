@@ -132,6 +132,7 @@ export default function VolumeSlider({
       onPointerDown={handlePointerDown}
       onWheel={handleWheel}
       role="slider"
+      aria-label="Громкость"
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(clampedVal * 100)}
