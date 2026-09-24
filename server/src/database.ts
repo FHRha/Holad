@@ -366,8 +366,8 @@ export function decrypt(text: string): string | null {
       const ivHex = parts[1];
       const tagHex = parts[2];
       const dataHex = parts[3];
-      if (!ivHex || !tagHex || !dataHex) return null;
-      const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(ivHex, 'hex'));
+      if (!ivHex || !tagHex || !dataHex || tagHex.length !== 32) return null;
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(ivHex, 'hex'), { authTagLength: 16 });
       decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
       let decryptedStr = decipher.update(dataHex, 'hex', 'utf8');
       decryptedStr += decipher.final('utf8');
@@ -545,19 +545,19 @@ export function saveIntegrations(userId: string, items: { integration_name: stri
 
 export function deleteCustomPlaylist(id: string, userId?: string): boolean {
   const transaction = db.transaction(() => {
-    if (userId) {
-      const owner = db.prepare('SELECT user_id FROM playlists WHERE id = ?').get(id) as { user_id?: string } | undefined;
-      if (owner && owner.user_id && owner.user_id !== userId) {
+    const owner = db.prepare('SELECT user_id FROM playlists WHERE id = ?').get(id) as { user_id?: string } | undefined;
+    if (!owner) {
+      return false;
+    }
+    // If playlist is owned by a user, only that user can delete it
+    if (owner.user_id) {
+      if (!userId || owner.user_id !== userId) {
         return false;
       }
-      db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(id);
-      const res = db.prepare('DELETE FROM playlists WHERE id = ? AND (user_id = ? OR user_id IS NULL)').run(id, userId);
-      return res.changes > 0;
-    } else {
-      db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(id);
-      const res = db.prepare('DELETE FROM playlists WHERE id = ?').run(id);
-      return res.changes > 0;
     }
+    db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(id);
+    const res = db.prepare('DELETE FROM playlists WHERE id = ?').run(id);
+    return res.changes > 0;
   });
   return transaction();
 }
@@ -814,10 +814,14 @@ export function reconcileExclusion(
 
 export function reconcilePlaylistTracks(
   playlistId: string,
-  replacements: { oldId: string; newId: string }[]
+  replacements: { oldId: string; newId: string }[],
+  userId?: string
 ): boolean {
-  const pl = db.prepare('SELECT id, songs FROM playlists WHERE id = ?').get(playlistId) as { id: string; songs?: string } | undefined;
+  const pl = db.prepare('SELECT id, user_id, songs FROM playlists WHERE id = ?').get(playlistId) as { id: string; user_id?: string; songs?: string } | undefined;
   if (!pl || !Array.isArray(replacements) || replacements.length === 0) {
+    return false;
+  }
+  if (userId && pl.user_id && pl.user_id !== userId) {
     return false;
   }
 

@@ -21,21 +21,29 @@ interface PlaylistStore {
   removeTrack: (playlistId: string, trackId: string) => void;
 }
 
+import { useAuthStore } from './authStore';
+
 export async function syncCustomPlaylistToServer(playlist: CustomPlaylist): Promise<void> {
   const baseUrl = getHoladServerUrl();
+  const user = useAuthStore.getState().user;
   const safeTrackIds = Array.isArray(playlist.trackIds) ? playlist.trackIds.slice(0, 200) : [];
   const safeTracks = Array.isArray(playlist.tracks) ? playlist.tracks.slice(0, 200) : undefined;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (user) {
+    headers['x-user-id'] = encodeURIComponent(user);
+  }
   const res = await fetch(`${baseUrl}/api/custom-playlists`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       id: playlist.id,
       name: playlist.name,
       description: playlist.description,
       trackIds: safeTrackIds,
       tracks: safeTracks,
+      userId: user || undefined,
     }),
   });
   if (!res.ok) {
@@ -46,8 +54,15 @@ export async function syncCustomPlaylistToServer(playlist: CustomPlaylist): Prom
 export async function deleteCustomPlaylistFromServer(id: string): Promise<void> {
   try {
     const baseUrl = getHoladServerUrl();
-    const res = await fetch(`${baseUrl}/api/custom-playlists/${encodeURIComponent(id)}`, {
+    const user = useAuthStore.getState().user;
+    const headers: Record<string, string> = {};
+    const query = user ? `?userId=${encodeURIComponent(user)}` : '';
+    if (user) {
+      headers['x-user-id'] = encodeURIComponent(user);
+    }
+    const res = await fetch(`${baseUrl}/api/custom-playlists/${encodeURIComponent(id)}${query}`, {
       method: 'DELETE',
+      headers,
     });
     if (!res.ok && res.status !== 404) {
       console.error(`Failed to delete custom playlist from server: ${res.statusText}`);

@@ -150,27 +150,38 @@ function isTargetServerAllowed(urlString: string): boolean {
   try {
     const parsed = new URL(urlString);
     const host = parsed.hostname.toLowerCase();
-    // Always permit localhost / loopback
-    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
-      return true;
+    
+    // Security: Strictly block cloud metadata endpoints (AWS, GCP, Azure, etc.)
+    if (
+      host === '169.254.169.254' || 
+      host.startsWith('169.254.') || 
+      host === 'metadata.google.internal' ||
+      host === 'instance-data'
+    ) {
+      return false;
     }
-    // If no accounts yet, allow for first-time configuration
+
+    // If no accounts yet, allow localhost and private network for first-time setup
     if (navidromeAccounts.length === 0) {
       return true;
     }
-    // Check against authorized Navidrome account hosts
+
+    const isLoopback = (h: string) => h === 'localhost' || h === '127.0.0.1' || h === '::1';
+    const isPrivateIp = (h: string) => /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(h);
+    const targetPort = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
+
+    // Check against authorized Navidrome account hosts and matching ports
     return navidromeAccounts.some(account => {
       try {
         const accountUrl = new URL(account.url);
         const accountHost = accountUrl.hostname.toLowerCase();
-        if (accountHost === host) return true;
-
-        // Allow localhost <-> LAN IP (private network) interoperability for local servers
-        const isLoopback = (h: string) => h === 'localhost' || h === '127.0.0.1' || h === '::1';
-        const isPrivateIp = (h: string) => /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(h);
         const accountPort = accountUrl.port || (accountUrl.protocol === 'https:' ? '443' : '80');
-        const targetPort = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
 
+        if (accountHost === host && accountPort === targetPort) {
+          return true;
+        }
+
+        // Allow localhost <-> LAN IP (private network) interoperability for local servers on matching port
         if (accountPort === targetPort) {
           if ((isLoopback(accountHost) && (isLoopback(host) || isPrivateIp(host))) ||
               (isPrivateIp(accountHost) && (isLoopback(host) || isPrivateIp(host)))) {
@@ -422,7 +433,7 @@ app.delete(['/api/custom-playlists/:id', '/Holad/api/custom-playlists/:id'], (re
   if (!id || typeof id !== 'string' || !PLAYLIST_ID_REGEX.test(id)) {
     return res.status(400).json({ error: 'Invalid ID format' });
   }
-  const userId = (req.query.userId as string) || (req.headers['x-user-id'] as string) || undefined;
+  const userId = (req.query.userId as string) || (req.headers['x-user-id'] as string) || (req.headers['x-user'] as string) || undefined;
   try {
     const deleted = database.deleteCustomPlaylist(id, userId);
     if (deleted) {
@@ -650,9 +661,33 @@ const validateRestAuth = async (req: express.Request, res: express.Response, nex
     return res.status(401).send('Room mismatch');
   }
 
-  const isWhitelisted = navidromeAccounts.length === 0 || navidromeAccounts.some(a => a.user.toLowerCase() === user.toLowerCase() || a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
-  if (!isWhitelisted) {
-    return res.status(403).send('Forbidden: Unauthorized server URL');
+  const isWhitelisted = navidromeAccounts.length === 0 || navidromeAccounts.some(a => {
+    if (a.user.toLowerCase() !== user.toLowerCase()) return false;
+    try {
+      const accountUrl = new URL(a.url);
+      const reqUrl = new URL(url);
+      const accountPort = accountUrl.port || (accountUrl.protocol === 'https:' ? '443' : '80');
+      const reqPort = reqUrl.port || (reqUrl.protocol === 'https:' ? '443' : '80');
+      if (accountPort !== reqPort) return false;
+
+      const isLoopback = (h: string) => h === 'localhost' || h === '127.0.0.1' || h === '::1';
+      const isPrivateIp = (h: string) => /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(h);
+      const accHost = accountUrl.hostname.toLowerCase();
+      const reqHost = reqUrl.hostname.toLowerCase();
+
+      if (accHost === reqHost) return true;
+      if ((isLoopback(accHost) && (isLoopback(reqHost) || isPrivateIp(reqHost))) ||
+          (isPrivateIp(accHost) && (isLoopback(reqHost) || isPrivateIp(reqHost)))) {
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  });
+
+  if (!isWhitelisted || !isTargetServerAllowed(url)) {
+    return res.status(403).send('Forbidden: Unauthorized server URL or user');
   }
 
   const cacheKey = `${user}:${token}`;
@@ -939,12 +974,16 @@ app.post('/api/holad/exclusions/:roomId/reconcile', validateRestAuth, express.js
 
 app.post(['/api/custom-playlists/:id/reconcile', '/Holad/api/custom-playlists/:id/reconcile'], express.json(), (req, res) => {
   const id = req.params.id as string;
+  const userId = (req.headers['x-user-id'] as string) || (req.headers['x-user'] as string) || (req.query.userId as string) || undefined;
   try {
     const { replacements } = req.body || {};
     if (!Array.isArray(replacements)) {
       return res.status(400).json({ error: 'replacements must be an array' });
     }
-    const reconciled = database.reconcilePlaylistTracks(id, replacements);
+    const reconciled = database.reconcilePlaylistTracks(id, replacements, userId);
+    if (!reconciled) {
+      return res.status(404).json({ error: 'Playlist not found or permission denied' });
+    }
     return res.json({ ok: true, reconciled });
   } catch (error) {
     console.error('Error reconciling playlist tracks:', error);
@@ -1663,7 +1702,28 @@ async function verifySubsonicCredentials(user: string, token: string, salt: stri
     return true;
   }
 
-  const isWhitelisted = !!process.env.NAVIDROME_URL || navidromeAccounts.length === 0 || navidromeAccounts.some(a => a.user === user || a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
+  if (!isTargetServerAllowed(url)) {
+    return false;
+  }
+
+  const isWhitelisted = !!process.env.NAVIDROME_URL || navidromeAccounts.length === 0 || navidromeAccounts.some(a => {
+    if (a.user.toLowerCase() !== user.toLowerCase()) return false;
+    try {
+      const accountUrl = new URL(a.url);
+      const reqUrl = new URL(url);
+      const accountPort = accountUrl.port || (accountUrl.protocol === 'https:' ? '443' : '80');
+      const reqPort = reqUrl.port || (reqUrl.protocol === 'https:' ? '443' : '80');
+      if (accountPort !== reqPort) return false;
+      const isLoopback = (h: string) => h === 'localhost' || h === '127.0.0.1' || h === '::1';
+      const isPrivateIp = (h: string) => /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(h);
+      const accHost = accountUrl.hostname.toLowerCase();
+      const reqHost = reqUrl.hostname.toLowerCase();
+      return accHost === reqHost || (isLoopback(accHost) && (isLoopback(reqHost) || isPrivateIp(reqHost))) || (isPrivateIp(accHost) && (isLoopback(reqHost) || isPrivateIp(reqHost)));
+    } catch {
+      return false;
+    }
+  });
+
   if (navidromeAccounts.length > 0 && !isWhitelisted && process.env.NODE_ENV !== 'test') {
     return false;
   }
@@ -1676,10 +1736,6 @@ async function verifySubsonicCredentials(user: string, token: string, salt: stri
       const json = await response.json().catch(() => null);
       if (response.ok && json?.['subsonic-response']?.status === 'ok') {
         validateAuthCache.set(cacheKey, now);
-        try {
-          database.saveNavidromeAccount({ url: candidate.replace(/\/$/, ''), user, token, salt });
-          navidromeAccounts = database.getNavidromeAccounts();
-        } catch (e) {}
         return true;
       }
     } catch (error) {
@@ -1772,16 +1828,21 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Register or refresh account in DB with the verified resolvedUrl
+    // Register or refresh account in DB only if this user is an authorized account on an allowed target server
     try {
       const cleanAuthUrl = resolvedUrl.replace(/\/$/, '');
-      database.saveNavidromeAccount({
-        url: cleanAuthUrl,
-        user: auth.user,
-        token: auth.token,
-        salt: auth.salt
-      });
-      navidromeAccounts = database.getNavidromeAccounts();
+      if (isTargetServerAllowed(cleanAuthUrl)) {
+        const isExistingAccount = navidromeAccounts.some(a => a.user.toLowerCase() === auth.user.toLowerCase());
+        if (isExistingAccount || navidromeAccounts.length === 0) {
+          database.saveNavidromeAccount({
+            url: cleanAuthUrl,
+            user: auth.user,
+            token: auth.token,
+            salt: auth.salt
+          });
+          navidromeAccounts = database.getNavidromeAccounts();
+        }
+      }
     } catch (e) {
       console.warn('[Holad] Failed to auto-save account on joinRoom:', e);
     }

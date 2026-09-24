@@ -15,6 +15,7 @@ import TrackRow from '../common/TrackRow';
 import PlaylistCover from '../common/PlaylistCover';
 import { Virtuoso } from 'react-virtuoso';
 import { matchTrackConfidence } from '../../utils/trackFingerprint';
+import { useAuthStore } from '../../store/authStore';
 
 export default function PlaylistDetailView() {
   const { t } = useTranslation();
@@ -142,9 +143,14 @@ export default function PlaylistDetailView() {
            }
 
            if (replacementsToSync.length > 0 && !isOffline) {
+             const currentUser = useAuthStore.getState().user;
+             const reconcileHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+             if (currentUser) {
+               reconcileHeaders['x-user-id'] = encodeURIComponent(currentUser);
+             }
              fetch(`${getHoladServerUrl()}/api/custom-playlists/${encodeURIComponent(customPlaylist.id)}/reconcile`, {
                method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
+               headers: reconcileHeaders,
                body: JSON.stringify({ replacements: replacementsToSync })
              }).catch(e => console.error('Failed to sync playlist reconciliation to server:', e));
 
