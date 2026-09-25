@@ -2038,7 +2038,8 @@ io.on('connection', (socket) => {
     const rawRoom = data?.roomId || (socket as any).holadData?.roomId;
     const rawDevice = data?.deviceId || (socket as any).holadData?.deviceId;
     if (!rawRoom || !rawDevice) return;
-    const normalizedRoom = normalizeRoomName(rawRoom);
+    const normalizedRoom = typeof rawRoom === 'string' ? rawRoom.trim().toLowerCase() : '';
+    if (!normalizedRoom) return;
     const room = holadRooms.get(normalizedRoom);
     if (room) {
       const timerKey = `${normalizedRoom}:${rawDevice}`;
@@ -2048,7 +2049,7 @@ io.on('connection', (socket) => {
       }
       room.devices = room.devices.filter(d => d.id !== rawDevice && d.socketId !== socket.id);
       if (room.activeDeviceId === rawDevice) {
-        room.activeDeviceId = room.devices.length > 0 ? room.devices[0].id : null;
+        room.activeDeviceId = room.devices[0]?.id ?? null;
       }
       io.to(`holad_${normalizedRoom}`).emit('holad_devices', {
         devices: room.devices,
@@ -2648,7 +2649,7 @@ io.on('connection', (socket) => {
             const currentRoom = holadRooms.get(holadData.roomId);
             if (currentRoom && currentRoom.activeDeviceId === holadData.deviceId) {
               // Grace period expired without reconnect. Transfer to next available online device!
-              currentRoom.activeDeviceId = currentRoom.devices.length > 0 ? currentRoom.devices[0].id : null;
+              currentRoom.activeDeviceId = currentRoom.devices[0]?.id ?? null;
               io.to(`holad_${holadData.roomId}`).emit('holad_devices', {
                 devices: currentRoom.devices,
                 activeDeviceId: currentRoom.activeDeviceId
