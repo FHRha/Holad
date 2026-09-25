@@ -107,7 +107,7 @@ export function isImageDecoded(url: string): boolean {
  * Seamlessly integrates with StorageManager.getLocalCoverUri for offline tracks.
  * Non-blocking: will never reject or delay audio playback.
  */
-export async function preloadTrackAssets(track: Track | any): Promise<void> {
+export async function preloadTrackAssets(track: Track | any, sizes: readonly number[] = CANONICAL_COVER_SIZES): Promise<void> {
   if (!track || !track.id) return;
 
   try {
@@ -130,7 +130,7 @@ export async function preloadTrackAssets(track: Track | any): Promise<void> {
     if (!coverId) return;
 
     await Promise.allSettled(
-      CANONICAL_COVER_SIZES.map(async (size) => {
+      sizes.map(async (size) => {
         try {
           const rawUrl = getCoverArtUrl(coverId, size);
           if (!rawUrl) return;

@@ -74,6 +74,17 @@ export default function FullScreenPlayerUI({
   // oxlint-disable-next-line
   const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300) : '', [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
 
+  const [activeCoverSrc, setActiveCoverSrc] = useState(coverArtLowRes);
+  useEffect(() => {
+    setActiveCoverSrc(coverArtLowRes);
+    if (!coverArtHighRes) return;
+    let isMounted = true;
+    preloadAndDecodeImage(coverArtHighRes).then(() => {
+      if (isMounted) setActiveCoverSrc(coverArtHighRes);
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, [coverArtLowRes, coverArtHighRes]);
+
   const [displayedBgCover, setDisplayedBgCover] = useState<string>(() => {
     if (!currentTrack) return '';
     return getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
@@ -220,7 +231,7 @@ export default function FullScreenPlayerUI({
         <div className="flex-1 flex flex-col items-center justify-center max-w-[600px]">
           <div className="w-full aspect-square max-w-[500px] rounded-2xl overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] mb-10 border border-white/20 bg-muted">
             <TrackImage 
-              src={coverArtHighRes} 
+              src={activeCoverSrc} 
               trackId={displayTrack.id}
               className="w-full h-full object-cover" 
               alt={displayTrack.title} 

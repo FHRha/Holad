@@ -90,9 +90,9 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
     if (!currentTrack) return '';
     const cover = currentTrack.coverArt || currentTrack.id;
     if (cover.startsWith('http')) {
-      return cover.replace(/([?&])size=\d+&?/, (m, p1) => m.endsWith('&') ? p1 : '').replace(/&$/, '') + (cover.includes('?') ? '&size=300' : '?size=300');
+      return cover.replace(/([?&])size=\d+&?/, (m, p1) => m.endsWith('&') ? p1 : '').replace(/&$/, '') + (cover.includes('?') ? '&size=120' : '?size=120');
     }
-    return cover.startsWith('capacitor://') || cover.startsWith('asset://') || cover.startsWith('blob:') || cover.startsWith('file://') ? cover : getCoverArtUrl(cover, 300);
+    return cover.startsWith('capacitor://') || cover.startsWith('asset://') || cover.startsWith('blob:') || cover.startsWith('file://') ? cover : getCoverArtUrl(cover, 120);
   }, [currentTrack?.id, currentTrack?.coverArt]);
 
   const handlePlayPause = () => {

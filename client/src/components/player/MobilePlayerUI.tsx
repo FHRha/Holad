@@ -103,10 +103,27 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     return getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
   }, [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const coverArtBg = useMemo(() => {
+    if (!currentTrack) return '';
+    return getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 120);
+  }, [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
+
+  const [activeCoverSrc, setActiveCoverSrc] = useState(coverArtLowRes);
+  useEffect(() => {
+    setActiveCoverSrc(coverArtLowRes);
+    if (!coverArtHighRes) return;
+    let isMounted = true;
+    preloadAndDecodeImage(coverArtHighRes).then(() => {
+      if (isMounted) setActiveCoverSrc(coverArtHighRes);
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, [coverArtLowRes, coverArtHighRes]);
+
   const [localCoverUrl, setLocalCoverUrl] = useState<string>('');
   const [displayedBgCover, setDisplayedBgCover] = useState<string>(() => {
     if (!currentTrack) return '';
-    return getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
+    return getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 120);
   });
 
   useEffect(() => {
@@ -123,11 +140,11 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
         }
       } catch {}
 
-      if (!candidate && coverArtLowRes) {
+      if (!candidate && coverArtBg) {
         try {
-          candidate = await getCachedImageUrl(coverArtLowRes);
+          candidate = await getCachedImageUrl(coverArtBg);
         } catch {
-          candidate = coverArtLowRes;
+          candidate = coverArtBg;
         }
       }
 
@@ -145,9 +162,9 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     return () => {
       isMounted = false;
     };
-  }, [currentTrack?.id, coverArtLowRes]);
+  }, [currentTrack?.id, coverArtBg]);
 
-  const effectiveBgCover = displayedBgCover || localCoverUrl || coverArtLowRes;
+  const effectiveBgCover = displayedBgCover || localCoverUrl || coverArtBg;
 
   const handleLike = () => {
     if (!currentTrack) return;
@@ -265,7 +282,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             <div className="w-full h-full flex items-center justify-center transition-opacity duration-300">
               <div className="h-full max-h-full max-w-full aspect-square transition-all duration-300">
                 <TrackImage 
-                  src={coverArtHighRes} 
+                  src={activeCoverSrc} 
                   trackId={currentTrack.id}
                   className="w-full h-full rounded-3xl shadow-2xl object-cover border border-border bg-card" 
                   alt={currentTrack.title} 
