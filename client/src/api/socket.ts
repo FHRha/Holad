@@ -475,7 +475,7 @@ class JamSocketService {
           let currentTime = 0;
           
           const holadState = useHoladStore.getState();
-          const isDeviceActive = holadState.roomId === null || holadState.activeDeviceId === holadState.deviceId || holadState.activeDeviceId === null;
+          const isDeviceActive = holadState.roomId === null || (holadState.activeDeviceId !== null && holadState.activeDeviceId === holadState.deviceId);
           
           if (isDeviceActive) {
             const engine = getAudioEngine();
@@ -525,7 +525,7 @@ class JamSocketService {
             
             let currentTime = 0;
             const holadState = useHoladStore.getState();
-            const isDeviceActive = holadState.roomId === null || holadState.activeDeviceId === holadState.deviceId || holadState.activeDeviceId === null;
+            const isDeviceActive = holadState.roomId === null || (holadState.activeDeviceId !== null && holadState.activeDeviceId === holadState.deviceId);
 
             if (trackChanged) {
               currentTime = 0;

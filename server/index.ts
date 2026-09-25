@@ -1991,9 +1991,18 @@ io.on('connection', (socket) => {
     const data = (socket as any).holadData;
     if (!data) return;
     const room = holadRooms.get(data.roomId);
-    if (room && room.activeDeviceId === data.deviceId) {
-      room.cachedState = { ...room.cachedState, ...state };
-      socket.to(`holad_${data.roomId}`).emit('holad_syncState', state);
+    if (room) {
+      if (room.activeDeviceId === data.deviceId) {
+        room.cachedState = { ...room.cachedState, ...state };
+        socket.to(`holad_${data.roomId}`).emit('holad_syncState', state);
+      } else if (!room.activeDeviceId && state.isPlaying) {
+        // Protective recovery: if room had no active device, actively playing device assumes activeDeviceId
+        room.activeDeviceId = data.deviceId;
+        room.cachedState = { ...room.cachedState, ...state };
+        const payload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
+        io.to(`holad_${data.roomId}`).emit('holad_devices', payload);
+        socket.to(`holad_${data.roomId}`).emit('holad_syncState', state);
+      }
     }
   });
 

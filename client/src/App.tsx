@@ -17,6 +17,7 @@ import { useDocumentTitle } from './hooks/useDocumentTitle';
 import { useTaskbarControls } from './hooks/useTaskbarControls';
 import { useTrayIntegration } from './hooks/useTrayIntegration';
 import { useWindowVisibility } from './hooks/useWindowVisibility';
+import { useAudioOutputDevice } from './hooks/useAudioOutputDevice';
 import OfflineModeModal from './components/modals/OfflineModeModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { preloadAndDecodeImage } from './utils/assetPreloader';
@@ -80,14 +81,7 @@ function hexToRgb(hex: string) {
   return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
-function AppContent() {
-  const isTrayMenu = window.location.hash === '#tray';
-
-  if (isTrayMenu) {
-    return <TrayMenu />;
-  }
-
-  // oxlint-disable-next-line
+function MainAppContent() {
   useAppLifecycle();
 
   // oxlint-disable-next-line
@@ -112,6 +106,8 @@ function AppContent() {
   useTrayIntegration();
   // oxlint-disable-next-line
   useWindowVisibility();
+  // oxlint-disable-next-line
+  useAudioOutputDevice();
   
   // oxlint-disable-next-line
   useEffect(() => {
@@ -436,6 +432,14 @@ function MobileBackground() {
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black pointer-events-none" />
     </div>
   );
+}
+
+function AppContent() {
+  const isTrayMenu = typeof window !== 'undefined' && window.location.hash === '#tray';
+  if (isTrayMenu) {
+    return <TrayMenu />;
+  }
+  return <MainAppContent />;
 }
 
 // Global event listener for Tauri to prevent F5/Ctrl+R reload

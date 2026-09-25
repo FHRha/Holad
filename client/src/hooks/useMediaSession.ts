@@ -3,6 +3,8 @@ import { Capacitor } from '@capacitor/core';
 import { MediaSession } from '@capgo/capacitor-media-session';
 import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
+import { useHoladStore } from '../store/holadStore';
+import { useWindowVisibility, getIsWindowVisible } from './useWindowVisibility';
 import { getCoverArtUrl } from '../api/subsonic';
 
 export function useMediaSession() {
@@ -109,8 +111,17 @@ export function useMediaSession() {
     }
   }, [currentTrack, setIsPlaying, nextTrack, prevTrack]);
 
+  const isHoladConnected = useHoladStore(state => state.roomId !== null);
+  const activeDeviceId = useHoladStore(state => state.activeDeviceId);
+  const localDeviceId = useHoladStore(state => state.deviceId);
+  const isActiveDevice = !isHoladConnected || (activeDeviceId !== null && activeDeviceId === localDeviceId);
+  const isWindowVisible = useWindowVisibility();
+
   useEffect(() => {
-    const state = isPlaying ? 'playing' : 'paused';
+    // Only report 'playing' if this device is the active audio engine, or if it is currently visible
+    // When minimized/in tray on a remote device, always report 'paused' so wallpapers and SMTC stay idle
+    const shouldReportPlaying = isPlaying && (isActiveDevice || isWindowVisible);
+    const state = shouldReportPlaying ? 'playing' : 'paused';
 
     if (Capacitor.isNativePlatform()) {
       MediaSession.setPlaybackState({ playbackState: state });
@@ -118,7 +129,7 @@ export function useMediaSession() {
       navigator.mediaSession.playbackState = state;
     }
 
-    if (currentTrack) {
+    if (currentTrack && (isActiveDevice || isWindowVisible)) {
       const audioState = useAudioStore.getState();
       const duration = audioState.duration || currentTrack.duration || 0;
       if (duration > 0) {
@@ -126,7 +137,7 @@ export function useMediaSession() {
         updatePositionState(position, duration, 1);
       }
     }
-  }, [isPlaying, currentTrack]);
+  }, [isPlaying, currentTrack, isActiveDevice, isWindowVisible]);
 
   useEffect(() => {
     let lastUpdate = 0;
@@ -134,6 +145,8 @@ export function useMediaSession() {
 
     const unsubscribe = useAudioStore.subscribe((state) => {
       if (!currentTrack || state.isSeeking) return;
+      // Do not emit OS media session position updates if we are just a remote control and minimized/in tray
+      if (!isActiveDevice && !getIsWindowVisible()) return;
 
       const duration = state.duration || currentTrack.duration || 0;
       if (duration <= 0) return;
@@ -153,5 +166,5 @@ export function useMediaSession() {
     return () => {
       unsubscribe();
     };
-  }, [currentTrack]);
+  }, [currentTrack, isActiveDevice]);
 }

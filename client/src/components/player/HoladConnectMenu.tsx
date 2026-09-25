@@ -4,9 +4,15 @@ import { Tv2, Monitor, Smartphone, MonitorSpeaker, Radio, Headphones, Speaker, I
 import { useHoladStore } from '../../store/holadStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useSocialStore } from '../../store/socialStore';
+import { useAudioOutputDevice } from '../../hooks/useAudioOutputDevice';
 import { useTranslation } from 'react-i18next';
 
-export default function HoladConnectMenu() {
+export interface HoladConnectMenuProps {
+  variant?: 'icon' | 'pill';
+  className?: string;
+}
+
+export default function HoladConnectMenu({ variant = 'icon', className }: HoladConnectMenuProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -28,6 +34,8 @@ export default function HoladConnectMenu() {
   const participants = usePlayerStore(s => s.participants);
   const audioMode = useSocialStore(s => s.audioMode);
   const setAudioMode = useSocialStore(s => s.setAudioMode);
+
+  const outputDevice = useAudioOutputDevice();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
@@ -51,16 +59,42 @@ export default function HoladConnectMenu() {
     };
   }, [isOpen]);
 
-  if (!isConnected && !jamRoomId) return null;
+  // For icon variant, hide if not connected to Holad or Jam
+  if (variant === 'icon' && !isConnected && !jamRoomId) return null;
 
   const isThisDeviceActive = activeDeviceId === localDeviceId || (activeDeviceId === null && devices.some(d => d.id === localDeviceId));
   const isActive = isThisDeviceActive && devices.length > 0;
+
+  const isRemoteActive = isConnected && activeDeviceId !== null && activeDeviceId !== localDeviceId;
+  const activeRemoteDevice = isRemoteActive ? devices.find(d => d.id === activeDeviceId) : null;
 
   const getDeviceIcon = (name: string) => {
     const n = name.toLowerCase();
     if (n.includes('mobile') || n.includes('iphone') || n.includes('android')) return <Smartphone size={16} />;
     if (n.includes('tv')) return <Tv2 size={16} />;
     return <Monitor size={16} />;
+  };
+
+  const getPillIcon = () => {
+    if (jamRoomId) return <Radio size={14} className="animate-pulse text-primary shrink-0" />;
+    if (isRemoteActive) {
+      const n = (activeRemoteDevice?.name || '').toLowerCase();
+      if (n.includes('mobile') || n.includes('iphone') || n.includes('android')) return <Smartphone size={14} className="text-primary shrink-0" />;
+      if (n.includes('tv')) return <Tv2 size={14} className="text-primary shrink-0" />;
+      return <Monitor size={14} className="text-primary shrink-0" />;
+    }
+    if (outputDevice.type === 'bluetooth' || outputDevice.isHeadphones) {
+      return <Headphones size={14} className="text-primary shrink-0" />;
+    }
+    return <Speaker size={14} className="text-secondary shrink-0" />;
+  };
+
+  const getPillLabel = () => {
+    if (jamRoomId) return t('social.active_jam');
+    if (isRemoteActive) {
+      return activeRemoteDevice ? activeRemoteDevice.name : t('player.playing_on_device');
+    }
+    return outputDevice.name || t('player.phone_speaker');
   };
 
   const content = (isMobileView: boolean) => (
@@ -97,6 +131,15 @@ export default function HoladConnectMenu() {
         <h3 className="text-sm font-bold text-foreground">
           {jamRoomId ? t('social.active_jam') : t('player.connect_to_device')}
         </h3>
+      </div>
+
+      {/* Local output device badge */}
+      <div className="px-3 pb-2 pt-1 border-b border-border/40 mb-2 flex items-center justify-between text-xs text-secondary">
+        <span className="flex items-center gap-1.5">
+          {outputDevice.isHeadphones ? <Headphones size={14} className="text-primary" /> : <Speaker size={14} />}
+          <span>{t('player.current_output')}:</span>
+        </span>
+        <span className="font-semibold text-foreground truncate max-w-[160px]">{outputDevice.name}</span>
       </div>
 
       {jamRoomId && (
@@ -150,7 +193,7 @@ export default function HoladConnectMenu() {
         </div>
       )}
       
-      {isConnected && (
+      {isConnected ? (
         <>
           {jamRoomId && (
             <div className="px-3 pt-1 pb-1 text-[11px] font-semibold text-secondary uppercase tracking-wider">
@@ -225,20 +268,40 @@ export default function HoladConnectMenu() {
             )}
           </div>
         </>
+      ) : (
+        <div className="px-3 py-3 text-center text-xs text-secondary">
+          <p>{t('player.listening_on')}: <strong className="text-foreground">{outputDevice.name}</strong></p>
+        </div>
       )}
     </>
   );
 
   return (
-    <div className="relative" ref={menuRef}>
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label={t('player.connect_to_device', 'Подключиться к устройству')}
-        className={`transition-colors flex items-center justify-center w-7 h-7 rounded-lg hover:bg-foreground/5 ${isActive ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
-        title={t('player.connect_to_device')}
-      >
-        <MonitorSpeaker size={16} />
-      </button>
+    <div className={`relative ${className || ''}`} ref={menuRef}>
+      {variant === 'pill' ? (
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label={t('player.connect_to_device', 'Подключиться к устройству')}
+          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-xs font-semibold max-w-full truncate active:scale-95 border ${
+            isRemoteActive || jamRoomId
+              ? 'bg-primary/15 text-primary border-primary/30 shadow-sm'
+              : 'bg-foreground/5 hover:bg-foreground/10 text-secondary hover:text-foreground border-border/40'
+          }`}
+          title={getPillLabel()}
+        >
+          {getPillIcon()}
+          <span className="truncate max-w-[200px]">{getPillLabel()}</span>
+        </button>
+      ) : (
+        <button 
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label={t('player.connect_to_device', 'Подключиться к устройству')}
+          className={`transition-colors flex items-center justify-center w-7 h-7 rounded-lg hover:bg-foreground/5 ${isActive ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+          title={t('player.connect_to_device')}
+        >
+          <MonitorSpeaker size={16} />
+        </button>
+      )}
 
       {isOpen && (
         <>

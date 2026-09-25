@@ -1,11 +1,18 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../store/playerStore';
+import { useHoladStore } from '../store/holadStore';
+import { useWindowVisibility } from './useWindowVisibility';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '../utils/StorageManager';
 
 export function useTaskbarControls() {
   const { isPlaying, nextTrack, prevTrack } = usePlayerStore();
+  const isHoladConnected = useHoladStore(s => s.roomId !== null);
+  const activeDeviceId = useHoladStore(s => s.activeDeviceId);
+  const localDeviceId = useHoladStore(s => s.deviceId);
+  const isActiveDevice = !isHoladConnected || (activeDeviceId !== null && activeDeviceId === localDeviceId);
+  const isWindowVisible = useWindowVisibility();
 
   // Listen to native Windows Thumbar events
   useEffect(() => {
@@ -34,10 +41,14 @@ export function useTaskbarControls() {
   useEffect(() => {
     if (!isTauri()) return;
 
-    invoke('update_taskbar_state', { isPlaying })
+    const shouldShowPlaying = isPlaying && (isActiveDevice || isWindowVisible);
+
+    invoke('update_taskbar_state', { isPlaying: shouldShowPlaying })
       .catch((err) => console.warn('Failed to update taskbar state:', err));
 
-    invoke('sync_audio_session')
-      .catch(() => {});
-  }, [isPlaying]);
+    if (isActiveDevice) {
+      invoke('sync_audio_session')
+        .catch(() => {});
+    }
+  }, [isPlaying, isActiveDevice, isWindowVisible]);
 }

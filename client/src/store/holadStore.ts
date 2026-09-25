@@ -173,7 +173,11 @@ export const useHoladStore = create<HoladState>((set, get) => {
         }
 
         if (data.activeDeviceId === null) {
-            if (!usePlayerStore.getState().isPlaying) {
+            if (data.devices.length === 1 && data.devices[0].id === deviceId) {
+                get().setActiveDevice(deviceId);
+            } else if (usePlayerStore.getState().isPlaying) {
+                get().setActiveDevice(deviceId);
+            } else {
                 usePlayerStore.getState().setIsPlaying(false);
             }
         } else if (data.activeDeviceId === deviceId && wasNotActive) {
@@ -438,6 +442,10 @@ export const useHoladStore = create<HoladState>((set, get) => {
           if (state.isPlaying !== prevState?.isPlaying || state.currentIndex !== prevState?.currentIndex || state.queue?.length !== prevState?.queue?.length) {
               currentSocket?.emit('holad_updateState', { roomId: get().roomId, deviceId: currentDeviceId, ...stateToSync });
           }
+        } else if (!currentActive) {
+          if (state.isPlaying && !prevState?.isPlaying) {
+            get().setActiveDevice(currentDeviceId);
+          }
         } else if (currentActive && currentActive !== currentDeviceId) {
           const prevQueueLen = prevState?.queue?.length || 0;
           const currQueueLen = state.queue?.length || 0;
@@ -452,9 +460,11 @@ export const useHoladStore = create<HoladState>((set, get) => {
           const queueChanged = state.queue !== prevState?.queue || currQueueLen !== prevQueueLen;
           const trackChanged = state.currentIndex !== prevState?.currentIndex;
 
-          // 2. If remote device is offline, any playback action claims active device locally:
+          // 2. If remote device is offline, only an EXPLICIT user play action claims active device locally:
           if (!isCurrentActiveOnline) {
-            get().setActiveDevice(currentDeviceId);
+            if (state.isPlaying && !prevState?.isPlaying) {
+              get().setActiveDevice(currentDeviceId);
+            }
             return;
           }
 

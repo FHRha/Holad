@@ -53,7 +53,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const holadDeviceId = useHoladStore(s => s.deviceId);
   const holadActiveDeviceId = useHoladStore(s => s.activeDeviceId);
   const isHoladConnected = useHoladStore(s => s.roomId !== null);
-  const isActiveDevice = !isHoladConnected || holadActiveDeviceId === holadDeviceId || holadActiveDeviceId === null;
+  const isActiveDevice = !isHoladConnected || (holadActiveDeviceId !== null && holadActiveDeviceId === holadDeviceId);
 
   const { src: audioSrc, trackId: srcTrackId, isLoading: srcLoading, isAvailable } = useTrackSource(currentTrack);
 
@@ -679,7 +679,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const onSyncTime = (data: { currentTime: number }) => {
       localCurrentTime = data.currentTime;
       lastTime = performance.now();
-      if (currentTrack && currentTrack.duration) {
+      if (isWindowVisible && currentTrack && currentTrack.duration) {
         setProgress((localCurrentTime / currentTrack.duration) * 100);
       }
     };
@@ -716,6 +716,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       isWindowVisible = visible;
       if (visible) {
         lastTime = performance.now();
+        if (currentTrack && currentTrack.duration) {
+          setProgress((localCurrentTime / currentTrack.duration) * 100);
+        }
         if (!animationFrame) {
           animationFrame = requestAnimationFrame(tick);
         }

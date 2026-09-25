@@ -114,7 +114,7 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
     const state = get();
     
     const store = useHoladStore.getState();
-    const isDeviceActive = store.roomId === null || store.activeDeviceId === store.deviceId || store.activeDeviceId === null;
+    const isDeviceActive = store.roomId === null || (store.activeDeviceId !== null && store.activeDeviceId === store.deviceId);
     
     const currentTrack = usePlayerStore.getState().queue[usePlayerStore.getState().currentIndex];
     const engine = getAudioEngine();

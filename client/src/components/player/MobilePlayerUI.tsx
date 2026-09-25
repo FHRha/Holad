@@ -383,6 +383,10 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               </button>
             </div>
 
+            <div className="flex items-center justify-center w-full px-2 pt-1">
+              <HoladConnectMenu variant="pill" />
+            </div>
+
             <div className="flex items-center justify-between w-full px-4 pt-2 text-secondary">
               <button onClick={() => setShowSleepTimerMenu(true)} className={`hover:text-foreground transition-colors active:scale-95 ${sleepTimer.type ? 'text-primary' : ''}`}>
                 <Moon size={20} />
