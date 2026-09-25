@@ -41,6 +41,12 @@ export function useAppLifecycle() {
             queue: playerStore.queue,
             currentTime: currentTime,
          });
+         if (isTerminating) {
+            holadState.socket.emit('holad_leave', {
+               roomId: holadState.roomId,
+               deviceId: holadState.deviceId,
+            });
+         }
       }
     };
 

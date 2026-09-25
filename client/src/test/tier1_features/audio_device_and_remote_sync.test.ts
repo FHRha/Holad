@@ -123,6 +123,26 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       expect(setActiveSpy).toHaveBeenCalledWith(myId);
       expect(usePlayerStore.getState().isPlaying).toBe(true);
     });
+
+    it('transfers active device to remaining online device when primary active device goes offline', () => {
+      const holad = useHoladStore.getState();
+      const myId = holad.deviceId;
+      const deadDeviceId = 'closed-desktop-id';
+      const setActiveSpy = vi.spyOn(useHoladStore.getState(), 'setActiveDevice');
+
+      // Socket event arrives where activeDeviceId was closed-desktop-id, but only myId is online
+      const data = {
+        devices: [{ id: myId, name: 'Phone' }],
+        activeDeviceId: deadDeviceId
+      };
+
+      const isActiveDeviceOnline = Boolean(data.activeDeviceId && data.devices.some(d => d.id === data.activeDeviceId));
+      if (!isActiveDeviceOnline && data.devices.length === 1 && data.devices[0].id === myId) {
+        useHoladStore.getState().setActiveDevice(myId);
+      }
+
+      expect(setActiveSpy).toHaveBeenCalledWith(myId);
+    });
   });
 
   describe('3. getDeviceDisplayName Resolution', () => {

@@ -185,13 +185,18 @@ export const useHoladStore = create<HoladState>((set, get) => {
           socket!.emit('holad_remoteCommand', { type: 'requestHistory' });
         }
 
-        if (data.activeDeviceId === null) {
+        const isActiveDeviceOnline = Boolean(data.activeDeviceId && data.devices.some(d => d.id === data.activeDeviceId));
+        const hasOtherPlaying = data.devices.some(d => d.id !== deviceId && get().isRemotePlaying);
+
+        if (!isActiveDeviceOnline) {
             if (data.devices.length === 1 && data.devices[0].id === deviceId) {
                 get().setActiveDevice(deviceId);
             } else if (usePlayerStore.getState().isPlaying) {
                 get().setActiveDevice(deviceId);
-            } else if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !data.devices.some(d => d.id !== deviceId && get().isRemotePlaying)) {
-                // Foreground active device claims activeDeviceId if room has no active device and no remote is playing
+            } else if (data.devices.length > 0 && data.devices[0].id === deviceId && !hasOtherPlaying) {
+                get().setActiveDevice(deviceId);
+            } else if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !hasOtherPlaying) {
+                // Foreground active device claims activeDeviceId if room has no online active device and no remote is playing
                 get().setActiveDevice(deviceId);
             } else {
                 usePlayerStore.getState().setIsPlaying(false);

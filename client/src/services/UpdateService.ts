@@ -169,9 +169,10 @@ export class UpdateService {
             return { available: false };
         }
 
+        let loadingToastId: string | number | undefined;
         try {
             if (manualCheck) {
-                toast.info(i18n.t('update.checking', 'Checking for updates...'));
+                loadingToastId = toast.loading(i18n.t('update.checking', 'Checking for updates...'));
             }
 
             const includePrereleases = useSettingsStore.getState().includePrereleases;
@@ -181,8 +182,17 @@ export class UpdateService {
                 ? 'https://api.github.com/repos/FHRha/Holad/releases?per_page=50'
                 : this.GITHUB_RELEASES_API;
 
-            const response = await fetch(apiUrl);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            let response: Response;
+            try {
+                response = await fetch(apiUrl, { signal: controller.signal });
+            } finally {
+                clearTimeout(timeoutId);
+            }
+
             if (!response.ok) {
+                if (loadingToastId !== undefined) toast.dismiss(loadingToastId);
                 if (manualCheck) toast.error(i18n.t('update.check_failed', 'Failed to check for updates (API error).'));
                 return { available: false };
             }
@@ -206,6 +216,7 @@ export class UpdateService {
             }
 
             if (!data) {
+                if (loadingToastId !== undefined) toast.dismiss(loadingToastId);
                 if (manualCheck) toast.error(i18n.t('update.check_failed', 'No release found.'));
                 return { available: false };
             }
@@ -216,6 +227,7 @@ export class UpdateService {
             const currentVersion = await this.getCurrentVersion();
             
             if (!manualCheck && (currentVersion === '0.0.0' || import.meta.env.DEV)) {
+                if (loadingToastId !== undefined) toast.dismiss(loadingToastId);
                 return { available: false, version: latestVersion, notes, isPrerelease };
             }
 
@@ -225,6 +237,8 @@ export class UpdateService {
             const isAvailable = isNewer || isStableRollback;
             console.log(`[UpdateService] Current: "${currentVersion}", Latest: "${latestVersion}", isPrerelease: ${isPrerelease}, isNewer: ${isNewer}, isStableRollback: ${isStableRollback}`);
             
+            if (loadingToastId !== undefined) toast.dismiss(loadingToastId);
+
             if (isAvailable) {
                 const platform = getPlatform();
                 const assets: any[] = Array.isArray(data.assets) ? data.assets : [];
@@ -281,6 +295,7 @@ export class UpdateService {
             };
         } catch (error) {
             console.error('Failed to check for updates', error);
+            if (loadingToastId !== undefined) toast.dismiss(loadingToastId);
             if (manualCheck) toast.error(i18n.t('update.check_failed', 'Failed to check for updates (Network error).'));
             return { available: false };
         }
