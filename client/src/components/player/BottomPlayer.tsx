@@ -1,9 +1,10 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Star, Maximize2, Monitor, Smartphone, Tv2, Ban } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Maximize2, Monitor, Smartphone, Tv2, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
 import { starItem, unstarItem } from '../../api/subsonic';
+import PlayerRatingStars from './PlayerRatingStars';
 import VolumeSlider from '../common/VolumeSlider';
 import ArtistLinks from '../common/ArtistLinks';
 import TrackImage from '../common/TrackImage';
@@ -47,7 +48,7 @@ export default function BottomPlayer() {
   const navigate = useNavigate();
   const { openMenu } = useContextMenuStore();
   const { t } = useTranslation();
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, excludedFingerprints, toggleTrackExclude, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, setTrackRating, isMinimized, setIsMinimized } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, excludedFingerprints, toggleTrackExclude, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, isMinimized, setIsMinimized } = usePlayerStore();
   const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
   const audioRef0 = useRef<HTMLAudioElement>(null);
   const audioRef1 = useRef<HTMLAudioElement>(null);
@@ -282,32 +283,7 @@ export default function BottomPlayer() {
         {/* Right Block: 2 Rows (Top: Stars + AutoDJ, Bottom: Volume + Percentage) */}
         <div className="flex flex-col gap-1.5 items-end shrink-0">
           <div className="flex items-center justify-between w-full h-7">
-            {!hideSocialActions && (
-              <div 
-                className={`flex items-center gap-0.5 ml-1.5 ${role === 'listener' ? 'pointer-events-none opacity-50' : ''}`} 
-                title={currentTrack?.userRating ? t('player.tooltip_rate_current', { rating: currentTrack.userRating }) : t('player.tooltip_rate_empty')}
-              >
-                {[1, 2, 3, 4, 5].map(star => {
-                  const currentRating = currentTrack?.userRating || 0;
-                  const isFilled = star <= currentRating;
-                  return (
-                    <button 
-                      key={star} 
-                      className={`transition-colors p-1 flex items-center justify-center w-6 h-6 rounded-md hover:bg-foreground/5 ${isFilled ? 'text-primary' : 'text-foreground/50 hover:text-foreground/80'}`}
-                      onClick={() => {
-                        if (!currentTrack) return;
-                        const newRating = currentRating === star ? 0 : star;
-                        setTrackRating(currentTrack.id, newRating);
-                      }}
-                      aria-label={currentRating === star ? t('player.tooltip_rate_reset') : t('player.tooltip_rate_star', { star })}
-                      title={currentRating === star ? t('player.tooltip_rate_reset') : t('player.tooltip_rate_star', { star })}
-                    >
-                      <Star size={16} strokeWidth={2} fill={isFilled ? "currentColor" : "none"} />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            {!hideSocialActions && <PlayerRatingStars />}
 
             {!hideAutoDJ && (
               <button 

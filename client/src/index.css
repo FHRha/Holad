@@ -104,3 +104,32 @@ button, a, input, select, [role="button"] {
 .backdrop-blur-xl, .backdrop-blur-2xl, .backdrop-blur-3xl {
   transform: translateZ(0);
 }
+
+/* Player rating stars */
+.player-stars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+}
+
+.player-star-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.15s ease, transform 0.1s ease;
+}
+
+.player-star-btn:hover {
+  transform: scale(1.15);
+}
+
