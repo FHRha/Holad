@@ -181,7 +181,7 @@ export class AudioDeck implements IAudioDeck {
         }
     }
 
-    public async load(src: string, position: number = 0): Promise<void> {
+    public async load(src: string, position: number = 0, preloadMode: 'auto' | 'metadata' = 'auto'): Promise<void> {
         try {
             this.targetPosition = position;
             this.setState('loading');
@@ -210,7 +210,7 @@ export class AudioDeck implements IAudioDeck {
                 this.element.crossOrigin = 'anonymous';
             }
 
-            this.element.preload = 'auto';
+            this.element.preload = preloadMode;
 
             if (this.element.src !== src) {
                 this.element.src = src;
@@ -289,6 +289,9 @@ export class AudioDeck implements IAudioDeck {
 
     public async play(): Promise<void> {
         try {
+            if (this.element.preload !== 'auto') {
+                this.element.preload = 'auto';
+            }
             const playPromise = this.element.play();
             if (playPromise !== undefined) {
                 await playPromise;

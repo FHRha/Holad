@@ -16,6 +16,8 @@ import { jamSocket } from '../api/socket';
 import { isJamPath } from '../utils/basePath';
 import { getIsWindowVisible, subscribeWindowVisibility } from './useWindowVisibility';
 
+const scheduleIdle = typeof requestIdleCallback !== 'undefined' ? requestIdleCallback : (cb: Function) => setTimeout(cb, 500);
+
 export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | null>, React.RefObject<HTMLAudioElement | null>], currentTrack: any) {
   const {
     queue,
@@ -234,7 +236,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     if (nextTrk) {
       engineRef.current.preloadNextTrack(nextTrk).catch(() => {});
       if (settings.preloadCovers) {
-        preloadTrackAssets(nextTrk, [120, 300]).catch(() => {});
+        scheduleIdle(() => { preloadTrackAssets(nextTrk, [120, 300]).catch(() => {}); });
       }
     }
   }, [settings.preloadNextTrack, settings.preloadMode, settings.preloadCovers]);
@@ -270,7 +272,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const isAutoSkip = crossfadeTriggeredRef.current === prevTrackIdRef.current;
     crossfadeTriggeredRef.current = null;
     prevTrackIdRef.current = currentTrack.id;
-    preloadTrackAssets(currentTrack, [120, 300]).catch(() => {});
+    scheduleIdle(() => { preloadTrackAssets(currentTrack, [120, 300]).catch(() => {}); });
 
     const isPlayingStore = usePlayerStore.getState().isPlaying;
     const isCrossfade = effectiveSettings.isCrossfadeEnabled;
@@ -318,7 +320,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
       const targetPosSec = initialPosition > 0 ? initialPosition / 1000 : 0;
       const deck = engineRef.current.getActiveDeck();
-      deck.load(audioSrc, targetPosSec).catch(() => {});
+      deck.load(audioSrc, targetPosSec, 'metadata').catch(() => {});
       if (targetPosSec > 0) {
         const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
         useAudioStore.getState().setDuration(dur);
