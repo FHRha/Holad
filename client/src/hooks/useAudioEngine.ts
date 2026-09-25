@@ -234,10 +234,12 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     }
     const nextTrk = q[nextIdx];
     if (nextTrk) {
-      engineRef.current.preloadNextTrack(nextTrk).catch(() => {});
-      if (settings.preloadCovers) {
-        scheduleIdle(() => { preloadTrackAssets(nextTrk, [120, 300]).catch(() => {}); });
-      }
+      scheduleIdle(() => {
+        engineRef.current.preloadNextTrack(nextTrk).catch(() => {});
+        if (settings.preloadCovers) {
+          preloadTrackAssets(nextTrk, [120, 300]).catch(() => {});
+        }
+      });
     }
   }, [settings.preloadNextTrack, settings.preloadMode, settings.preloadCovers]);
 
@@ -320,7 +322,6 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
       const targetPosSec = initialPosition > 0 ? initialPosition / 1000 : 0;
       const deck = engineRef.current.getActiveDeck();
-      deck.load(audioSrc, targetPosSec, 'metadata').catch(() => {});
       if (targetPosSec > 0) {
         const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
         useAudioStore.getState().setDuration(dur);
@@ -330,6 +331,11 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       if (isSpeakerDj) {
         engineRef.current.pause();
       }
+
+      // Defer loading standby audio stream when paused to idle callback so critical page rendering (FCP, LCP, fonts) has 100% network priority
+      scheduleIdle(() => {
+        deck.load(audioSrc, targetPosSec, 'metadata').catch(() => {});
+      });
     }
   }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition]);
 
