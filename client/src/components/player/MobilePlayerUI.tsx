@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   ChevronDown, MoreHorizontal, Heart, Shuffle, SkipBack, 
   Play, Pause, SkipForward, Repeat, Repeat1, Moon, 
-  Bookmark, Music, Info, MessageSquareQuote, RotateCcw, RotateCw, Ban
+  Bookmark, Music, Info, MessageSquareQuote, RotateCcw, RotateCw, Ban,
+  Headphones, Speaker
 } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
@@ -20,6 +21,7 @@ import MobileLyricsTab from './MobileLyricsTab';
 import HoladConnectMenu from './HoladConnectMenu';
 import { getAudioEngine } from '../../audio/AudioEngine';
 import { useBookmark } from '../../hooks/useBookmark';
+import { useAudioOutputDevice, getDeviceDisplayName, promptSelectAudioOutput } from '../../hooks/useAudioOutputDevice';
 import { jamSocket } from '../../api/socket';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
 import { StorageManager } from '../../utils/StorageManager';
@@ -41,6 +43,8 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const isConnected = useHoladStore(s => s.roomId !== null);
   const activeDeviceId = useHoladStore(s => s.activeDeviceId);
   const localDeviceId = useHoladStore(s => s.deviceId);
+  const isRemoteActive = isConnected && activeDeviceId !== null && activeDeviceId !== localDeviceId;
+  const outputDevice = useAudioOutputDevice();
   
   const isJamRoute = window.location.pathname.startsWith('/jam');
   const searchParams = new URLSearchParams(window.location.search);
@@ -180,6 +184,10 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const handlePlayPause = () => {
     if (role === 'listener') return; 
     
+    if (isConnected && !activeDeviceId) {
+      useHoladStore.getState().setActiveDevice(localDeviceId);
+    }
+
     if (!isPlaying && (!isConnected || activeDeviceId === localDeviceId || activeDeviceId === null)) {
       getAudioEngine().resume().catch(() => {});
     }
@@ -252,23 +260,44 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       </div>
       <div className="absolute inset-0 z-0 bg-black/40 pointer-events-none" />
 
-      <div className="relative z-10 flex items-center justify-between px-4 py-4 w-full">
+      <div className="relative z-10 flex items-center justify-between px-4 py-3 w-full">
         {!isListenerPage ? (
           <button 
             onClick={onClose}
-            className="p-2 text-secondary hover:bg-foreground/10 rounded-full transition-colors active:scale-95"
+            className="p-2 text-secondary hover:bg-foreground/10 rounded-full transition-colors active:scale-95 shrink-0"
+            aria-label={t('common.close', 'Закрыть')}
           >
             <ChevronDown size={28} />
           </button>
-        ) : <div className="w-[44px]" />}
-        <span className="text-white font-bold text-sm tracking-wider">
-          {t('player.now_playing')}
-        </span>
-        <div className="flex items-center gap-1">
-          <HoladConnectMenu />
+        ) : <div className="w-11 shrink-0" />}
+
+        <div className="flex-1 flex items-center justify-center min-w-0 px-2 overflow-hidden">
+          {!isRemoteActive && (
+            <div 
+              onClick={() => {
+                promptSelectAudioOutput().catch(() => {});
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 backdrop-blur-md text-[11px] font-medium text-white/80 max-w-[200px] truncate select-none border border-white/5 shadow-sm transition-all duration-300 cursor-pointer active:scale-95"
+              title={getDeviceDisplayName(outputDevice, t)}
+            >
+              {outputDevice.isHeadphones ? (
+                <Headphones size={13} className="text-primary shrink-0" />
+              ) : (
+                <Speaker size={13} className="text-white/60 shrink-0" />
+              )}
+              <span className="truncate min-w-0">
+                {getDeviceDisplayName(outputDevice, t)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <HoladConnectMenu variant="icon" />
           <button 
             onClick={(e) => openMenu(e.clientX, e.clientY, currentTrack, 'track')}
             className="p-2 text-secondary hover:bg-foreground/10 rounded-full transition-colors active:scale-95"
+            aria-label={t('common.more_options', 'Дополнительно')}
           >
             <MoreHorizontal size={24} />
           </button>
@@ -381,10 +410,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               >
                 {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
               </button>
-            </div>
-
-            <div className="flex items-center justify-center w-full px-2 pt-1">
-              <HoladConnectMenu variant="pill" />
             </div>
 
             <div className="flex items-center justify-between w-full px-4 pt-2 text-secondary">

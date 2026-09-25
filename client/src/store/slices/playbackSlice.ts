@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import type { PlayerState } from '../playerStore';
 import { isTauri, isCapacitor } from '../../utils/StorageManager';
+import { useHoladStore } from '../holadStore';
 
 const isMobileClient = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -41,7 +42,15 @@ export const createPlaybackSlice: StateCreator<
   repeatMode: 'none',
   playbackRate: 1,
   sleepTimer: { type: null, endTime: null },
-  setIsPlaying: (isPlaying) => set({ isPlaying }),
+  setIsPlaying: (isPlaying) => {
+    if (isPlaying) {
+      const store = useHoladStore.getState();
+      if (store.roomId && store.activeDeviceId === null) {
+        store.setActiveDevice(store.deviceId);
+      }
+    }
+    set({ isPlaying });
+  },
   setVolume: (volume) => set({ volume }),
   setMobileVolume: (mobileVolume) => set({ mobileVolume }),
   setVolumeMultiplier: (volumeMultiplier) => set({ volumeMultiplier }),

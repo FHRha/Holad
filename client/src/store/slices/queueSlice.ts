@@ -9,6 +9,9 @@ const triggerPlay = () => {
   const store = useHoladStore.getState();
   const isDeviceActive = store.roomId === null || store.activeDeviceId === store.deviceId || store.activeDeviceId === null;
   if (isDeviceActive) {
+    if (store.roomId && store.activeDeviceId === null) {
+      store.setActiveDevice(store.deviceId);
+    }
     const storeAudioEl = useAudioStore.getState().audioElement;
     if (storeAudioEl) {
       if (!storeAudioEl.ended) {

@@ -18,6 +18,22 @@ fn sync_audio_session() {
 }
 
 #[tauri::command]
+fn get_audio_output_device() -> Option<audio_session::NativeAudioDevice> {
+    #[cfg(target_os = "windows")]
+    {
+        audio_session::windows_audio::get_default_audio_device()
+    }
+    #[cfg(target_os = "linux")]
+    {
+        audio_session::linux_audio::get_default_audio_device()
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    {
+        None
+    }
+}
+
+#[tauri::command]
 fn is_autostart_launch() -> bool {
     std::env::args().any(|arg| arg == "--autostart")
 }
@@ -195,6 +211,7 @@ pub fn run() {
         set_tray_menu_size,
         set_app_icon,
         sync_audio_session,
+        get_audio_output_device,
         open_downloads_folder,
         updater::download_and_install_update
     ])

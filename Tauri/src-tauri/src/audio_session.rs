@@ -1,3 +1,10 @@
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct NativeAudioDevice {
+    pub name: String,
+    pub is_headphones: bool,
+    pub device_type: String,
+}
+
 #[cfg(target_os = "windows")]
 pub mod windows_audio {
     use std::collections::{HashMap, HashSet};
@@ -260,6 +267,126 @@ pub mod windows_audio {
             }
         });
     }
+
+    /// Возвращает активное аудиоустройство вывода в Windows (например, "Наушники (Realtek)", "WH-1000XM4")
+    pub fn get_default_audio_device() -> Option<super::NativeAudioDevice> {
+        unsafe {
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
+            let default_device = enumerator.GetDefaultAudioEndpoint(eRender, eMultimedia).ok()?;
+
+            let mut device_name = String::new();
+            let pkey = windows::Win32::Foundation::PROPERTYKEY {
+                fmtid: windows::core::GUID::from_u128(0xa45c254e_df1c_4efd_8020_67d146a850e0),
+                pid: 14,
+            };
+            if let Ok(store) = default_device.OpenPropertyStore(windows::Win32::System::Com::STGM(0)) {
+                if let Ok(val) = store.GetValue(&pkey) {
+                    device_name = val.to_string();
+                    let mut mut_val = val;
+                    let _ = windows::Win32::System::Com::StructuredStorage::PropVariantClear(&mut mut_val);
+                }
+            }
+
+            if device_name.is_empty() {
+                return None;
+            }
+
+            let lower = device_name.to_lowercase();
+            let is_bt = lower.contains("bluetooth") || lower.contains("wireless") || lower.contains("airpods")
+                || lower.contains("buds") || lower.contains("freebuds") || lower.contains("wh-")
+                || lower.contains("wf-") || lower.contains("bose") || lower.contains("sony");
+            let is_hp = is_bt || lower.contains("headphone") || lower.contains("headset")
+                || lower.contains("earphone") || lower.contains("наушник") || lower.contains("гарнитур");
+
+            Some(super::NativeAudioDevice {
+                name: device_name,
+                is_headphones: is_hp,
+                device_type: if is_bt {
+                    "bluetooth".to_string()
+                } else if is_hp {
+                    "wired".to_string()
+                } else {
+                    "speaker".to_string()
+                },
+            })
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub mod linux_audio {
+    use std::process::Command;
+
+    pub fn get_default_audio_device() -> Option<super::NativeAudioDevice> {
+        // 1. Try wpctl (PipeWire - default on modern Linux: Ubuntu 22.04+, Fedora, Arch, Debian 12+)
+        if let Ok(output) = Command::new("wpctl").args(["inspect", "@DEFAULT_AUDIO_SINK@"]).output() {
+            if output.status.success() {
+                let text = String::from_utf8_lossy(&output.stdout);
+                for line in text.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("node.description =") || trimmed.starts_with("device.description =") {
+                        if let Some(val) = trimmed.split('=').nth(1) {
+                            let name = val.trim().trim_matches('"').trim().to_string();
+                            if !name.is_empty() {
+                                return Some(classify_device(name));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Try pactl (PulseAudio fallback)
+        if let Ok(output) = Command::new("pactl").args(["get-default-sink"]).output() {
+            if output.status.success() {
+                let default_sink = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !default_sink.is_empty() {
+                    if let Ok(list_out) = Command::new("pactl").args(["list", "sinks"]).output() {
+                        let list_text = String::from_utf8_lossy(&list_out.stdout);
+                        let mut found_sink = false;
+                        for line in list_text.lines() {
+                            let line_t = line.trim();
+                            if line_t.starts_with("Name: ") && line_t.contains(&default_sink) {
+                                found_sink = true;
+                            } else if found_sink && line_t.starts_with("Description: ") {
+                                let desc = line_t.strip_prefix("Description: ").unwrap_or("").trim().to_string();
+                                if !desc.is_empty() {
+                                    return Some(classify_device(desc));
+                                }
+                            } else if found_sink && line_t.starts_with("Name: ") {
+                                break;
+                            }
+                        }
+                    }
+                    return Some(classify_device(default_sink));
+                }
+            }
+        }
+
+        None
+    }
+
+    fn classify_device(name: String) -> super::NativeAudioDevice {
+        let lower = name.to_lowercase();
+        let is_bt = lower.contains("bluetooth") || lower.contains("wireless") || lower.contains("airpods")
+            || lower.contains("buds") || lower.contains("freebuds") || lower.contains("wh-")
+            || lower.contains("wf-") || lower.contains("bose") || lower.contains("sony");
+        let is_hp = is_bt || lower.contains("headphone") || lower.contains("headset")
+            || lower.contains("earphone") || lower.contains("наушник") || lower.contains("гарнитур");
+
+        super::NativeAudioDevice {
+            name,
+            is_headphones: is_hp,
+            device_type: if is_bt {
+                "bluetooth".to_string()
+            } else if is_hp {
+                "wired".to_string()
+            } else {
+                "speaker".to_string()
+            },
+        }
+    }
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -268,4 +395,16 @@ pub mod windows_audio {
     pub fn update_audio_session_identity() {}
     pub fn trigger_sync_burst() {}
     pub fn start_audio_session_supervisor() {}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_windows_audio_device() {
+        let dev = windows_audio::get_default_audio_device();
+        println!("Detected Windows Audio Device: {:?}", dev);
+    }
 }

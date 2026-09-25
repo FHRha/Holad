@@ -47,14 +47,27 @@ function generateDeviceId() {
   const genId = () => typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
     : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
-  if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') {
+  if (typeof window === 'undefined') {
     return genId();
   }
-  let id = sessionStorage.getItem('holad_deviceId');
+  let id: string | null = null;
+  try {
+    id = localStorage.getItem('holad_deviceId');
+  } catch {}
+  if (!id) {
+    try {
+      id = sessionStorage.getItem('holad_deviceId');
+    } catch {}
+  }
   if (!id) {
     id = genId();
-    sessionStorage.setItem('holad_deviceId', id);
   }
+  try {
+    localStorage.setItem('holad_deviceId', id);
+  } catch {}
+  try {
+    sessionStorage.setItem('holad_deviceId', id);
+  } catch {}
   return id;
 }
 
@@ -176,6 +189,9 @@ export const useHoladStore = create<HoladState>((set, get) => {
             if (data.devices.length === 1 && data.devices[0].id === deviceId) {
                 get().setActiveDevice(deviceId);
             } else if (usePlayerStore.getState().isPlaying) {
+                get().setActiveDevice(deviceId);
+            } else if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !data.devices.some(d => d.id !== deviceId && get().isRemotePlaying)) {
+                // Foreground active device claims activeDeviceId if room has no active device and no remote is playing
                 get().setActiveDevice(deviceId);
             } else {
                 usePlayerStore.getState().setIsPlaying(false);
@@ -545,6 +561,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
 
     setActiveDevice: (id: string) => {
       const state = get();
+      set({ activeDeviceId: id });
       if (state.socket) {
         const currentDeviceId = state.deviceId || deviceId;
         const isCurrentActiveOnline = state.devices.some(d => d.id === state.activeDeviceId);

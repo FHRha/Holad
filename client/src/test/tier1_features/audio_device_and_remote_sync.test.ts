@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
-import { handleHeadphonesDisconnected, getAudioOutputDevice } from '../../hooks/useAudioOutputDevice';
+import { handleHeadphonesDisconnected, getAudioOutputDevice, getDeviceDisplayName, cleanRawDeviceLabel } from '../../hooks/useAudioOutputDevice';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
 
 describe('Headphone Handling, Audio Device Display & Holad Remote Protection', () => {
@@ -106,6 +106,55 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       }
 
       expect(setActiveSpy).toHaveBeenCalledWith(myId);
+    });
+
+    it('claims activeDeviceId when setIsPlaying(true) is called and activeDeviceId is null', () => {
+      const myId = useHoladStore.getState().deviceId;
+      useHoladStore.setState({
+        roomId: 'test-room-null',
+        activeDeviceId: null,
+        devices: [{ id: myId, name: 'My Device' }, { id: 'other-dev', name: 'Other' }]
+      });
+
+      const setActiveSpy = vi.spyOn(useHoladStore.getState(), 'setActiveDevice');
+
+      usePlayerStore.getState().setIsPlaying(true);
+
+      expect(setActiveSpy).toHaveBeenCalledWith(myId);
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
+    });
+  });
+
+  describe('3. getDeviceDisplayName Resolution', () => {
+    const mockT = (key: string, fallback?: string) => fallback || key;
+
+    it('returns specific device name if not generic', () => {
+      expect(getDeviceDisplayName({ name: 'Sony WH-1000XM4', type: 'bluetooth', isHeadphones: true }, mockT)).toBe('Sony WH-1000XM4');
+      expect(getDeviceDisplayName({ name: 'Realtek High Definition Audio', type: 'speaker', isHeadphones: false }, mockT)).toBe('Realtek High Definition Audio');
+    });
+
+    it('returns headphones localization if isHeadphones is true and name is generic or empty', () => {
+      expect(getDeviceDisplayName({ name: '', type: 'bluetooth', isHeadphones: true }, mockT)).toBe('Bluetooth-наушники');
+      expect(getDeviceDisplayName({ name: 'Наушники', type: 'wired', isHeadphones: true }, mockT)).toBe('Проводные наушники');
+    });
+
+    it('returns computer or phone speakers depending on platform for generic or empty name', () => {
+      const displayName = getDeviceDisplayName({ name: '', type: 'speaker', isHeadphones: false }, mockT);
+      expect(displayName).toBe('Динамики компьютера');
+    });
+
+    it('cleans OS prefixes (Default -, По умолчанию -) from Windows/Linux device names', () => {
+      expect(cleanRawDeviceLabel('Default - Наушники (Realtek Audio)')).toBe('Наушники (Realtek Audio)');
+      expect(cleanRawDeviceLabel('По умолчанию - Speakers (High Definition Audio)')).toBe('Speakers (High Definition Audio)');
+      expect(cleanRawDeviceLabel('Связь по умолчанию - HyperX Cloud III Wireless')).toBe('HyperX Cloud III Wireless');
+      expect(cleanRawDeviceLabel('Communications - USB Audio DAC')).toBe('USB Audio DAC');
+    });
+
+    it('formats desktop device names cleanly through getDeviceDisplayName', () => {
+      expect(getDeviceDisplayName({ name: 'Default - Наушники (HyperX Cloud III Wireless)', type: 'bluetooth', isHeadphones: true }, mockT))
+        .toBe('Наушники (HyperX Cloud III Wireless)');
+      expect(getDeviceDisplayName({ name: 'По умолчанию - Динамики (Realtek(R) Audio)', type: 'speaker', isHeadphones: false }, mockT))
+        .toBe('Динамики (Realtek(R) Audio)');
     });
   });
 });

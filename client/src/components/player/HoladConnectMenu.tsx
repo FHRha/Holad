@@ -4,15 +4,16 @@ import { Tv2, Monitor, Smartphone, MonitorSpeaker, Radio, Headphones, Speaker, I
 import { useHoladStore } from '../../store/holadStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useSocialStore } from '../../store/socialStore';
-import { useAudioOutputDevice } from '../../hooks/useAudioOutputDevice';
+import { useAudioOutputDevice, getDeviceDisplayName, promptSelectAudioOutput } from '../../hooks/useAudioOutputDevice';
 import { useTranslation } from 'react-i18next';
 
 export interface HoladConnectMenuProps {
   variant?: 'icon' | 'pill';
+  transparent?: boolean;
   className?: string;
 }
 
-export default function HoladConnectMenu({ variant = 'icon', className }: HoladConnectMenuProps) {
+export default function HoladConnectMenu({ variant = 'icon', transparent = false, className }: HoladConnectMenuProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -94,15 +95,15 @@ export default function HoladConnectMenu({ variant = 'icon', className }: HoladC
     if (isRemoteActive) {
       return activeRemoteDevice ? activeRemoteDevice.name : t('player.playing_on_device');
     }
-    return outputDevice.name || t('player.phone_speaker');
+    return getDeviceDisplayName(outputDevice, t);
   };
 
   const content = (isMobileView: boolean) => (
     <>
       <div 
         className={isMobileView 
-          ? "px-4 pt-2 pb-3 border-b border-border mb-2 pt-4 pb-4 touch-none" 
-          : "px-3 py-2 border-b border-border mb-2"
+          ? "px-4 pt-4 pb-3 border-b border-black/10 dark:border-white/10 touch-none" 
+          : "px-3 py-2 border-b border-black/10 dark:border-white/10"
         }
         onTouchStart={isMobileView ? (e) => {
           touchStartY.current = e.touches[0].clientY;
@@ -133,17 +134,25 @@ export default function HoladConnectMenu({ variant = 'icon', className }: HoladC
         </h3>
       </div>
 
-      {/* Local output device badge */}
-      <div className="px-3 pb-2 pt-1 border-b border-border/40 mb-2 flex items-center justify-between text-xs text-secondary">
-        <span className="flex items-center gap-1.5">
-          {outputDevice.isHeadphones ? <Headphones size={14} className="text-primary" /> : <Speaker size={14} />}
-          <span>{t('player.current_output')}:</span>
-        </span>
-        <span className="font-semibold text-foreground truncate max-w-[160px]">{outputDevice.name}</span>
-      </div>
+      {/* Local output device badge - only on main device, not on remote control */}
+      {!isRemoteActive && (
+        <div 
+          onClick={() => {
+            promptSelectAudioOutput().catch(() => {});
+          }}
+          className="px-4 py-3 border-b border-black/10 dark:border-white/10 flex items-center justify-between text-xs text-secondary cursor-pointer hover:bg-foreground/5 transition-colors select-none"
+          title={t('player.current_output')}
+        >
+          <span className="flex items-center gap-2">
+            {outputDevice.isHeadphones ? <Headphones size={15} className="text-primary shrink-0" /> : <Speaker size={15} className="shrink-0" />}
+            <span className="leading-none">{t('player.current_output')}:</span>
+          </span>
+          <span className="font-semibold text-foreground truncate max-w-[170px] leading-none">{getDeviceDisplayName(outputDevice, t)}</span>
+        </div>
+      )}
 
       {jamRoomId && (
-        <div className="px-3 pb-3 border-b border-border mb-2">
+        <div className="px-3 pb-3 border-b border-black/10 dark:border-white/10 mb-2">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5 text-xs text-primary font-semibold">
               <Radio size={14} className="animate-pulse" />
@@ -151,7 +160,7 @@ export default function HoladConnectMenu({ variant = 'icon', className }: HoladC
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 p-1 bg-foreground/5 rounded-xl border border-border/40 mb-2">
+          <div className="flex flex-col gap-1.5 p-1 bg-foreground/5 rounded-xl border border-black/10 dark:border-white/10 mb-2">
             <button
               type="button"
               onClick={() => setAudioMode('speaker_dj')}
@@ -200,7 +209,7 @@ export default function HoladConnectMenu({ variant = 'icon', className }: HoladC
               {t('player.connect_to_device')}
             </div>
           )}
-          <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
+          <div className="flex flex-col gap-1 max-h-60 overflow-y-auto px-2 pt-2">
             {devices.map((device) => {
               const isDeviceActive = device.id === activeDeviceId;
               const isThisDevice = device.id === localDeviceId;
@@ -268,11 +277,11 @@ export default function HoladConnectMenu({ variant = 'icon', className }: HoladC
             )}
           </div>
         </>
-      ) : (
+      ) : !isRemoteActive ? (
         <div className="px-3 py-3 text-center text-xs text-secondary">
           <p>{t('player.listening_on')}: <strong className="text-foreground">{outputDevice.name}</strong></p>
         </div>
-      )}
+      ) : null}
     </>
   );
 
@@ -282,15 +291,19 @@ export default function HoladConnectMenu({ variant = 'icon', className }: HoladC
         <button
           onClick={() => setIsOpen(!isOpen)}
           aria-label={t('player.connect_to_device', 'Подключиться к устройству')}
-          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-xs font-semibold max-w-full truncate active:scale-95 border ${
-            isRemoteActive || jamRoomId
-              ? 'bg-primary/15 text-primary border-primary/30 shadow-sm'
-              : 'bg-foreground/5 hover:bg-foreground/10 text-secondary hover:text-foreground border-border/40'
+          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full transition-all text-xs font-semibold max-w-full truncate active:scale-95 ${
+            transparent
+              ? isRemoteActive || jamRoomId
+                ? 'bg-primary/20 text-primary hover:bg-primary/30 border-0'
+                : 'bg-white/10 hover:bg-white/20 text-white/90 border-0 backdrop-blur-sm'
+              : isRemoteActive || jamRoomId
+                ? 'bg-primary/15 text-primary border border-primary/30 shadow-sm'
+                : 'bg-foreground/5 hover:bg-foreground/10 text-secondary hover:text-foreground border border-black/10 dark:border-white/10'
           }`}
           title={getPillLabel()}
         >
           {getPillIcon()}
-          <span className="truncate max-w-[200px]">{getPillLabel()}</span>
+          <span className="truncate max-w-[180px]">{getPillLabel()}</span>
         </button>
       ) : (
         <button 
@@ -305,7 +318,7 @@ export default function HoladConnectMenu({ variant = 'icon', className }: HoladC
 
       {isOpen && (
         <>
-          <div className="hidden md:block absolute bottom-full right-[-60px] mb-4 w-72 bg-card/95 backdrop-blur-xl transform-gpu border border-border rounded-xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+          <div className="hidden md:block absolute bottom-full right-[-60px] mb-4 w-72 bg-card/95 backdrop-blur-xl transform-gpu border border-black/10 dark:border-white/10 rounded-xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
             {content(false)}
           </div>
           
@@ -314,7 +327,7 @@ export default function HoladConnectMenu({ variant = 'icon', className }: HoladC
               <div className="fixed inset-0 bg-black/60 z-[9998] animate-in fade-in duration-200" onTouchStart={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} />
               <div 
                 ref={mobileMenuRef}
-                className="fixed bottom-0 left-0 right-0 w-full bg-card border-t border-border rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-[9999] overflow-hidden pb-8 animate-in slide-in-from-bottom-full duration-300"
+                className="fixed bottom-0 left-0 right-0 w-full bg-card border-t border-black/10 dark:border-white/10 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-[9999] overflow-hidden pb-8 animate-in slide-in-from-bottom-full duration-300"
                 style={{ 
                   transition: 'transform 0.3s ease-out'
                 }}

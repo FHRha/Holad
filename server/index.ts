@@ -1936,7 +1936,10 @@ io.on('connection', (socket) => {
     room.devices = room.devices.filter(d => d.id !== deviceId);
     room.devices.push({ id: deviceId, name: deviceName, socketId: socket.id });
     
-    if (!room.activeDeviceId) {
+    const isActiveDeviceOnline = room.activeDeviceId && room.devices.some(d => d.id === room.activeDeviceId);
+    const isActiveDeviceInGrace = room.activeDeviceId && holadGraceTimers.has(`${normalizedRoom}:${room.activeDeviceId}`);
+    
+    if (!room.activeDeviceId || (!isActiveDeviceOnline && !isActiveDeviceInGrace)) {
       room.activeDeviceId = deviceId;
     }
     
