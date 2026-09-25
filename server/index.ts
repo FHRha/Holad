@@ -2638,7 +2638,7 @@ io.on('connection', (socket) => {
         
         if (room.activeDeviceId === holadData.deviceId) {
           // The active device disconnected!
-          // Hold a 15-second Grace Period for network blips / temporary disconnects.
+          // Hold a 45-second Grace Period for network blips / mobile sleep / temporary disconnects.
           const timerKey = `${holadData.roomId}:${holadData.deviceId}`;
           if (holadGraceTimers.has(timerKey)) {
             clearTimeout(holadGraceTimers.get(timerKey)!);
@@ -2657,7 +2657,7 @@ io.on('connection', (socket) => {
                 holadRooms.delete(holadData.roomId);
               }
             }
-          }, 15000);
+          }, 45000);
           holadGraceTimers.set(timerKey, timer);
         }
         
