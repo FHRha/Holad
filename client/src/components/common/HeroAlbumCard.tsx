@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Heart, Star, MoreHorizontal, SkipForward, ListPlus, Download, Ban } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
@@ -133,10 +133,29 @@ export default function HeroAlbumCard({ album }: { album: any }) {
   };
 
   const [finalCoverUrl, setFinalCoverUrl] = useState<string | undefined>(undefined);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const coverUrl = getCoverArtUrl(album.coverArt || album.id);
 
   useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return;
+    }
+    if (!containerRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible) return;
     let isMounted = true;
     getCachedImageUrl(coverUrl).then(url => {
       if (isMounted) setFinalCoverUrl(url);
@@ -144,11 +163,36 @@ export default function HeroAlbumCard({ album }: { album: any }) {
       if (isMounted) setFinalCoverUrl(coverUrl);
     });
     return () => { isMounted = false; };
-  }, [coverUrl]);
+  }, [coverUrl, isVisible]);
 
   useEffect(() => {
-    extractDominantColor(coverUrl).then(color => setDominantColor(color));
-  }, [coverUrl]);
+    if (!isVisible) return;
+    let isMounted = true;
+    let idleId: number | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const runExtraction = () => {
+      extractDominantColor(coverUrl).then(color => {
+        if (isMounted) setDominantColor(color);
+      }).catch(() => {});
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      idleId = (window as any).requestIdleCallback(runExtraction);
+    } else {
+      timeoutId = setTimeout(runExtraction, 200);
+    }
+
+    return () => {
+      isMounted = false;
+      if (idleId !== undefined && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        (window as any).cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [coverUrl, isVisible]);
 
   const isLight = isLightColor(dominantColor);
 
@@ -202,6 +246,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
   return (
     <div 
+      ref={containerRef}
       className="group relative rounded-xl cursor-pointer flex flex-col p-6 flex-shrink-0 h-full"
       style={{
         backgroundColor: dominantColor ? dominantColor : 'var(--card)'
@@ -214,11 +259,11 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
       <div className="relative aspect-square overflow-hidden rounded-lg shadow-2xl mb-5 mx-2 bg-black/20">
         <img 
-          src={finalCoverUrl || coverUrl} 
+          src={finalCoverUrl} 
           alt={album.name} 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          loading="eager"
-          fetchPriority="high"
+          loading="lazy"
+          decoding="async"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             if (target.src.includes('&size=')) {

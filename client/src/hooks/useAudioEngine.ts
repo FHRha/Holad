@@ -318,7 +318,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
       const targetPosSec = initialPosition > 0 ? initialPosition / 1000 : 0;
       const deck = engineRef.current.getActiveDeck();
-      deck.load(audioSrc, targetPosSec).catch(() => {});
+      deck.load(audioSrc, targetPosSec, false).catch(() => {});
       if (targetPosSec > 0) {
         const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
         useAudioStore.getState().setDuration(dur);

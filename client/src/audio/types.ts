@@ -45,7 +45,7 @@ export interface IAudioDeck {
     readonly element: HTMLAudioElement;
     state: AudioState;
     
-    load(src: string, position?: number): Promise<void>;
+    load(src: string, position?: number, autoPreload?: boolean): Promise<void>;
     play(): Promise<void>;
     pause(): void;
     seek(positionSeconds: number, maxDuration?: number): void;

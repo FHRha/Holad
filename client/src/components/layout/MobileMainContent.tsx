@@ -357,7 +357,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
         ) : (
           <>
             <ScrollableSection title={isOffline || activeFilter === 'Downloaded' ? t('views.downloaded_tracks') : t('views.recently_played')} onRefresh={() => setRefreshRecentKey(k => k + 1)}>
-                {actualRecent.map(track => (
+                {actualRecent.map((track, idx) => (
                   <LongPressWrapper 
                     key={track.id} 
                     className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start"
@@ -368,7 +368,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                     }}
                   >
                     <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-card">
-                      <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 300)} className="w-full h-full object-cover" alt={track.title || track.name} trackId={track.id} />
+                      <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 300)} className="w-full h-full object-cover" alt={track.title || track.name} trackId={track.id} priority={idx === 0} />
                       <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                         <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center pl-1 text-primary-foreground">
                           <Play fill="currentColor" size={20} />
@@ -393,7 +393,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
             </ScrollableSection>
 
             <ScrollableSection title={isOffline || activeFilter === 'Downloaded' ? t('views.downloaded_albums') : t('views.frequently_played')} onRefresh={() => setRefreshFrequentKey(k => k + 1)}>
-                {actualFrequent.map(album => (
+                {actualFrequent.map((album, idx) => (
                   <LongPressWrapper 
                     key={album.id} 
                     className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start"
@@ -422,7 +422,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                     }}
                   >
                     <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-card">
-                      <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full object-cover" alt={album.name || album.title} trackId={album.id} />
+                      <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full object-cover" alt={album.name || album.title} trackId={album.id} priority={idx === 0} />
                       {(album.userRating > 0) && (
                         <div className="absolute bottom-2 left-2 flex items-center gap-1 text-primary text-xs font-bold bg-black/40 px-1.5 py-0.5 rounded-full">
                           <Star size={10} fill="currentColor" />
