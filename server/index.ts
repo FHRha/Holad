@@ -606,6 +606,38 @@ app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, re
   }
 });
 
+function getStreamRangeHeader(req: express.Request): string | undefined {
+  const rawRange = req.headers.range;
+  const preloadChunk = req.query.preloadChunk;
+
+  if (preloadChunk !== undefined) {
+    // CWE-20 & CWE-400: Валидация и защита от DoS/отрицательных значений
+    let chunkSize = 262144; // По умолчанию 256 КБ
+    if (typeof preloadChunk === 'string' && preloadChunk !== '' && preloadChunk !== 'true' && preloadChunk !== '1') {
+      const parsed = parseInt(preloadChunk, 10);
+      if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+        // Ограничение диапазона: от 32 КБ до 512 КБ (CWE-400)
+        chunkSize = Math.max(32768, Math.min(parsed, 524288));
+      }
+    }
+
+    // Ограничиваем только если запрос идёт с начала файла (bytes=0- или без Range)
+    if (!rawRange || rawRange.trim() === '' || rawRange.startsWith('bytes=0-')) {
+      return `bytes=0-${chunkSize - 1}`;
+    }
+  }
+
+  // CWE-444 / CWE-113: Санитайзинг от CRLF и инъекций заголовков
+  if (rawRange) {
+    const cleanRange = rawRange.replace(/[\r\n]/g, '').trim();
+    if (/^bytes=\d+-\d*$/.test(cleanRange)) {
+      return cleanRange;
+    }
+  }
+
+  return rawRange ? rawRange.replace(/[\r\n]/g, '').trim() : undefined;
+}
+
 async function executeWithFailover(req: express.Request, res: express.Response, buildUrlFn: (account: NavidromeAccount) => string, handleResponseFn: (response: Response) => Promise<any>) {
   if (navidromeAccounts.length === 0) {
     navidromeAccounts = database.getNavidromeAccounts();
@@ -633,7 +665,8 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
     try {
       const url = buildUrlFn(account);
       const headers: Record<string, string> = {};
-      if (req.headers.range) headers['Range'] = req.headers.range;
+      const rangeHeader = getStreamRangeHeader(req);
+      if (rangeHeader) headers['Range'] = rangeHeader;
       
       const response = await fetch(url, { headers, signal: req.signal });
       
@@ -1504,7 +1537,8 @@ app.get(streamRoutes, async (req, res) => {
       const streamUrl = `${targetServer.replace(/\/$/, '')}/rest/stream?id=${safeId}&${authParams}`;
       
       const headers: Record<string, string> = {};
-      if (req.headers.range) headers['Range'] = req.headers.range;
+      const rangeHeader = getStreamRangeHeader(req);
+      if (rangeHeader) headers['Range'] = rangeHeader;
       
       const response = await fetch(streamUrl, { headers, signal: req.signal });
       if (!response.ok && response.status !== 206) return res.status(response.status).send('Failed to fetch stream');

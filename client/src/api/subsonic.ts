@@ -15,7 +15,7 @@ export const getDownloadUrl = (id: string) => {
   return `${getBaseUrl()}/rest/download?id=${id}&${getAuthParams()}`;
 };
 
-export const getStreamUrl = (id: string) => {
+export const getStreamUrl = (id: string, options?: { preloadChunk?: boolean }) => {
   const { isAuthenticated, url } = useAuthStore.getState();
   const { streamingQuality } = useSettingsStore.getState();
   const proxyUrl = getHoladServerUrl();
@@ -35,8 +35,10 @@ export const getStreamUrl = (id: string) => {
     formatParam = 'format=opus&maxBitRate=256';
   }
 
+  const chunkParam = options?.preloadChunk ? '&preloadChunk=262144' : '';
+
   if (!isAuthenticated) {
-    return `${proxyUrl}/api/stream/${id}?${formatParam}`;
+    return `${proxyUrl}/api/stream/${id}?${formatParam}${chunkParam}`;
   }
 
   // On mobile (Capacitor), stream directly from Subsonic server to avoid WebView proxy/CORS issues
@@ -44,7 +46,7 @@ export const getStreamUrl = (id: string) => {
     return `${targetServerUrl}/rest/stream?id=${id}&${params}&${formatParam}&estimateContentLength=true`;
   }
 
-  return `${proxyUrl}/api/stream/${id}?serverUrl=${encodeURIComponent(targetServerUrl)}&${params}&${formatParam}&estimateContentLength=true`;
+  return `${proxyUrl}/api/stream/${id}?serverUrl=${encodeURIComponent(targetServerUrl)}&${params}&${formatParam}&estimateContentLength=true${chunkParam}`;
 };
 
 // Moved to social.ts

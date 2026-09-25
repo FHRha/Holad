@@ -32,13 +32,18 @@ export class PreloadManager {
         let streamUrl = track.streamUrl || (track.src ? track.src : null);
         if (!streamUrl) {
             try {
-                const resolved = await resolveTrackAudioSource(track);
+                const resolved = await resolveTrackAudioSource(track, { isPreload: true });
                 streamUrl = resolved.src;
             } catch (e) {
                 console.warn(`PreloadManager: Failed to resolve track URL for ${track.id}:`, e);
             }
         }
         if (!streamUrl) return;
+
+        if (streamUrl.includes('/api/stream/') && !streamUrl.includes('preloadChunk=')) {
+            const separator = streamUrl.includes('?') ? '&' : '?';
+            streamUrl = `${streamUrl}${separator}preloadChunk=262144`;
+        }
 
         this.isPreloading = true;
         this.preloadedTrackId = track.id;

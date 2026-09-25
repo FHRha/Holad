@@ -333,8 +333,11 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
 
       // Defer loading standby audio stream when paused to idle callback so critical page rendering (FCP, LCP, fonts) has 100% network priority
+      const preloadAudioSrc = audioSrc.includes('/api/stream/') && !audioSrc.includes('preloadChunk=')
+        ? `${audioSrc}&preloadChunk=262144`
+        : audioSrc;
       scheduleIdle(() => {
-        deck.load(audioSrc, targetPosSec, 'metadata').catch(() => {});
+        deck.load(preloadAudioSrc, targetPosSec, 'metadata').catch(() => {});
       });
     }
   }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition]);

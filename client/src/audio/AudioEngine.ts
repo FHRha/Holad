@@ -387,9 +387,20 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     public async preloadNextTrack(track: any): Promise<void> {
-        if (!this.settings.preloadNextTrack) return;
+        if (!this.settings.preloadNextTrack || !track) return;
+        let trackToPreload = track;
+        const rawUrl = track.streamUrl || track.src;
+        if (typeof rawUrl === 'string' && rawUrl.includes('/api/stream/') && !rawUrl.includes('preloadChunk=')) {
+            const separator = rawUrl.includes('?') ? '&' : '?';
+            const boundedUrl = `${rawUrl}${separator}preloadChunk=262144`;
+            trackToPreload = {
+                ...track,
+                ...(track.streamUrl ? { streamUrl: boundedUrl } : {}),
+                ...(track.src ? { src: boundedUrl } : {})
+            };
+        }
         const standbyDeck = this.getStandbyDeck();
-        await this.preloadManager.preloadTrack(track, standbyDeck);
+        await this.preloadManager.preloadTrack(trackToPreload, standbyDeck);
     }
 
     public getCurrentTrack(): any {

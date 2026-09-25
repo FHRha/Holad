@@ -9,7 +9,7 @@ export interface TrackAudioSourceResult {
   isAvailable: boolean;
 }
 
-export async function resolveTrackAudioSource(track: any): Promise<TrackAudioSourceResult> {
+export async function resolveTrackAudioSource(track: any, options?: { isPreload?: boolean }): Promise<TrackAudioSourceResult> {
   if (!track || !track.id) {
     return { src: '', isLocal: false, isAvailable: false };
   }
@@ -31,13 +31,13 @@ export async function resolveTrackAudioSource(track: any): Promise<TrackAudioSou
 
   // Online: stream from server
   return {
-    src: getStreamUrl(track.id),
+    src: getStreamUrl(track.id, { preloadChunk: options?.isPreload }),
     isLocal: false,
     isAvailable: true,
   };
 }
 
-export function useTrackSource(track: any) {
+export function useTrackSource(track: any, options?: { isPreload?: boolean }) {
   const [src, setSrc] = useState<string>('');
   const [trackId, setTrackId] = useState<string>('');
   const [isLocal, setIsLocal] = useState<boolean>(false);
@@ -65,7 +65,7 @@ export function useTrackSource(track: any) {
     const resolve = async () => {
       setIsLoading(true);
       try {
-        const result = await resolveTrackAudioSource(track);
+        const result = await resolveTrackAudioSource(track, options);
         if (!isMounted) return;
 
         if (currentBlobRef.current && currentBlobRef.current !== result.src) {
@@ -83,7 +83,7 @@ export function useTrackSource(track: any) {
       } catch (err) {
         console.error('Error resolving track source:', err);
         if (isMounted) {
-          setSrc(isOffline() ? '' : getStreamUrl(track.id));
+          setSrc(isOffline() ? '' : getStreamUrl(track.id, { preloadChunk: options?.isPreload }));
           setTrackId(track.id);
           setIsLocal(false);
           setIsAvailable(!isOffline());
@@ -104,7 +104,7 @@ export function useTrackSource(track: any) {
         currentBlobRef.current = null;
       }
     };
-  }, [track?.id, track?.title, track?.albumId]);
+  }, [track?.id, track?.title, track?.albumId, options?.isPreload]);
 
   return { src, trackId, isLocal, isLoading, isAvailable };
 }
