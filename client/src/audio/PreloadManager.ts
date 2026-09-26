@@ -28,6 +28,8 @@ export class PreloadManager {
     public async preloadTrack(track: any, standbyDeck: IAudioDeck): Promise<void> {
         if (!track || !track.id) return;
         if (this.preloadedTrackId === track.id) return;
+        if (this.isPreloading) return;
+        if (standbyDeck.getState() === 'playing' || !standbyDeck.element.paused) return;
 
         let streamUrl = track.streamUrl || (track.src ? track.src : null);
         if (!streamUrl) {

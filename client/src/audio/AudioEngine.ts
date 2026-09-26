@@ -35,6 +35,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     private playToken: number = 0;
     private isPlaying: boolean = false;
     private hasPreloadedCurrentTrack: boolean = false;
+    private isPreparingPlayback: boolean = false;
 
     constructor(elements?: [HTMLAudioElement, HTMLAudioElement]) {
         const deck0 = new AudioDeck('deck-0', elements?.[0]);
@@ -144,6 +145,10 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
     private checkPreloadThreshold(currentTime: number, duration: number): void {
         if (this.hasPreloadedCurrentTrack || !this.settings.preloadNextTrack) return;
+        if (this.isPreparingPlayback || this.transitionManager.getIsTransitioning()) return;
+
+        // Ensure we only trigger preload if the deck actually has the currently active track ID
+        if (this.currentTrack?.id && this.deckTrackIds[this.activeIndex] !== this.currentTrack.id) return;
 
         let effectiveDuration = duration;
         if (!effectiveDuration || isNaN(effectiveDuration) || effectiveDuration <= 0 || !isFinite(effectiveDuration)) {
@@ -152,6 +157,9 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         if (!effectiveDuration || effectiveDuration <= 0 || !isFinite(effectiveDuration)) return;
         
         const crossfadeSec = this.settings.isCrossfadeEnabled ? this.settings.crossfadeDuration : 0;
+        const triggerWindow = Math.max(this.preloadManager.getLookaheadSeconds(), crossfadeSec + 2);
+        if (effectiveDuration > triggerWindow && currentTime < 5) return;
+
         if (this.preloadManager.shouldPreload(currentTime, effectiveDuration, crossfadeSec)) {
             this.hasPreloadedCurrentTrack = true;
             this.emit('requestPreload');
@@ -173,9 +181,12 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     public async playTrack(track: any, options: PlayTrackOptions = {}): Promise<void> {
+        this.isPreparingPlayback = true;
+        this.hasPreloadedCurrentTrack = true;
+        this.preloadManager.reset();
+
         const previousTrack = this.currentTrack;
         this.currentTrack = track;
-        this.hasPreloadedCurrentTrack = false;
         const currentToken = ++this.playToken;
         this.isPlaying = true;
         const streamUrl = track?.streamUrl || track?.src || (typeof track === 'string' ? track : '');
@@ -184,129 +195,141 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         const standbyDeck = this.getStandbyDeck();
         const trackDuration = typeof track?.duration === 'number' && track.duration > 0 ? track.duration : undefined;
 
-        if (this.settings.isCrossfadeEnabled && !options.immediate && (activeDeck.getState() === 'playing' || !activeDeck.element.paused)) {
-            // Perform crossfade to standby deck
-            const outgoingIndex = this.activeIndex;
-            const incomingIndex = (1 - this.activeIndex) as 0 | 1;
-            const outgoingDeck = this.decks[outgoingIndex];
-            const incomingDeck = this.decks[incomingIndex];
+        try {
+            if (this.settings.isCrossfadeEnabled && !options.immediate && (activeDeck.getState() === 'playing' || !activeDeck.element.paused)) {
+                // Perform crossfade to standby deck
+                const outgoingIndex = this.activeIndex;
+                const incomingIndex = (1 - this.activeIndex) as 0 | 1;
+                const outgoingDeck = this.decks[outgoingIndex];
+                const incomingDeck = this.decks[incomingIndex];
 
-            // Abort any active transition cleanly to pause the incoming deck and reset volumes
-            // This prevents old audio's timeupdate events from leaking into the new track while loading
-            this.transitionManager.abortActiveTransition(outgoingDeck, incomingDeck, this.pipeline || undefined, outgoingIndex, this.volume * this.volumeMultiplier);
+                // Abort any active transition cleanly to pause the incoming deck and reset volumes
+                // This prevents old audio's timeupdate events from leaking into the new track while loading
+                this.transitionManager.abortActiveTransition(outgoingDeck, incomingDeck, this.pipeline || undefined, outgoingIndex, this.volume * this.volumeMultiplier);
 
-            if (trackDuration) {
-                try {
-                    (incomingDeck.element as any).duration = trackDuration;
-                } catch { /* Browser restriction fallback: property is read-only or locked */ }
-            }
+                if (trackDuration) {
+                    try {
+                        (incomingDeck.element as any).duration = trackDuration;
+                    } catch { /* Browser restriction fallback: property is read-only or locked */ }
+                }
 
-            if (this.pipeline) {
-                await Promise.race([
-                    this.pipeline.unlockContext(),
-                    new Promise((r) => setTimeout(r, 200))
-                ]);
+                if (this.pipeline) {
+                    await Promise.race([
+                        this.pipeline.unlockContext(),
+                        new Promise((r) => setTimeout(r, 200))
+                    ]);
+                    if (this.playToken !== currentToken || !this.isPlaying) return;
+                }
+
+                this.deckTrackIds[incomingIndex] = track?.id || null;
+                await incomingDeck.load(streamUrl, position);
                 if (this.playToken !== currentToken || !this.isPlaying) return;
-            }
 
-            this.deckTrackIds[incomingIndex] = track?.id || null;
-            await incomingDeck.load(streamUrl, position);
-            if (this.playToken !== currentToken || !this.isPlaying) return;
+                // R7: Switch activeIndex to incoming track at crossfade start,
+                // emitting timeupdate and durationchange immediately so progress slider and lyrics jump to track 2's timing
+                this.activeIndex = incomingIndex;
+                this.isPreparingPlayback = false;
+                this.hasPreloadedCurrentTrack = false;
+                this.emit('timeupdate', position, this.deckTrackIds[incomingIndex]);
+                this.emit('durationchange', trackDuration || incomingDeck.getDuration() || 0);
 
-            // R7: Switch activeIndex to incoming track at crossfade start,
-            // emitting timeupdate and durationchange immediately so progress slider and lyrics jump to track 2's timing
-            this.activeIndex = incomingIndex;
-            this.emit('timeupdate', position, this.deckTrackIds[incomingIndex]);
-            this.emit('durationchange', trackDuration || incomingDeck.getDuration() || 0);
+                const rawDuration = options.transitionDuration !== undefined ? options.transitionDuration : this.settings.crossfadeDuration;
+                const outgoingDur = (outgoingDeck.getDuration() && outgoingDeck.getDuration() > 0 && isFinite(outgoingDeck.getDuration()))
+                    ? outgoingDeck.getDuration()
+                    : (typeof previousTrack?.duration === 'number' && previousTrack.duration > 0 ? previousTrack.duration : 0);
+                const outgoingRemaining = outgoingDur > 0 ? Math.max(0, outgoingDur - outgoingDeck.getCurrentTime()) : undefined;
+                const incomingDuration = trackDuration || (incomingDeck.getDuration() && incomingDeck.getDuration() > 0 && isFinite(incomingDeck.getDuration())) ? incomingDeck.getDuration() : 0;
 
-            const rawDuration = options.transitionDuration !== undefined ? options.transitionDuration : this.settings.crossfadeDuration;
-            const outgoingDur = (outgoingDeck.getDuration() && outgoingDeck.getDuration() > 0 && isFinite(outgoingDeck.getDuration()))
-                ? outgoingDeck.getDuration()
-                : (typeof previousTrack?.duration === 'number' && previousTrack.duration > 0 ? previousTrack.duration : 0);
-            const outgoingRemaining = outgoingDur > 0 ? Math.max(0, outgoingDur - outgoingDeck.getCurrentTime()) : undefined;
-            const incomingDuration = trackDuration || (incomingDeck.getDuration() && incomingDeck.getDuration() > 0 && isFinite(incomingDeck.getDuration()) ? incomingDeck.getDuration() : 0);
+                let effectiveDuration = trackDuration !== undefined && trackDuration < 1
+                    ? Math.min(rawDuration, Math.max(0.05, trackDuration / 2))
+                    : rawDuration;
 
-            let effectiveDuration = trackDuration !== undefined && trackDuration < 1
-                ? Math.min(rawDuration, Math.max(0.05, trackDuration / 2))
-                : rawDuration;
+                if (outgoingRemaining !== undefined) {
+                    effectiveDuration = Math.min(effectiveDuration, outgoingRemaining);
+                }
+                if (incomingDuration > 0) {
+                    effectiveDuration = Math.min(effectiveDuration, incomingDuration * 0.4);
+                }
+                effectiveDuration = Math.max(0.05, effectiveDuration);
 
-            if (outgoingRemaining !== undefined) {
-                effectiveDuration = Math.min(effectiveDuration, outgoingRemaining);
-            }
-            if (incomingDuration > 0) {
-                effectiveDuration = Math.min(effectiveDuration, incomingDuration * 0.4);
-            }
-            effectiveDuration = Math.max(0.05, effectiveDuration);
+                await this.transitionManager.performCrossfade(
+                    outgoingDeck,
+                    incomingDeck,
+                    { duration: effectiveDuration, curve: this.settings.crossfadeCurve },
+                    this.pipeline || undefined,
+                    outgoingIndex,
+                    this.volume * this.volumeMultiplier
+                );
+            } else if (this.settings.isGaplessEnabled && this.preloadManager.isTrackPreloaded(track?.id)) {
+                // Gapless handover
+                const outgoingIndex = this.activeIndex;
+                const incomingIndex = (1 - this.activeIndex) as 0 | 1;
+                const outgoingDeck = this.decks[outgoingIndex];
+                const incomingDeck = this.decks[incomingIndex];
 
-            await this.transitionManager.performCrossfade(
-                outgoingDeck,
-                incomingDeck,
-                { duration: effectiveDuration, curve: this.settings.crossfadeCurve },
-                this.pipeline || undefined,
-                outgoingIndex,
-                this.volume * this.volumeMultiplier
-            );
-        } else if (this.settings.isGaplessEnabled && this.preloadManager.isTrackPreloaded(track?.id)) {
-            // Gapless handover
-            const outgoingIndex = this.activeIndex;
-            const incomingIndex = (1 - this.activeIndex) as 0 | 1;
-            const outgoingDeck = this.decks[outgoingIndex];
-            const incomingDeck = this.decks[incomingIndex];
+                this.transitionManager.abortActiveTransition(outgoingDeck, incomingDeck, this.pipeline || undefined, outgoingIndex, this.volume * this.volumeMultiplier);
 
-            this.transitionManager.abortActiveTransition(outgoingDeck, incomingDeck, this.pipeline || undefined, outgoingIndex, this.volume * this.volumeMultiplier);
+                if (trackDuration) {
+                    try {
+                        (incomingDeck.element as any).duration = trackDuration;
+                    } catch { /* Browser restriction fallback: property is read-only or locked */ }
+                }
 
-            if (trackDuration) {
-                try {
-                    (incomingDeck.element as any).duration = trackDuration;
-                } catch { /* Browser restriction fallback: property is read-only or locked */ }
-            }
+                if (this.pipeline) {
+                    await Promise.race([
+                        this.pipeline.unlockContext(),
+                        new Promise((r) => setTimeout(r, 200))
+                    ]);
+                    if (this.playToken !== currentToken || !this.isPlaying) return;
+                }
 
-            if (this.pipeline) {
-                await Promise.race([
-                    this.pipeline.unlockContext(),
-                    new Promise((r) => setTimeout(r, 200))
-                ]);
+                this.deckTrackIds[incomingIndex] = track?.id || null;
+                this.activeIndex = incomingIndex;
+                this.isPreparingPlayback = false;
+                this.hasPreloadedCurrentTrack = false;
+                this.emit('timeupdate', position, this.deckTrackIds[incomingIndex]);
+                this.emit('durationchange', trackDuration || incomingDeck.getDuration() || 0);
+
+                await this.transitionManager.performGaplessHandover(
+                    outgoingDeck,
+                    incomingDeck,
+                    this.pipeline || undefined,
+                    outgoingIndex,
+                    this.volume * this.volumeMultiplier
+                );
+            } else {
+                // Standard direct play
+                if (this.pipeline) {
+                    await Promise.race([
+                        this.pipeline.unlockContext(),
+                        new Promise((r) => setTimeout(r, 200))
+                    ]);
+                    if (this.playToken !== currentToken || !this.isPlaying) return;
+                }
+
+                if (trackDuration) {
+                    try {
+                        (activeDeck.element as any).duration = trackDuration;
+                    } catch { /* Browser restriction fallback: property is read-only or locked */ }
+                }
+                
+                this.deckTrackIds[this.activeIndex] = track?.id || null;
+
+                this.transitionManager.abortActiveTransition(activeDeck, standbyDeck, this.pipeline || undefined, this.activeIndex, this.volume * this.volumeMultiplier);
+                await activeDeck.load(streamUrl, position);
                 if (this.playToken !== currentToken || !this.isPlaying) return;
+                await activeDeck.play();
+                if (this.pipeline) {
+                    this.pipeline.setDeckGain(this.activeIndex, 1.0, 0);
+                    this.pipeline.setDeckGain((1 - this.activeIndex) as 0 | 1, 0.0, 0);
+                }
+                this.isPreparingPlayback = false;
+                this.hasPreloadedCurrentTrack = false;
+                this.emit('timeupdate', position, this.deckTrackIds[this.activeIndex]);
+                this.emit('durationchange', trackDuration || activeDeck.getDuration() || 0);
             }
-
-            this.deckTrackIds[incomingIndex] = track?.id || null;
-            this.activeIndex = incomingIndex;
-            this.emit('timeupdate', position, this.deckTrackIds[incomingIndex]);
-            this.emit('durationchange', trackDuration || incomingDeck.getDuration() || 0);
-
-            await this.transitionManager.performGaplessHandover(
-                outgoingDeck,
-                incomingDeck,
-                this.pipeline || undefined,
-                outgoingIndex,
-                this.volume * this.volumeMultiplier
-            );
-        } else {
-            // Standard direct play
-            if (this.pipeline) {
-                await Promise.race([
-                    this.pipeline.unlockContext(),
-                    new Promise((r) => setTimeout(r, 200))
-                ]);
-                if (this.playToken !== currentToken || !this.isPlaying) return;
-            }
-
-            if (trackDuration) {
-                try {
-                    (activeDeck.element as any).duration = trackDuration;
-                } catch { /* Browser restriction fallback: property is read-only or locked */ }
-            }
-            
-            this.deckTrackIds[this.activeIndex] = track?.id || null;
-
-            this.transitionManager.abortActiveTransition(activeDeck, standbyDeck, this.pipeline || undefined, this.activeIndex, this.volume * this.volumeMultiplier);
-            await activeDeck.load(streamUrl, position);
-            if (this.playToken !== currentToken || !this.isPlaying) return;
-            await activeDeck.play();
-            if (this.pipeline) {
-                this.pipeline.setDeckGain(this.activeIndex, 1.0, 0);
-                this.pipeline.setDeckGain((1 - this.activeIndex) as 0 | 1, 0.0, 0);
-            }
+        } finally {
+            this.isPreparingPlayback = false;
         }
     }
 
@@ -387,7 +410,13 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     public async preloadNextTrack(track: any): Promise<void> {
-        if (!this.settings.preloadNextTrack || !track) return;
+        if (!this.settings.preloadNextTrack || !track || !track.id) return;
+        if (this.isPreparingPlayback || this.transitionManager.getIsTransitioning()) return;
+        if (track.id === this.currentTrack?.id || track.id === this.deckTrackIds[this.activeIndex]) return;
+
+        const standbyDeck = this.getStandbyDeck();
+        if (standbyDeck.getState() === 'playing' || !standbyDeck.element.paused) return;
+
         let trackToPreload = track;
         const rawUrl = track.streamUrl || track.src;
         if (typeof rawUrl === 'string' && rawUrl.includes('/api/stream/') && !rawUrl.includes('preloadChunk=')) {
@@ -399,7 +428,6 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                 ...(track.src ? { src: boundedUrl } : {})
             };
         }
-        const standbyDeck = this.getStandbyDeck();
         await this.preloadManager.preloadTrack(trackToPreload, standbyDeck);
     }
 

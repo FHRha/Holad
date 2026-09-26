@@ -212,6 +212,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   // Preload next track
   const preloadUpcomingTrack = useCallback(() => {
     if (!settings.preloadNextTrack || settings.preloadMode === 'disabled') return;
+    if (engineRef.current.isTransitioning()) return;
 
     // If wifi_only is selected, check if connection is cellular or metered
     if (settings.preloadMode === 'wifi_only') {
@@ -233,7 +234,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
     }
     const nextTrk = q[nextIdx];
-    if (nextTrk) {
+    if (nextTrk && currentTrack && nextTrk.id !== currentTrack.id && engineRef.current.getActiveTrackId() === currentTrack.id) {
       scheduleIdle(() => {
         engineRef.current.preloadNextTrack(nextTrk).catch(() => {});
         if (settings.preloadCovers) {
@@ -241,7 +242,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         }
       });
     }
-  }, [settings.preloadNextTrack, settings.preloadMode, settings.preloadCovers]);
+  }, [settings.preloadNextTrack, settings.preloadMode, settings.preloadCovers, currentTrack]);
 
   // Handle Track Source Changes & Playback Transitions
   const prevTrackIdRef = useRef<string | null>(null);

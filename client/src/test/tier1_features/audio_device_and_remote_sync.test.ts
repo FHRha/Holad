@@ -4,6 +4,7 @@ import { useHoladStore } from '../../store/holadStore';
 import { handleHeadphonesDisconnected, getAudioOutputDevice, getDeviceDisplayName, cleanRawDeviceLabel } from '../../hooks/useAudioOutputDevice';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
 import { AudioDeck } from '../../audio/AudioDeck';
+import { AudioEngine } from '../../audio/AudioEngine';
 import { createMockAudioElement } from '../mocks/mockAudio';
 
 describe('Headphone Handling, Audio Device Display & Holad Remote Protection', () => {
@@ -319,6 +320,35 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
 
       expect(playSpy).toHaveBeenCalled();
       deck.destroy();
+    });
+
+    it('AudioEngine blocks preloadNextTrack during playback preparation and transition so incoming deck is never clobbered', async () => {
+      const el0 = createMockAudioElement();
+      const el1 = createMockAudioElement();
+      const engine = new AudioEngine([el0, el1]);
+
+      const track1 = { id: 'track-1', streamUrl: 'http://localhost:4000/stream/trk1', duration: 180 };
+      const track2 = { id: 'track-2', streamUrl: 'http://localhost:4000/stream/trk2', duration: 139 };
+      const track3 = { id: 'track-3', streamUrl: 'http://localhost:4000/stream/trk3', duration: 125 };
+
+      // Play track 1
+      await engine.playTrack(track1, { immediate: true });
+      expect(engine.getActiveDeckIndex()).toBe(0);
+      expect(engine.getActiveTrackId()).toBe('track-1');
+
+      // Now start transitioning to track 2
+      const playPromise = engine.playTrack(track2, { transitionDuration: 0.1 });
+
+      // Concurrently attempt to preload track 3 while track 2 is being prepared/transitioned
+      await engine.preloadNextTrack(track3);
+
+      await playPromise;
+
+      // Active deck index must be deck 1, playing track-2, NOT overwritten by track-3
+      expect(engine.getActiveDeckIndex()).toBe(1);
+      expect(engine.getActiveTrackId()).toBe('track-2');
+      expect(el1.src).toContain('trk2');
+      expect(el1.src).not.toContain('trk3');
     });
   });
 });

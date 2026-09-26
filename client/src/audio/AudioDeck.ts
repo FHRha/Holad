@@ -70,14 +70,14 @@ export class AudioDeck implements IAudioDeck {
         });
 
         register('canplay', () => {
-            if (this.state === 'loading' || this.state === 'stalled') {
+            if (this.state === 'loading' || this.state === 'stalled' || this.state === 'paused') {
                 this.setState(this.element.paused ? 'ready' : 'playing');
             }
             this.emit('canplay');
         });
 
         register('canplaythrough', () => {
-            if (this.state === 'loading' || this.state === 'stalled') {
+            if (this.state === 'loading' || this.state === 'stalled' || this.state === 'paused') {
                 this.setState(this.element.paused ? 'ready' : 'playing');
             }
             this.emit('canplaythrough');
@@ -225,6 +225,7 @@ export class AudioDeck implements IAudioDeck {
                     this.element.currentTime = target;
                 } catch {}
             }
+            this.setState('loading');
         
             // Force the UI to reset immediately
             this.emit('timeupdate', position);
@@ -237,6 +238,7 @@ export class AudioDeck implements IAudioDeck {
                             this.element.currentTime = target;
                         } catch {}
                     }
+                    this.setState(this.element.paused ? 'ready' : 'playing');
                     resolve();
                     return;
                 }
@@ -251,6 +253,7 @@ export class AudioDeck implements IAudioDeck {
                             this.element.currentTime = target;
                         } catch {}
                     }
+                    this.setState(this.element.paused ? 'ready' : 'playing');
                     resolve();
                 }, 1000);
 
@@ -262,6 +265,7 @@ export class AudioDeck implements IAudioDeck {
                             this.element.currentTime = target;
                         } catch {}
                     }
+                    this.setState(this.element.paused ? 'ready' : 'playing');
                     resolve();
                 };
 
