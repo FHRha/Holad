@@ -3,14 +3,19 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
 import { handleHeadphonesDisconnected, getAudioOutputDevice, getDeviceDisplayName, cleanRawDeviceLabel } from '../../hooks/useAudioOutputDevice';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
+import { AudioDeck } from '../../audio/AudioDeck';
+import { createMockAudioElement } from '../mocks/mockAudio';
 
 describe('Headphone Handling, Audio Device Display & Holad Remote Protection', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     resetAllStores();
+    useHoladStore.getState().disconnect();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    useHoladStore.getState().disconnect();
   });
 
   describe('1. Headphone Disconnection Handler', () => {
@@ -124,16 +129,105 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       expect(usePlayerStore.getState().isPlaying).toBe(true);
     });
 
-    it('transfers active device to remaining online device when primary active device goes offline', () => {
+    it('does NOT steal activeDeviceId when window visibility changes to visible', () => {
+      const holad = useHoladStore.getState();
+      const myId = holad.deviceId;
+      const masterId = 'desktop-master';
+
+      useHoladStore.setState({
+        roomId: 'test-room',
+        activeDeviceId: masterId,
+        isRemotePlaying: false,
+        lastPausedAt: Date.now() - 5000,
+        devices: [
+          { id: myId, name: 'Phone Remote' },
+          { id: masterId, name: 'Desktop' }
+        ]
+      });
+
+      const setActiveSpy = vi.spyOn(useHoladStore.getState(), 'setActiveDevice');
+      holad.setupStoreSubscriptions();
+
+      // Simulate window becoming visible
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        configurable: true,
+      });
+      window.dispatchEvent(new Event('visibilitychange'));
+
+      // Passive window visibility must NOT steal active device!
+      expect(setActiveSpy).not.toHaveBeenCalled();
+    });
+
+    it('Idle Timeout: remote play sends remoteCommand "play" when master was paused < 60s', () => {
+      const holad = useHoladStore.getState();
+      const myId = holad.deviceId;
+      const masterId = 'desktop-master';
+      const mockSocket = { emit: vi.fn() } as any;
+
+      useHoladStore.setState({
+        socket: mockSocket,
+        roomId: 'test-room',
+        activeDeviceId: masterId,
+        isRemotePlaying: false,
+        lastPausedAt: Date.now() - 20000, // Paused only 20 seconds ago (< 60s)
+        devices: [
+          { id: myId, name: 'Phone Remote' },
+          { id: masterId, name: 'Desktop' }
+        ]
+      });
+
+      const setActiveSpy = vi.spyOn(useHoladStore.getState(), 'setActiveDevice');
+      holad.setupStoreSubscriptions();
+
+      // User presses Play on remote device
+      usePlayerStore.getState().setIsPlaying(true);
+
+      // Must NOT steal active device
+      expect(setActiveSpy).not.toHaveBeenCalled();
+      // Must send remoteCommand 'play' to the current master
+      expect(mockSocket.emit).toHaveBeenCalledWith('holad_remoteCommand', { type: 'play' });
+    });
+
+    it('Idle Timeout: remote play claims activeDeviceId locally when master has been paused >= 60s', () => {
+      const holad = useHoladStore.getState();
+      const myId = holad.deviceId;
+      const masterId = 'desktop-master';
+      const mockSocket = { emit: vi.fn() } as any;
+
+      useHoladStore.setState({
+        socket: mockSocket,
+        roomId: 'test-room',
+        activeDeviceId: masterId,
+        isRemotePlaying: false,
+        lastPausedAt: Date.now() - 65000, // Paused 65 seconds ago (> 60s idle timeout)
+        devices: [
+          { id: myId, name: 'Phone Remote' },
+          { id: masterId, name: 'Desktop' }
+        ]
+      });
+
+      const setActiveSpy = vi.spyOn(useHoladStore.getState(), 'setActiveDevice');
+      holad.setupStoreSubscriptions();
+
+      // User presses Play on remote device after idle timeout
+      usePlayerStore.getState().setIsPlaying(true);
+
+      // Must claim active device locally!
+      expect(setActiveSpy).toHaveBeenCalledWith(myId);
+    });
+
+    it('transfers active device to remaining online device when primary active device goes offline after grace period', () => {
       const holad = useHoladStore.getState();
       const myId = holad.deviceId;
       const deadDeviceId = 'closed-desktop-id';
       const setActiveSpy = vi.spyOn(useHoladStore.getState(), 'setActiveDevice');
 
-      // Socket event arrives where activeDeviceId was closed-desktop-id, but only myId is online
+      // Socket event arrives after 45s grace period expires on server:
+      // only myId is in devices list, and room is updating
       const data = {
         devices: [{ id: myId, name: 'Phone' }],
-        activeDeviceId: deadDeviceId
+        activeDeviceId: null
       };
 
       const isActiveDeviceOnline = Boolean(data.activeDeviceId && data.devices.some(d => d.id === data.activeDeviceId));
@@ -175,6 +269,56 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
         .toBe('Наушники (HyperX Cloud III Wireless)');
       expect(getDeviceDisplayName({ name: 'По умолчанию - Динамики (Realtek(R) Audio)', type: 'speaker', isHeadphones: false }, mockT))
         .toBe('Динамики (Realtek(R) Audio)');
+    });
+  });
+
+  describe('4. AudioDeck & AudioEngine Switching Fixes', () => {
+    it('AudioDeck.load calls element.pause() before assigning new src and loading', async () => {
+      const el = createMockAudioElement();
+      const pauseSpy = vi.spyOn(el, 'pause');
+      const deck = new AudioDeck('test-deck-pause', el);
+
+      await deck.load('http://localhost:4000/stream/song-pause', 0);
+      expect(pauseSpy).toHaveBeenCalled();
+      deck.destroy();
+    });
+
+    it('AudioDeck CORS fallback does not play() if deck was not playing', () => {
+      const el = createMockAudioElement();
+      el.setAttribute('crossorigin', 'anonymous');
+      const deck = new AudioDeck('test-deck-cors-paused', el);
+      deck.state = 'paused';
+      (el as any).paused = true;
+
+      const fallbackEl = createMockAudioElement();
+      const playSpy = vi.spyOn(fallbackEl, 'play');
+      vi.spyOn(window, 'Audio').mockImplementation(function (this: any) {
+        return fallbackEl as any;
+      });
+
+      el.dispatchEvent(new Event('error'));
+
+      expect(playSpy).not.toHaveBeenCalled();
+      deck.destroy();
+    });
+
+    it('AudioDeck CORS fallback invokes play() if deck was actively playing', () => {
+      const el = createMockAudioElement();
+      el.setAttribute('crossorigin', 'anonymous');
+      const deck = new AudioDeck('test-deck-cors-playing', el);
+      deck.state = 'playing';
+      (el as any).paused = false;
+
+      const fallbackEl = createMockAudioElement();
+      const playSpy = vi.spyOn(fallbackEl, 'play');
+      vi.spyOn(window, 'Audio').mockImplementation(function (this: any) {
+        return fallbackEl as any;
+      });
+
+      el.dispatchEvent(new Event('error'));
+
+      expect(playSpy).toHaveBeenCalled();
+      deck.destroy();
     });
   });
 });

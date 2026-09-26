@@ -470,7 +470,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
          if (!usePlayerStore.getState().isPlaying) audioRefs[0].current?.pause();
       }).catch(() => {});
       audioRefs[1].current?.play().then(() => {
-         if (!usePlayerStore.getState().isPlaying) audioRefs[1].current?.pause();
+         audioRefs[1].current?.pause();
       }).catch(() => {});
       
       document.removeEventListener('click', handleInteraction);
@@ -595,7 +595,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const handleEnded = (emittedTrackId?: string) => {
       flushPositionToLocalStorage();
       if (!currentTrack) return;
-      if (emittedTrackId && emittedTrackId !== currentTrack.id) return;
+      if (!emittedTrackId || emittedTrackId !== currentTrack.id) return;
       const pStore = usePlayerStore.getState();
       const isJamSession = Boolean(pStore.roomId);
       if (isJamSession && pStore.role !== 'host' && pStore.role !== 'cohost') return;

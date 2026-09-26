@@ -2,7 +2,6 @@ import type { StateCreator } from 'zustand';
 import type { PlayerState } from '../playerStore';
 import type { Track } from '../../types';
 import { useHoladStore } from '../holadStore';
-import { useAudioStore } from '../audioStore';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
 
 const triggerPlay = () => {
@@ -11,15 +10,6 @@ const triggerPlay = () => {
   if (isDeviceActive) {
     if (store.roomId && store.activeDeviceId === null) {
       store.setActiveDevice(store.deviceId);
-    }
-    const storeAudioEl = useAudioStore.getState().audioElement;
-    if (storeAudioEl) {
-      if (!storeAudioEl.ended) {
-        storeAudioEl.play().catch(() => {});
-      }
-    } else {
-      const firstPlayer = document.querySelector('.main-audio-player') as HTMLAudioElement;
-      if (firstPlayer && !firstPlayer.ended) firstPlayer.play().catch(() => {});
     }
   }
 };

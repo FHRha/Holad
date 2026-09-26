@@ -134,6 +134,7 @@ export class AudioDeck implements IAudioDeck {
                 console.warn('AudioDeck: Error with crossOrigin anonymous, falling back to secondary element');
                 
                 const oldElement = this.element;
+                const wasPlaying = !oldElement.paused && this.state === 'playing';
                 const newElement = new Audio();
                 newElement.crossOrigin = null;
                 newElement.preload = 'auto';
@@ -165,7 +166,9 @@ export class AudioDeck implements IAudioDeck {
                 
                 this.element.load();
                 this.element.currentTime = currentTime;
-                this.element.play().catch(() => {});
+                if (wasPlaying) {
+                    this.element.play().catch(() => {});
+                }
                 return;
             }
             this.setState('error');
@@ -213,6 +216,7 @@ export class AudioDeck implements IAudioDeck {
             this.element.preload = preloadMode;
 
             if (this.element.src !== src) {
+                this.element.pause();
                 this.element.src = src;
                 this.element.load();
             } else {

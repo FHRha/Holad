@@ -119,9 +119,9 @@ export function useAppInitialization() {
         const localIndex = currentStore.currentIndex;
         const localCurrentTrack = localIndex >= 0 && localIndex < localQueue.length ? localQueue[localIndex] : null;
 
-        // If the room already synchronized an active queue from another playing device, don't overwrite it
+        // If the device is in a Holad Connect room and is not the active device, don't overwrite playerStore
         const holadState = useHoladStore.getState();
-        if (holadState.roomId && holadState.activeDeviceId && holadState.activeDeviceId !== holadState.deviceId && localQueue.length > 0) {
+        if (holadState.roomId && holadState.activeDeviceId && holadState.activeDeviceId !== holadState.deviceId) {
           return;
         }
 

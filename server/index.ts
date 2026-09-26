@@ -1603,6 +1603,7 @@ interface HoladRoom {
   activeDeviceId: string | null;
   devices: HoladDevice[];
   cachedState: any | null;
+  lastPausedAt?: number | null;
 }
 
 const holadRooms = new Map<string, HoladRoom>();
@@ -1922,7 +1923,7 @@ io.on('connection', (socket) => {
     
     let room = holadRooms.get(normalizedRoom);
     if (!room) {
-      room = { activeDeviceId: null, devices: [], cachedState: null };
+      room = { activeDeviceId: null, devices: [], cachedState: null, lastPausedAt: null };
       holadRooms.set(normalizedRoom, room);
     }
     
@@ -1959,6 +1960,17 @@ io.on('connection', (socket) => {
       socket.emit('holad_syncState', room.cachedState);
     }
 
+    if (room.activeDeviceId && room.activeDeviceId !== deviceId) {
+      const activeDev = room.devices.find(d => d.id === room.activeDeviceId);
+      if (activeDev) {
+        io.to(activeDev.socketId).emit('holad_remoteCommand', {
+          type: 'requestState',
+          fromUserId: normalizedRoom,
+          fromDeviceId: deviceId
+        });
+      }
+    }
+
     // Sync current exclusions from DB to newly joined device
     try {
       const userExclusions = database.getExclusions(normalizedRoom);
@@ -1990,21 +2002,52 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('holad_requestState', () => {
+    const data = (socket as any).holadData;
+    if (!data) return;
+    const room = holadRooms.get(data.roomId);
+    if (room) {
+      if (room.cachedState) {
+        socket.emit('holad_syncState', room.cachedState);
+      }
+      if (room.activeDeviceId && room.activeDeviceId !== data.deviceId) {
+        const activeDev = room.devices.find(d => d.id === room.activeDeviceId);
+        if (activeDev) {
+          io.to(activeDev.socketId).emit('holad_remoteCommand', {
+            type: 'requestState',
+            fromUserId: data.roomId,
+            fromDeviceId: data.deviceId
+          });
+        }
+      }
+    }
+  });
+
   socket.on('holad_updateState', (state: any) => {
     const data = (socket as any).holadData;
     if (!data) return;
     const room = holadRooms.get(data.roomId);
     if (room) {
       if (room.activeDeviceId === data.deviceId) {
-        room.cachedState = { ...room.cachedState, ...state };
-        socket.to(`holad_${data.roomId}`).emit('holad_syncState', state);
+        if (typeof state.lastPausedAt === 'number') {
+          room.lastPausedAt = state.lastPausedAt;
+        } else if (state.isPlaying === false) {
+          if (room.cachedState?.isPlaying === true || room.lastPausedAt == null) {
+            room.lastPausedAt = Date.now();
+          }
+        } else if (state.isPlaying === true) {
+          room.lastPausedAt = null;
+        }
+        room.cachedState = { ...room.cachedState, ...state, lastPausedAt: room.lastPausedAt };
+        socket.to(`holad_${data.roomId}`).emit('holad_syncState', room.cachedState);
       } else if (!room.activeDeviceId && state.isPlaying) {
         // Protective recovery: if room had no active device, actively playing device assumes activeDeviceId
         room.activeDeviceId = data.deviceId;
-        room.cachedState = { ...room.cachedState, ...state };
+        room.lastPausedAt = null;
+        room.cachedState = { ...room.cachedState, ...state, lastPausedAt: null };
         const payload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
         io.to(`holad_${data.roomId}`).emit('holad_devices', payload);
-        socket.to(`holad_${data.roomId}`).emit('holad_syncState', state);
+        socket.to(`holad_${data.roomId}`).emit('holad_syncState', room.cachedState);
       }
     }
   });
@@ -2049,13 +2092,28 @@ io.on('connection', (socket) => {
       }
       room.devices = room.devices.filter(d => d.id !== rawDevice && d.socketId !== socket.id);
       if (room.activeDeviceId === rawDevice) {
-        room.activeDeviceId = room.devices[0]?.id ?? null;
+        // Hold 45 second grace period timer
+        const timer = setTimeout(() => {
+          holadGraceTimers.delete(timerKey);
+          const currentRoom = holadRooms.get(normalizedRoom);
+          if (currentRoom && currentRoom.activeDeviceId === rawDevice) {
+            currentRoom.activeDeviceId = currentRoom.devices[0]?.id ?? null;
+            io.to(`holad_${normalizedRoom}`).emit('holad_devices', {
+              devices: currentRoom.devices,
+              activeDeviceId: currentRoom.activeDeviceId
+            });
+            if (currentRoom.devices.length === 0) {
+              holadRooms.delete(normalizedRoom);
+            }
+          }
+        }, 45000);
+        holadGraceTimers.set(timerKey, timer);
       }
       io.to(`holad_${normalizedRoom}`).emit('holad_devices', {
         devices: room.devices,
         activeDeviceId: room.activeDeviceId
       });
-      if (room.devices.length === 0) {
+      if (room.devices.length === 0 && !holadGraceTimers.has(timerKey)) {
         holadRooms.delete(normalizedRoom);
       }
     }
