@@ -132,7 +132,9 @@ jobs:
       - name: Setup Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: Tauri/src-tauri
+          workspaces: |
+            Tauri/src-tauri -> target
+            installer/src-tauri -> target
 
       - name: Run Windows build
         env:

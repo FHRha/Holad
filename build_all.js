@@ -516,11 +516,27 @@ node dist/index.js
   // Rebuild Client for Native Apps (Base: ./) if Tauri or Android is enabled
   if (!skipTauri || !skipAndroid) {
     console.log("\n--- Rebuilding Client for Native Apps (Base: ./) ---");
-    await ensureDependencies('Native Client Install', path.join(ROOT_DIR, 'client'));
-    await runCommand('Native Client Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'client'), { 
-      VITE_APP_BASE: './',
-      RELEASE_VERSION: currentBuildVersion
-    });
+    const nativePrepTasks = [
+      (async () => {
+        await ensureDependencies('Native Client Install', path.join(ROOT_DIR, 'client'));
+        await runCommand('Native Client Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'client'), { 
+          VITE_APP_BASE: './',
+          RELEASE_VERSION: currentBuildVersion
+        });
+      })()
+    ];
+
+    // Pre-build installer frontend concurrently on Windows
+    const installerDir = path.join(ROOT_DIR, 'installer');
+    if (process.platform === 'win32' && !skipTauri && fs.existsSync(installerDir)) {
+      nativePrepTasks.push((async () => {
+        console.log("\n--- Pre-building Custom Installer Frontend ---");
+        await ensureDependencies('Installer Dependencies', installerDir);
+        await runCommand('Installer Frontend Build', `${pnpmCmd} run build`, installerDir);
+      })());
+    }
+
+    await Promise.all(nativePrepTasks);
   }
 
   // 3. Build Tauri Desktop Apps and Capacitor Android App in parallel
@@ -571,9 +587,14 @@ node dist/index.js
         const currentVer = getAppVersion();
         if (process.env.TAURI_BUNDLES) {
           tauriBuildCmd = `npx @tauri-apps/cli build --bundles ${process.env.TAURI_BUNDLES}`;
-        } else if (process.platform === 'win32' && currentVer && currentVer.includes('-')) {
-          console.log(`[Tauri] Pre-release version detected (${currentVer}). Packaging NSIS setup bundle (skipping WiX MSI which requires strict numeric x.x.x versioning).`);
-          tauriBuildCmd = 'npx @tauri-apps/cli build --bundles nsis';
+        } else if (process.platform === 'win32') {
+          if (currentVer && currentVer.includes('-')) {
+            console.log(`[Tauri] Pre-release version detected (${currentVer}). Building application binary (custom installer will package setup.exe).`);
+            tauriBuildCmd = 'npx @tauri-apps/cli build --no-bundle';
+          } else {
+            console.log(`[Tauri] Stable release detected (${currentVer}). Packaging WiX MSI bundle (custom installer will package setup.exe).`);
+            tauriBuildCmd = 'npx @tauri-apps/cli build --bundles msi';
+          }
         }
         await runCommand('Tauri Build', tauriBuildCmd, path.join(ROOT_DIR, 'Tauri'));
         
@@ -674,19 +695,19 @@ node dist/index.js
             let packed = false;
             try {
               await runCommand(
-                'Pack Installer Payload',
-                `powershell -NoProfile -Command "Compress-Archive -Path '${stagingDir}\\*' -DestinationPath '${payloadZip}' -Force"`,
+                'Pack Installer Payload (tar)',
+                `tar -a -c -f "${payloadZip}" -C "${stagingDir}" .`,
                 ROOT_DIR
               );
               if (fs.existsSync(payloadZip)) packed = true;
             } catch (err) {
-              console.warn("[Installer] PowerShell Compress-Archive failed, trying tar:", err.message);
+              console.warn("[Installer] tar command failed, trying PowerShell Compress-Archive:", err.message);
             }
 
             if (!packed) {
               await runCommand(
-                'Pack Installer Payload (tar)',
-                `tar -a -c -f "${payloadZip}" -C "${stagingDir}" .`,
+                'Pack Installer Payload (PowerShell)',
+                `powershell -NoProfile -Command "Compress-Archive -Path '${stagingDir}\\*' -DestinationPath '${payloadZip}' -Force"`,
                 ROOT_DIR
               );
             }
@@ -694,10 +715,14 @@ node dist/index.js
             // Clean staging directory
             try { fs.rmSync(stagingDir, { recursive: true, force: true }); } catch (e) {}
 
-            // 3. Ensure installer dependencies & build frontend
-            console.log("\n--- Building Installer Frontend ---");
-            await ensureDependencies('Installer Dependencies', installerDir);
-            await runCommand('Installer Frontend Build', `${pnpmCmd} run build`, installerDir);
+            // 3. Ensure installer dependencies & build frontend (if not pre-built)
+            if (!fs.existsSync(path.join(installerDir, 'dist', 'index.html'))) {
+              console.log("\n--- Building Installer Frontend ---");
+              await ensureDependencies('Installer Dependencies', installerDir);
+              await runCommand('Installer Frontend Build', `${pnpmCmd} run build`, installerDir);
+            } else {
+              console.log("\n[Installer] ✔ Frontend already pre-built, skipping rebuild.");
+            }
 
             // 4. Build custom installer binary
             console.log("\n--- Building Custom Installer Binary ---");
