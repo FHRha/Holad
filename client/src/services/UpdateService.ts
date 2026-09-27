@@ -301,7 +301,7 @@ export class UpdateService {
         }
     }
 
-    static async performUpdate() {
+    static async performUpdate(mode: 'silent' | 'manual' = 'silent') {
         const info = useUIStore.getState().updateInfo;
         
         if (!info?.downloadUrl || !info?.fileName) {
@@ -327,7 +327,8 @@ export class UpdateService {
 
                 await invoke('download_and_install_update', {
                     url: info.downloadUrl,
-                    fileName: info.fileName
+                    fileName: info.fileName,
+                    silent: mode === 'silent'
                 });
 
                 unlisten();

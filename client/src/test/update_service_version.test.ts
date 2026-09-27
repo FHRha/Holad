@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { invoke } from '@tauri-apps/api/core';
 import { UpdateService, compareVersions } from '../services/UpdateService';
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn().mockResolvedValue(null),
+  convertFileSrc: vi.fn(),
+}));
+
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn().mockResolvedValue(() => {}),
+  emit: vi.fn(),
+}));
 
 describe('compareVersions SemVer', () => {
   it('should compare standard versions correctly', () => {
@@ -147,3 +158,84 @@ describe('UpdateService Version Resolution', () => {
     expect(version).toMatch(/^\d+\.\d+\.\d+/);
   });
 });
+
+describe('UpdateService performUpdate and silent flag', () => {
+  beforeEach(() => {
+    (window as any).__TAURI_INTERNALS__ = {};
+    (invoke as any).mockClear();
+  });
+
+  afterEach(() => {
+    delete (window as any).__TAURI_INTERNALS__;
+    vi.restoreAllMocks();
+  });
+
+  it('should pass silent: true when mode is silent or default', async () => {
+    const { useUIStore } = await import('../store/uiStore');
+    useUIStore.getState().setUpdateInfo({
+      version: '2.1.0',
+      notes: 'New release',
+      downloadUrl: 'https://example.com/Holad_2.1.0_x64-setup.exe',
+      fileName: 'Holad_2.1.0_x64-setup.exe',
+      size: 50000000,
+      progress: null,
+      isPrerelease: false
+    });
+
+    await UpdateService.performUpdate('silent');
+
+    expect(invoke).toHaveBeenCalledWith('download_and_install_update', {
+      url: 'https://example.com/Holad_2.1.0_x64-setup.exe',
+      fileName: 'Holad_2.1.0_x64-setup.exe',
+      silent: true
+    });
+  });
+
+  it('should pass silent: false when mode is manual', async () => {
+    const { useUIStore } = await import('../store/uiStore');
+    useUIStore.getState().setUpdateInfo({
+      version: '2.1.0',
+      notes: 'New release',
+      downloadUrl: 'https://example.com/Holad_2.1.0_x64-setup.exe',
+      fileName: 'Holad_2.1.0_x64-setup.exe',
+      size: 50000000,
+      progress: null,
+      isPrerelease: false
+    });
+
+    await UpdateService.performUpdate('manual');
+
+    expect(invoke).toHaveBeenCalledWith('download_and_install_update', {
+      url: 'https://example.com/Holad_2.1.0_x64-setup.exe',
+      fileName: 'Holad_2.1.0_x64-setup.exe',
+      silent: false
+    });
+  });
+});
+
+describe('syncAppLanguageToBackend', () => {
+  beforeEach(() => {
+    (window as any).__TAURI_INTERNALS__ = {};
+    (invoke as any).mockClear();
+  });
+
+  afterEach(() => {
+    delete (window as any).__TAURI_INTERNALS__;
+    vi.restoreAllMocks();
+  });
+
+  it('should invoke set_app_language with ru when language starts with ru', async () => {
+    const { syncAppLanguageToBackend } = await import('../store/settingsStore');
+
+    await syncAppLanguageToBackend('ru-RU');
+    expect(invoke).toHaveBeenCalledWith('set_app_language', { language: 'ru' });
+  });
+
+  it('should invoke set_app_language with en when language is not ru', async () => {
+    const { syncAppLanguageToBackend } = await import('../store/settingsStore');
+
+    await syncAppLanguageToBackend('en-US');
+    expect(invoke).toHaveBeenCalledWith('set_app_language', { language: 'en' });
+  });
+});
+

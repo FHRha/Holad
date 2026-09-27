@@ -15,6 +15,7 @@ fn download_and_install_sync(
     app: AppHandle,
     url: String,
     file_name: String,
+    silent: Option<bool>,
 ) -> Result<(), String> {
     let temp_dir = std::env::temp_dir().join("Holad").join("updates");
     if let Err(e) = std::fs::create_dir_all(&temp_dir) {
@@ -161,9 +162,14 @@ fn download_and_install_sync(
     #[cfg(target_os = "windows")]
     {
         use std::process::Command;
-        log::info!("Launching Windows installer: {:?}", dest_file);
+        let is_silent = silent.unwrap_or(false);
+        log::info!("Launching Windows installer: {:?}, silent: {}", dest_file, is_silent);
 
-        let status = Command::new(&dest_file).spawn();
+        let mut cmd = Command::new(&dest_file);
+        if is_silent {
+            cmd.arg("--silent");
+        }
+        let status = cmd.spawn();
         match status {
             Ok(_) => {
                 // Give OS a moment to start the setup process, then exit Holad so installer can update binaries cleanly
@@ -251,9 +257,10 @@ pub async fn download_and_install_update(
     app: AppHandle,
     url: String,
     file_name: String,
+    silent: Option<bool>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        download_and_install_sync(app, url, file_name)
+        download_and_install_sync(app, url, file_name, silent)
     })
     .await
     .map_err(|e| format!("Task execution error: {}", e))?

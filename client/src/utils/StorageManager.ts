@@ -32,6 +32,15 @@ export class StorageManager {
   static async getDefaultDownloadDir(): Promise<string> {
     if (isTauri()) {
       try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const customDir = await invoke<string>('get_music_download_dir');
+        if (customDir && customDir.trim().length > 0) {
+          return customDir.trim();
+        }
+      } catch {
+        // fallback
+      }
+      try {
         const { downloadDir } = await import('@tauri-apps/api/path');
         const dDir = await downloadDir();
         return await join(dDir, 'Holad');

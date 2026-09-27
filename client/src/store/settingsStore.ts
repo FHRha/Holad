@@ -4,6 +4,19 @@ import i18n from 'i18next';
 import type { CrossfadeCurve } from '../audio/types';
 import { setImageCacheLimit } from '../utils/imageCache';
 import { applyAppIcon } from '../utils/appIconHelper';
+import { isTauri } from '../utils/StorageManager';
+
+export async function syncAppLanguageToBackend(language: string) {
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const normalized = language.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+      await invoke('set_app_language', { language: normalized });
+    } catch (e) {
+      console.warn('Failed to sync app language to backend:', e);
+    }
+  }
+}
 
 export type AppTheme = 'dark' | 'light' | 'system';
 export type AppIcon = 'wave_dark' | 'wave_light' | 'cassette';
@@ -155,6 +168,7 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       setLanguage: (language) => {
         i18n.changeLanguage(language);
+        syncAppLanguageToBackend(language);
         set({ language });
       },
       setClickAction: (clickAction) => set({ clickAction }),
@@ -216,6 +230,8 @@ export const useSettingsStore = create<SettingsState>()(
             state.startPage = (migrated === '' ? '/' : migrated) as StartPage;
           }
         }
+        const initialLang = state?.language || i18n.language || 'ru';
+        syncAppLanguageToBackend(initialLang);
       },
     }
   )

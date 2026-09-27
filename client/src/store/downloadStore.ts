@@ -56,7 +56,14 @@ export const useDownloadStore = create<DownloadState>()(
     (set, get) => ({
       downloadDirectory: null,
       downloads: {},
-      setDownloadDirectory: (dir) => set({ downloadDirectory: dir }),
+      setDownloadDirectory: (dir) => {
+        set({ downloadDirectory: dir });
+        if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined) {
+          import('@tauri-apps/api/core').then(({ invoke }) => {
+            invoke('set_music_download_dir', { path: dir }).catch(() => {});
+          });
+        }
+      },
       startDownload: (id, name, type, coverArt, extra) => set((state) => ({
         downloads: {
           ...state.downloads,
@@ -498,3 +505,15 @@ export const useDownloadQueue = (): DownloadQueueStats => {
   const downloads = useDownloadStore(state => state.downloads);
   return getDownloadQueueStats(downloads);
 };
+
+if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined) {
+  import('@tauri-apps/api/core').then(({ invoke }) => {
+    invoke<string>('get_music_download_dir')
+      .then((dir) => {
+        if (dir && !useDownloadStore.getState().downloadDirectory) {
+          useDownloadStore.getState().setDownloadDirectory(dir);
+        }
+      })
+      .catch(() => {});
+  });
+}

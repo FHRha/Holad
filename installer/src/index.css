@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #000000;
+    --card: #121212;
+    --border: rgba(255, 255, 255, 0.1);
+    --color-primary: 29 185 84;
+    --color-primary-rgb: 29, 185, 84;
+    --secondary: #b3b3b3;
+    --accent: #282828;
+  }
+
+  html, body {
+    background-color: transparent !important;
+    background-image: none !important;
+    outline: none !important;
+    border: none !important;
+    overflow: hidden !important;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+    margin: 0;
+    padding: 0;
+  }
+
+  #root {
+    background-color: transparent !important;
+    outline: none !important;
+    border: none !important;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}

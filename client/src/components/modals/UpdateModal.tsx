@@ -1,4 +1,4 @@
-import { X, Download, SkipForward, Loader2, AlertCircle } from 'lucide-react';
+import { X, Download, SkipForward, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { UpdateService } from '../../services/UpdateService';
@@ -36,8 +36,8 @@ export default function UpdateModal() {
     }
   };
 
-  const handleUpdate = () => {
-    UpdateService.performUpdate();
+  const handleUpdate = (mode: 'silent' | 'manual' = 'silent') => {
+    UpdateService.performUpdate(mode);
   };
 
   const handleClose = () => {
@@ -157,13 +157,27 @@ export default function UpdateModal() {
 
           <div className="flex flex-col gap-3 mt-2">
             {(isTauri() || isCapacitor()) && !isBusy && !isPermissionRequired && (
-              <button 
-                onClick={handleUpdate}
-                className="flex items-center justify-center gap-3 w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-primary/20"
-              >
-                <Download size={20} />
-                {isError ? t('update.retry', 'Retry') : t('update.auto_update', 'Auto-Update')}
-              </button>
+              <>
+                <button 
+                  onClick={() => handleUpdate('silent')}
+                  className="flex items-center justify-center gap-3 w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-primary/20"
+                  title={t('update.auto_update_desc', 'Fast background silent update')}
+                >
+                  <Download size={20} />
+                  {isError ? t('update.retry', 'Retry') : t('update.auto_update', 'Auto-Update')}
+                </button>
+
+                {isTauri() && !isError && (
+                  <button 
+                    onClick={() => handleUpdate('manual')}
+                    className="flex items-center justify-center gap-2.5 w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-2.5 rounded-xl border border-white/10 transition-colors"
+                    title={t('update.manual_update_desc', 'Launch installer window')}
+                  >
+                    <ExternalLink size={18} className="opacity-80" />
+                    {t('update.manual_update', 'Manual Update')}
+                  </button>
+                )}
+              </>
             )}
 
             {!isBusy && (

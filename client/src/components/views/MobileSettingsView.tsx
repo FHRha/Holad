@@ -22,6 +22,8 @@ import StorageDangerZone from '../settings/StorageDangerZone';
 import DownloadedMusicGrid from '../settings/DownloadedMusicGrid';
 import { openExternalLink } from '../../utils/linkHelper';
 import { useDemoStore } from '../../store/demoStore';
+import { useDownloadStore } from '../../store/downloadStore';
+import { StorageManager } from '../../utils/StorageManager';
 
 function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
   return (
@@ -125,6 +127,17 @@ export default function MobileSettingsView() {
   const [showLastFmKey, setShowLastFmKey] = useState(false);
   const [showYandexToken, setShowYandexToken] = useState(false);
   const [appVersion, setAppVersion] = useState<string>('');
+
+  const downloadDirectory = useDownloadStore(state => state.downloadDirectory);
+  const [actualDir, setActualDir] = useState<string>('');
+
+  useEffect(() => {
+    if (downloadDirectory) {
+      setActualDir(downloadDirectory);
+    } else {
+      StorageManager.getDefaultDownloadDir().then(setActualDir).catch(() => {});
+    }
+  }, [downloadDirectory]);
 
   useEffect(() => {
     UpdateService.getCurrentVersion().then((v) => {
@@ -788,6 +801,15 @@ export default function MobileSettingsView() {
               {t('settings.memory_limit')}
             </span>
             <ImageMemoryLimitControl isMobile={true} />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-semibold text-[#b3b3b3] uppercase tracking-wider">
+              {t('settings.download_location')}
+            </span>
+            <div className="bg-[#1e1e1e] p-3 rounded-xl border border-white/5 truncate max-w-full text-xs font-mono text-zinc-300" title={actualDir}>
+              {actualDir || t('sidebar.downloading', 'Загрузка...')}
+            </div>
           </div>
 
           <div className="flex flex-col gap-2 pt-2 border-t border-white/5">

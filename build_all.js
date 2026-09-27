@@ -72,7 +72,9 @@ if (rawVersion) {
     path.join(ROOT_DIR, 'client', 'package.json'),
     path.join(ROOT_DIR, 'server', 'package.json'),
     path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'tauri.conf.json'),
-    path.join(ROOT_DIR, 'Capacitor', 'package.json')
+    path.join(ROOT_DIR, 'Capacitor', 'package.json'),
+    path.join(ROOT_DIR, 'installer', 'package.json'),
+    path.join(ROOT_DIR, 'installer', 'src-tauri', 'tauri.conf.json')
   ].forEach(file => {
     if (fs.existsSync(file)) {
       try {
@@ -122,6 +124,32 @@ if (rawVersion) {
       console.log(`Updated version in Tauri/src-tauri/Cargo.lock to ${semverVersion}`);
     } catch (e) {
       console.warn(`Could not update version in Cargo.lock:`, e.message);
+    }
+  }
+
+  // Update installer Cargo.toml
+  const installerCargoTomlPath = path.join(ROOT_DIR, 'installer', 'src-tauri', 'Cargo.toml');
+  if (fs.existsSync(installerCargoTomlPath)) {
+    try {
+      let cargoContent = fs.readFileSync(installerCargoTomlPath, 'utf8');
+      cargoContent = cargoContent.replace(/^version\s*=\s*"[^"]*"/m, `version = "${semverVersion}"`);
+      fs.writeFileSync(installerCargoTomlPath, cargoContent);
+      console.log(`Updated version in installer/src-tauri/Cargo.toml to ${semverVersion}`);
+    } catch (e) {
+      console.warn(`Could not update version in installer/src-tauri/Cargo.toml:`, e.message);
+    }
+  }
+
+  // Update installer Cargo.lock
+  const installerCargoLockPath = path.join(ROOT_DIR, 'installer', 'src-tauri', 'Cargo.lock');
+  if (fs.existsSync(installerCargoLockPath)) {
+    try {
+      let lockContent = fs.readFileSync(installerCargoLockPath, 'utf8');
+      lockContent = lockContent.replace(/(\[\[package\]\]\r?\nname\s*=\s*"holad-installer"\r?\nversion\s*=\s*)"[^"]*"/, `$1"${semverVersion}"`);
+      fs.writeFileSync(installerCargoLockPath, lockContent);
+      console.log(`Updated version in installer/src-tauri/Cargo.lock to ${semverVersion}`);
+    } catch (e) {
+      console.warn(`Could not update version in installer/src-tauri/Cargo.lock:`, e.message);
     }
   }
 
@@ -615,6 +643,78 @@ node dist/index.js
           }
         }
         copyBundlesRecursively(bundlesDir);
+
+        // Build Custom Windows Installer from installer/
+        if (process.platform === 'win32') {
+          const holadExe = path.join(tauriReleaseDir, 'Holad.exe');
+          const installerDir = path.join(ROOT_DIR, 'installer');
+          if (fs.existsSync(holadExe) && fs.existsSync(installerDir)) {
+            console.log("\n--- Packaging Custom Windows Installer ---");
+            // 1. Stage payload files (Holad.exe + resources)
+            const stagingDir = path.join(installerDir, 'payload-staging');
+            if (fs.existsSync(stagingDir)) {
+              fs.rmSync(stagingDir, { recursive: true, force: true });
+            }
+            fs.mkdirSync(stagingDir, { recursive: true });
+
+            fs.copyFileSync(holadExe, path.join(stagingDir, 'Holad.exe'));
+
+            const iconsDir = path.join(ROOT_DIR, 'client', 'public', 'icons');
+            if (fs.existsSync(iconsDir)) {
+              copyRecursiveSync(iconsDir, path.join(stagingDir, 'icons'));
+            }
+
+            // 2. Create payload.zip for installer embedding
+            const payloadZip = path.join(installerDir, 'src-tauri', 'payload.zip');
+            if (fs.existsSync(payloadZip)) {
+              try { fs.unlinkSync(payloadZip); } catch (e) {}
+            }
+
+            console.log("[Installer] Creating payload.zip from staged application files...");
+            let packed = false;
+            try {
+              await runCommand(
+                'Pack Installer Payload',
+                `powershell -NoProfile -Command "Compress-Archive -Path '${stagingDir}\\*' -DestinationPath '${payloadZip}' -Force"`,
+                ROOT_DIR
+              );
+              if (fs.existsSync(payloadZip)) packed = true;
+            } catch (err) {
+              console.warn("[Installer] PowerShell Compress-Archive failed, trying tar:", err.message);
+            }
+
+            if (!packed) {
+              await runCommand(
+                'Pack Installer Payload (tar)',
+                `tar -a -c -f "${payloadZip}" -C "${stagingDir}" .`,
+                ROOT_DIR
+              );
+            }
+
+            // Clean staging directory
+            try { fs.rmSync(stagingDir, { recursive: true, force: true }); } catch (e) {}
+
+            // 3. Ensure installer dependencies & build frontend
+            console.log("\n--- Building Installer Frontend ---");
+            await ensureDependencies('Installer Dependencies', installerDir);
+            await runCommand('Installer Frontend Build', `${pnpmCmd} run build`, installerDir);
+
+            // 4. Build custom installer binary
+            console.log("\n--- Building Custom Installer Binary ---");
+            await runCommand('Installer Binary Build', 'cargo build --release', path.join(installerDir, 'src-tauri'), env);
+
+            const builtInstaller = path.join(installerDir, 'src-tauri', 'target', 'release', 'holad-installer.exe');
+            if (fs.existsSync(builtInstaller)) {
+              const cleanVer = (currentVer || getAppVersion() || '2.0.0').replace(/^v/i, '');
+              const targetSetupName = `Holad_${cleanVer}_x64-setup.exe`;
+              console.log(`Copying custom installer to artifacts/${targetSetupName}...`);
+              fs.copyFileSync(builtInstaller, path.join(ARTIFACTS_DIR, targetSetupName));
+              console.log(`[Installer] Setup installer successfully created at artifacts/${targetSetupName}`);
+            } else {
+              console.warn("Warning: Built installer executable not found at", builtInstaller);
+            }
+          }
+        }
       } catch (err) {
         console.error("\n[ERROR] Tauri build workflow failed!");
         throw err;

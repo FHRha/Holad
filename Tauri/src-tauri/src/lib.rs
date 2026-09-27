@@ -90,6 +90,84 @@ fn set_app_icon(app: tauri::AppHandle, icon: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn set_app_language(language: String) -> Result<(), String> {
+    let normalized = if language.to_lowercase().starts_with("ru") {
+        "ru"
+    } else {
+        "en"
+    };
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows::core::w;
+        use windows::Win32::System::Registry::{
+            RegCreateKeyW, RegSetValueExW, RegCloseKey, HKEY_CURRENT_USER, REG_SZ, HKEY,
+        };
+        use std::os::windows::ffi::OsStrExt;
+
+        unsafe {
+            let mut hkey = HKEY::default();
+            let subkey = w!(r"Software\Holad");
+            let status = RegCreateKeyW(
+                HKEY_CURRENT_USER,
+                subkey,
+                &mut hkey,
+            );
+            if status.is_err() {
+                log::warn!("RegCreateKeyW failed: {:?}", status);
+                return Err(format!("RegCreateKeyW failed: {:?}", status));
+            }
+
+            let val_name = w!("Language");
+            let wide_val: Vec<u16> = std::ffi::OsStr::new(normalized)
+                .encode_wide()
+                .chain(std::iter::once(0))
+                .collect();
+            let byte_slice = std::slice::from_raw_parts(
+                wide_val.as_ptr() as *const u8,
+                wide_val.len() * std::mem::size_of::<u16>(),
+            );
+
+            let set_status = RegSetValueExW(
+                hkey,
+                val_name,
+                None,
+                REG_SZ,
+                Some(byte_slice),
+            );
+            let _ = RegCloseKey(hkey);
+
+            if set_status.is_err() {
+                log::warn!("RegSetValueExW failed: {:?}", set_status);
+                return Err(format!("RegSetValueExW failed: {:?}", set_status));
+            }
+
+            // Also synchronize with HKCU\Software\Holad\Installer\Language
+            let mut inst_hkey = HKEY::default();
+            let inst_subkey = w!(r"Software\Holad\Installer");
+            if RegCreateKeyW(HKEY_CURRENT_USER, inst_subkey, &mut inst_hkey).is_ok() {
+                let _ = RegSetValueExW(
+                    inst_hkey,
+                    val_name,
+                    None,
+                    REG_SZ,
+                    Some(byte_slice),
+                );
+                let _ = RegCloseKey(inst_hkey);
+            }
+        }
+        log::info!("Stored application language '{}' to HKCU\\Software\\Holad and HKCU\\Software\\Holad\\Installer", normalized);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = normalized;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 fn set_tray_menu_size(window: tauri::Window, width: f64, height: f64) {
     let scale_factor = window.scale_factor().unwrap_or(1.0);
     
@@ -109,6 +187,100 @@ fn set_tray_menu_size(window: tauri::Window, width: f64, height: f64) {
     let new_y = bottom_right_y - height;
     
     let _ = window.set_position(tauri::LogicalPosition::new(new_x, new_y));
+}
+
+#[tauri::command]
+fn get_music_download_dir(app: tauri::AppHandle) -> String {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::core::w;
+        use windows::Win32::System::Registry::{
+            RegOpenKeyExW, RegQueryValueExW, RegCloseKey, HKEY_CURRENT_USER, KEY_READ, HKEY,
+        };
+        unsafe {
+            for sub in [w!(r"Software\Holad"), w!(r"Software\Holad\Installer")] {
+                let mut hkey = HKEY::default();
+                if RegOpenKeyExW(HKEY_CURRENT_USER, sub, Some(0), KEY_READ, &mut hkey).is_ok() {
+                    let mut buf = [0u16; 512];
+                    let mut size = (buf.len() * std::mem::size_of::<u16>()) as u32;
+                    let val_name = w!("MusicPath");
+                    let status = RegQueryValueExW(
+                        hkey,
+                        val_name,
+                        None,
+                        None,
+                        Some(buf.as_mut_ptr() as *mut u8),
+                        Some(&mut size),
+                    );
+                    let _ = RegCloseKey(hkey);
+                    if status.is_ok() && size > 2 {
+                        let len = (size as usize / std::mem::size_of::<u16>()).saturating_sub(1);
+                        let s = String::from_utf16_lossy(&buf[..len]);
+                        let trimmed = s.trim();
+                        if !trimmed.is_empty() {
+                            return trimmed.to_string();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Ok(download_dir) = app.path().download_dir() {
+        download_dir.join("Holad").to_string_lossy().to_string()
+    } else {
+        r"C:\Users\User\Downloads\Holad".to_string()
+    }
+}
+
+#[tauri::command]
+fn set_music_download_dir(path: String) -> Result<(), String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("Path cannot be empty".to_string());
+    }
+
+    let p = std::path::PathBuf::from(trimmed);
+    if !p.exists() {
+        let _ = std::fs::create_dir_all(&p);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows::core::w;
+        use windows::Win32::System::Registry::{
+            RegCreateKeyW, RegSetValueExW, RegCloseKey, HKEY_CURRENT_USER, REG_SZ, HKEY,
+        };
+        use std::os::windows::ffi::OsStrExt;
+
+        unsafe {
+            let val_name = w!("MusicPath");
+            let wide_val: Vec<u16> = std::ffi::OsStr::new(trimmed)
+                .encode_wide()
+                .chain(std::iter::once(0))
+                .collect();
+            let byte_slice = std::slice::from_raw_parts(
+                wide_val.as_ptr() as *const u8,
+                wide_val.len() * std::mem::size_of::<u16>(),
+            );
+
+            for sub in [w!(r"Software\Holad"), w!(r"Software\Holad\Installer")] {
+                let mut hkey = HKEY::default();
+                if RegCreateKeyW(HKEY_CURRENT_USER, sub, &mut hkey).is_ok() {
+                    let _ = RegSetValueExW(
+                        hkey,
+                        val_name,
+                        None,
+                        REG_SZ,
+                        Some(byte_slice),
+                    );
+                    let _ = RegCloseKey(hkey);
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -210,9 +382,12 @@ pub fn run() {
         show_main_window,
         set_tray_menu_size,
         set_app_icon,
+        set_app_language,
         sync_audio_session,
         get_audio_output_device,
         open_downloads_folder,
+        get_music_download_dir,
+        set_music_download_dir,
         updater::download_and_install_update
     ])
     .setup(|app| {

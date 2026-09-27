@@ -1,0 +1,50 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Holad Setup",
+  "version": "2.0.0-localtest",
+  "identifier": "com.holad.installer",
+  "build": {
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Holad Setup",
+        "width": 460,
+        "height": 590,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "center": true,
+        "theme": "Dark",
+        "backgroundColor": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' tauri:; img-src 'self' tauri: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; script-src 'self';"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "wix": {
+        "version": "2.0.0"
+      }
+    }
+  },
+  "plugins": {}
+}
