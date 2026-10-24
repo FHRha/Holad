@@ -61,10 +61,5 @@
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
     "vitest": "^4.1.10"
-  },
-  "pnpm": {
-    "patchedDependencies": {
-      "@capgo/capacitor-media-session@8.0.29": "patches/@capgo__capacitor-media-session.patch"
-    }
   }
 }

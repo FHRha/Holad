@@ -6,7 +6,8 @@ FROM node:22-bookworm-slim AS client-builder
 WORKDIR /app/client
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-COPY client/package.json client/pnpm-lock.yaml* ./
+COPY client/package.json client/pnpm-lock.yaml* client/pnpm-workspace.yaml* ./
+COPY client/patches ./patches
 RUN pnpm install --frozen-lockfile || pnpm install
 
 COPY client/ ./
