@@ -9,6 +9,7 @@ import { useSocialStore } from '../../store/socialStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAuthStore } from '../../store/authStore';
 import { useDemoStore } from '../../store/demoStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { jamSocket } from '../../api/socket';
 import { toast } from 'sonner';
 import { getCoverArtUrl } from '../../api/subsonic';
@@ -44,6 +45,7 @@ export default function FriendsView() {
   const currentTrack = queue[currentIndex];
 
   const authUser = useAuthStore((s) => s.user);
+  const isHoladConnectEnabled = useSettingsStore((s) => s.isHoladConnectEnabled);
   const isDemoMode = useDemoStore((s) => s.isDemoMode);
   const slotId = useDemoStore((s) => s.slotId);
   const guestNick = slotId ? `${t('demo.guest', 'Гость')} #${slotId}` : t('demo.guest', 'Гость');
@@ -151,6 +153,28 @@ export default function FriendsView() {
 
       <div className="px-4 md:px-8 max-w-3xl space-y-4 pt-2">
         {activeTab === 'friends' ? (
+          !isHoladConnectEnabled ? (
+            <div className="p-6 md:p-8 rounded-2xl bg-card border border-border text-center flex flex-col items-center justify-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-primary/15 text-primary flex items-center justify-center ring-1 ring-primary/25">
+                <UsersRound size={28} />
+              </div>
+              <div className="space-y-1.5 max-w-md">
+                <h3 className="text-base md:text-lg font-bold text-foreground">
+                  {t('social.temporarily_disabled_title', 'Функция «Друзья» временно отключена')}
+                </h3>
+                <p className="text-xs md:text-sm text-secondary leading-relaxed">
+                  {t('social.temporarily_disabled_desc', 'Социальные функции и список друзей временно отключены из-за проблем со стабильностью Holad Connect. Плеер переведён в автономный режим. Jam-сессии продолжают работать!')}
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveTab('jam')}
+                className="mt-2 px-5 py-2.5 rounded-xl bg-primary text-black font-bold text-xs flex items-center gap-2 hover:opacity-90 transition-opacity"
+              >
+                <Radio size={16} />
+                <span>{t('social.switch_to_jam', 'Перейти к Jam-сессиям')}</span>
+              </button>
+            </div>
+          ) : (
           <>
             <div className="flex items-center justify-between p-4 bg-card border border-border rounded-2xl shadow-sm">
               <div className="flex items-center gap-3 min-w-0">
@@ -523,6 +547,7 @@ export default function FriendsView() {
               </div>
             )}
           </>
+          )
         ) : (
           <div className="space-y-4">
             <div className="space-y-3 bg-card border border-border rounded-2xl p-4 shadow-sm">

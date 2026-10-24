@@ -28,25 +28,6 @@
           18,
           255
         ]
-      },
-      {
-        "label": "tray_menu",
-        "title": "Holad (Tray Menu)",
-        "url": "/#tray",
-        "visible": false,
-        "decorations": false,
-        "transparent": true,
-        "alwaysOnTop": true,
-        "skipTaskbar": true,
-        "width": 320,
-        "height": 450,
-        "resizable": false,
-        "backgroundColor": [
-          0,
-          0,
-          0,
-          0
-        ]
       }
     ],
     "security": {

@@ -1,9 +1,45 @@
 use std::fs::{self, File};
 use std::io::{self, Cursor, Read};
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
+use std::time::Duration;
 use zip::ZipArchive;
 
 pub static EMBEDDED_PAYLOAD: &[u8] = include_bytes!("../payload.zip");
+
+/// Attempts to create or overwrite a file, retrying if it is locked by another process
+/// (e.g. ERROR_SHARING_VIOLATION / ERROR_ACCESS_DENIED during process teardown or antivirus scan).
+fn create_file_with_retry(path: &Path) -> io::Result<File> {
+    const MAX_RETRIES: usize = 25;
+    const RETRY_DELAY: Duration = Duration::from_millis(200);
+
+    let mut last_error = None;
+
+    for attempt in 1..=MAX_RETRIES {
+        match File::create(path) {
+            Ok(file) => return Ok(file),
+            Err(e) => {
+                let raw_os = e.raw_os_error();
+                // 32 = ERROR_SHARING_VIOLATION, 5 = ERROR_ACCESS_DENIED
+                let is_transient = raw_os == Some(32) || raw_os == Some(5) || e.kind() == io::ErrorKind::PermissionDenied;
+
+                if is_transient && attempt < MAX_RETRIES {
+                    // If locked after several retries, attempt another process kill pass
+                    if attempt == 5 || attempt == 15 {
+                        let _ = crate::process::kill_holad_process();
+                    }
+                    last_error = Some(e);
+                    std::thread::sleep(RETRY_DELAY);
+                    continue;
+                }
+                return Err(e);
+            }
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| {
+        io::Error::new(io::ErrorKind::Other, "Failed to create file after retries")
+    }))
+}
 
 /// Extracts a ZipArchive to the target installation directory with progress callbacks
 fn extract_from_reader<R: Read + io::Seek, F>(
@@ -31,7 +67,19 @@ where
             None => continue,
         };
 
-        let out_path = target_dir.join(enclosed);
+        // Normalize path components to strip leading "./" or relative prefixes
+        let mut clean_rel = PathBuf::new();
+        for component in enclosed.components() {
+            if let Component::Normal(c) = component {
+                clean_rel.push(c);
+            }
+        }
+
+        if clean_rel.as_os_str().is_empty() {
+            continue;
+        }
+
+        let out_path = target_dir.join(&clean_rel);
 
         let percent = ((i as f64) / (total_files as f64)) * 100.0;
         on_progress(percent, &raw_name);
@@ -47,7 +95,7 @@ where
                 }
             }
 
-            let mut outfile = File::create(&out_path)
+            let mut outfile = create_file_with_retry(&out_path)
                 .map_err(|e| format!("Failed to create output file {:?}: {}", out_path, e))?;
 
             io::copy(&mut file, &mut outfile)

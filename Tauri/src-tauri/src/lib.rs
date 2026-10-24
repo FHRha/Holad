@@ -354,6 +354,15 @@ fn open_downloads_folder(app: tauri::AppHandle, path: Option<String>) -> Result<
     Ok(())
 }
 
+static TRAY_MENU_SHOWN_AT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn current_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -409,6 +418,29 @@ pub fn run() {
           }
       }
 
+      // Предварительно создаем скрытое окно tray_menu, чтобы его WebView2 был полностью готов и прогрет
+      let tray_menu_builder = tauri::WebviewWindowBuilder::new(
+          app,
+          "tray_menu",
+          tauri::WebviewUrl::App("/#tray".into()),
+      )
+      .title("Holad (Tray Menu)")
+      .inner_size(320.0, 450.0)
+      .resizable(false)
+      .decorations(false)
+      .transparent(true)
+      .always_on_top(true)
+      .skip_taskbar(true)
+      .shadow(false)
+      .visible(false);
+
+      #[cfg(target_os = "windows")]
+      let tray_menu_builder = tray_menu_builder.background_color(tauri::window::Color(0, 0, 0, 0));
+
+      if let Ok(w) = tray_menu_builder.build() {
+          let _ = w.hide();
+      }
+
       let _tray = TrayIconBuilder::with_id("main")
           .icon(app.default_window_icon().unwrap().clone())
           .on_tray_icon_event(|tray, event| match event {
@@ -419,42 +451,72 @@ pub fn run() {
                   ..
               } => {
                   let app = tray.app_handle();
-                  if let Some(window) = app.get_webview_window("tray_menu") {
-                      let is_visible = window.is_visible().unwrap_or(false);
-                      if is_visible {
-                          window.hide().unwrap();
-                      } else {
-                          let _ = window.set_shadow(false);
-                          let size = window.outer_size().unwrap();
-                          
-                          #[cfg(target_os = "windows")]
-                          let cursor_pos = {
-                              use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
-                              use windows::Win32::Foundation::POINT;
-                              let mut point = POINT::default();
-                              unsafe {
-                                  let _ = GetCursorPos(&mut point);
-                              }
-                              tauri::PhysicalPosition::new(point.x as f64, point.y as f64)
-                          };
-                          #[cfg(not(target_os = "windows"))]
-                          let cursor_pos = window.cursor_position().unwrap_or(_position);
-                          
-                          let scale_factor = window.scale_factor().unwrap_or(1.0);
-                          let logical_pos = cursor_pos.to_logical::<f64>(scale_factor);
-                          let logical_size = size.to_logical::<f64>(scale_factor);
-                          
-                          let logical_x = logical_pos.x;
-                          let logical_y = logical_pos.y;
-                          
-                          // Position menu such that it stays on screen relative to cursor
-                          let win_x = if logical_x > logical_size.width { logical_x - logical_size.width } else { logical_x };
-                          let win_y = if logical_y > logical_size.height { logical_y - logical_size.height } else { logical_y + 10.0 };
-                          
-                          window.set_position(tauri::LogicalPosition::new(win_x, win_y)).unwrap();
-                          window.show().unwrap();
-                          window.set_focus().unwrap();
+                  let window = if let Some(w) = app.get_webview_window("tray_menu") {
+                      w
+                  } else {
+                      let builder = tauri::WebviewWindowBuilder::new(
+                          app,
+                          "tray_menu",
+                          tauri::WebviewUrl::App("/#tray".into()),
+                      )
+                      .title("Holad (Tray Menu)")
+                      .inner_size(320.0, 450.0)
+                      .resizable(false)
+                      .decorations(false)
+                      .transparent(true)
+                      .always_on_top(true)
+                      .skip_taskbar(true)
+                      .shadow(false)
+                      .visible(false);
+
+                      #[cfg(target_os = "windows")]
+                      let builder = builder.background_color(tauri::window::Color(0, 0, 0, 0));
+
+                      match builder.build() {
+                          Ok(w) => w,
+                          Err(e) => {
+                              log::error!("Failed to create tray_menu window: {:?}", e);
+                              return;
+                          }
                       }
+                  };
+
+                  let is_visible = window.is_visible().unwrap_or(false);
+                  if is_visible {
+                      window.hide().unwrap();
+                  } else {
+                      let _ = window.set_shadow(false);
+                      let size = window.outer_size().unwrap();
+                      
+                      #[cfg(target_os = "windows")]
+                      let cursor_pos = {
+                          use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+                          use windows::Win32::Foundation::POINT;
+                          let mut point = POINT::default();
+                          unsafe {
+                              let _ = GetCursorPos(&mut point);
+                          }
+                          tauri::PhysicalPosition::new(point.x as f64, point.y as f64)
+                      };
+                      #[cfg(not(target_os = "windows"))]
+                      let cursor_pos = window.cursor_position().unwrap_or(_position);
+                      
+                      let scale_factor = window.scale_factor().unwrap_or(1.0);
+                      let logical_pos = cursor_pos.to_logical::<f64>(scale_factor);
+                      let logical_size = size.to_logical::<f64>(scale_factor);
+                      
+                      let logical_x = logical_pos.x;
+                      let logical_y = logical_pos.y;
+                      
+                      // Position menu such that it stays on screen relative to cursor
+                      let win_x = if logical_x > logical_size.width { logical_x - logical_size.width } else { logical_x };
+                      let win_y = if logical_y > logical_size.height { logical_y - logical_size.height } else { logical_y + 10.0 };
+                      
+                      window.set_position(tauri::LogicalPosition::new(win_x, win_y)).unwrap();
+                      TRAY_MENU_SHOWN_AT.store(current_millis(), std::sync::atomic::Ordering::SeqCst);
+                      window.show().unwrap();
+                      window.set_focus().unwrap();
+                      let _ = window.emit("request-tray-sync", ());
                   }
               }
               TrayIconEvent::Click {
@@ -474,6 +536,7 @@ pub fn run() {
                           }
                       } else {
                           window.show().unwrap();
+                          let _ = window.unminimize();
                           window.set_focus().unwrap();
                           let _ = window.emit("window-visibility-change", true);
                           #[cfg(target_os = "windows")]
@@ -517,7 +580,12 @@ pub fn run() {
                 }
             }
             tauri::WindowEvent::Focused(false) if window.label() == "tray_menu" => {
-                window.hide().unwrap();
+                let now = current_millis();
+                let shown_at = TRAY_MENU_SHOWN_AT.load(std::sync::atomic::Ordering::SeqCst);
+                // Игнорируем потерю фокуса в первые 500 мс после открытия (защита от кражи фокуса панелью задач Windows)
+                if now.saturating_sub(shown_at) > 500 {
+                    let _ = window.hide();
+                }
             }
             _ => {}
         }

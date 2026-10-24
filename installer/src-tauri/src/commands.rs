@@ -223,6 +223,53 @@ pub async fn start_installation(
             return Err(e);
         }
 
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            let _ = std::process::Command::new("icacls")
+                .args(&[
+                    target_dir.to_str().unwrap_or(""),
+                    "/grant",
+                    "*S-1-5-19:(OI)(CI)RX",
+                    "/t",
+                    "/c",
+                    "/q",
+                ])
+                .creation_flags(0x08000000)
+                .status();
+
+            let icons_src = target_dir.join("icons");
+            if icons_src.exists() {
+                if let Ok(prog_data) = std::env::var("ProgramData") {
+                    let pd_icons = PathBuf::from(prog_data).join("Holad").join("icons");
+                    let _ = std::fs::create_dir_all(&pd_icons);
+                    if let Ok(entries) = std::fs::read_dir(&icons_src) {
+                        for entry in entries.flatten() {
+                            let p = entry.path();
+                            if p.extension().map(|e| e == "ico").unwrap_or(false) {
+                                if let Some(fname) = p.file_name() {
+                                    let _ = std::fs::copy(&p, pd_icons.join(fname));
+                                }
+                            }
+                        }
+                    }
+                    let _ = std::process::Command::new("icacls")
+                        .args(&[
+                            pd_icons.to_str().unwrap_or(""),
+                            "/grant",
+                            "*S-1-5-19:(OI)(CI)RX",
+                            "*S-1-15-2-1:(OI)(CI)RX",
+                            "*S-1-5-32-545:(OI)(CI)RX",
+                            "/t",
+                            "/c",
+                            "/q",
+                        ])
+                        .creation_flags(0x08000000)
+                        .status();
+                }
+            }
+        }
+
         // Stage 3: Register in Windows Registry (Uninstall, Language, Autostart)
         let _ = app.emit(
             "install-progress",

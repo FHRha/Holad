@@ -137,7 +137,7 @@ try {
 } catch (e) {
   console.error('[AUTH] Failed to run initial env accounts migration:', e);
 }
-let navidromeAccounts: NavidromeAccount[] = database.getNavidromeAccounts();
+let navidromeAccounts: NavidromeAccount[] = database.getNavidromeAccounts().filter(a => process.env.NODE_ENV === 'test' || (!a.url.includes('mock-navidrome.local') && !a.url.includes('migration-test.local')));
 console.log(`[AUTH] Loaded ${navidromeAccounts.length} Navidrome account(s) from SQLite database.`);
 
 function safeTimingCompare(a: string | undefined, b: string | undefined): boolean {
@@ -541,6 +541,8 @@ app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, re
   if (!isValidHttpUrl(trimmedUrl)) return res.status(400).send('Invalid URL');
   
   const url = trimmedUrl.replace(/\/$/, '');
+  
+  navidromeAccounts = database.getNavidromeAccounts().filter(a => process.env.NODE_ENV === 'test' || (!a.url.includes('mock-navidrome.local') && !a.url.includes('migration-test.local')));
   
   if (navidromeAccounts.length > 0) {
     const existingUrl = navidromeAccounts[0]!.url.replace(/\/$/, '');

@@ -514,7 +514,7 @@ node dist/index.js
   }
 
   // Rebuild Client for Native Apps (Base: ./) if Tauri or Android is enabled
-  if (!skipTauri || !skipAndroid) {
+  if ((!skipTauri || !skipAndroid) && (!skipClient || !fs.existsSync(path.join(ROOT_DIR, 'client', 'dist')))) {
     console.log("\n--- Rebuilding Client for Native Apps (Base: ./) ---");
     const nativePrepTasks = [
       (async () => {
@@ -683,6 +683,15 @@ node dist/index.js
             const iconsDir = path.join(ROOT_DIR, 'client', 'public', 'icons');
             if (fs.existsSync(iconsDir)) {
               copyRecursiveSync(iconsDir, path.join(stagingDir, 'icons'));
+            }
+            const tauriIconsDir = path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'icons');
+            if (fs.existsSync(tauriIconsDir)) {
+              const icoFiles = fs.readdirSync(tauriIconsDir).filter(f => f.endsWith('.ico'));
+              const destIcons = path.join(stagingDir, 'icons');
+              if (!fs.existsSync(destIcons)) fs.mkdirSync(destIcons, { recursive: true });
+              for (const f of icoFiles) {
+                fs.copyFileSync(path.join(tauriIconsDir, f), path.join(destIcons, f));
+              }
             }
 
             // 2. Create payload.zip for installer embedding

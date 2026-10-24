@@ -47,6 +47,9 @@
     "edit_color": "Edit color",
     "add_color": "Add color",
     "server_and_account": "Server and account",
+    "holad_connect_section": "Sync & Holad Connect",
+    "holad_connect": "Holad Connect (Device Sync)",
+    "holad_connect_desc": "Remote control and friends. Temporarily disabled by default for playback stability.",
     "server_desc": "Server details, library scanning, credentials, logout",
     "logout_account": "Log out of account",
     "appearance_desc": "Theme, app color, sorting, collection views (grid/list)",
@@ -713,7 +716,10 @@
     "remove_friend": "Remove friend",
     "remove_friend_confirm": "Are you sure you want to remove {{name}} from friends?",
     "mode_jam_playback": "Jam Playback Mode",
-    "friends_listen_together": "Listen to music together with friends in real time"
+    "friends_listen_together": "Listen to music together with friends in real time",
+    "temporarily_disabled_title": "Friends temporarily unavailable",
+    "temporarily_disabled_desc": "Social features and friend list are temporarily disabled due to stability issues with Holad Connect. Jam sessions remain active!",
+    "switch_to_jam": "Switch to Jam sessions"
   },
   "deeplink": {
     "open_in_app": "Open in Holad App",
@@ -765,5 +771,9 @@
     "auto_retry": "Auto retry in:",
     "checking": "Checking...",
     "retry_btn": "Check availability"
+  },
+  "holad_connect": {
+    "disabled_title": "Autonomous Mode",
+    "disabled_desc": "Remote device control is temporarily disabled due to stability issues with Holad Connect. Player operates in autonomous mode."
   }
 }

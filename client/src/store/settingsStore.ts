@@ -106,6 +106,8 @@ export interface SettingsState {
   setSyncTheme: (sync: boolean) => void;
   syncLanguage: boolean;
   setSyncLanguage: (sync: boolean) => void;
+  isHoladConnectEnabled: boolean;
+  setIsHoladConnectEnabled: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -217,6 +219,8 @@ export const useSettingsStore = create<SettingsState>()(
       setSyncTheme: (syncTheme) => set({ syncTheme }),
       syncLanguage: true,
       setSyncLanguage: (syncLanguage) => set({ syncLanguage }),
+      isHoladConnectEnabled: false,
+      setIsHoladConnectEnabled: (isHoladConnectEnabled) => set({ isHoladConnectEnabled }),
     }),
     {
       name: 'holad-settings',

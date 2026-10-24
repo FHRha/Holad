@@ -22,81 +22,216 @@ pub mod windows_audio {
     };
     use windows::Win32::Foundation::CloseHandle;
 
-    const ICON_WAVE_DARK: &[u8] = include_bytes!("../../../client/public/icons/favicon_dark.png");
-    const ICON_WAVE_LIGHT: &[u8] = include_bytes!("../../../client/public/icons/favicon_light.png");
-    const ICON_CASSETTE: &[u8] = include_bytes!("../../../client/public/icons/logo_cassette.png");
+    const ICO_WAVE_DARK: &[u8] = include_bytes!("../icons/wave_dark.ico");
+    const ICO_WAVE_LIGHT: &[u8] = include_bytes!("../icons/wave_light.ico");
+    const ICO_CASSETTE: &[u8] = include_bytes!("../icons/cassette.ico");
 
     static CURRENT_ICON_WIDE: RwLock<Option<Vec<u16>>> = RwLock::new(None);
-    static FAMILY_PIDS: Mutex<Option<HashSet<u32>>> = Mutex::new(None);
+    static CURRENT_ICON_PATH: RwLock<Option<PathBuf>> = RwLock::new(None);
+    static FAMILY_CACHE: Mutex<Option<(std::time::Instant, HashSet<u32>)>> = Mutex::new(None);
 
-    /// Оборачивает PNG-байты в валидный контейнер Windows ICO (стандарт Vista, 7, 8, 10, 11)
-    fn png_to_ico(png_data: &[u8]) -> Vec<u8> {
-        let (width, height) = if png_data.len() >= 24
-            && &png_data[0..8] == b"\x89PNG\r\n\x1a\n"
-            && &png_data[12..16] == b"IHDR"
-        {
-            let w = u32::from_be_bytes([png_data[16], png_data[17], png_data[18], png_data[19]]);
-            let h = u32::from_be_bytes([png_data[20], png_data[21], png_data[22], png_data[23]]);
-            (w, h)
-        } else {
-            (256, 256)
+    fn register_registry_identity(ico_path: &std::path::Path) {
+        use windows::Win32::System::Registry::{
+            RegCreateKeyW, RegSetValueExW, RegCloseKey, HKEY_CURRENT_USER, REG_SZ,
         };
 
-        let b_width = if width >= 256 { 0u8 } else { width as u8 };
-        let b_height = if height >= 256 { 0u8 } else { height as u8 };
+        unsafe {
+            // 1. HKCU\Software\Classes\AppUserModelId\com.holad.desktop
+            let subkey_aumid = w!("Software\\Classes\\AppUserModelId\\com.holad.desktop");
+            let mut hkey = windows::Win32::System::Registry::HKEY::default();
+            if RegCreateKeyW(HKEY_CURRENT_USER, subkey_aumid, &mut hkey).is_ok() {
+                let name: Vec<u16> = "Holad".encode_utf16().chain(std::iter::once(0)).collect();
+                let _ = RegSetValueExW(
+                    hkey,
+                    w!("DisplayName"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        name.as_ptr() as *const u8,
+                        name.len() * 2,
+                    )),
+                );
 
-        let mut ico = Vec::with_capacity(22 + png_data.len());
-        // ICONDIR (6 bytes)
-        ico.extend_from_slice(&0u16.to_le_bytes()); // idReserved = 0
-        ico.extend_from_slice(&1u16.to_le_bytes()); // idType = 1 (Icon)
-        ico.extend_from_slice(&1u16.to_le_bytes()); // idCount = 1
+                let ico_str = format!("{}\0", ico_path.to_string_lossy());
+                let ico_wide: Vec<u16> = ico_str.encode_utf16().collect();
+                let _ = RegSetValueExW(
+                    hkey,
+                    w!("IconUri"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        ico_wide.as_ptr() as *const u8,
+                        ico_wide.len() * 2,
+                    )),
+                );
+                let _ = RegSetValueExW(
+                    hkey,
+                    w!("IconPath"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        ico_wide.as_ptr() as *const u8,
+                        ico_wide.len() * 2,
+                    )),
+                );
+                let _ = RegSetValueExW(
+                    hkey,
+                    w!("IconLocation"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        ico_wide.as_ptr() as *const u8,
+                        ico_wide.len() * 2,
+                    )),
+                );
+                let _ = RegCloseKey(hkey);
+            }
 
-        // ICONDIRENTRY (16 bytes)
-        ico.push(b_width);
-        ico.push(b_height);
-        ico.push(0); // bColorCount
-        ico.push(0); // bReserved
-        ico.extend_from_slice(&1u16.to_le_bytes());  // wPlanes
-        ico.extend_from_slice(&32u16.to_le_bytes()); // wBitCount
-        ico.extend_from_slice(&(png_data.len() as u32).to_le_bytes()); // dwBytesInRes
-        ico.extend_from_slice(&22u32.to_le_bytes()); // dwImageOffset = 22
+            // 2. HKCU\Software\Classes\Applications\Holad.exe
+            let subkey_app = w!("Software\\Classes\\Applications\\Holad.exe");
+            let mut hkey_app = windows::Win32::System::Registry::HKEY::default();
+            if RegCreateKeyW(HKEY_CURRENT_USER, subkey_app, &mut hkey_app).is_ok() {
+                let name: Vec<u16> = "Holad".encode_utf16().chain(std::iter::once(0)).collect();
+                let _ = RegSetValueExW(
+                    hkey_app,
+                    w!("FriendlyAppName"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        name.as_ptr() as *const u8,
+                        name.len() * 2,
+                    )),
+                );
+                let _ = RegCloseKey(hkey_app);
+            }
 
-        // Raw PNG stream
-        ico.extend_from_slice(png_data);
-        ico
+            // 3. HKCU\Software\Classes\Applications\Holad.exe\DefaultIcon
+            let subkey_icon = w!("Software\\Classes\\Applications\\Holad.exe\\DefaultIcon");
+            let mut hkey_icon = windows::Win32::System::Registry::HKEY::default();
+            if RegCreateKeyW(HKEY_CURRENT_USER, subkey_icon, &mut hkey_icon).is_ok() {
+                let ico_str = format!("{}\0", ico_path.to_string_lossy());
+                let ico_wide: Vec<u16> = ico_str.encode_utf16().collect();
+                let _ = RegSetValueExW(
+                    hkey_icon,
+                    PCWSTR::null(),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        ico_wide.as_ptr() as *const u8,
+                        ico_wide.len() * 2,
+                    )),
+                );
+                let _ = RegCloseKey(hkey_icon);
+            }
+        }
     }
 
-    fn ensure_ico_file(name: &str, png_bytes: &[u8]) -> PathBuf {
-        let dir = std::env::temp_dir().join("holad_icons");
-        let _ = std::fs::create_dir_all(&dir);
-        let file_path = dir.join(format!("{}.ico", name));
+    fn ensure_ico_file(name: &str, ico_bytes: &[u8]) -> PathBuf {
+        // 1. Папка %TEMP%\holad_icons\
+        let temp_dir = std::env::temp_dir().join("holad_icons");
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let temp_file = temp_dir.join(format!("{}.ico", name));
+        let _ = std::fs::write(&temp_file, ico_bytes);
 
-        let ico_bytes = png_to_ico(png_bytes);
-        let needs_write = !file_path.exists()
-            || std::fs::metadata(&file_path).map(|m| m.len() as usize).unwrap_or(0) != ico_bytes.len();
+        let fallback_ico = std::env::temp_dir().join("holad_app_icon.ico");
+        let _ = std::fs::write(&fallback_ico, ico_bytes);
 
-        if needs_write {
-            let _ = std::fs::write(&file_path, &ico_bytes);
+        // 1.1 Папка C:\Temp\holad_icons\ (исторический путь, доступный всем службам Windows)
+        let c_temp_dir = PathBuf::from("C:\\Temp\\holad_icons");
+        if std::fs::create_dir_all(&c_temp_dir).is_ok() {
+            let _ = std::fs::write(c_temp_dir.join(format!("{}.ico", name)), ico_bytes);
         }
-        file_path
+
+        // 2. Общесистемная папка C:\ProgramData\Holad\icons\ (гарантированные права для AudioSrv / LOCAL SERVICE)
+        let mut final_path = temp_file;
+        if let Ok(prog_data) = std::env::var("ProgramData") {
+            let pd_dir = PathBuf::from(prog_data).join("Holad");
+            let _ = std::fs::create_dir_all(&pd_dir);
+            let _ = std::fs::write(pd_dir.join("holad_app_icon.ico"), ico_bytes);
+
+            let pd_icons = pd_dir.join("icons");
+            let _ = std::fs::create_dir_all(&pd_icons);
+            let pd_file = pd_icons.join(format!("{}.ico", name));
+            if std::fs::write(&pd_file, ico_bytes).is_ok() {
+                final_path = pd_file;
+            }
+
+            #[cfg(target_os = "windows")]
+            {
+                use std::os::windows::process::CommandExt;
+                let _ = std::process::Command::new("icacls")
+                    .args(&[
+                        pd_dir.to_str().unwrap_or("C:\\ProgramData\\Holad"),
+                        "/grant",
+                        "*S-1-5-19:(OI)(CI)RX",
+                        "*S-1-15-2-1:(OI)(CI)RX",
+                        "*S-1-5-32-545:(OI)(CI)RX",
+                        "/t",
+                        "/c",
+                        "/q",
+                    ])
+                    .creation_flags(0x08000000)
+                    .status();
+
+                let _ = std::process::Command::new("icacls")
+                    .args(&[
+                        "C:\\Temp\\holad_icons",
+                        "/grant",
+                        "*S-1-5-19:(OI)(CI)RX",
+                        "*S-1-15-2-1:(OI)(CI)RX",
+                        "*S-1-5-32-545:(OI)(CI)RX",
+                        "/t",
+                        "/c",
+                        "/q",
+                    ])
+                    .creation_flags(0x08000000)
+                    .status();
+
+                if let Ok(exe_p) = std::env::current_exe() {
+                    if let Some(exe_dir) = exe_p.parent() {
+                        let _ = std::process::Command::new("icacls")
+                            .args(&[
+                                exe_dir.to_str().unwrap_or(""),
+                                "/grant",
+                                "*S-1-5-19:(OI)(CI)RX",
+                                "*S-1-15-2-1:(OI)(CI)RX",
+                                "*S-1-5-32-545:(OI)(CI)RX",
+                                "/t",
+                                "/c",
+                                "/q",
+                            ])
+                            .creation_flags(0x08000000)
+                            .status();
+                    }
+                }
+            }
+        }
+
+        // 3. Регистрируем в реестре Windows для com.holad.desktop
+        register_registry_identity(&final_path);
+
+        final_path
     }
 
     /// Устанавливает активную иконку (выбранную в настройках: "wave_dark", "wave_light", "cassette")
     pub fn set_current_icon(icon_name: &str) {
         let file_path = match icon_name {
-            "wave_light" => ensure_ico_file("holad_wave_light", ICON_WAVE_LIGHT),
-            "cassette" => ensure_ico_file("holad_cassette", ICON_CASSETTE),
-            _ => ensure_ico_file("holad_wave_dark", ICON_WAVE_DARK),
+            "wave_light" => ensure_ico_file("holad_wave_light", ICO_WAVE_LIGHT),
+            "cassette" => ensure_ico_file("holad_cassette", ICO_CASSETTE),
+            _ => ensure_ico_file("holad_wave_dark", ICO_WAVE_DARK),
         };
 
-        let path_str = file_path.to_string_lossy();
-        let mut wide: Vec<u16> = path_str.encode_utf16().collect();
-        wide.push(0);
+        let path_str = format!("{}\0", file_path.to_string_lossy());
+        let wide: Vec<u16> = path_str.encode_utf16().collect();
 
         if let Ok(mut lock) = CURRENT_ICON_WIDE.write() {
             *lock = Some(wide);
         }
+        if let Ok(mut lock) = CURRENT_ICON_PATH.write() {
+            *lock = Some(file_path);
+        }
 
+        invalidate_family_pids();
         // Немедленно обновляем уже активные сессии с новой иконкой
         update_audio_session_identity();
     }
@@ -105,12 +240,17 @@ pub mod windows_audio {
         CURRENT_ICON_WIDE.read().ok().and_then(|lock| lock.clone())
     }
 
-    /// Кэшированный сбор всех PID потомков нашего процесса (дети, внуки, Audio Service).
-    /// Выполняется 1 раз при старте, полностью устраняя повторные снимки процессов всей ОС.
-    fn get_family_pids() -> HashSet<u32> {
-        if let Ok(cached) = FAMILY_PIDS.lock() {
-            if let Some(ref pids) = *cached {
-                return pids.clone();
+    /// Динамический сбор всех PID потомков нашего процесса (дети, внуки, WebView2 Audio Service).
+    /// Использует короткий 5-секундный кэш, но ТОЛЬКО если дочерние процессы уже были обнаружены,
+    /// гарантируя, что при старте приложения дочерние процессы WebView2 не будут упущены.
+    fn get_family_pids(force_refresh: bool) -> HashSet<u32> {
+        if !force_refresh {
+            if let Ok(lock) = FAMILY_CACHE.lock() {
+                if let Some((cached_at, ref pids)) = *lock {
+                    if pids.len() > 1 && cached_at.elapsed() < std::time::Duration::from_secs(5) {
+                        return pids.clone();
+                    }
+                }
             }
         }
 
@@ -124,6 +264,7 @@ pub mod windows_audio {
                 entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
 
                 let mut parent_to_children: HashMap<u32, Vec<u32>> = HashMap::new();
+                let mut process_names: HashMap<u32, String> = HashMap::new();
 
                 if Process32FirstW(snapshot, &mut entry).is_ok() {
                     loop {
@@ -132,6 +273,14 @@ pub mod windows_audio {
                             .or_default()
                             .push(entry.th32ProcessID);
 
+                        let null_pos = entry
+                            .szExeFile
+                            .iter()
+                            .position(|&c| c == 0)
+                            .unwrap_or(entry.szExeFile.len());
+                        let exe_name = String::from_utf16_lossy(&entry.szExeFile[..null_pos]);
+                        process_names.insert(entry.th32ProcessID, exe_name);
+
                         if Process32NextW(snapshot, &mut entry).is_err() {
                             break;
                         }
@@ -139,6 +288,7 @@ pub mod windows_audio {
                 }
                 let _ = CloseHandle(snapshot);
 
+                // BFS для нахождения всех потомков (дети, внуки, Audio Service WebView2)
                 let mut queue = vec![my_pid];
                 while let Some(current) = queue.pop() {
                     if let Some(children) = parent_to_children.get(&current) {
@@ -149,21 +299,128 @@ pub mod windows_audio {
                         }
                     }
                 }
+
+                // Также включаем любые процессы с именем Holad.exe
+                for (pid, name) in &process_names {
+                    if name.eq_ignore_ascii_case("Holad.exe") {
+                        family.insert(*pid);
+                    }
+                }
             }
         }
 
-        if let Ok(mut cached) = FAMILY_PIDS.lock() {
-            *cached = Some(family.clone());
+        if let Ok(mut lock) = FAMILY_CACHE.lock() {
+            *lock = Some((std::time::Instant::now(), family.clone()));
         }
 
         family
     }
 
-    /// Сброс кэша PID при необходимости пересканирования
-    #[allow(dead_code)]
+    /// Сброс кэша PID при необходимости принудительного пересканирования
     pub fn invalidate_family_pids() {
-        if let Ok(mut cached) = FAMILY_PIDS.lock() {
-            *cached = None;
+        if let Ok(mut lock) = FAMILY_CACHE.lock() {
+            *lock = None;
+        }
+    }
+
+    /// Устанавливает значок Holad на все окна семейства процессов (Holad.exe + msedgewebview2.exe).
+    /// Это гарантирует, что Windows Volume Mixer и параметры Windows 10/11, запрашивающие
+    /// значок окна процесса через WM_GETICON, получают аутентичную четкую иконку Holad.
+    fn apply_icon_to_process_windows(pids: &HashSet<u32>) {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            LoadImageW, IMAGE_ICON, LR_LOADFROMFILE,
+            SendMessageTimeoutW, SMTO_ABORTIFHUNG, WM_SETICON, ICON_BIG, ICON_SMALL,
+            EnumWindows, EnumChildWindows, GetWindowThreadProcessId,
+        };
+        use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
+        use windows::core::BOOL;
+        use std::os::windows::ffi::OsStrExt;
+
+        struct EnumContext<'a> {
+            pids: &'a HashSet<u32>,
+            hwnds: Vec<HWND>,
+        }
+
+        unsafe extern "system" fn enum_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+            let ctx = &mut *(lparam.0 as *mut EnumContext);
+            let mut pid = 0u32;
+            GetWindowThreadProcessId(hwnd, Some(&mut pid));
+            if ctx.pids.contains(&pid) {
+                ctx.hwnds.push(hwnd);
+            }
+            BOOL(1)
+        }
+
+        let mut ctx = EnumContext {
+            pids,
+            hwnds: Vec::new(),
+        };
+
+        unsafe {
+            let _ = EnumWindows(Some(enum_proc), LPARAM(&mut ctx as *mut EnumContext as isize));
+
+            let top_hwnds = ctx.hwnds.clone();
+            for top in top_hwnds {
+                let _ = EnumChildWindows(Some(top), Some(enum_proc), LPARAM(&mut ctx as *mut EnumContext as isize));
+            }
+
+            if ctx.hwnds.is_empty() {
+                return;
+            }
+
+            let ico_path = CURRENT_ICON_PATH.read().ok().and_then(|p| p.clone())
+                .unwrap_or_else(|| PathBuf::from("C:\\ProgramData\\Holad\\icons\\holad_wave_dark.ico"));
+
+            let mut path_wide: Vec<u16> = ico_path.as_os_str().encode_wide().collect();
+            path_wide.push(0);
+
+            let h_big = LoadImageW(
+                None,
+                PCWSTR(path_wide.as_ptr()),
+                IMAGE_ICON,
+                32,
+                32,
+                LR_LOADFROMFILE,
+            );
+            let h_small = LoadImageW(
+                None,
+                PCWSTR(path_wide.as_ptr()),
+                IMAGE_ICON,
+                16,
+                16,
+                LR_LOADFROMFILE,
+            );
+
+            for hwnd in ctx.hwnds {
+                if let Ok(big) = h_big {
+                    if !big.0.is_null() {
+                        let mut res = 0usize;
+                        let _ = SendMessageTimeoutW(
+                            hwnd,
+                            WM_SETICON,
+                            WPARAM(ICON_BIG as usize),
+                            LPARAM(big.0 as isize),
+                            SMTO_ABORTIFHUNG,
+                            100,
+                            Some(&mut res),
+                        );
+                    }
+                }
+                if let Ok(small) = h_small {
+                    if !small.0.is_null() {
+                        let mut res = 0usize;
+                        let _ = SendMessageTimeoutW(
+                            hwnd,
+                            WM_SETICON,
+                            WPARAM(ICON_SMALL as usize),
+                            LPARAM(small.0 as isize),
+                            SMTO_ABORTIFHUNG,
+                            100,
+                            Some(&mut res),
+                        );
+                    }
+                }
+            }
         }
     }
 
@@ -172,7 +429,7 @@ pub mod windows_audio {
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
 
-            let family_pids = get_family_pids();
+            let mut family_pids = get_family_pids(false);
             let icon_path_wide = match get_current_icon_wide() {
                 Some(p) => p,
                 None => {
@@ -186,13 +443,26 @@ pub mod windows_audio {
                 return;
             }
 
+            // Устанавливаем иконку на все графические окна WebView2 и Holad
+            apply_icon_to_process_windows(&family_pids);
+
             let enumerator: IMMDeviceEnumerator = match CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL) {
                 Ok(e) => e,
                 Err(_) => return,
             };
 
             let app_name = w!("Holad");
-            let icon_pcwstr = PCWSTR(icon_path_wide.as_ptr());
+
+            // Canonical icon path: всегда используем файл .ico на системном диске C: (C:\ProgramData\Holad\icons\),
+            // для которого явно выданы права чтения учетной записи NT AUTHORITY\LOCAL SERVICE (служба Windows AudioSrv).
+            let target_wide = &icon_path_wide;
+
+            let exe_icon_wide: Option<Vec<u16>> = std::env::current_exe().ok().map(|exe_path| {
+                let s = format!("{}\0", exe_path.to_string_lossy());
+                s.encode_utf16().collect()
+            });
+
+            let target_icon_pcwstr = PCWSTR(target_wide.as_ptr());
 
             let mut devices = Vec::new();
             if let Ok(collection) = enumerator.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE) {
@@ -231,9 +501,30 @@ pub mod windows_audio {
                     if let Ok(control) = session_enumerator.GetSession(i) {
                         if let Ok(control2) = control.cast::<IAudioSessionControl2>() {
                             if let Ok(pid) = control2.GetProcessId() {
-                                if family_pids.contains(&pid) {
+                                let mut is_match = family_pids.contains(&pid);
+                                if !is_match {
+                                    // Если PID не был в начальном кэше, производим свежий снимок
+                                    let fresh_pids = get_family_pids(true);
+                                    if fresh_pids.contains(&pid) {
+                                        is_match = true;
+                                        family_pids = fresh_pids;
+                                    }
+                                }
+
+                                if is_match {
                                     let _ = control.SetDisplayName(app_name, std::ptr::null());
-                                    let _ = control.SetIconPath(icon_pcwstr, std::ptr::null());
+                                    let _ = control2.SetDisplayName(app_name, std::ptr::null());
+
+                                    let res1 = control.SetIconPath(target_icon_pcwstr, std::ptr::null());
+                                    let _ = control2.SetIconPath(target_icon_pcwstr, std::ptr::null());
+
+                                    if res1.is_err() {
+                                        if let Some(ref exe_wide) = exe_icon_wide {
+                                            let exe_pcwstr = PCWSTR(exe_wide.as_ptr());
+                                            let _ = control.SetIconPath(exe_pcwstr, std::ptr::null());
+                                            let _ = control2.SetIconPath(exe_pcwstr, std::ptr::null());
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -243,10 +534,11 @@ pub mod windows_audio {
         }
     }
 
-    /// Запускает серию быстрых попыток (0, 150, 400, 1000 мс) при старте воспроизведения для немедленного перехвата сессии
+    /// Запускает серию быстрых попыток (0, 50, 150, 300, 600, 1200, 2500 мс) при старте воспроизведения для немедленного перехвата сессии
     pub fn trigger_sync_burst() {
+        invalidate_family_pids();
         std::thread::spawn(|| {
-            let delays = [0, 150, 400, 1000];
+            let delays = [0, 50, 150, 300, 600, 1200, 2500];
             for delay in delays {
                 if delay > 0 {
                     std::thread::sleep(std::time::Duration::from_millis(delay));
@@ -256,14 +548,14 @@ pub mod windows_audio {
         });
     }
 
-    /// Запускает фоновый супервизор: мгновенный подхват сессий при переключении треков или смене устройств
+    /// Запускает фоновый супервизор: мгновенный подхват сессий при переключении треков или смене устройств (интервал 2 сек)
     pub fn start_audio_session_supervisor() {
         set_current_icon("wave_dark");
 
         std::thread::spawn(|| {
             loop {
                 update_audio_session_identity();
-                std::thread::sleep(std::time::Duration::from_secs(10));
+                std::thread::sleep(std::time::Duration::from_millis(2000));
             }
         });
     }
@@ -406,5 +698,63 @@ mod tests {
     fn test_windows_audio_device() {
         let dev = windows_audio::get_default_audio_device();
         println!("Detected Windows Audio Device: {:?}", dev);
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_inspect_and_set_sessions() {
+        use windows::core::{Interface, w};
+        use windows::Win32::Media::Audio::{
+            MMDeviceEnumerator, IMMDeviceEnumerator, eRender,
+            IAudioSessionManager2, IAudioSessionEnumerator, IAudioSessionControl2,
+            DEVICE_STATE_ACTIVE,
+        };
+        use windows::Win32::System::Com::{CoInitializeEx, CoCreateInstance, CLSCTX_ALL, COINIT_MULTITHREADED};
+
+        unsafe {
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).unwrap();
+
+            if let Ok(collection) = enumerator.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE) {
+                let count = collection.GetCount().unwrap_or(0);
+                println!("Active Render Endpoints: {}", count);
+                for d in 0..count {
+                    if let Ok(device) = collection.Item(d) {
+                        let sm: IAudioSessionManager2 = match device.Activate(CLSCTX_ALL, None) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                println!("Activate failed: {:?}", e);
+                                continue;
+                            }
+                        };
+                        let se: IAudioSessionEnumerator = match sm.GetSessionEnumerator() {
+                            Ok(s) => s,
+                            Err(e) => {
+                                println!("GetSessionEnumerator failed: {:?}", e);
+                                continue;
+                            }
+                        };
+                        let sess_count = se.GetCount().unwrap_or(0);
+                        println!("Device [{}] has {} sessions", d, sess_count);
+                        for i in 0..sess_count {
+                            if let Ok(control) = se.GetSession(i) {
+                                if let Ok(c2) = control.cast::<IAudioSessionControl2>() {
+                                    let pid = c2.GetProcessId().unwrap_or(0);
+                                    let _disp_str = control.GetDisplayName().map(|p| p.to_string().unwrap_or_default()).unwrap_or_default();
+                                    let icon_str = control.GetIconPath().map(|p| p.to_string().unwrap_or_default()).unwrap_or_default();
+
+                                    if icon_str.contains("Holad.exe,-1") {
+                                        let empty = w!("");
+                                        let _ = control.SetIconPath(empty, std::ptr::null());
+                                        let _ = c2.SetIconPath(empty, std::ptr::null());
+                                        println!("  -> Reset stale icon path for PID {}", pid);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

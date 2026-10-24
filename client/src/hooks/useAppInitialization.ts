@@ -30,6 +30,7 @@ export function useAppInitialization() {
   const user = useAuthStore(state => state.user);
   const isDemoMode = useDemoStore(state => state.isDemoMode);
   const guestUserId = useDemoStore(state => state.guestUserId);
+  const isHoladConnectEnabled = useSettingsStore(state => state.isHoladConnectEnabled);
   const isJamRoute = location.pathname.startsWith('/jam');
   const queueFetched = useRef(false);
 
@@ -39,10 +40,12 @@ export function useAppInitialization() {
     
     jamSocket.connect();
     
-    if (isAuthenticated && typeof user === 'string') {
+    if (isAuthenticated && typeof user === 'string' && isHoladConnectEnabled) {
       const targetRoom = (isDemoMode && guestUserId) ? guestUserId : user;
       useHoladStore.getState().connect(targetRoom);
       useSocialStore.getState().initSocial();
+    } else {
+      useHoladStore.getState().disconnect();
     }
     
     // Connection logic is now handled in JamLayout if needed
@@ -274,7 +277,7 @@ export function useAppInitialization() {
         }
       }).catch(e => console.error("Failed to fetch play queue", e));
     }
-  }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute, isDemoMode, guestUserId]);
+  }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute, isDemoMode, guestUserId, isHoladConnectEnabled]);
 
   useEffect(() => {
     // When on /jam routes, JamLayout manages the room lifecycle, playback and layout directly

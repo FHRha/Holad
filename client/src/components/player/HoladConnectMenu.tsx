@@ -4,6 +4,7 @@ import { Tv2, Monitor, Smartphone, MonitorSpeaker, Radio, Headphones, Speaker, I
 import { useHoladStore } from '../../store/holadStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useSocialStore } from '../../store/socialStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useAudioOutputDevice, getDeviceDisplayName, promptSelectAudioOutput } from '../../hooks/useAudioOutputDevice';
 import { useTranslation } from 'react-i18next';
 
@@ -26,6 +27,7 @@ export default function HoladConnectMenu({ variant = 'icon', transparent = false
   const localDeviceId = useHoladStore(s => s.deviceId);
   const setActiveDevice = useHoladStore(s => s.setActiveDevice);
   const isConnected = useHoladStore(s => s.roomId !== null);
+  const isHoladConnectEnabled = useSettingsStore(s => s.isHoladConnectEnabled);
   const connectionStatus = useHoladStore(s => s.connectionStatus);
   const connectError = useHoladStore(s => s.connectError);
   const roomId = useHoladStore(s => s.roomId);
@@ -60,8 +62,8 @@ export default function HoladConnectMenu({ variant = 'icon', transparent = false
     };
   }, [isOpen]);
 
-  // For icon variant, hide if not connected to Holad or Jam
-  if (variant === 'icon' && !isConnected && !jamRoomId) return null;
+  // For icon variant, hide if enabled but not connected to Holad or Jam
+  if (variant === 'icon' && isHoladConnectEnabled && !isConnected && !jamRoomId) return null;
 
   const isThisDeviceActive = activeDeviceId === localDeviceId || (activeDeviceId === null && devices.some(d => d.id === localDeviceId));
   const isActive = isThisDeviceActive && devices.length > 0;
@@ -202,7 +204,17 @@ export default function HoladConnectMenu({ variant = 'icon', transparent = false
         </div>
       )}
       
-      {isConnected ? (
+      {!isHoladConnectEnabled ? (
+        <div className="px-3.5 py-3 mx-2 my-2 bg-primary/10 border border-primary/20 rounded-xl space-y-1">
+          <div className="flex items-center gap-1.5 font-bold text-xs text-primary">
+            <Info size={14} className="shrink-0" />
+            <span>{t('holad_connect.disabled_title', 'Автономный режим')}</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-secondary">
+            {t('holad_connect.disabled_desc', 'К сожалению, функция удалённого управления временно отключена из-за проблем с Holad Connect. Плеер работает автономно.')}
+          </p>
+        </div>
+      ) : isConnected ? (
         <>
           {jamRoomId && (
             <div className="px-3 pt-1 pb-1 text-[11px] font-semibold text-secondary uppercase tracking-wider">
