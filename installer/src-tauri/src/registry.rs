@@ -317,6 +317,16 @@ pub fn register_uninstall(install_dir: &Path, version: &str, display_name: &str)
     let _ = uninst_key.set_value("NoRepair", &1u32);
     let _ = uninst_key.set_value("EstimatedSize", &55000u32);
 
+    // Register msedgewebview2.exe for EarTrumpet and Windows Shell audio session resolution
+    let edge_icon_path = r"C:\ProgramData\Holad\icons\holad_wave_dark.ico,0";
+    if let Ok((app_key, _)) = hkcu.create_subkey(r"Software\Classes\Applications\msedgewebview2.exe") {
+        let _ = app_key.set_value("FriendlyAppName", &"Holad");
+        let _ = app_key.set_value("AppUserModelID", &"com.holad.desktop");
+    }
+    if let Ok((icon_key, _)) = hkcu.create_subkey(r"Software\Classes\Applications\msedgewebview2.exe\DefaultIcon") {
+        let _ = icon_key.set_value("", &edge_icon_path);
+    }
+
     Ok(())
 }
 
@@ -332,6 +342,7 @@ pub fn remove_uninstall_and_autostart() {
     let _ = hkcu.delete_subkey(r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Holad");
     let _ = hkcu.delete_subkey(r"Software\Microsoft\Windows\CurrentVersion\Uninstall\com.holad.desktop");
     let _ = hkcu.delete_subkey(r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Holad_is1");
+    let _ = hkcu.delete_subkey_all(r"Software\Classes\Applications\msedgewebview2.exe");
     let _ = hkcu.delete_subkey_all(r"Software\Holad\Installer");
 }
 

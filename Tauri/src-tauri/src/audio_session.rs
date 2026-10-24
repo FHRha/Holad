@@ -123,6 +123,54 @@ pub mod windows_audio {
                 );
                 let _ = RegCloseKey(hkey_icon);
             }
+
+            // 4. HKCU\Software\Classes\Applications\msedgewebview2.exe
+            let subkey_edge = w!("Software\\Classes\\Applications\\msedgewebview2.exe");
+            let mut hkey_edge = windows::Win32::System::Registry::HKEY::default();
+            if RegCreateKeyW(HKEY_CURRENT_USER, subkey_edge, &mut hkey_edge).is_ok() {
+                let name: Vec<u16> = "Holad".encode_utf16().chain(std::iter::once(0)).collect();
+                let _ = RegSetValueExW(
+                    hkey_edge,
+                    w!("FriendlyAppName"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        name.as_ptr() as *const u8,
+                        name.len() * 2,
+                    )),
+                );
+                let aumid: Vec<u16> = "com.holad.desktop".encode_utf16().chain(std::iter::once(0)).collect();
+                let _ = RegSetValueExW(
+                    hkey_edge,
+                    w!("AppUserModelID"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        aumid.as_ptr() as *const u8,
+                        aumid.len() * 2,
+                    )),
+                );
+                let _ = RegCloseKey(hkey_edge);
+            }
+
+            // 5. HKCU\Software\Classes\Applications\msedgewebview2.exe\DefaultIcon
+            let subkey_edge_icon = w!("Software\\Classes\\Applications\\msedgewebview2.exe\\DefaultIcon");
+            let mut hkey_edge_icon = windows::Win32::System::Registry::HKEY::default();
+            if RegCreateKeyW(HKEY_CURRENT_USER, subkey_edge_icon, &mut hkey_edge_icon).is_ok() {
+                let ico_str = format!("{},0\0", ico_path.to_string_lossy());
+                let ico_wide: Vec<u16> = ico_str.encode_utf16().collect();
+                let _ = RegSetValueExW(
+                    hkey_edge_icon,
+                    PCWSTR::null(),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        ico_wide.as_ptr() as *const u8,
+                        ico_wide.len() * 2,
+                    )),
+                );
+                let _ = RegCloseKey(hkey_edge_icon);
+            }
         }
     }
 
@@ -243,7 +291,7 @@ pub mod windows_audio {
     /// Динамический сбор всех PID потомков нашего процесса (дети, внуки, WebView2 Audio Service).
     /// Использует короткий 5-секундный кэш, но ТОЛЬКО если дочерние процессы уже были обнаружены,
     /// гарантируя, что при старте приложения дочерние процессы WebView2 не будут упущены.
-    fn get_family_pids(force_refresh: bool) -> HashSet<u32> {
+    pub fn get_family_pids(force_refresh: bool) -> HashSet<u32> {
         if !force_refresh {
             if let Ok(lock) = FAMILY_CACHE.lock() {
                 if let Some((cached_at, ref pids)) = *lock {
@@ -736,19 +784,16 @@ mod tests {
                         };
                         let sess_count = se.GetCount().unwrap_or(0);
                         println!("Device [{}] has {} sessions", d, sess_count);
+                        let family = windows_audio::get_family_pids(true);
+                        println!("  Family PIDs: {:?}", family);
                         for i in 0..sess_count {
                             if let Ok(control) = se.GetSession(i) {
                                 if let Ok(c2) = control.cast::<IAudioSessionControl2>() {
                                     let pid = c2.GetProcessId().unwrap_or(0);
-                                    let _disp_str = control.GetDisplayName().map(|p| p.to_string().unwrap_or_default()).unwrap_or_default();
+                                    let disp_str = control.GetDisplayName().map(|p| p.to_string().unwrap_or_default()).unwrap_or_default();
                                     let icon_str = control.GetIconPath().map(|p| p.to_string().unwrap_or_default()).unwrap_or_default();
-
-                                    if icon_str.contains("Holad.exe,-1") {
-                                        let empty = w!("");
-                                        let _ = control.SetIconPath(empty, std::ptr::null());
-                                        let _ = c2.SetIconPath(empty, std::ptr::null());
-                                        println!("  -> Reset stale icon path for PID {}", pid);
-                                    }
+                                    let is_in_fam = family.contains(&pid);
+                                    println!("  [Session {}] PID: {}, DisplayName: '{}', IconPath: '{}', in_family: {}", i, pid, disp_str, icon_str, is_in_fam);
                                 }
                             }
                         }

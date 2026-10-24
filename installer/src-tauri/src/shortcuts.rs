@@ -3,7 +3,7 @@ use windows::core::{Interface, HSTRING, PCWSTR};
 use windows::Win32::Foundation::PROPERTYKEY;
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_INPROC_SERVER,
-    COINIT_APARTMENTTHREADED, IPersistFile,
+    COINIT_APARTMENTTHREADED, IPersistFile, STGM_READWRITE,
 };
 use windows::Win32::System::Com::StructuredStorage::{PROPVARIANT, PropVariantClear};
 use windows::Win32::System::Variant::VT_LPWSTR;
@@ -108,16 +108,53 @@ fn create_shortcut_internal(
     }
 }
 
+/// Updates the icon location and AUMID of an existing shortcut in-place,
+/// preserving its position on the user's desktop grid.
+pub fn update_shortcut_icon_internal(target_exe: &Path, lnk_path: &Path) -> Result<(), String> {
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+
+        let shell_link: IShellLinkW = CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER)
+            .map_err(|e| format!("Failed to create IShellLinkW instance: {}", e))?;
+
+        let persist_file: IPersistFile = shell_link
+            .cast()
+            .map_err(|e| format!("Failed to cast IShellLink to IPersistFile: {}", e))?;
+
+        let lnk_str = lnk_path.to_string_lossy();
+        let lnk_hstring = HSTRING::from(lnk_str.as_ref());
+        let _ = persist_file.Load(&lnk_hstring, STGM_READWRITE);
+
+        let exe_str = target_exe.to_string_lossy();
+        let target_hstring = HSTRING::from(exe_str.as_ref());
+        let _ = shell_link.SetIconLocation(&target_hstring, 0);
+
+        // Also ensure AppUserModelId is intact
+        if let Ok(prop_store) = shell_link.cast::<IPropertyStore>() {
+            if let Ok(mut prop_var) = create_prop_variant_string("com.holad.desktop") {
+                let _ = prop_store.SetValue(&PKEY_APPUSERMODEL_ID, &prop_var);
+                let _ = prop_store.Commit();
+                let _ = PropVariantClear(&mut prop_var);
+            }
+        }
+
+        let _ = persist_file.Save(&lnk_hstring, true);
+
+        CoUninitialize();
+        Ok(())
+    }
+}
+
 /// Checks Desktop shortcut:
-/// RULE: If %USERPROFILE%\Desktop\Holad.lnk already exists — DO NOT TOUCH OR DELETE!
-/// This preserves its position on the user's desktop grid.
+/// If %USERPROFILE%\Desktop\Holad.lnk already exists — DO NOT delete or recreate it from scratch
+/// (to preserve its position on the user's desktop grid), BUT refresh its icon location and AUMID.
 /// If it does not exist, creates it with AppUserModelId "com.holad.desktop".
 pub fn ensure_desktop_shortcut(target_exe: &Path) -> Result<bool, String> {
     let desktop = get_desktop_dir().ok_or_else(|| "Could not locate Desktop directory".to_string())?;
     let lnk_path = desktop.join("Holad.lnk");
 
     if lnk_path.exists() {
-        // Preserved existing shortcut as required!
+        let _ = update_shortcut_icon_internal(target_exe, &lnk_path);
         return Ok(false);
     }
 
