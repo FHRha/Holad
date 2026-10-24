@@ -58,27 +58,38 @@ fn show_main_window(app: tauri::AppHandle) {
     }
 }
 
-const ICON_WAVE_DARK: &[u8] = include_bytes!("../../../client/public/icons/favicon_dark.png");
-const ICON_WAVE_LIGHT: &[u8] = include_bytes!("../../../client/public/icons/favicon_light.png");
-const ICON_CASSETTE: &[u8] = include_bytes!("../../../client/public/icons/logo_cassette.png");
+const WINDOW_WAVE_DARK: &[u8] = include_bytes!("../icons/window_wave_dark.png");
+const WINDOW_WAVE_LIGHT: &[u8] = include_bytes!("../icons/window_wave_light.png");
+const WINDOW_CASSETTE: &[u8] = include_bytes!("../icons/window_cassette.png");
+
+const TRAY_WAVE_DARK: &[u8] = include_bytes!("../icons/tray_wave_dark.png");
+const TRAY_WAVE_LIGHT: &[u8] = include_bytes!("../icons/tray_wave_light.png");
+const TRAY_CASSETTE: &[u8] = include_bytes!("../icons/tray_cassette.png");
 
 #[tauri::command]
 fn set_app_icon(app: tauri::AppHandle, icon: String) -> Result<(), String> {
-    let bytes = match icon.as_str() {
-        "wave_light" => ICON_WAVE_LIGHT,
-        "cassette" => ICON_CASSETTE,
-        _ => ICON_WAVE_DARK,
+    let win_bytes = match icon.as_str() {
+        "wave_light" => WINDOW_WAVE_LIGHT,
+        "cassette" => WINDOW_CASSETTE,
+        _ => WINDOW_WAVE_DARK,
     };
-    let img = tauri::image::Image::from_bytes(bytes).map_err(|e| e.to_string())?;
+    let win_img = tauri::image::Image::from_bytes(win_bytes).map_err(|e| e.to_string())?;
+
+    let tray_bytes = match icon.as_str() {
+        "wave_light" => TRAY_WAVE_LIGHT,
+        "cassette" => TRAY_CASSETTE,
+        _ => TRAY_WAVE_DARK,
+    };
+    let tray_img = tauri::image::Image::from_bytes(tray_bytes).map_err(|e| e.to_string())?;
 
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_icon(img.clone());
+        let _ = window.set_icon(win_img.clone());
     }
     if let Some(window) = app.get_webview_window("tray_menu") {
-        let _ = window.set_icon(img.clone());
+        let _ = window.set_icon(win_img.clone());
     }
     if let Some(tray) = app.tray_by_id("main") {
-        let _ = tray.set_icon(Some(img));
+        let _ = tray.set_icon(Some(tray_img));
     }
 
     #[cfg(target_os = "windows")]
@@ -442,8 +453,11 @@ pub fn run() {
           let _ = w.hide();
       }
 
+      let initial_tray_icon = tauri::image::Image::from_bytes(TRAY_WAVE_DARK)
+          .unwrap_or_else(|_| app.default_window_icon().unwrap().clone());
+
       let _tray = TrayIconBuilder::with_id("main")
-          .icon(app.default_window_icon().unwrap().clone())
+          .icon(initial_tray_icon)
           .on_tray_icon_event(|tray, event| match event {
               TrayIconEvent::Click {
                   button: MouseButton::Right,
