@@ -386,6 +386,15 @@ export class AudioDeck implements IAudioDeck {
         return this.element.duration && !isNaN(this.element.duration) && isFinite(this.element.duration) ? this.element.duration : 0;
     }
 
+    public async setSinkId(sinkId: string): Promise<void> {
+        if (this.element && 'setSinkId' in this.element && typeof (this.element as any).setSinkId === 'function') {
+            await (this.element as any).setSinkId(sinkId);
+        }
+        if (this.primaryElement && this.primaryElement !== this.element && 'setSinkId' in this.primaryElement && typeof (this.primaryElement as any).setSinkId === 'function') {
+            await (this.primaryElement as any).setSinkId(sinkId);
+        }
+    }
+
     public getState(): AudioState {
         return this.state;
     }

@@ -4,6 +4,7 @@ import { PreloadManager } from './PreloadManager';
 import { TransitionManager } from './TransitionManager';
 import type { AudioEngineSettings, AudioState, IAudioCore, IAudioDeck, IAudioEngine, IWebAudioPipeline, PlayTrackOptions } from './types';
 import { isCapacitor } from '../utils/StorageManager';
+import { requestNativeAudioFocus, abandonNativeAudioFocus } from '../utils/audioFocus';
 
 export class AudioEngine implements IAudioEngine, IAudioCore {
     private static instance: AudioEngine | null = null;
@@ -318,6 +319,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                 this.transitionManager.abortActiveTransition(activeDeck, standbyDeck, this.pipeline || undefined, this.activeIndex, this.volume * this.volumeMultiplier);
                 await activeDeck.load(streamUrl, position);
                 if (this.playToken !== currentToken || !this.isPlaying) return;
+                await requestNativeAudioFocus().catch(() => {});
                 await activeDeck.play();
                 if (this.pipeline) {
                     this.pipeline.setDeckGain(this.activeIndex, 1.0, 0);
@@ -349,6 +351,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         
         this.decks[0].pause();
         this.decks[1].pause();
+        abandonNativeAudioFocus().catch(() => {});
     }
 
     public async resume(): Promise<void> {
@@ -359,6 +362,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         if (this.pipeline) {
             await this.pipeline.unlockContext();
         }
+        await requestNativeAudioFocus().catch(() => {});
         await this.getActiveDeck().play();
     }
 
@@ -537,6 +541,19 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                 }
             });
         }
+    }
+
+    public async setSinkId(sinkId: string): Promise<void> {
+        const promises: Promise<void>[] = [];
+        for (const deck of this.decks) {
+            promises.push(deck.setSinkId(sinkId));
+        }
+        if (this.pipeline?.context && 'setSinkId' in this.pipeline.context && typeof (this.pipeline.context as any).setSinkId === 'function') {
+            promises.push((this.pipeline.context as any).setSinkId(sinkId).catch((err: any) => {
+                console.warn('AudioEngine: setSinkId on AudioContext failed:', err);
+            }));
+        }
+        await Promise.all(promises);
     }
 
     public getAudioContext(): AudioContext | undefined {

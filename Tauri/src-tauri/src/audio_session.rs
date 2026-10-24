@@ -1,4 +1,4 @@
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct NativeAudioDevice {
     pub name: String,
     pub is_headphones: bool,
@@ -618,6 +618,215 @@ pub mod windows_audio {
         });
     }
 
+    /// Форматирует имя устройства для отображения в UI, устраняя технические драйверные суффиксы
+    /// (например, "Динамики (Realtek High Definition Audio)" -> "Динамики",
+    /// "Наушники (HyperX Cloud III Wireless)" -> "HyperX Cloud III Wireless",
+    /// "Стерео микшер (Realtek Audio)" -> "Стерео микшер").
+    pub fn format_clean_device_name(name: &str, is_headphones: bool) -> String {
+        let trimmed = name.trim();
+        let lower = trimmed.to_lowercase();
+
+        let driver_junk_keywords = [
+            "стерео микшер",
+            "stereo mix",
+            "high definition audio device",
+            "устройство с поддержкой high definition audio",
+            "realtek high definition audio",
+            "realtek audio",
+            "realtek(r) audio",
+            "realtek",
+        ];
+
+        // Разбор паттерна "Outer (Inner)"
+        if let (Some(open_idx), Some(close_idx)) = (trimmed.find('('), trimmed.rfind(')')) {
+            if open_idx < close_idx {
+                let outer = trimmed[..open_idx].trim();
+                let inner = trimmed[open_idx + 1..close_idx].trim();
+                let inner_lower = inner.to_lowercase();
+
+                let is_inner_junk = driver_junk_keywords.iter().any(|&junk| inner_lower.contains(junk));
+                if is_inner_junk {
+                    if !outer.is_empty() {
+                        return outer.to_string();
+                    } else if is_headphones {
+                        return "Наушники".to_string();
+                    } else {
+                        return "Динамики".to_string();
+                    }
+                }
+
+                // Если во внешнем названии общее обозначение ("Наушники", "Headphones", "Гарнитура", "Headset"),
+                // а внутри реальная модель наушников (например, "HyperX Cloud III Wireless", "JBL TUNE510BT")
+                let outer_lower = outer.to_lowercase();
+                if (outer_lower == "наушники"
+                    || outer_lower == "headphones"
+                    || outer_lower == "гарнитура"
+                    || outer_lower == "headset")
+                    && !inner.is_empty()
+                {
+                    return inner.to_string();
+                }
+            }
+        }
+
+        let is_entirely_junk = driver_junk_keywords.iter().any(|&junk| lower.contains(junk));
+        if is_entirely_junk {
+            if lower.contains("микшер") || lower.contains("mixer") {
+                return "Стерео микшер".to_string();
+            }
+            if is_headphones {
+                return "Наушники".to_string();
+            } else {
+                return "Динамики".to_string();
+            }
+        }
+
+        trimmed.to_string()
+    }
+
+    /// Считывает информацию о текущем дефолтном эндпоинте вывода звука Windows:
+    /// возвращает (endpoint_id, NativeAudioDevice)
+    pub fn get_default_audio_endpoint_info() -> Option<(String, super::NativeAudioDevice)> {
+        unsafe {
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
+            let default_device = enumerator.GetDefaultAudioEndpoint(eRender, eMultimedia).ok()?;
+
+            let device_id = default_device.GetId().ok().and_then(|pwstr| {
+                let s = pwstr.to_string().ok();
+                windows::Win32::System::Com::CoTaskMemFree(Some(pwstr.0 as *const _));
+                s
+            }).unwrap_or_default();
+
+            let mut raw_name = String::new();
+            let mut form_factor: Option<u32> = None;
+
+            if let Ok(store) = default_device.OpenPropertyStore(windows::Win32::System::Com::STGM(0)) {
+                // 1. PKEY_Device_FriendlyName (fmtid: a45c254e-df1c-4efd-8020-67d146a850e0, pid: 14)
+                let pkey_name = windows::Win32::Foundation::PROPERTYKEY {
+                    fmtid: windows::core::GUID::from_u128(0xa45c254e_df1c_4efd_8020_67d146a850e0),
+                    pid: 14,
+                };
+                if let Ok(val) = store.GetValue(&pkey_name) {
+                    raw_name = val.to_string();
+                    let mut mut_val = val;
+                    let _ = windows::Win32::System::Com::StructuredStorage::PropVariantClear(&mut mut_val);
+                }
+
+                // Fallback 1: DEVPKEY_DeviceInterface_FriendlyName (fmtid: 026e516e-b814-414b-83cd-856d6fef4822, pid: 2)
+                if raw_name.trim().is_empty() {
+                    let pkey_desc = windows::Win32::Foundation::PROPERTYKEY {
+                        fmtid: windows::core::GUID::from_u128(0x026e516e_b814_414b_83cd_856d6fef4822),
+                        pid: 2,
+                    };
+                    if let Ok(val) = store.GetValue(&pkey_desc) {
+                        raw_name = val.to_string();
+                        let mut mut_val = val;
+                        let _ = windows::Win32::System::Com::StructuredStorage::PropVariantClear(&mut mut_val);
+                    }
+                }
+
+                // Fallback 2: DEVPKEY_Device_DeviceDesc (fmtid: b3f8fa53-0004-438e-9003-51a46e139bfc, pid: 6)
+                if raw_name.trim().is_empty() {
+                    let pkey_bus = windows::Win32::Foundation::PROPERTYKEY {
+                        fmtid: windows::core::GUID::from_u128(0xb3f8fa53_0004_438e_9003_51a46e139bfc),
+                        pid: 6,
+                    };
+                    if let Ok(val) = store.GetValue(&pkey_bus) {
+                        raw_name = val.to_string();
+                        let mut mut_val = val;
+                        let _ = windows::Win32::System::Com::StructuredStorage::PropVariantClear(&mut mut_val);
+                    }
+                }
+
+                // 2. Query PKEY_AudioEndpoint_FormFactor
+                // Standard Windows SDK: fmtid: 1da5d803-d492-4edd-8c23-e0c0ffee7f0e, pid: 0
+                if let Ok(val) = store.GetValue(&windows::Win32::Media::Audio::PKEY_AudioEndpoint_FormFactor) {
+                    if let Ok(num) = val.to_string().trim().parse::<u32>() {
+                        form_factor = Some(num);
+                    }
+                    let mut mut_val = val;
+                    let _ = windows::Win32::System::Com::StructuredStorage::PropVariantClear(&mut mut_val);
+                }
+
+                // Alternative GUID fallback (fmtid: 1da5d803-d346-45ab-9fde-070b4a41639c, pid: 0)
+                if form_factor.is_none() {
+                    let pkey_ff_alt = windows::Win32::Foundation::PROPERTYKEY {
+                        fmtid: windows::core::GUID::from_u128(0x1da5d803_d346_45ab_9fde_070b4a41639c),
+                        pid: 0,
+                    };
+                    if let Ok(val) = store.GetValue(&pkey_ff_alt) {
+                        if let Ok(num) = val.to_string().trim().parse::<u32>() {
+                            form_factor = Some(num);
+                        }
+                        let mut mut_val = val;
+                        let _ = windows::Win32::System::Com::StructuredStorage::PropVariantClear(&mut mut_val);
+                    }
+                }
+            }
+
+            if raw_name.trim().is_empty() {
+                if device_id.is_empty() {
+                    return None;
+                }
+                raw_name = "Default Audio Output".to_string();
+            }
+
+            // EndpointFormFactor:
+            // 3 = Headphones, 5 = Headset, 6 = Handset
+            let form_factor_is_headphones = matches!(form_factor, Some(3 | 5 | 6));
+
+            let lower = raw_name.to_lowercase();
+
+            // Universal functional descriptors for Bluetooth / wireless (no hardcoded brand names)
+            let is_bt = lower.contains("bluetooth")
+                || lower.contains("wireless")
+                || lower.split(|c: char| !c.is_alphanumeric()).any(|w| w == "bt" || (w.len() > 2 && w.ends_with("bt")));
+
+            // Universal functional descriptors for headphones / headsets / in-ear / buds
+            let is_hp_keyword = is_bt
+                || lower.contains("headphone")
+                || lower.contains("headphones")
+                || lower.contains("headset")
+                || lower.contains("earphone")
+                || lower.contains("earphones")
+                || lower.contains("earbuds")
+                || lower.contains("buds")
+                || lower.contains("pods")
+                || lower.contains("in-ear")
+                || lower.contains("iem")
+                || lower.contains("наушник")
+                || lower.contains("гарнитур");
+
+            // Hardware FormFactor (3, 5, 6) grants headphones status unconditionally; fallback to functional keywords
+            let is_hp = form_factor_is_headphones || is_hp_keyword;
+
+            let clean_name = format_clean_device_name(&raw_name, is_hp);
+
+            let device_type = if is_bt {
+                "bluetooth".to_string()
+            } else if is_hp {
+                "wired".to_string()
+            } else {
+                "speaker".to_string()
+            };
+
+            Some((
+                device_id,
+                super::NativeAudioDevice {
+                    name: clean_name,
+                    is_headphones: is_hp,
+                    device_type,
+                },
+            ))
+        }
+    }
+
+    /// Возвращает активное аудиоустройство вывода в Windows (например, "HyperX Cloud III Wireless", "Динамики")
+    pub fn get_default_audio_device() -> Option<super::NativeAudioDevice> {
+        get_default_audio_endpoint_info().map(|(_, dev)| dev)
+    }
+
     /// Запускает фоновый супервизор: мгновенный подхват сессий при переключении треков или смене устройств (интервал 500 мс)
     pub fn start_audio_session_supervisor() {
         set_current_icon("wave_dark");
@@ -630,49 +839,65 @@ pub mod windows_audio {
         });
     }
 
-    /// Возвращает активное аудиоустройство вывода в Windows (например, "Наушники (Realtek)", "WH-1000XM4")
-    pub fn get_default_audio_device() -> Option<super::NativeAudioDevice> {
-        unsafe {
-            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
-            let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
-            let default_device = enumerator.GetDefaultAudioEndpoint(eRender, eMultimedia).ok()?;
+    /// Запускает фоновый монитор аудиоустройств: отслеживает смену вывода,
+    /// мгновенно посылает "audio-becoming-noisy" при отключении наушников (кейс/штекер)
+    /// и "audio-device-changed" с новыми метаданными.
+    pub fn start_audio_device_supervisor(app: tauri::AppHandle) {
+        use tauri::Emitter;
 
-            let mut device_name = String::new();
-            let pkey = windows::Win32::Foundation::PROPERTYKEY {
-                fmtid: windows::core::GUID::from_u128(0xa45c254e_df1c_4efd_8020_67d146a850e0),
-                pid: 14,
-            };
-            if let Ok(store) = default_device.OpenPropertyStore(windows::Win32::System::Com::STGM(0)) {
-                if let Ok(val) = store.GetValue(&pkey) {
-                    device_name = val.to_string();
-                    let mut mut_val = val;
-                    let _ = windows::Win32::System::Com::StructuredStorage::PropVariantClear(&mut mut_val);
+        std::thread::spawn(move || {
+            let mut last_device_id: Option<String> = None;
+            let mut last_is_headphones: bool = false;
+            let mut initialized = false;
+
+            loop {
+                let current = get_default_audio_endpoint_info();
+
+                match current {
+                    Some((current_id, current_dev)) => {
+                        let device_changed = last_device_id.as_deref() != Some(&current_id)
+                            || last_is_headphones != current_dev.is_headphones;
+
+                        if !initialized {
+                            last_is_headphones = current_dev.is_headphones;
+                            last_device_id = Some(current_id);
+                            initialized = true;
+                        } else if device_changed {
+                            log::info!(
+                                "[AudioDevice] Default audio endpoint changed: '{}' (headphones: {}, type: {})",
+                                current_dev.name,
+                                current_dev.is_headphones,
+                                current_dev.device_type
+                            );
+
+                            // Disconnect check: headphones were active, but now active device is not headphones
+                            if last_is_headphones && !current_dev.is_headphones {
+                                log::warn!("[AudioDevice] Headphones disconnected/removed! Emitting audio-becoming-noisy");
+                                let _ = app.emit("audio-becoming-noisy", ());
+                            }
+
+                            let _ = app.emit("audio-device-changed", &current_dev);
+
+                            // Capture new device's session in Windows Volume Mixer
+                            trigger_sync_burst();
+
+                            last_is_headphones = current_dev.is_headphones;
+                            last_device_id = Some(current_id);
+                        }
+                    }
+                    None => {
+                        if initialized && last_is_headphones {
+                            log::warn!("[AudioDevice] Audio endpoint lost! Emitting audio-becoming-noisy");
+                            let _ = app.emit("audio-becoming-noisy", ());
+                            last_is_headphones = false;
+                            last_device_id = None;
+                        }
+                    }
                 }
+
+                std::thread::sleep(std::time::Duration::from_millis(350));
             }
-
-            if device_name.is_empty() {
-                return None;
-            }
-
-            let lower = device_name.to_lowercase();
-            let is_bt = lower.contains("bluetooth") || lower.contains("wireless") || lower.contains("airpods")
-                || lower.contains("buds") || lower.contains("freebuds") || lower.contains("wh-")
-                || lower.contains("wf-") || lower.contains("bose") || lower.contains("sony");
-            let is_hp = is_bt || lower.contains("headphone") || lower.contains("headset")
-                || lower.contains("earphone") || lower.contains("наушник") || lower.contains("гарнитур");
-
-            Some(super::NativeAudioDevice {
-                name: device_name,
-                is_headphones: is_hp,
-                device_type: if is_bt {
-                    "bluetooth".to_string()
-                } else if is_hp {
-                    "wired".to_string()
-                } else {
-                    "speaker".to_string()
-                },
-            })
-        }
+        });
     }
 }
 
@@ -731,11 +956,22 @@ pub mod linux_audio {
 
     fn classify_device(name: String) -> super::NativeAudioDevice {
         let lower = name.to_lowercase();
-        let is_bt = lower.contains("bluetooth") || lower.contains("wireless") || lower.contains("airpods")
-            || lower.contains("buds") || lower.contains("freebuds") || lower.contains("wh-")
-            || lower.contains("wf-") || lower.contains("bose") || lower.contains("sony");
-        let is_hp = is_bt || lower.contains("headphone") || lower.contains("headset")
-            || lower.contains("earphone") || lower.contains("наушник") || lower.contains("гарнитур");
+        let is_bt = lower.contains("bluetooth")
+            || lower.contains("wireless")
+            || lower.split(|c: char| !c.is_alphanumeric()).any(|w| w == "bt" || (w.len() > 2 && w.ends_with("bt")));
+        let is_hp = is_bt
+            || lower.contains("headphone")
+            || lower.contains("headphones")
+            || lower.contains("headset")
+            || lower.contains("earphone")
+            || lower.contains("earphones")
+            || lower.contains("earbuds")
+            || lower.contains("buds")
+            || lower.contains("pods")
+            || lower.contains("in-ear")
+            || lower.contains("iem")
+            || lower.contains("наушник")
+            || lower.contains("гарнитур");
 
         super::NativeAudioDevice {
             name,
@@ -758,6 +994,7 @@ pub mod windows_audio {
     pub fn update_audio_session_identity() {}
     pub fn trigger_sync_burst() {}
     pub fn start_audio_session_supervisor() {}
+    pub fn start_audio_device_supervisor(_app: tauri::AppHandle) {}
 }
 
 #[cfg(test)]
@@ -769,12 +1006,46 @@ mod tests {
     fn test_windows_audio_device() {
         let dev = windows_audio::get_default_audio_device();
         println!("Detected Windows Audio Device: {:?}", dev);
+        assert!(dev.is_some());
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn test_format_clean_device_name() {
+        assert_eq!(
+            windows_audio::format_clean_device_name("Динамики (Realtek High Definition Audio)", false),
+            "Динамики"
+        );
+        assert_eq!(
+            windows_audio::format_clean_device_name("Speakers (High Definition Audio Device)", false),
+            "Speakers"
+        );
+        assert_eq!(
+            windows_audio::format_clean_device_name("Наушники (HyperX Cloud III Wireless)", true),
+            "HyperX Cloud III Wireless"
+        );
+        assert_eq!(
+            windows_audio::format_clean_device_name("Наушники (Realtek Audio)", true),
+            "Наушники"
+        );
+        assert_eq!(
+            windows_audio::format_clean_device_name("Стерео микшер (Realtek Audio)", false),
+            "Стерео микшер"
+        );
+        assert_eq!(
+            windows_audio::format_clean_device_name("Realtek High Definition Audio", false),
+            "Динамики"
+        );
+        assert_eq!(
+            windows_audio::format_clean_device_name("JBL TUNE510BT", true),
+            "JBL TUNE510BT"
+        );
     }
 
     #[test]
     #[cfg(target_os = "windows")]
     fn test_inspect_and_set_sessions() {
-        use windows::core::{Interface, w};
+        use windows::core::Interface;
         use windows::Win32::Media::Audio::{
             MMDeviceEnumerator, IMMDeviceEnumerator, eRender,
             IAudioSessionManager2, IAudioSessionEnumerator, IAudioSessionControl2,

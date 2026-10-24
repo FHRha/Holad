@@ -17,7 +17,7 @@ import { useDocumentTitle } from './hooks/useDocumentTitle';
 import { useTaskbarControls } from './hooks/useTaskbarControls';
 import { useTrayIntegration } from './hooks/useTrayIntegration';
 import { useWindowVisibility } from './hooks/useWindowVisibility';
-import { useAudioOutputDevice } from './hooks/useAudioOutputDevice';
+import { useAudioOutputDevice, initAudioDeviceManager } from './hooks/useAudioOutputDevice';
 import OfflineModeModal from './components/modals/OfflineModeModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { preloadAndDecodeImage } from './utils/assetPreloader';
@@ -99,6 +99,10 @@ function MainAppContent() {
   useEffect(() => {
     checkDemoSession();
   }, [checkDemoSession]);
+
+  useEffect(() => {
+    initAudioDeviceManager();
+  }, []);
   
   // oxlint-disable-next-line
   useTaskbarControls();

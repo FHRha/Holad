@@ -52,6 +52,7 @@ export interface IAudioDeck {
     setVolume(volume: number): void;
     setPlaybackRate(rate: number): void;
     setLoop(loop: boolean): void;
+    setSinkId?(sinkId: string): Promise<void>;
     
     getCurrentTime(): number;
     getDuration(): number;
@@ -91,6 +92,7 @@ export interface IAudioEngine {
     seek(positionSeconds: number): void;
     setVolume(volume: number, isMobile?: boolean): void;
     setVolumeMultiplier(multiplier: number): void;
+    setSinkId?(sinkId: string): Promise<void>;
     updateSettings(settings: Partial<AudioEngineSettings>): void;
     preloadNextTrack(track: any): Promise<void>;
     getDeck(index: number): IAudioDeck | undefined;
@@ -113,6 +115,7 @@ export interface IAudioCore {
     setVolume(volume: number): void; // Expects 0.0 to 1.0
     setPlaybackRate(rate: number): void;
     setLoop(loop: boolean): void;
+    setSinkId?(sinkId: string): Promise<void>;
     
     // Gapless / Crossfade support
     crossfadeTo(url: string, durationSeconds: number, position?: number): Promise<void>;

@@ -422,6 +422,8 @@ pub fn run() {
 
           // Запуск легковесного фонового супервизора микшера громкости Windows
           audio_session::windows_audio::start_audio_session_supervisor();
+          // Запуск монитора смены аудиоустройств и экстренной паузы при отключении наушников
+          audio_session::windows_audio::start_audio_device_supervisor(app.handle().clone());
       }
 
       if let Some(window) = app.get_webview_window("main") {

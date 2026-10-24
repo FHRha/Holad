@@ -1,7 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
-import { handleHeadphonesDisconnected, getAudioOutputDevice, getDeviceDisplayName, cleanRawDeviceLabel } from '../../hooks/useAudioOutputDevice';
+import {
+  handleHeadphonesDisconnected,
+  getAudioOutputDevice,
+  getDeviceDisplayName,
+  cleanRawDeviceLabel,
+  initAudioDeviceManager,
+  cleanupAudioDeviceManager,
+  promptSelectAudioOutput,
+  isGenericOrDriverJunk
+} from '../../hooks/useAudioOutputDevice';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
 import { AudioDeck } from '../../audio/AudioDeck';
 import { AudioEngine } from '../../audio/AudioEngine';
@@ -16,6 +25,7 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
 
   afterEach(() => {
     vi.restoreAllMocks();
+    cleanupAudioDeviceManager();
     useHoladStore.getState().disconnect();
   });
 
@@ -243,9 +253,24 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
   describe('3. getDeviceDisplayName Resolution', () => {
     const mockT = (key: string, fallback?: string) => fallback || key;
 
-    it('returns specific device name if not generic', () => {
+    it('returns specific device name if authentic (not generic and not driver junk)', () => {
       expect(getDeviceDisplayName({ name: 'Sony WH-1000XM4', type: 'bluetooth', isHeadphones: true }, mockT)).toBe('Sony WH-1000XM4');
-      expect(getDeviceDisplayName({ name: 'Realtek High Definition Audio', type: 'speaker', isHeadphones: false }, mockT)).toBe('Realtek High Definition Audio');
+      expect(getDeviceDisplayName({ name: 'Galaxy Buds2', type: 'bluetooth', isHeadphones: true }, mockT)).toBe('Galaxy Buds2');
+      expect(getDeviceDisplayName({ name: 'HyperX Cloud III', type: 'bluetooth', isHeadphones: true }, mockT)).toBe('HyperX Cloud III');
+      expect(getDeviceDisplayName({ name: 'USB Audio DAC', type: 'speaker', isHeadphones: false }, mockT)).toBe('USB Audio DAC');
+    });
+
+    it('filters universal driver/mixer technical junk into clean localized labels', () => {
+      expect(isGenericOrDriverJunk('Realtek High Definition Audio')).toBe(true);
+      expect(getDeviceDisplayName({ name: 'Realtek High Definition Audio', type: 'speaker', isHeadphones: false }, mockT)).toBe('Динамики компьютера');
+      expect(getDeviceDisplayName({ name: 'По умолчанию - Динамики (Realtek(R) Audio)', type: 'speaker', isHeadphones: false }, mockT)).toBe('Динамики компьютера');
+      expect(getDeviceDisplayName({ name: 'Default - Наушники (Realtek Audio)', type: 'wired', isHeadphones: true }, mockT)).toBe('Проводные наушники');
+      expect(getDeviceDisplayName({ name: 'Стерео микшер', type: 'speaker', isHeadphones: false }, mockT)).toBe('Динамики компьютера');
+      expect(getDeviceDisplayName({ name: 'A2DP Audio Output', type: 'bluetooth', isHeadphones: true }, mockT)).toBe('Bluetooth-наушники');
+      expect(getDeviceDisplayName({ name: 'Conexant SmartAudio HD', type: 'speaker', isHeadphones: false }, mockT)).toBe('Динамики компьютера');
+      expect(getDeviceDisplayName({ name: 'Primary-Out', type: 'speaker', isHeadphones: false }, mockT)).toBe('Динамики компьютера');
+      expect(getDeviceDisplayName({ name: 'Sound Blaster X-Fi', type: 'speaker', isHeadphones: false }, mockT)).toBe('Динамики компьютера');
+      expect(getDeviceDisplayName({ name: 'Устройство с поддержкой High Definition Audio', type: 'speaker', isHeadphones: false }, mockT)).toBe('Динамики компьютера');
     });
 
     it('returns headphones localization if isHeadphones is true and name is generic or empty', () => {
@@ -263,13 +288,14 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       expect(cleanRawDeviceLabel('По умолчанию - Speakers (High Definition Audio)')).toBe('Speakers (High Definition Audio)');
       expect(cleanRawDeviceLabel('Связь по умолчанию - HyperX Cloud III Wireless')).toBe('HyperX Cloud III Wireless');
       expect(cleanRawDeviceLabel('Communications - USB Audio DAC')).toBe('USB Audio DAC');
+      expect(cleanRawDeviceLabel('System default - Standart - Speakers')).toBe('Speakers');
     });
 
     it('formats desktop device names cleanly through getDeviceDisplayName', () => {
       expect(getDeviceDisplayName({ name: 'Default - Наушники (HyperX Cloud III Wireless)', type: 'bluetooth', isHeadphones: true }, mockT))
         .toBe('Наушники (HyperX Cloud III Wireless)');
-      expect(getDeviceDisplayName({ name: 'По умолчанию - Динамики (Realtek(R) Audio)', type: 'speaker', isHeadphones: false }, mockT))
-        .toBe('Динамики (Realtek(R) Audio)');
+      expect(getDeviceDisplayName({ name: 'По умолчанию - Bose QuietComfort 45', type: 'bluetooth', isHeadphones: true }, mockT))
+        .toBe('Bose QuietComfort 45');
     });
   });
 
@@ -349,6 +375,46 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       expect(engine.getActiveTrackId()).toBe('track-2');
       expect(el1.src).toContain('trk2');
       expect(el1.src).not.toContain('trk3');
+    });
+  });
+
+  describe('5. Persistent Global Service (initAudioDeviceManager) & Audio Routing', () => {
+    it('initializes persistent manager idempotently', () => {
+      initAudioDeviceManager();
+      initAudioDeviceManager();
+      expect(getAudioOutputDevice()).toBeDefined();
+    });
+
+    it('handles DOM audio becoming noisy custom event', () => {
+      initAudioDeviceManager();
+      usePlayerStore.getState().setIsPlaying(true);
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
+
+      window.dispatchEvent(new CustomEvent('holad:audiobecomingnoisy'));
+
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+    });
+
+    it('promptSelectAudioOutput passes sinkId to AudioEngine and updates global device', async () => {
+      const engine = AudioEngine.getInstance();
+      const setSinkSpy = vi.spyOn(engine, 'setSinkId').mockResolvedValue(undefined);
+
+      const mockSelectOutput = vi.fn().mockResolvedValue({
+        deviceId: 'usb-audio-dac-id',
+        label: 'Default - USB Audio DAC'
+      });
+
+      // Mock mediaDevices.selectAudioOutput
+      const nav = navigator as any;
+      if (!nav.mediaDevices) {
+        nav.mediaDevices = {};
+      }
+      nav.mediaDevices.selectAudioOutput = mockSelectOutput;
+
+      const success = await promptSelectAudioOutput();
+      expect(success).toBe(true);
+      expect(setSinkSpy).toHaveBeenCalledWith('usb-audio-dac-id');
+      expect(getAudioOutputDevice().name).toBe('USB Audio DAC');
     });
   });
 });
