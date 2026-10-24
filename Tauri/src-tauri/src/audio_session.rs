@@ -269,7 +269,7 @@ pub mod windows_audio {
             _ => ensure_ico_file("holad_wave_dark", ICO_WAVE_DARK),
         };
 
-        let path_str = format!("{},0\0", file_path.to_string_lossy());
+        let path_str = format!("{}\0", file_path.to_string_lossy());
         let wide: Vec<u16> = path_str.encode_utf16().collect();
 
         if let Ok(mut lock) = CURRENT_ICON_WIDE.write() {
@@ -282,6 +282,11 @@ pub mod windows_audio {
         invalidate_family_pids();
         // Немедленно обновляем уже активные сессии с новой иконкой
         update_audio_session_identity();
+
+        unsafe {
+            use windows::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
+            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None);
+        }
     }
 
     fn get_current_icon_wide() -> Option<Vec<u16>> {
@@ -506,7 +511,7 @@ pub mod windows_audio {
             let target_wide = &icon_path_wide;
 
             let exe_icon_wide: Option<Vec<u16>> = std::env::current_exe().ok().map(|exe_path| {
-                let s = format!("{},0\0", exe_path.to_string_lossy());
+                let s = format!("{}\0", exe_path.to_string_lossy());
                 s.encode_utf16().collect()
             });
 

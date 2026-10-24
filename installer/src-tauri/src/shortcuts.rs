@@ -7,7 +7,7 @@ use windows::Win32::System::Com::{
 };
 use windows::Win32::System::Com::StructuredStorage::{PROPVARIANT, PropVariantClear};
 use windows::Win32::System::Variant::VT_LPWSTR;
-use windows::Win32::UI::Shell::{IShellLinkW, ShellLink, SHStrDupW};
+use windows::Win32::UI::Shell::{IShellLinkW, ShellLink, SHStrDupW, SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
 use windows::Win32::UI::Shell::PropertiesSystem::IPropertyStore;
 use windows::core::GUID;
 
@@ -103,6 +103,9 @@ fn create_shortcut_internal(
             .Save(&lnk_hstring, true)
             .map_err(|e| format!("Failed to save shortcut file: {}", e))?;
 
+        // Notify Windows Shell that icons and associations have changed
+        SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None);
+
         CoUninitialize();
         Ok(())
     }
@@ -140,6 +143,9 @@ pub fn update_shortcut_icon_internal(target_exe: &Path, lnk_path: &Path) -> Resu
 
         let _ = persist_file.Save(&lnk_hstring, true);
 
+        // Notify Windows Shell that icons and associations have changed
+        SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None);
+
         CoUninitialize();
         Ok(())
     }
@@ -167,6 +173,10 @@ pub fn ensure_start_menu_shortcut(target_exe: &Path) -> Result<(), String> {
     let start_menu = get_start_menu_dir()
         .ok_or_else(|| "Could not locate Start Menu Programs directory".to_string())?;
     let lnk_path = start_menu.join("Holad.lnk");
+
+    if lnk_path.exists() {
+        return update_shortcut_icon_internal(target_exe, &lnk_path);
+    }
 
     create_shortcut_internal(target_exe, &lnk_path, Some("com.holad.desktop"))
 }

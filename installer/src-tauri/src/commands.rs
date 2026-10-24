@@ -341,6 +341,12 @@ pub async fn start_installation(
             let _ = shortcuts::ensure_start_menu_shortcut(&exe_path);
         }
 
+        #[cfg(target_os = "windows")]
+        unsafe {
+            use windows::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
+            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None);
+        }
+
         // Stage 5: Finalized
         let _ = app.emit(
             "install-progress",
