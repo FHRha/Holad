@@ -332,7 +332,7 @@ async function ensureDependencies(taskName, dir) {
     console.log(`[${taskName}] ✔ Dependencies already installed in ${path.basename(dir)}/node_modules, skipping install.`);
     return;
   }
-  await runCommand(taskName, `${pnpmCmd} install --reporter=silent`, dir);
+  await runCommand(taskName, `${pnpmCmd} install`, dir);
 }
 
 function checkCommand(command, envOverrides = {}) {

@@ -52,7 +52,7 @@ index bf2df522b2713f019f1a26ae2948bb3f136e0d3d..0f7799a770faee7cfce50e41f1737be5
 +            return super.onMediaButtonEvent(mediaButtonIntent);
 +        }
 +
-         // Only handle on ACTION_DOWN; consume ACTION_UP for handled keys to prevent super from processing
++        // Only handle on ACTION_DOWN; consume ACTION_UP for handled keys to prevent super from processing
 +        if (keyEvent.getAction() != KeyEvent.ACTION_DOWN) {
 +            if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
 +                keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||

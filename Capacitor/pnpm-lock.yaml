@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   '@capgo/capacitor-media-session@8.0.29':
-    hash: 2cc63938a78d6b9e8ff3f6ed8bde6fe31e7b1c33bd2af21e0ef0bfc2b8be4305
+    hash: 1d8064f24d89a6fdd1e8315d25062c18873f91141a60f53fc8d03e88b404c3c8
     path: patches/@capgo__capacitor-media-session.patch
 
 importers:
@@ -30,7 +30,7 @@ importers:
         version: 8.0.1(@capacitor/core@8.4.2)
       '@capgo/capacitor-media-session':
         specifier: ^8.0.29
-        version: 8.0.29(patch_hash=2cc63938a78d6b9e8ff3f6ed8bde6fe31e7b1c33bd2af21e0ef0bfc2b8be4305)(@capacitor/core@8.4.2)
+        version: 8.0.29(patch_hash=1d8064f24d89a6fdd1e8315d25062c18873f91141a60f53fc8d03e88b404c3c8)(@capacitor/core@8.4.2)
     devDependencies:
       '@capacitor/assets':
         specifier: ^3.0.5
@@ -1781,7 +1781,7 @@ snapshots:
 
   '@capacitor/synapse@1.0.4': {}
 
-  '@capgo/capacitor-media-session@8.0.29(patch_hash=2cc63938a78d6b9e8ff3f6ed8bde6fe31e7b1c33bd2af21e0ef0bfc2b8be4305)(@capacitor/core@8.4.2)':
+  '@capgo/capacitor-media-session@8.0.29(patch_hash=1d8064f24d89a6fdd1e8315d25062c18873f91141a60f53fc8d03e88b404c3c8)(@capacitor/core@8.4.2)':
     dependencies:
       '@capacitor/core': 8.4.2
 
