@@ -9,6 +9,7 @@ import { savePlaybackState } from '../api/playbackState';
 import { useSettingsStore } from '../store/settingsStore';
 import { useTrackSource } from './useTrackSource';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
+import { invoke } from '@tauri-apps/api/core';
 import { AudioEngine } from '../audio/AudioEngine';
 import { useSocialStore } from '../store/socialStore';
 import { jamSocket } from '../api/socket';
@@ -16,6 +17,12 @@ import { isJamPath } from '../utils/basePath';
 import { getIsWindowVisible, subscribeWindowVisibility } from './useWindowVisibility';
 
 const scheduleIdle = typeof requestIdleCallback !== 'undefined' ? requestIdleCallback : (cb: Function) => setTimeout(cb, 500);
+
+const triggerAudioSessionSync = () => {
+  if (isTauri()) {
+    invoke('sync_audio_session').catch(() => {});
+  }
+};
 
 export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | null>, React.RefObject<HTMLAudioElement | null>], currentTrack: any) {
   const {
@@ -153,6 +160,12 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       engineRef.current.initialize([el0, el1]);
       isInitializedRef.current = true;
       setAudioElement(el0);
+
+      const onPlay = () => triggerAudioSessionSync();
+      el0.addEventListener('play', onPlay);
+      el0.addEventListener('playing', onPlay);
+      el1.addEventListener('play', onPlay);
+      el1.addEventListener('playing', onPlay);
     }
   }, [audioRefs, setAudioElement]);
 
@@ -310,6 +323,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       const targetEl = audioRefs[nextDeckIdx]?.current;
       if (targetEl) setAudioElement(targetEl);
 
+      triggerAudioSessionSync();
       engineRef.current.playTrack(
         { ...currentTrack, streamUrl: audioSrc },
         {
@@ -322,6 +336,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         setActiveIndex(newActiveIdx as 0 | 1);
         const newEl = audioRefs[newActiveIdx]?.current;
         if (newEl) setAudioElement(newEl);
+        triggerAudioSessionSync();
       }).catch((e) => {
         console.warn('Track playback initiation error:', e);
       });
@@ -388,7 +403,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       if (!currentTrack) return;
   
       if (isPlaying && isActiveDevice && !isSpeakerDj) {
-        engineRef.current.resume().catch((e) => {
+        triggerAudioSessionSync();
+        engineRef.current.resume().then(() => {
+          triggerAudioSessionSync();
+        }).catch((e) => {
           console.error('Playback resume error:', e);
         });
       } else {

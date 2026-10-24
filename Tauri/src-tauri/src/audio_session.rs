@@ -29,6 +29,7 @@ pub mod windows_audio {
     static CURRENT_ICON_WIDE: RwLock<Option<Vec<u16>>> = RwLock::new(None);
     static CURRENT_ICON_PATH: RwLock<Option<PathBuf>> = RwLock::new(None);
     static FAMILY_CACHE: Mutex<Option<(std::time::Instant, HashSet<u32>)>> = Mutex::new(None);
+    static LAST_WINDOW_ICON_APPLY: Mutex<Option<std::time::Instant>> = Mutex::new(None);
 
     fn register_registry_identity(ico_path: &std::path::Path) {
         use windows::Win32::System::Registry::{
@@ -280,6 +281,8 @@ pub mod windows_audio {
         }
 
         invalidate_family_pids();
+        let pids = get_family_pids(true);
+        apply_icon_to_process_windows(&pids, true);
         // Немедленно обновляем уже активные сессии с новой иконкой
         update_audio_session_identity();
 
@@ -379,7 +382,20 @@ pub mod windows_audio {
     /// Устанавливает значок Holad на все окна семейства процессов (Holad.exe + msedgewebview2.exe).
     /// Это гарантирует, что Windows Volume Mixer и параметры Windows 10/11, запрашивающие
     /// значок окна процесса через WM_GETICON, получают аутентичную четкую иконку Holad.
-    fn apply_icon_to_process_windows(pids: &HashSet<u32>) {
+    fn apply_icon_to_process_windows(pids: &HashSet<u32>, force: bool) {
+        if !force {
+            if let Ok(lock) = LAST_WINDOW_ICON_APPLY.lock() {
+                if let Some(last) = *lock {
+                    if last.elapsed() < std::time::Duration::from_secs(3) {
+                        return;
+                    }
+                }
+            }
+        }
+        if let Ok(mut lock) = LAST_WINDOW_ICON_APPLY.lock() {
+            *lock = Some(std::time::Instant::now());
+        }
+
         use windows::Win32::UI::WindowsAndMessaging::{
             LoadImageW, IMAGE_ICON, LR_LOADFROMFILE,
             SendMessageTimeoutW, SMTO_ABORTIFHUNG, WM_SETICON, ICON_BIG, ICON_SMALL,
@@ -496,8 +512,8 @@ pub mod windows_audio {
                 return;
             }
 
-            // Устанавливаем иконку на все графические окна WebView2 и Holad
-            apply_icon_to_process_windows(&family_pids);
+            // Устанавливаем иконку на все графические окна WebView2 и Holad (с кэшированием вызовов)
+            apply_icon_to_process_windows(&family_pids, false);
 
             let enumerator: IMMDeviceEnumerator = match CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL) {
                 Ok(e) => e,
@@ -587,11 +603,12 @@ pub mod windows_audio {
         }
     }
 
-    /// Запускает серию быстрых попыток (0, 50, 150, 300, 600, 1200, 2500 мс) при старте воспроизведения для немедленного перехвата сессии
+    /// Запускает серию ультрабыстрых попыток (0, 15, 35, 70, 120, 200, 350, 550, 850, 1300, 2000 мс)
+    /// при старте воспроизведения для мгновенного перехвата сессии в EarTrumpet и микшере Windows.
     pub fn trigger_sync_burst() {
         invalidate_family_pids();
         std::thread::spawn(|| {
-            let delays = [0, 50, 150, 300, 600, 1200, 2500];
+            let delays = [0, 15, 35, 70, 120, 200, 350, 550, 850, 1300, 2000];
             for delay in delays {
                 if delay > 0 {
                     std::thread::sleep(std::time::Duration::from_millis(delay));
@@ -601,14 +618,14 @@ pub mod windows_audio {
         });
     }
 
-    /// Запускает фоновый супервизор: мгновенный подхват сессий при переключении треков или смене устройств (интервал 2 сек)
+    /// Запускает фоновый супервизор: мгновенный подхват сессий при переключении треков или смене устройств (интервал 500 мс)
     pub fn start_audio_session_supervisor() {
         set_current_icon("wave_dark");
 
         std::thread::spawn(|| {
             loop {
                 update_audio_session_identity();
-                std::thread::sleep(std::time::Duration::from_millis(2000));
+                std::thread::sleep(std::time::Duration::from_millis(500));
             }
         });
     }
