@@ -692,6 +692,10 @@ node dist/index.js
               for (const f of icoFiles) {
                 fs.copyFileSync(path.join(tauriIconsDir, f), path.join(destIcons, f));
               }
+              const tauriTaskbarDir = path.join(tauriIconsDir, 'taskbar');
+              if (fs.existsSync(tauriTaskbarDir)) {
+                copyRecursiveSync(tauriTaskbarDir, path.join(destIcons, 'taskbar'));
+              }
             }
 
             // 2. Create payload.zip for installer embedding

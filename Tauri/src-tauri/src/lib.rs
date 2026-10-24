@@ -385,6 +385,7 @@ pub fn run() {
     .plugin(tauri_plugin_dialog::init())
     .invoke_handler(tauri::generate_handler![
         taskbar::update_taskbar_state,
+        taskbar::init_taskbar_buttons,
         is_autostart_launch,
         set_close_to_tray,
         quit_app,

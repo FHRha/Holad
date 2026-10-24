@@ -14,6 +14,14 @@ export function useTaskbarControls() {
   const isActiveDevice = !isHoladConnected || (activeDeviceId !== null && activeDeviceId === localDeviceId);
   const isWindowVisible = useWindowVisibility();
 
+  // Initialize native taskbar buttons once mounted
+  useEffect(() => {
+    if (!isTauri()) return;
+    invoke('init_taskbar_buttons').catch((err) =>
+      console.warn('Failed to init taskbar buttons:', err)
+    );
+  }, []);
+
   // Listen to native Windows Thumbar events
   useEffect(() => {
     // Only runs in Tauri
