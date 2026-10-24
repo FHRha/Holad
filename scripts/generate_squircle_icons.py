@@ -320,14 +320,9 @@ def main():
     ico_targets = [
         (os.path.join(tauri_icons, 'icon.ico'), dark_ico),
         (os.path.join(tauri_icons, 'wave_dark.ico'), dark_ico),
-        (os.path.join(tauri_icons, 'holad_wave_dark.ico'), dark_ico),
-        (os.path.join(tauri_icons, 'holad_app_icon.ico'), dark_ico),
         (os.path.join(tauri_icons, 'wave_light.ico'), light_ico),
-        (os.path.join(tauri_icons, 'holad_wave_light.ico'), light_ico),
         (os.path.join(tauri_icons, 'cassette.ico'), cassette_ico),
-        (os.path.join(tauri_icons, 'holad_cassette.ico'), cassette_ico),
         (os.path.join(installer_icons, 'icon.ico'), dark_ico),
-        (os.path.join(installer_icons, 'holad_wave_dark.ico'), dark_ico),
         (os.path.join(root, 'client', 'public', 'favicon.ico'), dark_ico),
     ]
 
@@ -363,29 +358,23 @@ def main():
             out_path = os.path.join(dir_path, fname)
             out_img.save(out_path, format='PNG', optimize=True)
 
-    # 6. Generate Window Icons (512x512 and 256x256)
-    print("6. Generating window icons (512x512 & 256x256)...")
-    for size, suffix in [(512, ''), (256, '_256')]:
-        make_layer(dark_master, size).save(os.path.join(tauri_icons, f'window_wave_dark{suffix}.png'), format='PNG', optimize=True)
-        make_layer(light_master, size).save(os.path.join(tauri_icons, f'window_wave_light{suffix}.png'), format='PNG', optimize=True)
-        make_layer(cassette_master, size).save(os.path.join(tauri_icons, f'window_cassette{suffix}.png'), format='PNG', optimize=True)
+    # 6. Generate Window Icons (512x512)
+    print("6. Generating window icons (512x512)...")
+    make_layer(dark_master, 512).save(os.path.join(tauri_icons, 'window_wave_dark.png'), format='PNG', optimize=True)
+    make_layer(light_master, 512).save(os.path.join(tauri_icons, 'window_wave_light.png'), format='PNG', optimize=True)
+    make_layer(cassette_master, 512).save(os.path.join(tauri_icons, 'window_cassette.png'), format='PNG', optimize=True)
 
-    # 7. Generate Clean, Crisp Tray Icons (32x32 standard Windows tray size + 64x64 HiDPI)
-    print("7. Generating clean crisp tray icons (32x32 standard & 64x64 HiDPI)...")
-    tray_specs = [
-        (32, ''),
-        (64, '_64'),
-    ]
-    for size, suffix in tray_specs:
-        make_clean_tray_icon(dark_raw, size).save(
-            os.path.join(tauri_icons, f'tray_wave_dark{suffix}.png'), format='PNG', optimize=True
-        )
-        make_clean_tray_icon(light_raw, size).save(
-            os.path.join(tauri_icons, f'tray_wave_light{suffix}.png'), format='PNG', optimize=True
-        )
-        make_clean_tray_icon(cassette_raw, size).save(
-            os.path.join(tauri_icons, f'tray_cassette{suffix}.png'), format='PNG', optimize=True
-        )
+    # 7. Generate Clean, Crisp Tray Icons (32x32 standard Windows tray size)
+    print("7. Generating clean crisp tray icons (32x32 standard)...")
+    make_clean_tray_icon(dark_raw, 32).save(
+        os.path.join(tauri_icons, 'tray_wave_dark.png'), format='PNG', optimize=True
+    )
+    make_clean_tray_icon(light_raw, 32).save(
+        os.path.join(tauri_icons, 'tray_wave_light.png'), format='PNG', optimize=True
+    )
+    make_clean_tray_icon(cassette_raw, 32).save(
+        os.path.join(tauri_icons, 'tray_cassette.png'), format='PNG', optimize=True
+    )
 
     # Clean 32x32 and 64x64 icons for Tauri and Installer bundle
     make_clean_tray_icon(dark_raw, 32).save(os.path.join(tauri_icons, '32x32.png'), format='PNG', optimize=True)
