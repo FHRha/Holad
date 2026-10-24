@@ -752,6 +752,7 @@ pub mod linux_audio {
 }
 
 #[cfg(not(target_os = "windows"))]
+#[allow(dead_code)]
 pub mod windows_audio {
     pub fn set_current_icon(_icon_name: &str) {}
     pub fn update_audio_session_identity() {}

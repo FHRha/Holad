@@ -15,7 +15,7 @@ fn download_and_install_sync(
     app: AppHandle,
     url: String,
     file_name: String,
-    silent: Option<bool>,
+    _silent: Option<bool>,
 ) -> Result<(), String> {
     let temp_dir = std::env::temp_dir().join("Holad").join("updates");
     if let Err(e) = std::fs::create_dir_all(&temp_dir) {
@@ -162,7 +162,7 @@ fn download_and_install_sync(
     #[cfg(target_os = "windows")]
     {
         use std::process::Command;
-        let is_silent = silent.unwrap_or(false);
+        let is_silent = _silent.unwrap_or(false);
         log::info!("Launching Windows installer: {:?}, silent: {}", dest_file, is_silent);
 
         let mut cmd = Command::new(&dest_file);

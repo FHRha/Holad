@@ -595,6 +595,13 @@ node dist/index.js
             console.log(`[Tauri] Stable release detected (${currentVer}). Packaging WiX MSI bundle (custom installer will package setup.exe).`);
             tauriBuildCmd = 'npx @tauri-apps/cli build --bundles msi';
           }
+        } else if (process.platform === 'linux') {
+          if (currentVer && currentVer.includes('-')) {
+            console.log(`[Tauri] Pre-release version detected (${currentVer}). Packaging deb and appimage bundles (skipping rpm which forbids hyphens in version).`);
+            tauriBuildCmd = 'npx @tauri-apps/cli build --bundles deb,appimage';
+          } else {
+            tauriBuildCmd = 'npx @tauri-apps/cli build --bundles deb,appimage';
+          }
         }
         await runCommand('Tauri Build', tauriBuildCmd, path.join(ROOT_DIR, 'Tauri'));
         
