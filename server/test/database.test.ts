@@ -447,7 +447,12 @@ describe('Database Preferences Functions', () => {
 describe('Database Playback State Functions', () => {
   const testUserId = 'pb_user_' + Date.now();
 
-  it('saves and retrieves playback state', () => {
+  it('returns null for non-existent user playback state', () => {
+    const state = database.getPlaybackState('non_existent_pb_user_12345');
+    expect(state).toBeNull();
+  });
+
+  it('saves and retrieves playback state with basic fields', () => {
     database.savePlaybackState(testUserId, {
       song_id: 'trk_999',
       position: 125,
@@ -473,6 +478,106 @@ describe('Database Playback State Functions', () => {
     expect(state?.song_id).toBe('trk_1000');
     expect(state?.position).toBe(240);
     expect(state?.volume).toBe(0.5);
+  });
+
+  it('saves and retrieves full playback state including queue, shuffle, and repeat_mode', () => {
+    const queueTracks = [
+      { id: 'trk_1', title: 'Track One', artist: 'Artist A' },
+      { id: 'trk_2', title: 'Track Two', artist: 'Artist B' }
+    ];
+
+    database.savePlaybackState(testUserId, {
+      song_id: 'trk_2',
+      position: 50,
+      volume: 0.9,
+      is_playing: true,
+      queue: queueTracks,
+      queue_version: 'v2.1',
+      current_index: 1,
+      is_shuffled: true,
+      repeat_mode: 'all',
+      updated_at: 1729780000000
+    });
+
+    const state = database.getPlaybackState(testUserId);
+    expect(state).toBeDefined();
+    expect(state?.song_id).toBe('trk_2');
+    expect(state?.position).toBe(50);
+    expect(state?.volume).toBe(0.9);
+    expect(state?.is_playing).toBe(true);
+    expect(state?.queue).toEqual(queueTracks);
+    expect(state?.queue_version).toBe('v2.1');
+    expect(state?.current_index).toBe(1);
+    expect(state?.is_shuffled).toBe(true);
+    expect(state?.repeat_mode).toBe('all');
+    expect(state?.updated_at).toBe(1729780000000);
+  });
+
+  it('updatePlaybackProgress performs fast targeted progress update without modifying queue', () => {
+    // Current state has 2 queue tracks, repeatMode: 'all', is_shuffled: true
+    database.updatePlaybackProgress(
+      testUserId,
+      0, // currentIndex changed to 0
+      'trk_1', // songId changed to trk_1
+      15, // position changed to 15
+      false, // isPlaying paused
+      1729780005000
+    );
+
+    const state = database.getPlaybackState(testUserId);
+    expect(state).toBeDefined();
+    // Progress fields updated
+    expect(state?.current_index).toBe(0);
+    expect(state?.song_id).toBe('trk_1');
+    expect(state?.position).toBe(15);
+    expect(state?.is_playing).toBe(false);
+    expect(state?.updated_at).toBe(1729780005000);
+
+    // Queue and other fields preserved intact
+    expect(state?.queue).toEqual([
+      { id: 'trk_1', title: 'Track One', artist: 'Artist A' },
+      { id: 'trk_2', title: 'Track Two', artist: 'Artist B' }
+    ]);
+    expect(state?.queue_version).toBe('v2.1');
+    expect(state?.repeat_mode).toBe('all');
+    expect(state?.is_shuffled).toBe(true);
+    expect(state?.volume).toBe(0.9);
+  });
+
+  it('updatePlaybackProgress works atomically when no prior record exists', () => {
+    const brandNewUser = 'pb_brand_new_' + Date.now();
+    database.updatePlaybackProgress(brandNewUser, 3, 'trk_fresh', 88, true, 1729780010000);
+
+    const state = database.getPlaybackState(brandNewUser);
+    expect(state).toBeDefined();
+    expect(state?.song_id).toBe('trk_fresh');
+    expect(state?.current_index).toBe(3);
+    expect(state?.position).toBe(88);
+    expect(state?.is_playing).toBe(true);
+    expect(state?.queue).toEqual([]);
+    expect(state?.repeat_mode).toBe('off');
+  });
+
+  it('savePlaybackState supports camelCase and JSON string queue', () => {
+    const camelUser = 'pb_camel_' + Date.now();
+    database.savePlaybackState(camelUser, {
+      songId: 'trk_camel_1',
+      currentIndex: 5,
+      isPlaying: true,
+      queue: JSON.stringify([{ id: 'c1' }]),
+      queueVersion: 'ver-camel',
+      isShuffled: false,
+      repeatMode: 'one'
+    } as any);
+
+    const state = database.getPlaybackState(camelUser);
+    expect(state).toBeDefined();
+    expect(state?.song_id).toBe('trk_camel_1');
+    expect(state?.current_index).toBe(5);
+    expect(state?.is_playing).toBe(true);
+    expect(state?.queue).toEqual([{ id: 'c1' }]);
+    expect(state?.queue_version).toBe('ver-camel');
+    expect(state?.repeat_mode).toBe('one');
   });
 });
 

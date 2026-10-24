@@ -918,8 +918,130 @@ app.post('/api/holad/preferences/:roomId', validateRestAuth, express.json(), (re
   }
 });
 
+async function resolveAuthUserId(req: express.Request): Promise<string | null> {
+  // 1. Demo Mode Session check
+  if (demoManager.isEnabled()) {
+    const demoSessionId = (req.headers['x-demo-session'] as string) || (req.query.demoSessionId as string) || (req.query.sessionId as string) || (req.body?.sessionId as string) || (req.body?.demoSessionId as string);
+    if (demoSessionId) {
+      const session = demoManager.getSession(demoSessionId) || demoManager.findSession(demoSessionId);
+      if (session) {
+        return session.guestUserId;
+      }
+    }
+  }
+
+  // 2. Extract user identifiers from headers, query or body
+  let rawUser = (req.headers['x-user-id'] as string) || (req.headers['x-user'] as string) || (req.query.userId as string) || (req.query.user as string) || (req.body && (req.body.userId || req.body.user));
+  if (!rawUser || typeof rawUser !== 'string' || !rawUser.trim()) {
+    return null;
+  }
+
+  try {
+    rawUser = decodeURIComponent(rawUser).trim();
+  } catch {
+    rawUser = rawUser.trim();
+  }
+
+  // Check demo session by guest userId
+  if (demoManager.isEnabled()) {
+    const session = demoManager.getSessionByGuestUserId(rawUser);
+    if (session) {
+      return session.guestUserId;
+    }
+  }
+
+  // 3. If Subsonic credentials are provided, verify them
+  let token = (req.headers['x-token'] as string) || (req.query.token as string);
+  let salt = (req.headers['x-salt'] as string) || (req.query.salt as string);
+  let url = (req.headers['x-url'] as string) || (req.query.url as string);
+
+  if (token && salt && url) {
+    try {
+      token = decodeURIComponent(token);
+      salt = decodeURIComponent(salt);
+      url = decodeURIComponent(url);
+    } catch {}
+
+    const isValid = await verifySubsonicCredentials(rawUser, token, salt, url);
+    if (!isValid) {
+      return null;
+    }
+  }
+
+  return rawUser;
+}
+
 // --- Playback State REST Endpoints ---
-app.get('/api/holad/playback/:roomId', validateRestAuth, (req, res) => {
+const playbackStatePaths = ['/api/playback-state', '/Holad/api/playback-state'];
+if (normalizedBase && normalizedBase !== '/Holad' && !playbackStatePaths.includes(`${normalizedBase}/api/playback-state`)) {
+  playbackStatePaths.push(`${normalizedBase}/api/playback-state`);
+}
+
+app.get(playbackStatePaths, async (req, res) => {
+  try {
+    const userId = await resolveAuthUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized: Missing or invalid credentials' });
+    }
+
+    const state = database.getPlaybackState(userId);
+    return res.json(state || null);
+  } catch (error) {
+    console.error('[PlaybackState] Failed to get playback state:', error);
+    return res.status(500).json({ error: 'Internal server error fetching playback state' });
+  }
+});
+
+app.post(playbackStatePaths, express.json({ limit: '10mb' }), async (req, res) => {
+  try {
+    const userId = await resolveAuthUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized: Missing or invalid credentials' });
+    }
+
+    const body = req.body || {};
+
+    // 1. If queue array is provided, do full savePlaybackState
+    if (body.queue !== undefined && Array.isArray(body.queue)) {
+      database.savePlaybackState(userId, body);
+      return res.status(200).json({ ok: true, success: true, mode: 'full' });
+    }
+
+    // 2. If only progress is provided (currentIndex, position, songId)
+    const hasProgress = (
+      body.currentIndex !== undefined || body.current_index !== undefined ||
+      body.position !== undefined ||
+      body.songId !== undefined || body.song_id !== undefined
+    );
+
+    if (hasProgress) {
+      const currentIndex = body.currentIndex !== undefined ? body.currentIndex : (body.current_index ?? 0);
+      const songId = body.songId !== undefined ? body.songId : (body.song_id ?? '');
+      const position = body.position !== undefined ? body.position : 0;
+      const isPlaying = body.isPlaying !== undefined ? Boolean(body.isPlaying) : Boolean(body.is_playing);
+      const updatedAt = body.updatedAt !== undefined ? body.updatedAt : (body.updated_at || Date.now());
+
+      database.updatePlaybackProgress(
+        userId,
+        Number(currentIndex),
+        String(songId),
+        Number(position),
+        isPlaying,
+        Number(updatedAt)
+      );
+      return res.status(200).json({ ok: true, success: true, mode: 'progress' });
+    }
+
+    // 3. Fallback: save whatever partial state was sent
+    database.savePlaybackState(userId, body);
+    return res.status(200).json({ ok: true, success: true, mode: 'partial' });
+  } catch (error) {
+    console.error('[PlaybackState] Failed to save playback state:', error);
+    return res.status(500).json({ error: 'Internal server error saving playback state' });
+  }
+});
+
+app.get(['/api/holad/playback/:roomId', '/Holad/api/holad/playback/:roomId'], validateRestAuth, (req, res) => {
   const roomId = req.params.roomId as string;
   try {
     const state = database.getPlaybackState(roomId);
@@ -930,16 +1052,11 @@ app.get('/api/holad/playback/:roomId', validateRestAuth, (req, res) => {
   }
 });
 
-app.post('/api/holad/playback/:roomId', validateRestAuth, express.json(), (req, res) => {
+app.post(['/api/holad/playback/:roomId', '/Holad/api/holad/playback/:roomId'], validateRestAuth, express.json({ limit: '10mb' }), (req, res) => {
   const roomId = req.params.roomId as string;
   try {
     const body = req.body || {};
-    database.savePlaybackState(roomId, {
-      song_id: body.song_id || body.songId || body.current_song_id,
-      position: body.position,
-      volume: body.volume,
-      updated_at: body.updated_at || body.updatedAt || Date.now()
-    });
+    database.savePlaybackState(roomId, body);
     res.status(200).send('OK');
   } catch (error) {
     console.error(`[Holad] Failed to save playback state for room ${roomId}:`, error);

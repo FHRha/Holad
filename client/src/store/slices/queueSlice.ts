@@ -3,6 +3,8 @@ import type { PlayerState } from '../playerStore';
 import type { Track } from '../../types';
 import { useHoladStore } from '../holadStore';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
+import { isJamPath } from '../../utils/basePath';
+import { savePlaybackState } from '../../api/playbackState';
 
 const triggerPlay = () => {
   const store = useHoladStore.getState();
@@ -42,8 +44,52 @@ export const sanitizeTracks = (tracks: Track[]): Track[] => {
   });
 };
 
+export const toCompactQueue = (tracks: Track[]) => {
+  if (!Array.isArray(tracks)) return [];
+  return tracks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    artist: t.artist,
+    album: t.album,
+    duration: t.duration,
+    coverArt: t.coverArt
+  }));
+};
 
+let queueSyncTimeout: ReturnType<typeof setTimeout> | null = null;
 
+export const syncQueueToServer = (
+  queue: Track[],
+  currentIndex: number,
+  queueVersion: string,
+  updatedAt: number,
+  playerState?: Partial<PlayerState>
+) => {
+  if (useHoladStore.getState().isApplyingRemoteState) return;
+  if (isJamPath()) return;
+  if (playerState && playerState.role === 'listener') return;
+  const holadState = useHoladStore.getState();
+  if (holadState.roomId && holadState.activeDeviceId && holadState.activeDeviceId !== holadState.deviceId) return;
+
+  if (queueSyncTimeout) {
+    clearTimeout(queueSyncTimeout);
+  }
+
+  queueSyncTimeout = setTimeout(() => {
+    const curTrack = queue[currentIndex];
+    savePlaybackState({
+      queue: toCompactQueue(queue),
+      queueVersion,
+      currentIndex: currentIndex >= 0 ? currentIndex : 0,
+      songId: curTrack?.id || null,
+      position: Math.round((playerState?.initialPosition || 0) / 1000),
+      isPlaying: playerState?.isPlaying ?? false,
+      isShuffled: playerState?.isShuffle ?? false,
+      repeatMode: playerState?.repeatMode ?? 'off',
+      updatedAt
+    }).catch(() => {});
+  }, 250);
+};
 
 export interface QueueSlice {
   queue: Track[];
@@ -53,6 +99,8 @@ export interface QueueSlice {
   isAutoDjEnabled: boolean;
   isProcessing: boolean;
   playActionId: number;
+  playbackUpdatedAt: number;
+  queueVersion: string;
 
   setQueue: (tracks: Track[]) => void;
   setQueueAndPlay: (tracks: Track[], index: number) => void;
@@ -68,6 +116,7 @@ export interface QueueSlice {
   toggleShuffle: () => void;
   reorderQueue: (oldIndex: number, newIndex: number) => void;
   setIsProcessing: (val: boolean) => void;
+  setPlaybackUpdatedAt: (timestamp: number) => void;
 }
 
 export const createQueueSlice: StateCreator<
@@ -83,21 +132,34 @@ export const createQueueSlice: StateCreator<
   isAutoDjEnabled: true,
   isProcessing: false,
   playActionId: 0,
+  playbackUpdatedAt: 0,
+  queueVersion: '',
 
-  setQueue: (tracks) => set((state) => {
+  setQueue: (tracks) => {
+    const now = Date.now();
+    const newVersion = `${now}-${Math.random().toString(36).substring(2, 7)}`;
     const sanitized = sanitizeTracks(tracks);
+    const state = get();
     const isJamGuest = state.roomId && state.role !== 'host';
     const filtered = isJamGuest ? sanitized : sanitized.filter(t => !isTrackExcluded(t, state.excludedTrackIds, state.excludedAlbumIds, state.excludedFingerprints));
-    return { queue: filtered, originalQueue: filtered, currentIndex: filtered.length > 0 ? 0 : -1, isShuffle: false };
-  }),
+    const newIndex = filtered.length > 0 ? 0 : -1;
+    set({
+      queue: filtered,
+      originalQueue: filtered,
+      currentIndex: newIndex,
+      isShuffle: false,
+      playbackUpdatedAt: now,
+      queueVersion: newVersion
+    });
+    syncQueueToServer(filtered, newIndex, newVersion, now, get());
+  },
+
   setQueueAndPlay: (tracks, startIndex = 0) => {
     const state = get();
     const sanitized = sanitizeTracks(tracks);
     const isJamGuest = state.roomId && state.role !== 'host';
     const isExcluded = (t: any) => !isJamGuest && isTrackExcluded(t, state.excludedTrackIds, state.excludedAlbumIds, state.excludedFingerprints);
 
-    // If startIndex points to an excluded track (e.g. playing an album whose first track is ignored),
-    // automatically start from the first playable non-excluded track.
     let effectiveIndex = startIndex;
     if (sanitized[effectiveIndex] && isExcluded(sanitized[effectiveIndex])) {
       const firstPlayable = sanitized.findIndex(t => !isExcluded(t));
@@ -106,19 +168,34 @@ export const createQueueSlice: StateCreator<
       }
     }
     
-    set((state) => {
-      triggerPlay();
-      const targetTrackId = sanitized[effectiveIndex]?.id;
-      const filtered = isJamGuest ? sanitized : sanitized.filter(t => !isExcluded(t));
-      if (filtered.length === 0) return state;
-      let newIndex = filtered.findIndex(t => t.id === targetTrackId);
-      if (newIndex === -1) newIndex = 0;
-      return { queue: filtered, originalQueue: filtered, currentIndex: newIndex, initialPosition: 0, isPlaying: true, isShuffle: false, playActionId: state.playActionId + 1 };
-    });
+    const now = Date.now();
+    const newVersion = `${now}-${Math.random().toString(36).substring(2, 7)}`;
+    const targetTrackId = sanitized[effectiveIndex]?.id;
+    const filtered = isJamGuest ? sanitized : sanitized.filter(t => !isExcluded(t));
+    if (filtered.length === 0) return;
+    let newIndex = filtered.findIndex(t => t.id === targetTrackId);
+    if (newIndex === -1) newIndex = 0;
+
+    triggerPlay();
+    set((s) => ({
+      queue: filtered,
+      originalQueue: filtered,
+      currentIndex: newIndex,
+      initialPosition: 0,
+      isPlaying: true,
+      isShuffle: false,
+      playActionId: s.playActionId + 1,
+      playbackUpdatedAt: now,
+      queueVersion: newVersion
+    }));
+    syncQueueToServer(filtered, newIndex, newVersion, now, get());
   },
+
   playNext: (tracks) => {
     const sanitized = sanitizeTracks(tracks);
-    
+    const now = Date.now();
+    const newVersion = `${now}-${Math.random().toString(36).substring(2, 7)}`;
+
     set((state) => {
       triggerPlay();
       const isJamGuest = state.roomId && state.role !== 'host';
@@ -128,71 +205,122 @@ export const createQueueSlice: StateCreator<
       let newQueue = [...state.queue];
       let newCurrentIndex = state.currentIndex === -1 ? 0 : state.currentIndex;
       
-      // Remove tracks if they already exist to avoid duplicates
-    const trackIds = filtered.map(t => t.id);
-    for (const id of trackIds) {
-      const idx = newQueue.findIndex(t => t.id === id);
-      if (idx !== -1) {
-        newQueue.splice(idx, 1);
-        if (idx <= newCurrentIndex) newCurrentIndex--;
-      }
-    }
-    
-    newQueue.splice(newCurrentIndex + 1, 0, ...filtered);
-    
-    let newOriginalQueue = state.originalQueue;
-    if (state.isShuffle) {
-      newOriginalQueue = [...state.originalQueue];
+      const trackIds = filtered.map(t => t.id);
       for (const id of trackIds) {
-        const idx = newOriginalQueue.findIndex(t => t.id === id);
-        if (idx !== -1) newOriginalQueue.splice(idx, 1);
+        const idx = newQueue.findIndex(t => t.id === id);
+        if (idx !== -1) {
+          newQueue.splice(idx, 1);
+          if (idx <= newCurrentIndex) newCurrentIndex--;
+        }
       }
-      const origIdx = newOriginalQueue.findIndex(t => t.id === state.queue[state.currentIndex]?.id);
-      newOriginalQueue.splice(origIdx !== -1 ? origIdx + 1 : newOriginalQueue.length, 0, ...filtered);
-    } else {
-      newOriginalQueue = newQueue;
-    }
+      
+      newQueue.splice(newCurrentIndex + 1, 0, ...filtered);
+      
+      let newOriginalQueue = state.originalQueue;
+      if (state.isShuffle) {
+        newOriginalQueue = [...state.originalQueue];
+        for (const id of trackIds) {
+          const idx = newOriginalQueue.findIndex(t => t.id === id);
+          if (idx !== -1) newOriginalQueue.splice(idx, 1);
+        }
+        const origIdx = newOriginalQueue.findIndex(t => t.id === state.queue[state.currentIndex]?.id);
+        newOriginalQueue.splice(origIdx !== -1 ? origIdx + 1 : newOriginalQueue.length, 0, ...filtered);
+      } else {
+        newOriginalQueue = newQueue;
+      }
 
-    return { queue: newQueue, originalQueue: newOriginalQueue, currentIndex: newCurrentIndex, isPlaying: true };
+      syncQueueToServer(newQueue, newCurrentIndex, newVersion, now, { ...state, queue: newQueue, currentIndex: newCurrentIndex });
+
+      return {
+        queue: newQueue,
+        originalQueue: newOriginalQueue,
+        currentIndex: newCurrentIndex,
+        isPlaying: true,
+        playbackUpdatedAt: now,
+        queueVersion: newVersion
+      };
     });
   },
-  addToQueue: (tracks) => set((state) => {
+
+  addToQueue: (tracks) => {
     const sanitized = sanitizeTracks(tracks);
-    const isJamGuest = state.roomId && state.role !== 'host';
-    const filtered = isJamGuest ? sanitized : sanitized.filter(t => !isTrackExcluded(t, state.excludedTrackIds, state.excludedAlbumIds, state.excludedFingerprints));
-    if (filtered.length === 0) return state;
-    return { 
-      queue: [...state.queue, ...filtered],
-      originalQueue: [...(state.originalQueue.length > 0 ? state.originalQueue : state.queue), ...filtered],
-      currentIndex: state.currentIndex === -1 ? 0 : state.currentIndex,
-      isPlaying: state.isPlaying
-    };
-  }),
-  clearQueue: () => set({ queue: [], originalQueue: [], currentIndex: -1, isPlaying: false, isShuffle: false }),
-  removeFromQueue: (index) => set((state) => {
-    const newQueue = [...state.queue];
-    newQueue.splice(index, 1);
-    return {
-      queue: newQueue,
-      currentIndex: state.currentIndex === index 
+    const now = Date.now();
+    const newVersion = `${now}-${Math.random().toString(36).substring(2, 7)}`;
+
+    set((state) => {
+      const isJamGuest = state.roomId && state.role !== 'host';
+      const filtered = isJamGuest ? sanitized : sanitized.filter(t => !isTrackExcluded(t, state.excludedTrackIds, state.excludedAlbumIds, state.excludedFingerprints));
+      if (filtered.length === 0) return state;
+      const newQueue = [...state.queue, ...filtered];
+      const newIndex = state.currentIndex === -1 ? 0 : state.currentIndex;
+      syncQueueToServer(newQueue, newIndex, newVersion, now, { ...state, queue: newQueue, currentIndex: newIndex });
+      return { 
+        queue: newQueue,
+        originalQueue: [...(state.originalQueue.length > 0 ? state.originalQueue : state.queue), ...filtered],
+        currentIndex: newIndex,
+        isPlaying: state.isPlaying,
+        playbackUpdatedAt: now,
+        queueVersion: newVersion
+      };
+    });
+  },
+
+  clearQueue: () => {
+    const now = Date.now();
+    const newVersion = `${now}-${Math.random().toString(36).substring(2, 7)}`;
+    syncQueueToServer([], -1, newVersion, now);
+    set({
+      queue: [],
+      originalQueue: [],
+      currentIndex: -1,
+      isPlaying: false,
+      isShuffle: false,
+      playbackUpdatedAt: now,
+      queueVersion: newVersion
+    });
+  },
+
+  removeFromQueue: (index) => {
+    const now = Date.now();
+    const newVersion = `${now}-${Math.random().toString(36).substring(2, 7)}`;
+
+    set((state) => {
+      const newQueue = [...state.queue];
+      newQueue.splice(index, 1);
+      const newIndex = state.currentIndex === index 
         ? -1 
         : state.currentIndex > index 
           ? state.currentIndex - 1 
-          : state.currentIndex
-    };
-  }),
-  setCurrentIndex: (index) => set({ currentIndex: index }),
+          : state.currentIndex;
+      syncQueueToServer(newQueue, newIndex, newVersion, now, { ...state, queue: newQueue, currentIndex: newIndex });
+      return {
+        queue: newQueue,
+        currentIndex: newIndex,
+        playbackUpdatedAt: now,
+        queueVersion: newVersion
+      };
+    });
+  },
+
+  setCurrentIndex: (index) => set({ currentIndex: index, playbackUpdatedAt: Date.now() }),
   
-  playTrack: (index) => set((state) => {
+  playTrack: (index) => {
     triggerPlay();
-    return { currentIndex: index, initialPosition: 0, isPlaying: true, playActionId: state.playActionId + 1 };
-  }),
+    set((state) => ({
+      currentIndex: index,
+      initialPosition: 0,
+      isPlaying: true,
+      playbackUpdatedAt: Date.now(),
+      playActionId: state.playActionId + 1
+    }));
+  },
   
   nextTrack: () => {
     triggerPlay();
+    const now = Date.now();
     set((state) => {
       if (state.repeatMode === 'one') {
-        return { currentIndex: state.currentIndex, initialPosition: 0, isPlaying: true, playActionId: state.playActionId + 1 };
+        return { currentIndex: state.currentIndex, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
       }
       if (state.currentIndex < state.queue.length - 1) {
         let nextIdx = state.currentIndex + 1;
@@ -200,7 +328,7 @@ export const createQueueSlice: StateCreator<
           nextIdx++;
         }
         if (nextIdx < state.queue.length) {
-          return { currentIndex: nextIdx, initialPosition: 0, isPlaying: true, playActionId: state.playActionId + 1 };
+          return { currentIndex: nextIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
         }
       } else if (state.repeatMode === 'all') {
         let firstIdx = 0;
@@ -208,7 +336,7 @@ export const createQueueSlice: StateCreator<
           firstIdx++;
         }
         if (firstIdx < state.queue.length) {
-          return { currentIndex: firstIdx, initialPosition: 0, isPlaying: true, playActionId: state.playActionId + 1 };
+          return { currentIndex: firstIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
         }
       }
       return state;
@@ -217,6 +345,7 @@ export const createQueueSlice: StateCreator<
   
   prevTrack: () => {
     triggerPlay();
+    const now = Date.now();
     set((state) => {
       if (state.currentIndex > 0) {
         let prevIdx = state.currentIndex - 1;
@@ -224,7 +353,7 @@ export const createQueueSlice: StateCreator<
           prevIdx--;
         }
         if (prevIdx >= 0) {
-          return { currentIndex: prevIdx, initialPosition: 0, isPlaying: true, playActionId: state.playActionId + 1 };
+          return { currentIndex: prevIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
         }
       }
       return state;
@@ -233,57 +362,85 @@ export const createQueueSlice: StateCreator<
 
   toggleAutoDj: () => set((state) => ({ isAutoDjEnabled: !state.isAutoDjEnabled })),
 
-  toggleShuffle: () => set((state) => {
-    if (!state.isShuffle) {
-      if (state.queue.length <= 1) return { isShuffle: true };
-      
-      const currentTrack = state.queue[state.currentIndex];
-      const rest = state.queue.filter((_, idx) => idx !== state.currentIndex);
-      
-      // Fisher-Yates
-      for (let i = rest.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [rest[i], rest[j]] = [rest[j], rest[i]];
+  toggleShuffle: () => {
+    const now = Date.now();
+    const newVersion = `${now}-${Math.random().toString(36).substring(2, 7)}`;
+
+    set((state) => {
+      if (!state.isShuffle) {
+        if (state.queue.length <= 1) {
+          syncQueueToServer(state.queue, state.currentIndex, newVersion, now, state);
+          return { isShuffle: true, playbackUpdatedAt: now, queueVersion: newVersion };
+        }
+        
+        const currentTrack = state.queue[state.currentIndex];
+        const rest = state.queue.filter((_, idx) => idx !== state.currentIndex);
+        
+        // Fisher-Yates
+        for (let i = rest.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [rest[i], rest[j]] = [rest[j], rest[i]];
+        }
+        
+        const newQueue = [currentTrack, ...rest];
+        syncQueueToServer(newQueue, 0, newVersion, now, { ...state, queue: newQueue, currentIndex: 0, isShuffle: true });
+        return { 
+          isShuffle: true, 
+          originalQueue: state.queue, 
+          queue: newQueue, 
+          currentIndex: 0,
+          playbackUpdatedAt: now,
+          queueVersion: newVersion
+        };
+      } else {
+        const currentTrack = state.queue[state.currentIndex];
+        const origQueue = state.originalQueue.length > 0 ? state.originalQueue : state.queue;
+        const newIndex = origQueue.findIndex(t => t.id === currentTrack?.id);
+        const resolvedIndex = newIndex !== -1 ? newIndex : 0;
+        syncQueueToServer(origQueue, resolvedIndex, newVersion, now, { ...state, queue: origQueue, currentIndex: resolvedIndex, isShuffle: false });
+        return { 
+          isShuffle: false, 
+          queue: origQueue,
+          currentIndex: resolvedIndex,
+          playbackUpdatedAt: now,
+          queueVersion: newVersion
+        };
+      }
+    });
+  },
+
+  reorderQueue: (oldIndex, newIndex) => {
+    const now = Date.now();
+    const newVersion = `${now}-${Math.random().toString(36).substring(2, 7)}`;
+
+    set((state) => {
+      if (oldIndex < 0 || oldIndex >= state.queue.length || newIndex < 0 || newIndex >= state.queue.length) {
+        return state;
       }
       
-      return { 
-        isShuffle: true, 
-        originalQueue: state.queue, 
-        queue: [currentTrack, ...rest], 
-        currentIndex: 0 
+      const newQueue = [...state.queue];
+      const [movedItem] = newQueue.splice(oldIndex, 1);
+      newQueue.splice(newIndex, 0, movedItem);
+
+      let newCurrentIndex = state.currentIndex;
+      if (state.currentIndex === oldIndex) {
+        newCurrentIndex = newIndex;
+      } else if (oldIndex < state.currentIndex && newIndex >= state.currentIndex) {
+        newCurrentIndex--;
+      } else if (oldIndex > state.currentIndex && newIndex <= state.currentIndex) {
+        newCurrentIndex++;
+      }
+
+      syncQueueToServer(newQueue, newCurrentIndex, newVersion, now, { ...state, queue: newQueue, currentIndex: newCurrentIndex });
+      return {
+        queue: newQueue,
+        currentIndex: newCurrentIndex,
+        playbackUpdatedAt: now,
+        queueVersion: newVersion
       };
-    } else {
-      const currentTrack = state.queue[state.currentIndex];
-      const origQueue = state.originalQueue.length > 0 ? state.originalQueue : state.queue;
-      const newIndex = origQueue.findIndex(t => t.id === currentTrack?.id);
-      
-      return { 
-        isShuffle: false, 
-        queue: origQueue,
-        currentIndex: newIndex !== -1 ? newIndex : 0
-      };
-    }
-  }),
+    });
+  },
 
-  reorderQueue: (oldIndex, newIndex) => set((state) => {
-    if (oldIndex < 0 || oldIndex >= state.queue.length || newIndex < 0 || newIndex >= state.queue.length) {
-      return state;
-    }
-    
-    const newQueue = [...state.queue];
-    const [movedItem] = newQueue.splice(oldIndex, 1);
-    newQueue.splice(newIndex, 0, movedItem);
-
-    let newCurrentIndex = state.currentIndex;
-    if (state.currentIndex === oldIndex) {
-      newCurrentIndex = newIndex;
-    } else if (oldIndex < state.currentIndex && newIndex >= state.currentIndex) {
-      newCurrentIndex--;
-    } else if (oldIndex > state.currentIndex && newIndex <= state.currentIndex) {
-      newCurrentIndex++;
-    }
-
-    return { queue: newQueue, currentIndex: newCurrentIndex };
-  }),
   setIsProcessing: (val) => set({ isProcessing: val }),
+  setPlaybackUpdatedAt: (timestamp) => set({ playbackUpdatedAt: timestamp }),
 });

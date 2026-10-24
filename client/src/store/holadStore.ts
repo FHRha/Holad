@@ -38,6 +38,7 @@ interface HoladState {
   setActiveDevice: (deviceId: string) => void;
   sendRemoteCommand: (type: string, payload?: any) => void;
   triggerManualSync: () => Promise<void>;
+  isApplyingRemoteState: boolean;
   setIsApplyingRemoteState: (val: boolean) => void;
   setupStoreSubscriptions: () => void;
 }
@@ -120,9 +121,11 @@ export const useHoladStore = create<HoladState>((set, get) => {
     connectError: null,
     isRemotePlaying: false,
     lastPausedAt: null,
+    isApplyingRemoteState: false,
 
     setIsApplyingRemoteState: (val: boolean) => {
       isApplyingRemoteState = val;
+      set({ isApplyingRemoteState: val });
     },
 
     connect: (roomId: string) => {

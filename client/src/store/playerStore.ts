@@ -61,6 +61,8 @@ export const usePlayerStore = create<PlayerState>()(
           excludedTrackIds: state.excludedTrackIds,
           excludedAlbumIds: state.excludedAlbumIds,
           excludedFingerprints: state.excludedFingerprints,
+          playbackUpdatedAt: state.playbackUpdatedAt,
+          queueVersion: state.queueVersion,
         };
       },
       version: 1,
@@ -94,6 +96,8 @@ export const usePlayerStore = create<PlayerState>()(
           originalQueue: origQ,
           currentIndex: idx,
           isPlaying: false,
+          playbackUpdatedAt: state.playbackUpdatedAt || 0,
+          queueVersion: state.queueVersion || '',
         });
       },
     }

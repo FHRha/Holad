@@ -16,7 +16,8 @@ import { getShareUrl } from '../../utils/serverConfig';
 import { handleDownload } from '../../utils/downloadHelper';
 import { formatArtistName } from '../../utils/formatters';
 import TrackImage from '../common/TrackImage';
-import { getCoverArtUrl, getPlayQueue } from '../../api/subsonic';
+import { getCoverArtUrl } from '../../api/subsonic';
+import { fetchPlaybackState } from '../../api/playbackState';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import AddToPlaylistModal from '../common/AddToPlaylistModal';
@@ -100,28 +101,27 @@ export default function RightSidebar() {
 
   const handleRestoreQueue = async () => {
     try {
-      const q = await getPlayQueue();
-      if (q && q.entry) {
-        // Map to track format if needed, though subsonic returns similar structure
-        const mapped = q.entry.map((t: any) => ({
+      const q = await fetchPlaybackState();
+      if (q && q.queue && q.queue.length > 0) {
+        const mapped = q.queue.map((t: any) => ({
           id: t.id,
           title: t.title,
           artist: t.artist,
           album: t.album,
           albumId: t.albumId,
           artistId: t.artistId,
-          coverArt: t.coverArt,
+          coverArt: t.coverArt || getCoverArtUrl(t.id, 300),
           duration: t.duration,
           bitRate: t.bitRate,
           suffix: t.suffix
         }));
         setQueue(mapped);
-        
-        // Find current track index by current id if available, or keep 0
-        const currentId = q.current;
+        const currentId = q.song_id;
         if (currentId) {
           const idx = mapped.findIndex((t: any) => t.id === currentId);
           if (idx !== -1) setCurrentIndex(idx);
+        } else if (typeof q.current_index === 'number' && q.current_index >= 0 && q.current_index < mapped.length) {
+          setCurrentIndex(q.current_index);
         }
       }
     } catch (e) {

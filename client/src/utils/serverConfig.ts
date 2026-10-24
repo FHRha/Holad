@@ -1,4 +1,3 @@
-
 import { getBasePath } from './basePath';
 
 export const getHoladServerUrl = (): string => {
@@ -12,6 +11,12 @@ export const getHoladServerUrl = (): string => {
   }
   
   return getBasePath();
+};
+
+export const getApiUrl = (endpoint: string = ''): string => {
+  const base = getHoladServerUrl();
+  const cleanEndpoint = endpoint ? (endpoint.startsWith('/') ? endpoint : `/${endpoint}`) : '';
+  return `${base}${cleanEndpoint}`;
 };
 
 export const getSocketUrl = (): string => {

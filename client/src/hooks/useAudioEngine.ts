@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { usePlayerStore } from '../store/playerStore';
-import { savePlayQueue } from '../api/subsonic';
 import { preloadTrackAssets } from '../utils/assetPreloader';
 import { useAudioStore } from '../store/audioStore';
 import { useHoladStore } from '../store/holadStore';
 import { useHistoryStore } from '../store/historyStore';
 import { pushHistoryEntry } from '../api/history';
-import { savePlaybackState } from '../api/playback';
+import { savePlaybackState } from '../api/playbackState';
 import { useSettingsStore } from '../store/settingsStore';
 import { useTrackSource } from './useTrackSource';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
@@ -20,7 +19,6 @@ const scheduleIdle = typeof requestIdleCallback !== 'undefined' ? requestIdleCal
 
 export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | null>, React.RefObject<HTMLAudioElement | null>], currentTrack: any) {
   const {
-    queue,
     isPlaying,
     setIsPlaying,
     nextTrack,
@@ -79,51 +77,69 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     }
   }, []);
 
-  const flushPlayQueueToServer = useCallback((useKeepalive = false) => {
-    const isJamUrl = isJamPath();
-    const pStore = usePlayerStore.getState();
-    const trk = pStore.queue[pStore.currentIndex];
-    if (trk && pStore.role !== 'listener' && !isJamUrl) {
-      const trackIds = pStore.queue.map((t) => t.id);
-      const pos = Math.floor(engineRef.current.getCurrentTime() * 1000);
-      if (pos >= 0) {
-        savePlayQueue(trackIds, trk.id, pos, useKeepalive).catch(() => {});
+  const flushPlaybackProgressToServer = useCallback((useKeepalive = false) => {
+      const isJamUrl = isJamPath();
+      const pStore = usePlayerStore.getState();
+      const trk = pStore.queue[pStore.currentIndex];
+      if (trk && pStore.role !== 'listener' && !isJamUrl) {
+        const holadState = useHoladStore.getState();
+        if (holadState.roomId && holadState.activeDeviceId && holadState.activeDeviceId !== holadState.deviceId) {
+          return;
+        }
+        const posSec = Math.round(latestPositionRef.current || engineRef.current.getCurrentTime() || 0);
+        const now = Date.now();
+        usePlayerStore.setState({ playbackUpdatedAt: now });
+        savePlaybackState({
+          currentIndex: pStore.currentIndex,
+          songId: trk.id,
+          position: posSec,
+          isPlaying: pStore.isPlaying,
+          updatedAt: now
+        }, useKeepalive).catch(() => {});
       }
-    }
-  }, []);
-
-  // Flush track position & queue on page unload / pagehide / mobile backgrounding
-  useEffect(() => {
-    const handleUnload = () => {
-      flushPositionToLocalStorage();
-      flushPlayQueueToServer(true);
-    };
-
-    window.addEventListener('beforeunload', handleUnload);
-    window.addEventListener('pagehide', handleUnload);
-
-    let unlistenCapacitor: (() => void) | null = null;
-    if (isCapacitor()) {
-      import('@capacitor/app').then(({ App }) => {
-        App.addListener('appStateChange', ({ isActive }) => {
-          if (!isActive) {
-            handleUnload();
-          }
-        }).then((handle) => {
-          unlistenCapacitor = () => {
-            if (handle && typeof handle.remove === 'function') handle.remove();
-          };
+    }, []);
+  
+    // Flush track position & progress on page unload / pagehide / visibilitychange / mobile backgrounding
+    useEffect(() => {
+      const handleUnload = () => {
+        flushPositionToLocalStorage();
+        flushPlaybackProgressToServer(true);
+      };
+  
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'hidden') {
+          flushPositionToLocalStorage();
+          flushPlaybackProgressToServer(true);
+        }
+      };
+  
+      window.addEventListener('beforeunload', handleUnload);
+      window.addEventListener('pagehide', handleUnload);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+  
+      let unlistenCapacitor: (() => void) | null = null;
+      if (isCapacitor()) {
+        import('@capacitor/app').then(({ App }) => {
+          App.addListener('appStateChange', ({ isActive }) => {
+            if (!isActive) {
+              handleUnload();
+            }
+          }).then((handle) => {
+            unlistenCapacitor = () => {
+              if (handle && typeof handle.remove === 'function') handle.remove();
+            };
+          }).catch(() => {});
         }).catch(() => {});
-      }).catch(() => {});
-    }
-
-    return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-      window.removeEventListener('pagehide', handleUnload);
-      handleUnload();
-      if (unlistenCapacitor) unlistenCapacitor();
-    };
-  }, [flushPositionToLocalStorage, flushPlayQueueToServer]);
+      }
+  
+      return () => {
+        window.removeEventListener('beforeunload', handleUnload);
+        window.removeEventListener('pagehide', handleUnload);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        handleUnload();
+        if (unlistenCapacitor) unlistenCapacitor();
+      };
+    }, [flushPositionToLocalStorage, flushPlaybackProgressToServer]);
 
   useEffect(() => {
     prevIsPlayingRef.current = isPlaying;
@@ -358,53 +374,31 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     }
   }, [initialPosition, currentTrack, audioSrc, srcLoading, isPlaying, setInitialPosition]);
 
-  // Handle play/pause toggle
-  useEffect(() => {
-    if (!currentTrack) return;
-
-    if (isPlaying && isActiveDevice && !isSpeakerDj) {
-      engineRef.current.resume().catch((e) => {
-        console.error('Playback resume error:', e);
-      });
-    } else {
-      flushPositionToLocalStorage();
-      flushPlayQueueToServer();
-      engineRef.current.pause();
-      if (isActiveDevice) {
-        savePlaybackState({
-          song_id: currentTrack.id,
-          position: Math.round(latestPositionRef.current),
-          volume
+  const previousTrackIdRef = useRef<string | null>(null);
+    useEffect(() => {
+      if (currentTrack?.id && previousTrackIdRef.current && currentTrack.id !== previousTrackIdRef.current) {
+        flushPositionToLocalStorage();
+        flushPlaybackProgressToServer(false);
+      }
+      previousTrackIdRef.current = currentTrack?.id || null;
+    }, [currentTrack?.id, flushPositionToLocalStorage, flushPlaybackProgressToServer]);
+  
+    // Handle play/pause toggle
+    useEffect(() => {
+      if (!currentTrack) return;
+  
+      if (isPlaying && isActiveDevice && !isSpeakerDj) {
+        engineRef.current.resume().catch((e) => {
+          console.error('Playback resume error:', e);
         });
+      } else {
+        flushPositionToLocalStorage();
+        flushPlaybackProgressToServer(false);
+        engineRef.current.pause();
       }
-    }
-  }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, flushPlayQueueToServer, volume]);
+    }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, flushPlaybackProgressToServer, volume]);
 
-  // Save playback state on tab close or hide
-  useEffect(() => {
-    const handleSaveState = () => {
-      if (currentTrack && latestPositionRef.current > 0 && isActiveDevice) {
-        savePlaybackState({
-          song_id: currentTrack.id,
-          position: Math.round(latestPositionRef.current),
-          volume
-        }, true);
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        handleSaveState();
-      }
-    };
-
-    window.addEventListener('beforeunload', handleSaveState);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      window.removeEventListener('beforeunload', handleSaveState);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [currentTrack, isActiveDevice, volume]);
+  
 
   // Audio mode dynamic change in Jam
   useEffect(() => {
@@ -485,26 +479,18 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     };
   }, []);
 
-  // Save history state & Subsonic playqueue (every 15s during playback)
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    const isJamUrl = isJamPath();
-    const saveState = () => {
-      if (currentTrack) {
-        const trackIds = queue.map((t) => t.id);
-        const pos = Math.floor(engineRef.current.getCurrentTime() * 1000);
-        if (pos > 0) {
-          savePlayQueue(trackIds, currentTrack.id, pos).catch(() => {});
-        }
+  // Save progress to Holad server (every 6s during playback)
+    useEffect(() => {
+      let interval: ReturnType<typeof setInterval>;
+      const isJamUrl = isJamPath();
+      if (currentTrack && role !== 'listener' && !isJamUrl && isPlaying) {
+        interval = setInterval(() => {
+          flushPositionToLocalStorage();
+          flushPlaybackProgressToServer(false);
+        }, 6000);
       }
-    };
-    if (currentTrack && role !== 'listener' && !isJamUrl) {
-      if (isPlaying) {
-        interval = setInterval(saveState, 15000);
-      }
-    }
-    return () => clearInterval(interval);
-  }, [queue, currentTrack, isPlaying, role]);
+      return () => clearInterval(interval);
+    }, [currentTrack, isPlaying, role, flushPositionToLocalStorage, flushPlaybackProgressToServer]);
 
   // Time and playback updates
   const accumulatedTimeRef = useRef(0);

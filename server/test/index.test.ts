@@ -664,3 +664,167 @@ describe('Exclusions REST API & Socket.io Broadcast', () => {
   }, 15000);
 });
 
+describe('Playback State SSOT REST API', () => {
+  const account = {
+    url: 'http://mock-navidrome.local',
+    user: 'playback_ssot_user',
+    token: 'mock-token',
+    salt: 'mock-salt'
+  };
+
+  const authHeaders = {
+    'x-user': account.user,
+    'x-token': account.token,
+    'x-salt': account.salt,
+    'x-url': account.url
+  };
+
+  it('should reject unauthenticated requests to GET and POST /api/playback-state', async () => {
+    const getRes = await request(app).get('/api/playback-state');
+    expect(getRes.status).toBe(401);
+
+    const postRes = await request(app)
+      .post('/api/playback-state')
+      .send({ songId: 'trk1', position: 10 });
+    expect(postRes.status).toBe(401);
+  });
+
+  it('should return null for user with no existing playback state', async () => {
+    const res = await request(app)
+      .get('/api/playback-state')
+      .set('x-user-id', 'fresh_user_' + Date.now());
+
+    expect(res.status).toBe(200);
+    expect(res.body).toBeNull();
+  });
+
+  it('should save full playback state via POST /api/playback-state when queue array is provided', async () => {
+    const testUserId = 'pb_rest_user_' + Date.now();
+    const queue = [
+      { id: 'trk_0', title: 'Intro', artist: 'Band' },
+      { id: 'trk_1', title: 'Main Track', artist: 'Band' }
+    ];
+
+    const postRes = await request(app)
+      .post('/api/playback-state')
+      .set('x-user-id', testUserId)
+      .send({
+        songId: 'trk_1',
+        currentIndex: 1,
+        position: 45,
+        isPlaying: true,
+        repeatMode: 'all',
+        isShuffled: true,
+        queueVersion: 'v1.0.0',
+        queue
+      });
+
+    expect(postRes.status).toBe(200);
+    expect(postRes.body).toHaveProperty('success', true);
+    expect(postRes.body).toHaveProperty('mode', 'full');
+
+    const getRes = await request(app)
+      .get('/api/playback-state')
+      .set('x-user-id', testUserId);
+
+    expect(getRes.status).toBe(200);
+    expect(getRes.body).toBeDefined();
+    expect(getRes.body.song_id).toBe('trk_1');
+    expect(getRes.body.current_index).toBe(1);
+    expect(getRes.body.position).toBe(45);
+    expect(getRes.body.is_playing).toBe(true);
+    expect(getRes.body.repeat_mode).toBe('all');
+    expect(getRes.body.is_shuffled).toBe(true);
+    expect(getRes.body.queue_version).toBe('v1.0.0');
+    expect(getRes.body.queue).toEqual(queue);
+  });
+
+  it('should support /Holad/api/playback-state prefix', async () => {
+    const testUserId = 'pb_prefix_user_' + Date.now();
+
+    const postRes = await request(app)
+      .post('/Holad/api/playback-state')
+      .set('x-user-id', testUserId)
+      .send({
+        songId: 'trk_prefix',
+        currentIndex: 0,
+        position: 10,
+        isPlaying: true,
+        queue: [{ id: 'trk_prefix', title: 'Prefix Track' }]
+      });
+
+    expect(postRes.status).toBe(200);
+
+    const getRes = await request(app)
+      .get('/Holad/api/playback-state')
+      .set('x-user-id', testUserId);
+
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.song_id).toBe('trk_prefix');
+  });
+
+  it('should update progress via POST /api/playback-state without queue and preserve queue intact', async () => {
+    const testUserId = 'pb_progress_user_' + Date.now();
+    const initialQueue = [
+      { id: 'song_a', title: 'Song A' },
+      { id: 'song_b', title: 'Song B' },
+      { id: 'song_c', title: 'Song C' }
+    ];
+
+    // 1. Initial save with full queue
+    await request(app)
+      .post('/api/playback-state')
+      .set('x-user-id', testUserId)
+      .send({
+        songId: 'song_a',
+        currentIndex: 0,
+        position: 0,
+        isPlaying: true,
+        repeatMode: 'one',
+        isShuffled: false,
+        queueVersion: 'ver_init',
+        queue: initialQueue
+      });
+
+    // 2. Fast progress update (no queue sent)
+    const progressRes = await request(app)
+      .post('/api/playback-state')
+      .set('x-user-id', testUserId)
+      .send({
+        songId: 'song_b',
+        currentIndex: 1,
+        position: 75,
+        isPlaying: true
+      });
+
+    expect(progressRes.status).toBe(200);
+    expect(progressRes.body).toHaveProperty('mode', 'progress');
+
+    // 3. Verify progress updated and queue untouched
+    const getRes = await request(app)
+      .get('/api/playback-state')
+      .set('x-user-id', testUserId);
+
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.song_id).toBe('song_b');
+    expect(getRes.body.current_index).toBe(1);
+    expect(getRes.body.position).toBe(75);
+    expect(getRes.body.is_playing).toBe(true);
+
+    // Queue preserved
+    expect(getRes.body.queue).toEqual(initialQueue);
+    expect(getRes.body.queue_version).toBe('ver_init');
+    expect(getRes.body.repeat_mode).toBe('one');
+  });
+
+  it('should authenticate and identify user via Subsonic headers', async () => {
+    // Uses mocked ping.view for Subsonic auth verification
+    const res = await request(app)
+      .get('/api/playback-state')
+      .set(authHeaders);
+
+    // Should authenticate successfully (200 with null or existing state)
+    expect(res.status).toBe(200);
+  });
+});
+

@@ -2,7 +2,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { usePlayerStore } from '../store/playerStore';
 import { useHistoryStore } from '../store/historyStore';
 import { useDownloadStore } from '../store/downloadStore';
-import { savePlayQueue } from '../api/subsonic';
+import { savePlaybackState } from '../api/playbackState';
 
 export const migrateData = () => {
   const keysToMigrate = [
@@ -35,13 +35,27 @@ export const migrateData = () => {
     
     // Trigger a sync to the backend
     const state = usePlayerStore.getState();
-    const trackIds = state.queue.map(t => t.id);
     const currentTrack = state.queue[state.currentIndex];
     const currentTime = localStorage.getItem('holad_time');
     
-    if (currentTrack && trackIds.length > 0) {
-      const pos = currentTime ? Math.floor(parseFloat(currentTime) * 1000) : 0;
-      savePlayQueue(trackIds, currentTrack.id, pos).catch(console.error);
+    if (currentTrack && state.queue.length > 0) {
+      const pos = currentTime ? Math.round(parseFloat(currentTime)) : 0;
+      savePlaybackState({
+        queue: state.queue.map(t => ({
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          album: t.album,
+          duration: t.duration,
+          coverArt: t.coverArt
+        })),
+        queueVersion: state.queueVersion || '',
+        currentIndex: state.currentIndex >= 0 ? state.currentIndex : 0,
+        songId: currentTrack.id,
+        position: pos,
+        isPlaying: false,
+        updatedAt: Date.now()
+      }).catch(console.error);
     }
   }
 };

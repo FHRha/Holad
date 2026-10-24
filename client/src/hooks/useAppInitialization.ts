@@ -3,12 +3,13 @@ import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 import { useAuthStore } from '../store/authStore';
-import { fetchStarred, getPlayQueue, savePlayQueue, getCoverArtUrl } from '../api/subsonic';
-import { fetchExclusions } from '../api/exclusions';
+import { fetchStarred, getCoverArtUrl } from '../api/subsonic';
+import { fetchExclusions, syncSetExclusions } from '../api/exclusions';
 import { syncHistoryWithServer } from '../api/history';
 import { fetchPreferences } from '../api/preferences';
 import { fetchIntegrations } from '../api/integrations';
-import { fetchPlaybackState } from '../api/playback';
+import { fetchPlaybackState, savePlaybackState } from '../api/playbackState';
+import { toCompactQueue } from '../store/slices/queueSlice';
 import { useSettingsStore } from '../store/settingsStore';
 import { jamSocket } from '../api/socket';
 import { useHoladStore } from '../store/holadStore';
@@ -60,7 +61,28 @@ export function useAppInitialization() {
 
       fetchExclusions().then(exclusions => {
         if (exclusions) {
-          setExcludedItems(exclusions.excludedTrackIds, exclusions.excludedAlbumIds, exclusions.excludedFingerprints);
+          const currentStore = usePlayerStore.getState();
+          const localTrackIds = currentStore.excludedTrackIds || [];
+          const localAlbumIds = currentStore.excludedAlbumIds || [];
+          const localFingerprints = currentStore.excludedFingerprints || [];
+
+          const mergedTrackIds = Array.from(new Set([...exclusions.excludedTrackIds, ...localTrackIds]));
+          const mergedAlbumIds = Array.from(new Set([...exclusions.excludedAlbumIds, ...localAlbumIds]));
+          const mergedFingerprints = Array.from(new Set([
+            ...(exclusions.excludedFingerprints || []),
+            ...localFingerprints
+          ]));
+
+          setExcludedItems(mergedTrackIds, mergedAlbumIds, mergedFingerprints);
+
+          // If local had items not present on server, sync them to server
+          const hasLocalOnlyTracks = localTrackIds.some(id => !exclusions.excludedTrackIds.includes(id));
+          const hasLocalOnlyAlbums = localAlbumIds.some(id => !exclusions.excludedAlbumIds.includes(id));
+          if (hasLocalOnlyTracks || hasLocalOnlyAlbums) {
+            syncSetExclusions(mergedTrackIds, mergedAlbumIds).catch(err => {
+              console.error('Failed to sync merged exclusions to server:', err);
+            });
+          }
         }
       }).catch(e => console.error("Failed to fetch exclusions", e));
 
@@ -116,168 +138,243 @@ export function useAppInitialization() {
     // Do not load default play queue if on a Jam route or joining a room
     if (!isJamRoute && !roomToJoin && !queueFetched.current) {
       queueFetched.current = true;
-      getPlayQueue().then(queueData => {
-        const currentStore = usePlayerStore.getState();
-        const localQueue = currentStore.queue || [];
-        const localIndex = currentStore.currentIndex;
-        const localCurrentTrack = localIndex >= 0 && localIndex < localQueue.length ? localQueue[localIndex] : null;
 
+      const currentStore = usePlayerStore.getState();
+      const localQueue = currentStore.queue || [];
+      const localIndex = currentStore.currentIndex;
+      const localCurrentTrack = localIndex >= 0 && localIndex < localQueue.length ? localQueue[localIndex] : null;
+
+      const savedTrack = localStorage.getItem('holad_track');
+      const savedTime = localStorage.getItem('holad_time');
+      
+      let localPosMs = 0;
+      if (savedTime && (!savedTrack || savedTrack === localCurrentTrack?.id)) {
+        const parsed = parseFloat(savedTime) * 1000;
+        if (!isNaN(parsed) && parsed > 0) {
+          localPosMs = parsed;
+        }
+      }
+
+      // Initial offline restoration from local cache if present
+      if (localPosMs > 0 && currentStore.initialPosition === 0) {
+        usePlayerStore.setState({ initialPosition: localPosMs });
+        const trackDur = localCurrentTrack?.duration || 0;
+        if (trackDur > 0) {
+          useAudioStore.getState().setDuration(trackDur);
+          useAudioStore.getState().setProgress(((localPosMs / 1000) / trackDur) * 100);
+        }
+      }
+
+      fetchPlaybackState().then(serverState => {
         // If the device is in a Holad Connect room and is not the active device, don't overwrite playerStore
         const holadState = useHoladStore.getState();
         if (holadState.roomId && holadState.activeDeviceId && holadState.activeDeviceId !== holadState.deviceId) {
           return;
         }
 
-        if (queueData && Array.isArray(queueData.entry) && queueData.entry.length > 0) {
-          const mappedTracks: Track[] = queueData.entry.map((t: any) => ({
-            id: t.id,
-            title: t.title,
-            artist: t.artist,
-            album: t.album,
-            albumId: t.albumId,
-            artistId: t.artistId,
-            coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
-            duration: t.duration,
-            bitRate: t.bitRate,
-            suffix: t.suffix
-          }));
-          
-          // Reconcile current index:
-          // 1. Check if queueData.current matches an id in mappedTracks
-          let initialIndex = -1;
-          if (queueData.current) {
-            initialIndex = mappedTracks.findIndex(t => t.id === queueData.current);
-          }
-          // 2. If not found, check if localCurrentTrack id matches
-          if (initialIndex === -1 && localCurrentTrack?.id) {
-            initialIndex = mappedTracks.findIndex(t => t.id === localCurrentTrack.id);
-          }
-          // 3. If not found, check title + artist matching (in case Navidrome 0.64.0 migrated IDs!)
-          if (initialIndex === -1 && localCurrentTrack?.title) {
-            const locTitle = localCurrentTrack.title.toLowerCase().trim();
-            const locArtist = (localCurrentTrack.artist || '').toLowerCase().trim();
-            initialIndex = mappedTracks.findIndex(t => 
-              t.title?.toLowerCase().trim() === locTitle && 
-              (!locArtist || t.artist?.toLowerCase().trim() === locArtist)
-            );
-          }
-          // 4. If still not found, preserve user's localIndex if valid
-          if (initialIndex === -1 && localIndex >= 0 && localIndex < mappedTracks.length) {
-            initialIndex = localIndex;
-          }
-          // 5. Fallback to 0 if nothing matched
-          if (initialIndex === -1) {
-            initialIndex = 0;
-          }
+        const storeNow = usePlayerStore.getState();
+        const activeLocalQueue = storeNow.queue || [];
+        const activeLocalIndex = storeNow.currentIndex;
+        const activeLocalTrack = activeLocalIndex >= 0 && activeLocalIndex < activeLocalQueue.length ? activeLocalQueue[activeLocalIndex] : null;
+        const curSavedUpdatedStr = localStorage.getItem('holad_time_updated');
+        const curLocalTimeUpdated = curSavedUpdatedStr ? parseInt(curSavedUpdatedStr, 10) : 0;
+        const currentLocalUpdatedAt = Math.max(storeNow.playbackUpdatedAt || 0, curLocalTimeUpdated || 0);
 
-          const savedTrack = localStorage.getItem('holad_track');
-          const savedTime = localStorage.getItem('holad_time');
-          const savedUpdatedStr = localStorage.getItem('holad_time_updated');
-          const localUpdated = savedUpdatedStr ? parseInt(savedUpdatedStr, 10) : 0;
-          const activeId = mappedTracks[initialIndex]?.id;
+        if (!serverState) {
+          // Server has no state. If local has tracks, save local state to server
+          if (activeLocalQueue.length > 0 && activeLocalTrack) {
+            savePlaybackState({
+              queue: toCompactQueue(activeLocalQueue),
+              queueVersion: storeNow.queueVersion || '',
+              currentIndex: activeLocalIndex >= 0 ? activeLocalIndex : 0,
+              songId: activeLocalTrack.id,
+              position: Math.round(localPosMs / 1000),
+              isPlaying: false,
+              isShuffled: storeNow.isShuffle,
+              repeatMode: storeNow.repeatMode,
+              updatedAt: currentLocalUpdatedAt || Date.now()
+            }).catch(() => {});
+          }
+          return;
+        }
 
-          let localPos = 0;
-          if (savedTrack && (savedTrack === queueData.current || savedTrack === activeId) && savedTime) {
-            const parsed = parseFloat(savedTime) * 1000;
-            if (!isNaN(parsed) && parsed > 0) {
-              localPos = parsed;
+        const serverUpdatedAt = serverState.updated_at || 0;
+
+        // Last-Write-Wins (LWW)
+        if (serverUpdatedAt > currentLocalUpdatedAt) {
+          // Server is newer! Apply server state (queue, current track, position)
+          if (Array.isArray(serverState.queue) && serverState.queue.length > 0) {
+            const mappedTracks: Track[] = serverState.queue.map((t: any) => ({
+              id: t.id,
+              title: t.title,
+              artist: t.artist,
+              album: t.album,
+              albumId: t.albumId,
+              artistId: t.artistId,
+              coverArt: t.coverArt || getCoverArtUrl(t.id, 300),
+              duration: t.duration,
+              bitRate: t.bitRate,
+              suffix: t.suffix
+            }));
+
+            let targetIndex = typeof serverState.current_index === 'number' ? serverState.current_index : 0;
+            if (serverState.song_id) {
+              const foundIdx = mappedTracks.findIndex(t => t.id === serverState.song_id);
+              if (foundIdx !== -1) targetIndex = foundIdx;
             }
-          }
-
-          let pos = queueData.position || 0;
-          const serverChangedMs = queueData.changed ? new Date(queueData.changed).getTime() : 0;
-
-          if (localPos > 0) {
-            if (pos === 0) {
-              pos = localPos;
-            } else if (serverChangedMs > 0 && localUpdated > 0) {
-              // If local position was updated after the server queue was changed, use local
-              if (localUpdated >= serverChangedMs - 2000) {
-                pos = localPos;
-              }
-            } else {
-              // On the same device, if local position is more advanced than periodic server sync,
-              // prefer localPos so user isn't kicked back to an older timer (e.g. from 2:10 to 0:50)
-              if (localPos > pos || Math.abs(localPos - pos) > 2000) {
-                pos = localPos;
-              }
+            if (targetIndex < 0 || targetIndex >= mappedTracks.length) {
+              targetIndex = 0;
             }
-          }
 
-          useHoladStore.getState().setIsApplyingRemoteState(true);
-          usePlayerStore.setState({
-            queue: mappedTracks,
-            originalQueue: mappedTracks,
-            currentIndex: initialIndex,
-            isPlaying: false, 
-            initialPosition: pos
-          });
-          setTimeout(() => {
-            useHoladStore.getState().setIsApplyingRemoteState(false);
-          }, 50);
+            const serverPosMs = Math.round((serverState.position || 0) * 1000);
 
-          const trackDur = mappedTracks[initialIndex]?.duration || 0;
-          if (trackDur > 0) {
-            useAudioStore.getState().setDuration(trackDur);
-            if (pos > 0) {
-              useAudioStore.getState().setProgress(((pos / 1000) / trackDur) * 100);
-            }
-          }
+            useHoladStore.getState().setIsApplyingRemoteState(true);
+            usePlayerStore.setState({
+              queue: mappedTracks,
+              originalQueue: mappedTracks,
+              currentIndex: targetIndex,
+              isPlaying: false,
+              initialPosition: serverPosMs,
+              isShuffle: serverState.is_shuffled ?? storeNow.isShuffle,
+              repeatMode: (serverState.repeat_mode as any) ?? storeNow.repeatMode,
+              queueVersion: serverState.queue_version || '',
+              playbackUpdatedAt: serverUpdatedAt
+            });
+            setTimeout(() => {
+              useHoladStore.getState().setIsApplyingRemoteState(false);
+            }, 50);
 
-          fetchPlaybackState().then(pbState => {
-            if (pbState && pbState.position && (pbState.song_id === queueData.current || pbState.song_id === mappedTracks[initialIndex]?.id)) {
-              const fetchedPosMs = pbState.position * 1000;
-              const currentStore = usePlayerStore.getState();
-              if (!currentStore.isPlaying) {
-                const currentInitPos = currentStore.initialPosition;
-                if (currentInitPos === 0 || (pbState.updated_at && localUpdated && pbState.updated_at > localUpdated + 1000 && Math.abs(fetchedPosMs - currentInitPos) > 3000)) {
-                  usePlayerStore.setState({ initialPosition: fetchedPosMs });
-                  if (trackDur > 0) {
-                    useAudioStore.getState().setProgress(((pbState.position) / trackDur) * 100);
-                  }
-                }
+            const trackDur = mappedTracks[targetIndex]?.duration || 0;
+            if (trackDur > 0) {
+              useAudioStore.getState().setDuration(trackDur);
+              if (serverPosMs > 0) {
+                useAudioStore.getState().setProgress(((serverPosMs / 1000) / trackDur) * 100);
               }
             }
-          }).catch(() => {});
-        } else if (localQueue.length > 0) {
-          // Server has no play queue, but user has an existing local queue in localStorage.
-          // Preserve local queue and sync it to server so both stay in sync!
-          const activeIndex = Math.max(0, Math.min(localQueue.length - 1, localIndex >= 0 ? localIndex : 0));
-          const currentTrack = localQueue[activeIndex];
-          const trackIds = localQueue.map(t => t.id);
-          let localPos = 0;
-          const savedTrack = localStorage.getItem('holad_track');
-          const savedTime = localStorage.getItem('holad_time');
-          if (savedTrack && savedTrack === currentTrack?.id && savedTime) {
-            const parsed = parseFloat(savedTime) * 1000;
-            if (!isNaN(parsed) && parsed > 0) {
-              localPos = parsed;
-            }
           }
-          if (currentTrack) {
-            savePlayQueue(trackIds, currentTrack.id, localPos).catch(() => {});
-          }
-          useHoladStore.getState().setIsApplyingRemoteState(true);
-          usePlayerStore.setState({
-            originalQueue: currentStore.originalQueue && currentStore.originalQueue.length > 0 ? currentStore.originalQueue : localQueue,
-            currentIndex: activeIndex,
-            isPlaying: false,
-            initialPosition: localPos
-          });
-          setTimeout(() => {
-            useHoladStore.getState().setIsApplyingRemoteState(false);
-          }, 50);
-          const trackDur = currentTrack?.duration || 0;
-          if (trackDur > 0) {
-            useAudioStore.getState().setDuration(trackDur);
-            if (localPos > 0) {
-              useAudioStore.getState().setProgress(((localPos / 1000) / trackDur) * 100);
-            }
+        } else {
+          // Local state is newer or equal (e.g. offline playback)
+          if (activeLocalQueue.length > 0 && activeLocalTrack) {
+            savePlaybackState({
+              queue: toCompactQueue(activeLocalQueue),
+              queueVersion: storeNow.queueVersion || '',
+              currentIndex: activeLocalIndex >= 0 ? activeLocalIndex : 0,
+              songId: activeLocalTrack.id,
+              position: Math.round(localPosMs / 1000),
+              isPlaying: false,
+              isShuffled: storeNow.isShuffle,
+              repeatMode: storeNow.repeatMode,
+              updatedAt: currentLocalUpdatedAt || Date.now()
+            }).catch(() => {});
           }
         }
-      }).catch(e => console.error("Failed to fetch play queue", e));
+      }).catch(e => console.error("Failed to fetch playback state", e));
     }
   }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute, isDemoMode, guestUserId, isHoladConnectEnabled]);
+
+  // Online network listener for synchronizing pending changes
+  useEffect(() => {
+    const handleOnline = () => {
+      // 1. Synchronize exclusions
+      fetchExclusions().then(exclusions => {
+        if (exclusions) {
+          const currentStore = usePlayerStore.getState();
+          const localTrackIds = currentStore.excludedTrackIds || [];
+          const localAlbumIds = currentStore.excludedAlbumIds || [];
+          const localFingerprints = currentStore.excludedFingerprints || [];
+
+          const mergedTrackIds = Array.from(new Set([...exclusions.excludedTrackIds, ...localTrackIds]));
+          const mergedAlbumIds = Array.from(new Set([...exclusions.excludedAlbumIds, ...localAlbumIds]));
+          const mergedFingerprints = Array.from(new Set([
+            ...(exclusions.excludedFingerprints || []),
+            ...localFingerprints
+          ]));
+
+          currentStore.setExcludedItems(mergedTrackIds, mergedAlbumIds, mergedFingerprints);
+
+          const hasLocalOnlyTracks = localTrackIds.some(id => !exclusions.excludedTrackIds.includes(id));
+          const hasLocalOnlyAlbums = localAlbumIds.some(id => !exclusions.excludedAlbumIds.includes(id));
+          if (hasLocalOnlyTracks || hasLocalOnlyAlbums) {
+            syncSetExclusions(mergedTrackIds, mergedAlbumIds).catch(() => {});
+          }
+        }
+      }).catch(() => {});
+
+      // 2. Synchronize history
+      syncHistoryWithServer().catch(() => {});
+
+      // 3. Synchronize playback state (LWW)
+      fetchPlaybackState().then(serverState => {
+        if (!serverState) return;
+        const currentStore = usePlayerStore.getState();
+        const savedUpdatedStr = localStorage.getItem('holad_time_updated');
+        const localTimeUpdated = savedUpdatedStr ? parseInt(savedUpdatedStr, 10) : 0;
+        const localUpdatedAt = Math.max(currentStore.playbackUpdatedAt || 0, localTimeUpdated || 0);
+
+        if (serverState.updated_at > localUpdatedAt) {
+          if (Array.isArray(serverState.queue) && serverState.queue.length > 0) {
+            const mappedTracks: Track[] = serverState.queue.map((t: any) => ({
+              id: t.id,
+              title: t.title,
+              artist: t.artist,
+              album: t.album,
+              albumId: t.albumId,
+              artistId: t.artistId,
+              coverArt: t.coverArt || getCoverArtUrl(t.id, 300),
+              duration: t.duration,
+              bitRate: t.bitRate,
+              suffix: t.suffix
+            }));
+            let targetIndex = typeof serverState.current_index === 'number' ? serverState.current_index : 0;
+            if (serverState.song_id) {
+              const foundIdx = mappedTracks.findIndex(t => t.id === serverState.song_id);
+              if (foundIdx !== -1) targetIndex = foundIdx;
+            }
+            if (targetIndex < 0 || targetIndex >= mappedTracks.length) targetIndex = 0;
+            const serverPosMs = Math.round((serverState.position || 0) * 1000);
+
+            useHoladStore.getState().setIsApplyingRemoteState(true);
+            usePlayerStore.setState({
+              queue: mappedTracks,
+              originalQueue: mappedTracks,
+              currentIndex: targetIndex,
+              isPlaying: false,
+              initialPosition: serverPosMs,
+              isShuffle: serverState.is_shuffled ?? currentStore.isShuffle,
+              repeatMode: (serverState.repeat_mode as any) ?? currentStore.repeatMode,
+              queueVersion: serverState.queue_version || '',
+              playbackUpdatedAt: serverState.updated_at
+            });
+            setTimeout(() => {
+              useHoladStore.getState().setIsApplyingRemoteState(false);
+            }, 50);
+          }
+        } else if (localUpdatedAt > serverState.updated_at) {
+          const curTrack = currentStore.queue[currentStore.currentIndex];
+          if (curTrack && currentStore.queue.length > 0) {
+            const savedTime = localStorage.getItem('holad_time');
+            const pos = savedTime ? Math.round(parseFloat(savedTime)) : 0;
+            savePlaybackState({
+              queue: toCompactQueue(currentStore.queue),
+              queueVersion: currentStore.queueVersion || '',
+              currentIndex: currentStore.currentIndex >= 0 ? currentStore.currentIndex : 0,
+              songId: curTrack.id,
+              position: pos,
+              isPlaying: false,
+              isShuffled: currentStore.isShuffle,
+              repeatMode: currentStore.repeatMode,
+              updatedAt: localUpdatedAt
+            }).catch(() => {});
+          }
+        }
+      }).catch(() => {});
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
 
   useEffect(() => {
     // When on /jam routes, JamLayout manages the room lifecycle, playback and layout directly

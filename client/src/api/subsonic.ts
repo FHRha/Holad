@@ -51,39 +51,18 @@ export const getStreamUrl = (id: string, options?: { preloadChunk?: boolean }) =
 
 // Moved to social.ts
 
+/**
+ * @deprecated Holad uses SSOT PlaybackState API instead of Subsonic getPlayQueue
+ */
 export const getPlayQueue = async () => {
-  const url = buildUrl('getPlayQueue');
-  const res = await fetchWithRetry(url);
-  const data = await res.json();
-  return data['subsonic-response']?.playQueue;
+  return null;
 };
 
-export const savePlayQueue = async (trackIds: string[], currentId: string, positionMillis: number, useKeepalive = false) => {
-  // buildUrl might encode params automatically if we use URLSearchParams, but trackIds has duplicate keys "id"
-  // so we manually construct it if needed.
-  let url = buildUrl('savePlayQueue', { current: currentId, position: Math.round(positionMillis).toString() });
-  // append ids
-  const idParams = trackIds.map(id => `id=${id}`).join('&');
-  url += `&${idParams}`;
-  if (useKeepalive) {
-    try {
-      fetch(url, { keepalive: true }).catch(() => {});
-      return;
-    } catch {
-      // Fallback to standard fetch
-    }
-  }
-  await fetchWithRetry(url);
-};
-
-export const pingServer = async () => {
-  const url = buildUrl('ping');
-  const res = await fetchWithRetry(url);
-  const data = await res.json();
-  if (data['subsonic-response']?.status !== 'ok') {
-    throw new Error('Ping failed');
-  }
-  return true;
+/**
+ * @deprecated Holad uses SSOT PlaybackState API instead of Subsonic savePlayQueue
+ */
+export const savePlayQueue = async (_trackIds: string[], _currentId: string, _positionMillis: number, _useKeepalive = false) => {
+  return;
 };
 
 export const getArtists = async () => {
