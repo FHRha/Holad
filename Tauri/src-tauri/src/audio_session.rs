@@ -52,7 +52,7 @@ pub mod windows_audio {
                     )),
                 );
 
-                let ico_str = format!("{}\0", ico_path.to_string_lossy());
+                let ico_str = format!("{},0\0", ico_path.to_string_lossy());
                 let ico_wide: Vec<u16> = ico_str.encode_utf16().collect();
                 let _ = RegSetValueExW(
                     hkey,
@@ -109,7 +109,7 @@ pub mod windows_audio {
             let subkey_icon = w!("Software\\Classes\\Applications\\Holad.exe\\DefaultIcon");
             let mut hkey_icon = windows::Win32::System::Registry::HKEY::default();
             if RegCreateKeyW(HKEY_CURRENT_USER, subkey_icon, &mut hkey_icon).is_ok() {
-                let ico_str = format!("{}\0", ico_path.to_string_lossy());
+                let ico_str = format!("{},0\0", ico_path.to_string_lossy());
                 let ico_wide: Vec<u16> = ico_str.encode_utf16().collect();
                 let _ = RegSetValueExW(
                     hkey_icon,
@@ -221,7 +221,7 @@ pub mod windows_audio {
             _ => ensure_ico_file("holad_wave_dark", ICO_WAVE_DARK),
         };
 
-        let path_str = format!("{}\0", file_path.to_string_lossy());
+        let path_str = format!("{},0\0", file_path.to_string_lossy());
         let wide: Vec<u16> = path_str.encode_utf16().collect();
 
         if let Ok(mut lock) = CURRENT_ICON_WIDE.write() {
@@ -458,7 +458,7 @@ pub mod windows_audio {
             let target_wide = &icon_path_wide;
 
             let exe_icon_wide: Option<Vec<u16>> = std::env::current_exe().ok().map(|exe_path| {
-                let s = format!("{}\0", exe_path.to_string_lossy());
+                let s = format!("{},0\0", exe_path.to_string_lossy());
                 s.encode_utf16().collect()
             });
 
