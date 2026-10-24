@@ -18,6 +18,7 @@ import android.media.AudioManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.util.Log;
 
 import androidx.core.content.ContextCompat;
@@ -46,6 +47,9 @@ public class AudioDevicePlugin extends Plugin {
     private AudioDeviceCallback audioDeviceCallback;
 
     private Handler mainHandler;
+
+    private PowerManager.WakeLock wakeLock;
+    private static final long WAKE_LOCK_TIMEOUT_MS = 45000L;
 
     private volatile boolean wasHeadphones = false;
     private volatile String lastConnectedBtDeviceName = null;
@@ -121,6 +125,7 @@ public class AudioDevicePlugin extends Plugin {
             public void onReceive(Context ctx, Intent intent) {
                 if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction())) {
                     Log.i(TAG, "ACTION_AUDIO_BECOMING_NOISY received - pausing audio");
+                    acquireWakeLock();
                     triggerEmergencyPause("audio_becoming_noisy");
                     handleDeviceStateChange("audio_becoming_noisy");
                 }
@@ -151,11 +156,15 @@ public class AudioDevicePlugin extends Plugin {
                             lastConnectedBtDeviceName = name;
                         }
                     }
+                    if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
+                        notifyHeadphonesConnected("bluetooth_acl_connected");
+                    }
                     handleDeviceStateChange("bluetooth_connected");
                     mainHandler.postDelayed(() -> handleDeviceStateChange("bluetooth_connected_delayed"), 200);
 
                 } else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
                     Log.i(TAG, "ACTION_ACL_DISCONNECTED received");
+                    acquireWakeLock();
                     BluetoothDevice device = extractBluetoothDevice(intent);
                     if (device != null) {
                         String name = getDeviceName(device);
@@ -179,6 +188,9 @@ public class AudioDevicePlugin extends Plugin {
                     if (state == 0 && wasHeadphones) {
                         Log.i(TAG, "Wired headset unplugged while wasHeadphones=true -> emergency pause");
                         triggerEmergencyPause("headset_unplugged");
+                    } else if (state == 1) {
+                        Log.i(TAG, "Wired headset plugged in -> notify headphones connected");
+                        notifyHeadphonesConnected("headset_plugged");
                     }
                     handleDeviceStateChange("headset_plug_changed");
                 } else {
@@ -248,7 +260,61 @@ public class AudioDevicePlugin extends Plugin {
         notifyListeners("outputDeviceChanged", currentDevice);
     }
 
+    private synchronized void acquireWakeLock() {
+        try {
+            Context context = getContext();
+            if (context == null) return;
+            if (wakeLock == null) {
+                PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+                if (pm != null) {
+                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Holad:AudioDeviceEmergencyPause");
+                    wakeLock.setReferenceCounted(false);
+                }
+            }
+            if (wakeLock != null) {
+                wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS);
+                Log.i(TAG, "Acquired temporary WakeLock (45s timeout)");
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to acquire WakeLock", e);
+        }
+    }
+
+    private synchronized void releaseWakeLockInternal() {
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) {
+                wakeLock.release();
+                Log.i(TAG, "Released WakeLock");
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to release WakeLock", e);
+        }
+    }
+
+    private void notifyHeadphonesConnected(String reason) {
+        Log.i(TAG, "Headphones connected, reason: " + reason);
+        JSObject data = new JSObject();
+        data.put("reason", reason);
+        JSObject currentDevice = getOutputDeviceJs();
+        data.put("device", currentDevice);
+        notifyListeners("headphonesConnected", data);
+
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            getBridge().getWebView().post(() -> {
+                try {
+                    getBridge().getWebView().evaluateJavascript(
+                        "window.dispatchEvent(new CustomEvent('holad:headphonesconnected', { detail: { reason: '" + reason + "' } }));",
+                        null
+                    );
+                } catch (Exception e) {
+                    Log.e(TAG, "Error evaluating headphonesconnected javascript", e);
+                }
+            });
+        }
+    }
+
     private void triggerEmergencyPause(String reason) {
+        acquireWakeLock();
         Log.i(TAG, "Triggering emergency pause, reason: " + reason);
         JSObject data = new JSObject();
         data.put("reason", reason);
@@ -505,10 +571,21 @@ public class AudioDevicePlugin extends Plugin {
         call.resolve(getOutputDeviceJs());
     }
 
+    @PluginMethod
+    public void releaseWakeLock(PluginCall call) {
+        releaseWakeLockInternal();
+        if (call != null) {
+            call.resolve();
+        }
+    }
+
     @Override
     protected void handleOnDestroy() {
         super.handleOnDestroy();
         Context context = getContext();
+
+        releaseWakeLockInternal();
+        wakeLock = null;
 
         if (noisyReceiver != null) {
             try {

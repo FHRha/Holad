@@ -1008,6 +1008,20 @@ export default function SettingsModal({
                   </label>
                 </SettingSection>
 
+                <SettingSection title={t('settings.auto_resume_headphones') || 'Автовоспроизведение при надевании/подключении наушников'}>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      checked={settings.autoResumeOnHeadphonesConnect} 
+                      onChange={(e) => settings.setAutoResumeOnHeadphonesConnect(e.target.checked)}
+                      className="accent-primary w-4 h-4 rounded cursor-pointer"
+                    />
+                    <span className="group-hover:text-primary transition-colors text-sm">
+                      {t('settings.auto_resume_headphones_desc') || 'Продолжать воспроизведение, если наушники возвращены в течение 45 секунд'}
+                    </span>
+                  </label>
+                </SettingSection>
+
                 <SettingSection title={t('settings.normalization') || 'Нормализация громкости'}>
                   <div className="flex flex-col gap-4">
                     <label className="flex items-center gap-3 cursor-pointer group">

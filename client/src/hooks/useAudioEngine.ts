@@ -613,6 +613,22 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
       if (engine.isTransitioning()) return;
       if (crossfadeTriggeredRef.current === currentTrack.id) return;
+
+      const deck = engine.getActiveDeck();
+      const currentTime = deck.getCurrentTime();
+      const engDur = engine.getDuration();
+      const actualDur = (engDur > 0 && isFinite(engDur)) ? engDur : (currentTrack.duration || 0);
+
+      // Защита от преждевременного EOF / обрыва сетевого стрима при переключении аудиоустройств
+      if (actualDur > 3 && currentTime < actualDur - 2.5) {
+        console.warn(`[AudioEngine] Premature stream end detected at ${currentTime.toFixed(1)}s / ${actualDur.toFixed(1)}s. Recovering stream instead of skipping track.`);
+        deck.load(audioSrc, currentTime, 'auto').then(() => {
+          if (usePlayerStore.getState().isPlaying) {
+            deck.play().catch(() => {});
+          }
+        }).catch(() => {});
+        return;
+      }
       
       if (isJamSession) {
         jamSocket.trackEnded(currentTrack.id, pStore.currentIndex, pStore.repeatMode);
@@ -643,7 +659,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       engine.off('requestPreload', handleRequestPreload);
       engine.off('progress', handleProgress);
     };
-  }, [currentTrack, isActiveDevice, duration, role, sleepTimer, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer, flushPositionToLocalStorage]);
+  }, [currentTrack, isActiveDevice, duration, role, sleepTimer, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer, flushPositionToLocalStorage, audioSrc]);
 
   // Holad Syncing: only broadcast if there are multiple devices in the room (remote controller/listener)
   const holadDevices = useHoladStore(s => s.devices);

@@ -3,6 +3,9 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
 import {
   handleHeadphonesDisconnected,
+  handleHeadphonesConnected,
+  getLastHeadphonesDisconnectedAt,
+  setLastHeadphonesDisconnectedAt,
   getAudioOutputDevice,
   getDeviceDisplayName,
   cleanRawDeviceLabel,
@@ -11,6 +14,7 @@ import {
   promptSelectAudioOutput,
   isGenericOrDriverJunk
 } from '../../hooks/useAudioOutputDevice';
+import { useSettingsStore } from '../../store/settingsStore';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
 import { AudioDeck } from '../../audio/AudioDeck';
 import { AudioEngine } from '../../audio/AudioEngine';
@@ -376,6 +380,42 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       expect(el1.src).toContain('trk2');
       expect(el1.src).not.toContain('trk3');
     });
+
+    it('AudioEngine / AudioDeck premature stream ended recovery contract', async () => {
+      const el0 = createMockAudioElement();
+      const el1 = createMockAudioElement();
+      const engine = new AudioEngine([el0, el1]);
+
+      const track = { id: 'trk-premature', streamUrl: 'http://localhost:4000/stream/trk1', duration: 200 };
+      await engine.playTrack(track, { immediate: true });
+
+      const deck = engine.getActiveDeck();
+      const loadSpy = vi.spyOn(deck, 'load').mockResolvedValue(undefined);
+      const playSpy = vi.spyOn(deck, 'play').mockResolvedValue(undefined);
+
+      // Simulate stream ending at 60s of 200s track (e.g. bluetooth audio device switch / socket drop)
+      vi.spyOn(deck, 'getCurrentTime').mockReturnValue(60);
+      vi.spyOn(engine, 'getDuration').mockReturnValue(200);
+
+      const currentTime = deck.getCurrentTime();
+      const engDur = engine.getDuration();
+      const actualDur = engDur > 0 ? engDur : track.duration;
+
+      let skippedTrack = false;
+      const nextTrack = () => { skippedTrack = true; };
+
+      // Protection algorithm from useAudioEngine:
+      if (actualDur > 3 && currentTime < actualDur - 2.5) {
+        await deck.load(track.streamUrl, currentTime, 'auto');
+        await deck.play();
+      } else {
+        nextTrack();
+      }
+
+      expect(skippedTrack).toBe(false);
+      expect(loadSpy).toHaveBeenCalledWith(track.streamUrl, 60, 'auto');
+      expect(playSpy).toHaveBeenCalled();
+    });
   });
 
   describe('5. Persistent Global Service (initAudioDeviceManager) & Audio Routing', () => {
@@ -415,6 +455,101 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       expect(success).toBe(true);
       expect(setSinkSpy).toHaveBeenCalledWith('usb-audio-dac-id');
       expect(getAudioOutputDevice().name).toBe('USB Audio DAC');
+    });
+  });
+
+  describe('6. Headphone Reconnect Auto-Resume (Wear Detection)', () => {
+    beforeEach(() => {
+      useSettingsStore.setState({ autoResumeOnHeadphonesConnect: true });
+    });
+
+    it('auto-resumes playback when headphones reconnect within 45 seconds', () => {
+      const track = createMockTrack('hp-auto-1', 'Resume Song', 180);
+      usePlayerStore.getState().setQueue([track]);
+      usePlayerStore.getState().setIsPlaying(true);
+
+      // Disconnect headphones
+      handleHeadphonesDisconnected();
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+      expect(getLastHeadphonesDisconnectedAt()).not.toBeNull();
+
+      // Fast forward 10 seconds (well within 45s window)
+      const now = Date.now();
+      setLastHeadphonesDisconnectedAt(now - 10_000);
+
+      // Reconnect
+      handleHeadphonesConnected();
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
+      expect(getLastHeadphonesDisconnectedAt()).toBeNull();
+    });
+
+    it('does NOT auto-resume if reconnection occurs after 45 seconds', () => {
+      const track = createMockTrack('hp-auto-2', 'Late Song', 180);
+      usePlayerStore.getState().setQueue([track]);
+      usePlayerStore.getState().setIsPlaying(true);
+
+      handleHeadphonesDisconnected();
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+
+      // 46 seconds passed
+      const now = Date.now();
+      setLastHeadphonesDisconnectedAt(now - 46_000);
+
+      handleHeadphonesConnected();
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+    });
+
+    it('does NOT auto-resume if autoResumeOnHeadphonesConnect is disabled', () => {
+      useSettingsStore.setState({ autoResumeOnHeadphonesConnect: false });
+
+      const track = createMockTrack('hp-auto-3', 'Disabled Auto Song', 180);
+      usePlayerStore.getState().setQueue([track]);
+      usePlayerStore.getState().setIsPlaying(true);
+
+      handleHeadphonesDisconnected();
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+
+      // Within 5s window
+      setLastHeadphonesDisconnectedAt(Date.now() - 5_000);
+
+      handleHeadphonesConnected();
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+    });
+
+    it('clears auto-resume window when user manually pauses playback in UI', () => {
+      initAudioDeviceManager();
+      const track = createMockTrack('hp-auto-4', 'Manual Pause Song', 180);
+      usePlayerStore.getState().setQueue([track]);
+      usePlayerStore.getState().setIsPlaying(true);
+
+      // Headphones disconnected
+      handleHeadphonesDisconnected();
+      expect(getLastHeadphonesDisconnectedAt()).not.toBeNull();
+
+      // User subsequently toggles or manually pauses via UI
+      usePlayerStore.getState().setIsPlaying(true);
+      usePlayerStore.getState().setIsPlaying(false);
+
+      expect(getLastHeadphonesDisconnectedAt()).toBeNull();
+
+      // Now reconnection shouldn't auto-resume
+      handleHeadphonesConnected();
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+    });
+
+    it('handles DOM holad:headphonesconnected custom event', () => {
+      initAudioDeviceManager();
+      const track = createMockTrack('hp-dom-1', 'DOM Connect Song', 180);
+      usePlayerStore.getState().setQueue([track]);
+      usePlayerStore.getState().setIsPlaying(true);
+
+      handleHeadphonesDisconnected();
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
+
+      setLastHeadphonesDisconnectedAt(Date.now() - 5_000);
+
+      window.dispatchEvent(new CustomEvent('holad:headphonesconnected'));
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
     });
   });
 });

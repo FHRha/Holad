@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { MediaSession } from '@capgo/capacitor-media-session';
 import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
@@ -110,6 +110,51 @@ export function useMediaSession() {
       }
     }
   }, [currentTrack, setIsPlaying, nextTrack, prevTrack]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let isSubscribed = true;
+    const handles: PluginListenerHandle[] = [];
+
+    const setupListeners = async () => {
+      try {
+        const events: Array<{ event: string; handler: () => void }> = [
+          { event: 'play', handler: () => setIsPlaying(true) },
+          { event: 'pause', handler: () => setIsPlaying(false) },
+          { event: 'playpause', handler: () => setIsPlaying(!usePlayerStore.getState().isPlaying) },
+          { event: 'nexttrack', handler: () => nextTrack() },
+          { event: 'previoustrack', handler: () => prevTrack() },
+        ];
+
+        for (const { event, handler } of events) {
+          if (typeof (MediaSession as any).addListener === 'function') {
+            const handle = await (MediaSession as any).addListener(event, handler);
+            if (!isSubscribed) {
+              if (handle && typeof handle.remove === 'function') handle.remove();
+            } else {
+              handles.push(handle);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[MediaSession] Failed to attach native listeners:', err);
+      }
+    };
+
+    setupListeners();
+
+    return () => {
+      isSubscribed = false;
+      handles.forEach((handle) => {
+        try {
+          if (handle && typeof handle.remove === 'function') {
+            handle.remove();
+          }
+        } catch {}
+      });
+    };
+  }, [setIsPlaying, nextTrack, prevTrack]);
 
   const isHoladConnected = useHoladStore(state => state.roomId !== null);
   const activeDeviceId = useHoladStore(state => state.activeDeviceId);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { isCapacitor, isTauri } from '../utils/StorageManager';
 import { usePlayerStore } from '../store/playerStore';
+import { useSettingsStore } from '../store/settingsStore';
 import { getAudioEngine } from '../audio/AudioEngine';
 
 export interface AudioOutputDevice {
@@ -105,11 +106,15 @@ export async function promptSelectAudioOutput(): Promise<boolean> {
             const rawLabel = cleanRawDeviceLabel(dev.label);
             const isBt = isBluetoothLabel(rawLabel);
             const isHp = isHeadphonesLabel(rawLabel);
+            const wasHeadphones = globalOutputDevice.isHeadphones;
             updateGlobalDevice({
               name: rawLabel,
               type: isBt ? 'bluetooth' : (isHp ? 'wired' : 'speaker'),
               isHeadphones: isHp
             });
+            if (!wasHeadphones && isHp) {
+              handleHeadphonesConnected();
+            }
           }
           return true;
         }
@@ -125,18 +130,66 @@ export function getAudioOutputDevice(): AudioOutputDevice {
   return globalOutputDevice;
 }
 
+let lastHeadphonesDisconnectedAt: number | null = null;
+let isHeadphonesDisconnectPause = false;
+let nativeAudioDevicePlugin: any = null;
+
+export function getLastHeadphonesDisconnectedAt(): number | null {
+  return lastHeadphonesDisconnectedAt;
+}
+
+export function setLastHeadphonesDisconnectedAt(val: number | null): void {
+  lastHeadphonesDisconnectedAt = val;
+}
+
 /**
  * Global pause handler when headphones are disconnected / unplugged
  */
 export function handleHeadphonesDisconnected() {
   console.log('[AudioDevice] Headphones disconnected - pausing playback immediately');
+  lastHeadphonesDisconnectedAt = Date.now();
   const store = usePlayerStore.getState();
   if (store.isPlaying) {
+    isHeadphonesDisconnectPause = true;
     store.setIsPlaying(false);
   }
   const engine = getAudioEngine();
   if (engine) {
     engine.pause();
+  }
+}
+
+/**
+ * Global resume handler when headphones are reconnected (Wear Detection / Reconnect Auto-Resume)
+ */
+export function handleHeadphonesConnected() {
+  const settings = useSettingsStore.getState();
+  const autoResume = settings.autoResumeOnHeadphonesConnect ?? true;
+
+  if (
+    lastHeadphonesDisconnectedAt !== null &&
+    Date.now() - lastHeadphonesDisconnectedAt <= 45_000 &&
+    autoResume
+  ) {
+    console.log('[AudioDevice] Headphones reconnected within 45s window - auto-resuming playback');
+    lastHeadphonesDisconnectedAt = null;
+    usePlayerStore.getState().setIsPlaying(true);
+    const engine = getAudioEngine();
+    if (engine) {
+      engine.resume().catch(() => {});
+    }
+    if (isCapacitor()) {
+      if (nativeAudioDevicePlugin && typeof nativeAudioDevicePlugin.releaseWakeLock === 'function') {
+        nativeAudioDevicePlugin.releaseWakeLock().catch(() => {});
+      } else {
+        import('@capacitor/core').then(({ registerPlugin }) => {
+          const AudioDevice = registerPlugin<any>('AudioDevice');
+          if (AudioDevice && typeof AudioDevice.releaseWakeLock === 'function') {
+            AudioDevice.releaseWakeLock().catch(() => {});
+          }
+        }).catch(() => {});
+      }
+    }
   }
 }
 
@@ -154,6 +207,7 @@ export function initAudioDeviceManager(): void {
     import('@capacitor/core').then(({ registerPlugin }) => {
       const AudioDevice = registerPlugin<any>('AudioDevice');
       if (AudioDevice) {
+        nativeAudioDevicePlugin = AudioDevice;
         AudioDevice.getOutputDevice()
           .then((res: any) => {
             if (res && res.name) {
@@ -174,6 +228,14 @@ export function initAudioDeviceManager(): void {
           });
         }).catch(() => {});
 
+        AudioDevice.addListener('headphonesConnected', () => {
+          handleHeadphonesConnected();
+        }).then((handle: any) => {
+          cleanups.push(() => {
+            if (handle && typeof handle.remove === 'function') handle.remove();
+          });
+        }).catch(() => {});
+
         AudioDevice.addListener('outputDeviceChanged', (res: any) => {
           if (res && res.name) {
             const wasHeadphones = globalOutputDevice.isHeadphones;
@@ -185,6 +247,8 @@ export function initAudioDeviceManager(): void {
             });
             if (wasHeadphones && !isHp && usePlayerStore.getState().isPlaying) {
               handleHeadphonesDisconnected();
+            } else if (!wasHeadphones && isHp) {
+              handleHeadphonesConnected();
             }
           }
         }).then((handle: any) => {
@@ -200,10 +264,15 @@ export function initAudioDeviceManager(): void {
   const onDomNoisy = () => {
     handleHeadphonesDisconnected();
   };
+  const onDomConnected = () => {
+    handleHeadphonesConnected();
+  };
   if (typeof window !== 'undefined') {
     window.addEventListener('holad:audiobecomingnoisy', onDomNoisy);
+    window.addEventListener('holad:headphonesconnected', onDomConnected);
     cleanups.push(() => {
       window.removeEventListener('holad:audiobecomingnoisy', onDomNoisy);
+      window.removeEventListener('holad:headphonesconnected', onDomConnected);
     });
   }
 
@@ -225,6 +294,8 @@ export function initAudioDeviceManager(): void {
           });
           if (wasHeadphones && !isHp && usePlayerStore.getState().isPlaying) {
             handleHeadphonesDisconnected();
+          } else if (!wasHeadphones && isHp) {
+            handleHeadphonesConnected();
           }
           return;
         }
@@ -250,6 +321,8 @@ export function initAudioDeviceManager(): void {
           });
           if (wasHeadphones && !isHp && usePlayerStore.getState().isPlaying) {
             handleHeadphonesDisconnected();
+          } else if (!wasHeadphones && isHp) {
+            handleHeadphonesConnected();
           }
         }
       } catch {
@@ -279,6 +352,8 @@ export function initAudioDeviceManager(): void {
           });
           if (wasHeadphones && !isHp && usePlayerStore.getState().isPlaying) {
             handleHeadphonesDisconnected();
+          } else if (!wasHeadphones && isHp) {
+            handleHeadphonesConnected();
           }
         } else {
           await updateDevices();
@@ -315,6 +390,20 @@ export function initAudioDeviceManager(): void {
     });
   }
 
+  // 5. Track manual pause vs headphone disconnect in UI
+  const unsubPlayer = usePlayerStore.subscribe((state, prevState) => {
+    if (prevState.isPlaying && !state.isPlaying) {
+      if (isHeadphonesDisconnectPause) {
+        isHeadphonesDisconnectPause = false;
+      } else {
+        lastHeadphonesDisconnectedAt = null;
+      }
+    } else if (!prevState.isPlaying && state.isPlaying) {
+      lastHeadphonesDisconnectedAt = null;
+    }
+  });
+  cleanups.push(unsubPlayer);
+
   cleanupFn = () => {
     cleanups.forEach((fn) => {
       try { fn(); } catch {}
@@ -329,6 +418,9 @@ export function cleanupAudioDeviceManager(): void {
     cleanupFn = null;
   }
   isInitialized = false;
+  lastHeadphonesDisconnectedAt = null;
+  isHeadphonesDisconnectPause = false;
+  nativeAudioDevicePlugin = null;
 }
 
 export function useAudioOutputDevice(): AudioOutputDevice {

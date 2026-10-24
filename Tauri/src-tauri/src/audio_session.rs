@@ -25,13 +25,14 @@ pub mod windows_audio {
     const ICO_WAVE_DARK: &[u8] = include_bytes!("../icons/wave_dark.ico");
     const ICO_WAVE_LIGHT: &[u8] = include_bytes!("../icons/wave_light.ico");
     const ICO_CASSETTE: &[u8] = include_bytes!("../icons/cassette.ico");
+    const PNG_LOGO: &[u8] = include_bytes!("../icons/Square150x150Logo.png");
 
     static CURRENT_ICON_WIDE: RwLock<Option<Vec<u16>>> = RwLock::new(None);
     static CURRENT_ICON_PATH: RwLock<Option<PathBuf>> = RwLock::new(None);
     static FAMILY_CACHE: Mutex<Option<(std::time::Instant, HashSet<u32>)>> = Mutex::new(None);
     static LAST_WINDOW_ICON_APPLY: Mutex<Option<std::time::Instant>> = Mutex::new(None);
 
-    fn register_registry_identity(ico_path: &std::path::Path) {
+    fn register_registry_identity(ico_path: &std::path::Path, png_path: &std::path::Path) {
         use windows::Win32::System::Registry::{
             RegCreateKeyW, RegSetValueExW, RegCloseKey, HKEY_CURRENT_USER, REG_SZ,
         };
@@ -53,18 +54,22 @@ pub mod windows_audio {
                     )),
                 );
 
-                let ico_str = format!("{},0\0", ico_path.to_string_lossy());
-                let ico_wide: Vec<u16> = ico_str.encode_utf16().collect();
+                // IconUri in Windows WinRT/Toast/SMTC must be a direct file path without ",0"
+                let png_str = format!("{}\0", png_path.to_string_lossy());
+                let png_wide: Vec<u16> = png_str.encode_utf16().collect();
                 let _ = RegSetValueExW(
                     hkey,
                     w!("IconUri"),
                     None,
                     REG_SZ,
                     Some(std::slice::from_raw_parts(
-                        ico_wide.as_ptr() as *const u8,
-                        ico_wide.len() * 2,
+                        png_wide.as_ptr() as *const u8,
+                        png_wide.len() * 2,
                     )),
                 );
+
+                let ico_str = format!("{},0\0", ico_path.to_string_lossy());
+                let ico_wide: Vec<u16> = ico_str.encode_utf16().collect();
                 let _ = RegSetValueExW(
                     hkey,
                     w!("IconPath"),
@@ -85,6 +90,19 @@ pub mod windows_audio {
                         ico_wide.len() * 2,
                     )),
                 );
+
+                let bg: Vec<u16> = "FF121212".encode_utf16().chain(std::iter::once(0)).collect();
+                let _ = RegSetValueExW(
+                    hkey,
+                    w!("IconBackgroundColor"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        bg.as_ptr() as *const u8,
+                        bg.len() * 2,
+                    )),
+                );
+
                 let _ = RegCloseKey(hkey);
             }
 
@@ -172,6 +190,73 @@ pub mod windows_audio {
                 );
                 let _ = RegCloseKey(hkey_edge_icon);
             }
+
+            // 6. HKCU\Software\Classes\AppUserModelId\msedgewebview2.exe
+            // (Windows 11 Action Center / Quick Settings SMTC identifies the media session via msedgewebview2.exe)
+            let subkey_edge_aumid = w!("Software\\Classes\\AppUserModelId\\msedgewebview2.exe");
+            let mut hkey_edge_aumid = windows::Win32::System::Registry::HKEY::default();
+            if RegCreateKeyW(HKEY_CURRENT_USER, subkey_edge_aumid, &mut hkey_edge_aumid).is_ok() {
+                let name: Vec<u16> = "Holad".encode_utf16().chain(std::iter::once(0)).collect();
+                let _ = RegSetValueExW(
+                    hkey_edge_aumid,
+                    w!("DisplayName"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        name.as_ptr() as *const u8,
+                        name.len() * 2,
+                    )),
+                );
+
+                let png_str = format!("{}\0", png_path.to_string_lossy());
+                let png_wide: Vec<u16> = png_str.encode_utf16().collect();
+                let _ = RegSetValueExW(
+                    hkey_edge_aumid,
+                    w!("IconUri"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        png_wide.as_ptr() as *const u8,
+                        png_wide.len() * 2,
+                    )),
+                );
+
+                let ico_str = format!("{},0\0", ico_path.to_string_lossy());
+                let ico_wide: Vec<u16> = ico_str.encode_utf16().collect();
+                let _ = RegSetValueExW(
+                    hkey_edge_aumid,
+                    w!("IconPath"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        ico_wide.as_ptr() as *const u8,
+                        ico_wide.len() * 2,
+                    )),
+                );
+                let _ = RegSetValueExW(
+                    hkey_edge_aumid,
+                    w!("IconLocation"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        ico_wide.as_ptr() as *const u8,
+                        ico_wide.len() * 2,
+                    )),
+                );
+
+                let bg: Vec<u16> = "FF121212".encode_utf16().chain(std::iter::once(0)).collect();
+                let _ = RegSetValueExW(
+                    hkey_edge_aumid,
+                    w!("IconBackgroundColor"),
+                    None,
+                    REG_SZ,
+                    Some(std::slice::from_raw_parts(
+                        bg.as_ptr() as *const u8,
+                        bg.len() * 2,
+                    )),
+                );
+                let _ = RegCloseKey(hkey_edge_aumid);
+            }
         }
     }
 
@@ -182,6 +267,9 @@ pub mod windows_audio {
         let temp_file = temp_dir.join(format!("{}.ico", name));
         let _ = std::fs::write(&temp_file, ico_bytes);
 
+        let temp_png = temp_dir.join("holad_logo.png");
+        let _ = std::fs::write(&temp_png, PNG_LOGO);
+
         let fallback_ico = std::env::temp_dir().join("holad_app_icon.ico");
         let _ = std::fs::write(&fallback_ico, ico_bytes);
 
@@ -189,10 +277,12 @@ pub mod windows_audio {
         let c_temp_dir = PathBuf::from("C:\\Temp\\holad_icons");
         if std::fs::create_dir_all(&c_temp_dir).is_ok() {
             let _ = std::fs::write(c_temp_dir.join(format!("{}.ico", name)), ico_bytes);
+            let _ = std::fs::write(c_temp_dir.join("holad_logo.png"), PNG_LOGO);
         }
 
         // 2. Общесистемная папка C:\ProgramData\Holad\icons\ (гарантированные права для AudioSrv / LOCAL SERVICE)
         let mut final_path = temp_file;
+        let mut final_png_path = temp_png;
         if let Ok(prog_data) = std::env::var("ProgramData") {
             let pd_dir = PathBuf::from(prog_data).join("Holad");
             let _ = std::fs::create_dir_all(&pd_dir);
@@ -203,6 +293,10 @@ pub mod windows_audio {
             let pd_file = pd_icons.join(format!("{}.ico", name));
             if std::fs::write(&pd_file, ico_bytes).is_ok() {
                 final_path = pd_file;
+            }
+            let pd_png = pd_icons.join("holad_logo.png");
+            if std::fs::write(&pd_png, PNG_LOGO).is_ok() {
+                final_png_path = pd_png;
             }
 
             #[cfg(target_os = "windows")]
@@ -256,8 +350,8 @@ pub mod windows_audio {
             }
         }
 
-        // 3. Регистрируем в реестре Windows для com.holad.desktop
-        register_registry_identity(&final_path);
+        // 3. Регистрируем в реестре Windows для com.holad.desktop и msedgewebview2.exe (SMTC)
+        register_registry_identity(&final_path, &final_png_path);
 
         final_path
     }

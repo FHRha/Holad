@@ -91,6 +91,8 @@
     "close_to_tray": "Minimize to tray on close",
     "gapless": "Gapless playback",
     "gapless_desc": "Instant track switching without pauses or clicks",
+    "auto_resume_headphones": "Auto-resume on headphones connect",
+    "auto_resume_headphones_desc": "Resume playback if headphones are put back within 45 seconds",
     "normalization": "Volume normalization",
     "normalization_desc": "Volume level equalization across tracks (compressor)",
     "crossfade": "Crossfade",

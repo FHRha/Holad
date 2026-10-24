@@ -108,6 +108,8 @@ export interface SettingsState {
   setSyncLanguage: (sync: boolean) => void;
   isHoladConnectEnabled: boolean;
   setIsHoladConnectEnabled: (enabled: boolean) => void;
+  autoResumeOnHeadphonesConnect: boolean;
+  setAutoResumeOnHeadphonesConnect: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -220,7 +222,9 @@ export const useSettingsStore = create<SettingsState>()(
       syncLanguage: true,
       setSyncLanguage: (syncLanguage) => set({ syncLanguage }),
       isHoladConnectEnabled: false,
+      autoResumeOnHeadphonesConnect: true,
       setIsHoladConnectEnabled: (isHoladConnectEnabled) => set({ isHoladConnectEnabled }),
+      setAutoResumeOnHeadphonesConnect: (autoResumeOnHeadphonesConnect) => set({ autoResumeOnHeadphonesConnect }),
     }),
     {
       name: 'holad-settings',

@@ -675,6 +675,19 @@ export default function MobileSettingsView() {
 
           <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
             <div className="flex flex-col pr-4">
+              <span className="text-[15px] font-medium text-white">{t('settings.auto_resume_headphones')}</span>
+              <span className="text-[13px] text-[#b3b3b3]">{t('settings.auto_resume_headphones_desc')}</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={settings.autoResumeOnHeadphonesConnect} 
+              onChange={(e) => settings.setAutoResumeOnHeadphonesConnect(e.target.checked)}
+              className="accent-primary w-6 h-6 rounded flex-shrink-0"
+            />
+          </label>
+
+          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
+            <div className="flex flex-col pr-4">
               <span className="text-[15px] font-medium text-white">{t('settings.normalization')}</span>
               <span className="text-[13px] text-[#b3b3b3]">{t('settings.normalization_desc')}</span>
             </div>
