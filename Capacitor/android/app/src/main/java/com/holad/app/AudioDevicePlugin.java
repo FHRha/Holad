@@ -12,10 +12,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.media.AudioAttributes;
 import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
-import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Handler;
@@ -34,7 +32,7 @@ import java.util.List;
 import java.util.Locale;
 
 @CapacitorPlugin(name = "AudioDevice")
-public class AudioDevicePlugin extends Plugin implements AudioManager.OnAudioFocusChangeListener {
+public class AudioDevicePlugin extends Plugin {
     private static final String TAG = "AudioDevicePlugin";
 
     private AudioManager audioManager;
@@ -47,7 +45,6 @@ public class AudioDevicePlugin extends Plugin implements AudioManager.OnAudioFoc
     private BroadcastReceiver deviceChangeReceiver;
     private AudioDeviceCallback audioDeviceCallback;
 
-    private AudioFocusRequest audioFocusRequest;
     private Handler mainHandler;
 
     private volatile boolean wasHeadphones = false;
@@ -508,135 +505,10 @@ public class AudioDevicePlugin extends Plugin implements AudioManager.OnAudioFoc
         call.resolve(getOutputDeviceJs());
     }
 
-    @PluginMethod
-    public void requestAudioFocus(PluginCall call) {
-        try {
-            if (audioManager == null) {
-                audioManager = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
-            }
-            if (audioManager == null) {
-                call.reject("AudioManager not available");
-                return;
-            }
-
-            int result;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                if (audioFocusRequest == null) {
-                    AudioAttributes playbackAttributes = new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .build();
-
-                    audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                        .setAudioAttributes(playbackAttributes)
-                        .setAcceptsDelayedFocusGain(true)
-                        .setOnAudioFocusChangeListener(this)
-                        .build();
-                }
-                result = audioManager.requestAudioFocus(audioFocusRequest);
-            } else {
-                result = audioManager.requestAudioFocus(
-                    this,
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.AUDIOFOCUS_GAIN
-                );
-            }
-
-            boolean granted = (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED);
-            JSObject ret = new JSObject();
-            ret.put("granted", granted);
-            ret.put("result", result);
-            call.resolve(ret);
-        } catch (Exception e) {
-            Log.e(TAG, "Error requesting audio focus", e);
-            call.reject("Error requesting audio focus: " + e.getMessage());
-        }
-    }
-
-    @PluginMethod
-    public void abandonAudioFocus(PluginCall call) {
-        try {
-            if (audioManager != null) {
-                int result;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
-                    result = audioManager.abandonAudioFocusRequest(audioFocusRequest);
-                } else {
-                    result = audioManager.abandonAudioFocus(this);
-                }
-                JSObject ret = new JSObject();
-                ret.put("granted", result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED);
-                ret.put("result", result);
-                call.resolve(ret);
-            } else {
-                call.resolve();
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error abandoning audio focus", e);
-            call.reject("Error abandoning audio focus: " + e.getMessage());
-        }
-    }
-
-    @Override
-    public void onAudioFocusChange(int focusChange) {
-        Log.i(TAG, "onAudioFocusChange: " + focusChange);
-        JSObject data = new JSObject();
-        data.put("focusChange", focusChange);
-
-        switch (focusChange) {
-            case AudioManager.AUDIOFOCUS_LOSS:
-                data.put("type", "loss");
-                notifyListeners("audioFocusLoss", data);
-                triggerEmergencyPause("audio_focus_loss");
-                break;
-
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-                data.put("type", "loss_transient");
-                notifyListeners("audioFocusLoss", data);
-                triggerEmergencyPause("audio_focus_loss_transient");
-                break;
-
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                data.put("type", "loss_transient_can_duck");
-                notifyListeners("audioFocusLoss", data);
-                triggerEmergencyPause("audio_focus_loss_transient_duck");
-                break;
-
-            case AudioManager.AUDIOFOCUS_GAIN:
-                data.put("type", "gain");
-                notifyListeners("audioFocusGain", data);
-                break;
-        }
-
-        if (getBridge() != null && getBridge().getWebView() != null) {
-            getBridge().getWebView().post(() -> {
-                try {
-                    String js = String.format(
-                        Locale.ROOT,
-                        "window.dispatchEvent(new CustomEvent('holad:audiofocuschange', { detail: { focusChange: %d } }));",
-                        focusChange
-                    );
-                    getBridge().getWebView().evaluateJavascript(js, null);
-                } catch (Exception e) {
-                    Log.e(TAG, "Error evaluating audiofocuschange js", e);
-                }
-            });
-        }
-    }
-
     @Override
     protected void handleOnDestroy() {
         super.handleOnDestroy();
         Context context = getContext();
-
-        if (audioManager != null) {
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
-                    audioManager.abandonAudioFocusRequest(audioFocusRequest);
-                } else {
-                    audioManager.abandonAudioFocus(this);
-                }
-            } catch (Exception ignored) {}
-        }
 
         if (noisyReceiver != null) {
             try {

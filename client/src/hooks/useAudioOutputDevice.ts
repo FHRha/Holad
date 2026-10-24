@@ -174,14 +174,6 @@ export function initAudioDeviceManager(): void {
           });
         }).catch(() => {});
 
-        AudioDevice.addListener('audioFocusLoss', () => {
-          handleHeadphonesDisconnected();
-        }).then((handle: any) => {
-          cleanups.push(() => {
-            if (handle && typeof handle.remove === 'function') handle.remove();
-          });
-        }).catch(() => {});
-
         AudioDevice.addListener('outputDeviceChanged', (res: any) => {
           if (res && res.name) {
             const wasHeadphones = globalOutputDevice.isHeadphones;
@@ -210,10 +202,8 @@ export function initAudioDeviceManager(): void {
   };
   if (typeof window !== 'undefined') {
     window.addEventListener('holad:audiobecomingnoisy', onDomNoisy);
-    window.addEventListener('holad:audiofocusloss', onDomNoisy);
     cleanups.push(() => {
       window.removeEventListener('holad:audiobecomingnoisy', onDomNoisy);
-      window.removeEventListener('holad:audiofocusloss', onDomNoisy);
     });
   }
 

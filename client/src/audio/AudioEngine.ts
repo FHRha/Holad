@@ -4,7 +4,6 @@ import { PreloadManager } from './PreloadManager';
 import { TransitionManager } from './TransitionManager';
 import type { AudioEngineSettings, AudioState, IAudioCore, IAudioDeck, IAudioEngine, IWebAudioPipeline, PlayTrackOptions } from './types';
 import { isCapacitor } from '../utils/StorageManager';
-import { requestNativeAudioFocus, abandonNativeAudioFocus } from '../utils/audioFocus';
 
 export class AudioEngine implements IAudioEngine, IAudioCore {
     private static instance: AudioEngine | null = null;
@@ -319,7 +318,6 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                 this.transitionManager.abortActiveTransition(activeDeck, standbyDeck, this.pipeline || undefined, this.activeIndex, this.volume * this.volumeMultiplier);
                 await activeDeck.load(streamUrl, position);
                 if (this.playToken !== currentToken || !this.isPlaying) return;
-                await requestNativeAudioFocus().catch(() => {});
                 await activeDeck.play();
                 if (this.pipeline) {
                     this.pipeline.setDeckGain(this.activeIndex, 1.0, 0);
@@ -351,7 +349,6 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         
         this.decks[0].pause();
         this.decks[1].pause();
-        abandonNativeAudioFocus().catch(() => {});
     }
 
     public async resume(): Promise<void> {
@@ -362,7 +359,6 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         if (this.pipeline) {
             await this.pipeline.unlockContext();
         }
-        await requestNativeAudioFocus().catch(() => {});
         await this.getActiveDeck().play();
     }
 
