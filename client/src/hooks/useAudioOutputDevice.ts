@@ -178,17 +178,18 @@ export function handleHeadphonesConnected() {
     if (engine) {
       engine.resume().catch(() => {});
     }
-    if (isCapacitor()) {
-      if (nativeAudioDevicePlugin && typeof nativeAudioDevicePlugin.releaseWakeLock === 'function') {
-        nativeAudioDevicePlugin.releaseWakeLock().catch(() => {});
-      } else {
-        import('@capacitor/core').then(({ registerPlugin }) => {
-          const AudioDevice = registerPlugin<any>('AudioDevice');
-          if (AudioDevice && typeof AudioDevice.releaseWakeLock === 'function') {
-            AudioDevice.releaseWakeLock().catch(() => {});
-          }
-        }).catch(() => {});
-      }
+  }
+
+  if (isCapacitor()) {
+    if (nativeAudioDevicePlugin && typeof nativeAudioDevicePlugin.releaseWakeLock === 'function') {
+      nativeAudioDevicePlugin.releaseWakeLock().catch(() => {});
+    } else {
+      import('@capacitor/core').then(({ registerPlugin }) => {
+        const AudioDevice = registerPlugin<any>('AudioDevice');
+        if (AudioDevice && typeof AudioDevice.releaseWakeLock === 'function') {
+          AudioDevice.releaseWakeLock().catch(() => {});
+        }
+      }).catch(() => {});
     }
   }
 }

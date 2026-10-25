@@ -228,6 +228,13 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'holad-settings',
+      version: 2,
+      migrate: (persistedState: any, version: number) => {
+        if (version < 2 && persistedState) {
+          persistedState.autoResumeOnHeadphonesConnect = false;
+        }
+        return persistedState;
+      },
       onRehydrateStorage: () => (state) => {
         if (state && typeof state.imageCacheLimitMb === 'number') {
           setImageCacheLimit(state.imageCacheLimitMb);

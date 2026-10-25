@@ -35,6 +35,11 @@ import java.util.Locale;
 @CapacitorPlugin(name = "AudioDevice")
 public class AudioDevicePlugin extends Plugin {
     private static final String TAG = "AudioDevicePlugin";
+    public static volatile long lastBluetoothAclConnectedTime = 0L;
+
+    public static boolean isBluetoothConnecting() {
+        return android.os.SystemClock.uptimeMillis() - lastBluetoothAclConnectedTime < 3000L;
+    }
 
     private AudioManager audioManager;
     private BluetoothAdapter bluetoothAdapter;
@@ -157,6 +162,7 @@ public class AudioDevicePlugin extends Plugin {
                         }
                     }
                     if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
+                        lastBluetoothAclConnectedTime = android.os.SystemClock.uptimeMillis();
                         notifyHeadphonesConnected("bluetooth_acl_connected");
                     }
                     handleDeviceStateChange("bluetooth_connected");

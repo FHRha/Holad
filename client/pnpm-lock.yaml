@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   '@capgo/capacitor-media-session':
-    hash: ac33354938e1594a55f75bdeab033bc11d632b2d1ece6493bcaace4c32bc0f02
+    hash: d4e85118b64351f8b1bba077d19100b19147c0d409537d230f27ea94cccd9a18
     path: patches/@capgo__capacitor-media-session.patch
 
 importers:
@@ -27,7 +27,7 @@ importers:
         version: 8.0.1(@capacitor/core@8.4.2)
       '@capgo/capacitor-media-session':
         specifier: ^8.0.29
-        version: 8.0.29(patch_hash=ac33354938e1594a55f75bdeab033bc11d632b2d1ece6493bcaace4c32bc0f02)(@capacitor/core@8.4.2)
+        version: 8.0.29(patch_hash=d4e85118b64351f8b1bba077d19100b19147c0d409537d230f27ea94cccd9a18)(@capacitor/core@8.4.2)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1629,7 +1629,7 @@ snapshots:
 
   '@capacitor/synapse@1.0.4': {}
 
-  '@capgo/capacitor-media-session@8.0.29(patch_hash=ac33354938e1594a55f75bdeab033bc11d632b2d1ece6493bcaace4c32bc0f02)(@capacitor/core@8.4.2)':
+  '@capgo/capacitor-media-session@8.0.29(patch_hash=d4e85118b64351f8b1bba077d19100b19147c0d409537d230f27ea94cccd9a18)(@capacitor/core@8.4.2)':
     dependencies:
       '@capacitor/core': 8.4.2
 
