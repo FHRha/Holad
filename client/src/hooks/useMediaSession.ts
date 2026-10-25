@@ -153,8 +153,24 @@ export function useMediaSession() {
 
     setupListeners();
 
+    // Direct DOM CustomEvent fallbacks emitted by native evaluateJavascript
+    const onDirectPlay = () => {
+      setIsPlaying(true);
+      const engine = getAudioEngine();
+      if (engine) engine.resume().catch(() => {});
+    };
+    const onDirectPause = () => {
+      setIsPlaying(false);
+      const engine = getAudioEngine();
+      if (engine) engine.pause();
+    };
+    window.addEventListener('holad:mediasession:play', onDirectPlay);
+    window.addEventListener('holad:mediasession:pause', onDirectPause);
+
     return () => {
       isSubscribed = false;
+      window.removeEventListener('holad:mediasession:play', onDirectPlay);
+      window.removeEventListener('holad:mediasession:pause', onDirectPause);
       handles.forEach((handle) => {
         try {
           if (handle && typeof handle.remove === 'function') {
@@ -179,6 +195,12 @@ export function useMediaSession() {
 
     if (Capacitor.isNativePlatform()) {
       MediaSession.setPlaybackState({ playbackState: state });
+      import('@capacitor/core').then(({ registerPlugin }) => {
+        const AudioDevice = registerPlugin<any>('AudioDevice');
+        if (AudioDevice && typeof AudioDevice.notifyPlaybackState === 'function') {
+          AudioDevice.notifyPlaybackState({ state }).catch(() => {});
+        }
+      }).catch(() => {});
     } else if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = state;
     }

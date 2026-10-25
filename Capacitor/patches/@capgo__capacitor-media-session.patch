@@ -1,8 +1,8 @@
 diff --git a/android/src/main/java/com/capgo/mediasession/MediaSessionCallback.java b/android/src/main/java/com/capgo/mediasession/MediaSessionCallback.java
-index 402bc6fb877f919269f0bfcfe535933da83c01e0..df81d96d87dc65fef7d83e59f5b1d1658298b9cf 100644
+index 402bc6f..e6aaf67 100644
 --- a/android/src/main/java/com/capgo/mediasession/MediaSessionCallback.java
 +++ b/android/src/main/java/com/capgo/mediasession/MediaSessionCallback.java
-@@ -1,18 +1,112 @@
+@@ -1,18 +1,108 @@
  package com.capgo.mediasession;
  
 +import android.content.Intent;
@@ -65,42 +65,38 @@ index 402bc6fb877f919269f0bfcfe535933da83c01e0..df81d96d87dc65fef7d83e59f5b1d165
 +            return super.onMediaButtonEvent(mediaButtonIntent);
 +        }
 +
-+        // Only handle on ACTION_DOWN; consume ACTION_UP for handled keys to prevent super from processing
-+        if (keyEvent.getAction() != KeyEvent.ACTION_DOWN) {
-+            if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
-+                keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
-+                keyCode == KeyEvent.KEYCODE_MEDIA_PLAY ||
-+                keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE) {
-+                return true;
-+            }
-+            return super.onMediaButtonEvent(mediaButtonIntent);
-+        }
-+
 +        long now = SystemClock.uptimeMillis();
 +
-+        if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || keyCode == KeyEvent.KEYCODE_HEADSETHOOK) {
-+            if (now - lastMediaButtonTime >= DEBOUNCE_DELAY_MS) {
-+                lastMediaButtonTime = now;
-+                // STRICTLY PREVENT legacy Android mIsDoubleTapPending which converts quick clicks to onSkipToNext().
-+                plugin.actionCallback("playpause");
++        if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY ||
++            keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE ||
++            keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
++            keyCode == KeyEvent.KEYCODE_HEADSETHOOK) {
++
++            // Debounce check: prevents double triggers from rapid DOWN followed by UP,
++            // while allowing peripherals that send ONLY ACTION_UP to trigger successfully!
++            if (now - lastMediaButtonTime < DEBOUNCE_DELAY_MS) {
++                return true;
 +            }
-+            return true;
-+        } else if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY) {
-+            if (now - lastMediaButtonTime >= DEBOUNCE_DELAY_MS) {
-+                lastMediaButtonTime = now;
++            lastMediaButtonTime = now;
++
++            if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY) {
 +                if (isBluetoothConnecting()) {
 +                    Log.i("CapgoMediaSession", "Dropped KEYCODE_MEDIA_PLAY during Bluetooth connection grace period");
 +                } else {
 +                    onPlay();
 +                }
-+            }
-+            return true;
-+        } else if (keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE) {
-+            if (now - lastMediaButtonTime >= DEBOUNCE_DELAY_MS) {
-+                lastMediaButtonTime = now;
++                return true;
++            } else if (keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE) {
 +                onPause();
++                return true;
++            } else if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || keyCode == KeyEvent.KEYCODE_HEADSETHOOK) {
++                if (isBluetoothConnecting()) {
++                    Log.i("CapgoMediaSession", "Dropped KEYCODE_MEDIA_PLAY_PAUSE/HEADSETHOOK during Bluetooth connection grace period");
++                } else {
++                    plugin.actionCallback("playpause");
++                }
++                return true;
 +            }
-+            return true;
 +        }
 +
 +        return super.onMediaButtonEvent(mediaButtonIntent);
@@ -116,7 +112,7 @@ index 402bc6fb877f919269f0bfcfe535933da83c01e0..df81d96d87dc65fef7d83e59f5b1d165
      }
  
 diff --git a/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java b/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java
-index ce25ddf64034a84490a33070dd7e578562b13057..f896ce84d7d96bbe4ae432584dba054d706fed0a 100644
+index e79702d..b82ddfc 100644
 --- a/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java
 +++ b/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java
 @@ -88,10 +88,6 @@ public class MediaSessionPlugin extends Plugin {
@@ -130,9 +126,24 @@ index ce25ddf64034a84490a33070dd7e578562b13057..f896ce84d7d96bbe4ae432584dba054d
      }
  
      private void startMediaService() {
-@@ -223,9 +219,9 @@ public class MediaSessionPlugin extends Plugin {
+@@ -222,10 +218,24 @@ public class MediaSessionPlugin extends Plugin {
+     public void setPlaybackState(PluginCall call) {
          playbackState = call.getString("playbackState", playbackState);
  
++        if ("playing".equalsIgnoreCase(playbackState)) {
++            try {
++                Class<?> clazz = Class.forName("com.holad.app.AudioDevicePlugin");
++                java.lang.reflect.Method method = clazz.getMethod("markPlaybackStarted");
++                method.invoke(null);
++            } catch (Throwable ignored) {}
++        } else if ("paused".equalsIgnoreCase(playbackState)) {
++            try {
++                Class<?> clazz = Class.forName("com.holad.app.AudioDevicePlugin");
++                java.lang.reflect.Method method = clazz.getMethod("markPlaybackPaused");
++                method.invoke(null);
++            } catch (Throwable ignored) {}
++        }
++
          boolean playbackActive = isPlaybackActive();
 -        if (startServiceOnlyDuringPlayback && service == null && playbackActive) {
 +        if (service == null && playbackActive) {
@@ -142,17 +153,7 @@ index ce25ddf64034a84490a33070dd7e578562b13057..f896ce84d7d96bbe4ae432584dba054d
              stopMediaService();
          } else {
              updateServicePlaybackState();
-@@ -259,8 +255,7 @@ public class MediaSessionPlugin extends Plugin {
-     }
- 
-     public boolean hasActionHandler(String action) {
--        PluginCall handler = actionHandlers.get(action);
--        return handler != null && !PluginCall.CALLBACK_ID_DANGLING.equals(handler.getCallbackId());
-+        return true;
-     }
- 
-     public void actionCallback(String action) {
-@@ -268,9 +263,21 @@ public class MediaSessionPlugin extends Plugin {
+@@ -267,15 +277,57 @@ public class MediaSessionPlugin extends Plugin {
      }
  
      public void actionCallback(String action, JSObject data) {
@@ -165,18 +166,53 @@ index ce25ddf64034a84490a33070dd7e578562b13057..f896ce84d7d96bbe4ae432584dba054d
 +            return;
 +        }
 +
-+        data.put("action", action);
-+        notifyListeners(action, data);
-+        
+         data.put("action", action);
+         notifyListeners(action, data);
+         
          PluginCall handler = actionHandlers.get(action);
          if (handler != null && !PluginCall.CALLBACK_ID_DANGLING.equals(handler.getCallbackId())) {
--            data.put("action", action);
 +            handler.setKeepAlive(true);
              handler.resolve(data);
          } else {
              Log.d(TAG, "No handler for action " + action);
+         }
++
++        // Direct WebView bridge invocation for instant responsiveness (e.g. In-Ear Wear Detection)
++        if (getBridge() != null && getBridge().getWebView() != null) {
++            getBridge().getWebView().post(() -> {
++                try {
++                    if ("play".equals(action)) {
++                        getBridge().getWebView().evaluateJavascript(
++                            "(function() { " +
++                            "  try { if (window.getAudioEngine) { window.getAudioEngine().resume(); } } catch(e) {} " +
++                            "  window.dispatchEvent(new CustomEvent('holad:mediasession:play')); " +
++                            "})()",
++                            null
++                        );
++                    } else if ("pause".equals(action)) {
++                        getBridge().getWebView().evaluateJavascript(
++                            "(function() { " +
++                            "  try { if (window.getAudioEngine) { window.getAudioEngine().pause(); } } catch(e) {} " +
++                            "  window.dispatchEvent(new CustomEvent('holad:mediasession:pause')); " +
++                            "})()",
++                            null
++                        );
++                    } else {
++                        getBridge().getWebView().evaluateJavascript(
++                            "window.dispatchEvent(new CustomEvent('holad:mediasession:" + action + "'));",
++                            null
++                        );
++                    }
++                } catch (Exception e) {
++                    Log.e(TAG, "Error evaluating action callback javascript", e);
++                }
++            });
++        }
+     }
+ 
+     @PluginMethod
 diff --git a/android/src/main/java/com/capgo/mediasession/MediaSessionService.java b/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
-index e2c1f052c568618637015c022b305cbb71325133..59815ab6f3179a1cf39044ddcb42ea2ba259a780 100644
+index 64ffec9..59815ab 100644
 --- a/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
 +++ b/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
 @@ -5,12 +5,14 @@ import android.app.NotificationChannel;
@@ -205,45 +241,7 @@ index e2c1f052c568618637015c022b305cbb71325133..59815ab6f3179a1cf39044ddcb42ea2b
          mediaSession.setActive(true);
  
          playbackStateBuilder = new PlaybackStateCompat.Builder()
-@@ -115,10 +121,18 @@ public class MediaSessionService extends Service {
-             notificationManager.createNotificationChannel(channel);
-         }
- 
-+        int smallIconId = getResources().getIdentifier("ic_stat_name", "drawable", getPackageName());
-+        if (smallIconId == 0) {
-+            smallIconId = getResources().getIdentifier("ic_launcher_foreground", "drawable", getPackageName());
-+        }
-+        if (smallIconId == 0) {
-+            smallIconId = getApplicationInfo().icon;
-+        }
-+
-         notificationStyle = new MediaStyle().setMediaSession(mediaSession.getSessionToken());
-         notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
-             .setStyle(notificationStyle)
--            .setSmallIcon(R.drawable.ic_baseline_volume_up_24)
-+            .setSmallIcon(smallIconId)
-             .setContentIntent(
-                 PendingIntent.getActivity(
-                     getApplicationContext(),
-@@ -142,7 +156,7 @@ public class MediaSessionService extends Service {
-                 "Play",
-                 MediaButtonReceiver.buildMediaButtonPendingIntent(
-                     this,
--                    PlaybackStateCompat.ACTION_PLAY_PAUSE | PlaybackStateCompat.ACTION_PLAY
-+                    PlaybackStateCompat.ACTION_PLAY
-                 )
-             )
-         );
-@@ -153,7 +167,7 @@ public class MediaSessionService extends Service {
-                 "Pause",
-                 MediaButtonReceiver.buildMediaButtonPendingIntent(
-                     this,
--                    PlaybackStateCompat.ACTION_PLAY_PAUSE | PlaybackStateCompat.ACTION_PAUSE
-+                    PlaybackStateCompat.ACTION_PAUSE
-                 )
-             )
-         );
-@@ -208,11 +222,51 @@ public class MediaSessionService extends Service {
+@@ -216,11 +222,51 @@ public class MediaSessionService extends Service {
          playbackStateActions.put("stop", PlaybackStateCompat.ACTION_STOP);
      }
  
@@ -295,7 +293,7 @@ index e2c1f052c568618637015c022b305cbb71325133..59815ab6f3179a1cf39044ddcb42ea2b
      @Override
      public int onStartCommand(Intent intent, int flags, int startId) {
          if (mediaSession != null) {
-@@ -226,6 +280,11 @@ public class MediaSessionService extends Service {
+@@ -234,6 +280,11 @@ public class MediaSessionService extends Service {
              playbackState = newPlaybackState;
              playbackStateUpdate = true;
              possibleActionsUpdate = true;

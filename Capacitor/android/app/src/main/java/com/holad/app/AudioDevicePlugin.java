@@ -36,9 +36,38 @@ import java.util.Locale;
 public class AudioDevicePlugin extends Plugin {
     private static final String TAG = "AudioDevicePlugin";
     public static volatile long lastBluetoothAclConnectedTime = 0L;
+    public static volatile long lastHeadphonesPauseTime = 0L;
+    public static volatile boolean wasPlayingBeforeHeadphonesPause = false;
+    public static volatile boolean isHeadphonesActive = false;
 
     public static boolean isBluetoothConnecting() {
-        return android.os.SystemClock.uptimeMillis() - lastBluetoothAclConnectedTime < 3000L;
+        long now = android.os.SystemClock.uptimeMillis();
+        // If music was actively playing through headphones and paused recently (within 45s),
+        // any incoming play/resume event is an in-ear wear detection resume, NOT a cold connect!
+        if (wasPlayingBeforeHeadphonesPause && (now - lastHeadphonesPauseTime <= 45000L)) {
+            Log.d(TAG, "isBluetoothConnecting: false (in-ear wear detection resume window active: " + (now - lastHeadphonesPauseTime) + "ms)");
+            return false;
+        }
+        // During cold connection (idle or paused > 45s), block spurious peripheral startup play signals for 3 seconds.
+        boolean connecting = (now - lastBluetoothAclConnectedTime < 3000L);
+        if (connecting) {
+            Log.i(TAG, "isBluetoothConnecting: true (cold connection grace period active)");
+        }
+        return connecting;
+    }
+
+    public static void markPlaybackStarted() {
+        wasPlayingBeforeHeadphonesPause = false;
+        lastHeadphonesPauseTime = 0L;
+        Log.d(TAG, "markPlaybackStarted: cleared in-ear wear detection window");
+    }
+
+    public static void markPlaybackPaused() {
+        if (isHeadphonesActive) {
+            lastHeadphonesPauseTime = android.os.SystemClock.uptimeMillis();
+            wasPlayingBeforeHeadphonesPause = true;
+            Log.i(TAG, "markPlaybackPaused: in-ear wear detection window opened for 45s");
+        }
     }
 
     private AudioManager audioManager;
@@ -73,6 +102,7 @@ public class AudioDevicePlugin extends Plugin {
 
         JSObject initialDevice = getOutputDeviceJs();
         wasHeadphones = initialDevice.optBoolean("isHeadphones", false);
+        isHeadphonesActive = wasHeadphones;
         Log.i(TAG, "AudioDevicePlugin initialized. Initial isHeadphones=" + wasHeadphones);
     }
 
@@ -263,6 +293,7 @@ public class AudioDevicePlugin extends Plugin {
             triggerEmergencyPause(triggerReason);
         }
         wasHeadphones = isNowHeadphones;
+        isHeadphonesActive = isNowHeadphones;
         notifyListeners("outputDeviceChanged", currentDevice);
     }
 
@@ -321,6 +352,11 @@ public class AudioDevicePlugin extends Plugin {
 
     private void triggerEmergencyPause(String reason) {
         acquireWakeLock();
+        if (wasHeadphones || isHeadphonesActive) {
+            lastHeadphonesPauseTime = android.os.SystemClock.uptimeMillis();
+            wasPlayingBeforeHeadphonesPause = true;
+            Log.i(TAG, "Emergency pause: in-ear wear detection window opened for 45s");
+        }
         Log.i(TAG, "Triggering emergency pause, reason: " + reason);
         JSObject data = new JSObject();
         data.put("reason", reason);
@@ -575,6 +611,17 @@ public class AudioDevicePlugin extends Plugin {
     @PluginMethod
     public void getOutputDevice(PluginCall call) {
         call.resolve(getOutputDeviceJs());
+    }
+
+    @PluginMethod
+    public void notifyPlaybackState(PluginCall call) {
+        String state = call.getString("state", "paused");
+        if ("playing".equalsIgnoreCase(state)) {
+            markPlaybackStarted();
+        } else if ("paused".equalsIgnoreCase(state)) {
+            markPlaybackPaused();
+        }
+        call.resolve();
     }
 
     @PluginMethod

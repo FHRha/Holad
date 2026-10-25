@@ -585,3 +585,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 }
 
 export const getAudioEngine = () => AudioEngine.getInstance();
+
+if (typeof window !== 'undefined') {
+    (window as any).getAudioEngine = getAudioEngine;
+}
