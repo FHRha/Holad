@@ -164,7 +164,7 @@ export function handleHeadphonesDisconnected() {
  */
 export function handleHeadphonesConnected() {
   const settings = useSettingsStore.getState();
-  const autoResume = settings.autoResumeOnHeadphonesConnect ?? true;
+  const autoResume = settings.autoResumeOnHeadphonesConnect ?? false;
 
   if (
     lastHeadphonesDisconnectedAt !== null &&

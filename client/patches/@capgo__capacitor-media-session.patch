@@ -1,5 +1,5 @@
 diff --git a/android/src/main/java/com/capgo/mediasession/MediaSessionCallback.java b/android/src/main/java/com/capgo/mediasession/MediaSessionCallback.java
-index bf2df522b2713f019f1a26ae2948bb3f136e0d3d..0f7799a770faee7cfce50e41f1737be5dafb4380 100644
+index 402bc6fb877f919269f0bfcfe535933da83c01e0..0f7799acae44c9e0273863363997e9bb89e5b784 100644
 --- a/android/src/main/java/com/capgo/mediasession/MediaSessionCallback.java
 +++ b/android/src/main/java/com/capgo/mediasession/MediaSessionCallback.java
 @@ -1,16 +1,89 @@
@@ -93,10 +93,33 @@ index bf2df522b2713f019f1a26ae2948bb3f136e0d3d..0f7799a770faee7cfce50e41f1737be5
      public void onPlay() {
          plugin.actionCallback("play");
 diff --git a/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java b/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java
-index ce25ddf64034a84490a33070dd7e578562b13057..e79702da7b83b311be18e968bc06fd38a50cac8e 100644
+index ce25ddf64034a84490a33070dd7e578562b13057..f896ce84d7d96bbe4ae432584dba054d706fed0a 100644
 --- a/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java
 +++ b/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java
-@@ -259,8 +259,7 @@ public class MediaSessionPlugin extends Plugin {
+@@ -88,10 +88,6 @@ public class MediaSessionPlugin extends Plugin {
+     @Override
+     protected void handleOnStop() {
+         super.handleOnStop();
+-
+-        if (startServiceOnlyDuringPlayback && service != null && !isPlaybackActive()) {
+-            stopMediaService();
+-        }
+     }
+ 
+     private void startMediaService() {
+@@ -223,9 +219,9 @@ public class MediaSessionPlugin extends Plugin {
+         playbackState = call.getString("playbackState", playbackState);
+ 
+         boolean playbackActive = isPlaybackActive();
+-        if (startServiceOnlyDuringPlayback && service == null && playbackActive) {
++        if (service == null && playbackActive) {
+             startMediaService();
+-        } else if (startServiceOnlyDuringPlayback && service != null && !playbackActive) {
++        } else if (service != null && "none".equals(playbackState)) {
+             stopMediaService();
+         } else {
+             updateServicePlaybackState();
+@@ -259,8 +255,7 @@ public class MediaSessionPlugin extends Plugin {
      }
  
      public boolean hasActionHandler(String action) {
@@ -106,10 +129,19 @@ index ce25ddf64034a84490a33070dd7e578562b13057..e79702da7b83b311be18e968bc06fd38
      }
  
      public void actionCallback(String action) {
-@@ -268,12 +267,22 @@ public class MediaSessionPlugin extends Plugin {
+@@ -268,9 +263,21 @@ public class MediaSessionPlugin extends Plugin {
      }
  
      public void actionCallback(String action, JSObject data) {
++        if ("playpause".equals(action)) {
++            if ("playing".equalsIgnoreCase(playbackState)) {
++                actionCallback("pause");
++            } else {
++                actionCallback("play");
++            }
++            return;
++        }
++
 +        data.put("action", action);
 +        notifyListeners(action, data);
 +        
@@ -120,21 +152,26 @@ index ce25ddf64034a84490a33070dd7e578562b13057..e79702da7b83b311be18e968bc06fd38
              handler.resolve(data);
          } else {
              Log.d(TAG, "No handler for action " + action);
-+            if ("playpause".equals(action)) {
-+                if ("playing".equalsIgnoreCase(playbackState)) {
-+                    actionCallback("pause");
-+                } else {
-+                    actionCallback("play");
-+                }
-+            }
-         }
-     }
- 
 diff --git a/android/src/main/java/com/capgo/mediasession/MediaSessionService.java b/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
-index e2c1f052c568618637015c022b305cbb71325133..64ffec96d25d917bb35a24154cbd3ce73c21b663 100644
+index e2c1f052c568618637015c022b305cbb71325133..2c45b5de525efc71413eb3afdc20d3c6c20d6efb 100644
 --- a/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
 +++ b/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
-@@ -115,10 +115,18 @@ public class MediaSessionService extends Service {
+@@ -5,12 +5,14 @@ import android.app.NotificationChannel;
+ import android.app.NotificationManager;
+ import android.app.PendingIntent;
+ import android.app.Service;
++import android.content.Context;
+ import android.content.Intent;
+ import android.content.pm.ServiceInfo;
+ import android.graphics.Bitmap;
+ import android.os.Binder;
+ import android.os.Build;
+ import android.os.IBinder;
++import android.os.PowerManager;
+ import android.support.v4.media.MediaMetadataCompat;
+ import android.support.v4.media.session.MediaSessionCompat;
+ import android.support.v4.media.session.PlaybackStateCompat;
+@@ -115,10 +117,18 @@ public class MediaSessionService extends Service {
              notificationManager.createNotificationChannel(channel);
          }
  
@@ -154,7 +191,7 @@ index e2c1f052c568618637015c022b305cbb71325133..64ffec96d25d917bb35a24154cbd3ce7
              .setContentIntent(
                  PendingIntent.getActivity(
                      getApplicationContext(),
-@@ -142,7 +150,7 @@ public class MediaSessionService extends Service {
+@@ -142,7 +152,7 @@ public class MediaSessionService extends Service {
                  "Play",
                  MediaButtonReceiver.buildMediaButtonPendingIntent(
                      this,
@@ -163,7 +200,7 @@ index e2c1f052c568618637015c022b305cbb71325133..64ffec96d25d917bb35a24154cbd3ce7
                  )
              )
          );
-@@ -153,7 +161,7 @@ public class MediaSessionService extends Service {
+@@ -153,7 +163,7 @@ public class MediaSessionService extends Service {
                  "Pause",
                  MediaButtonReceiver.buildMediaButtonPendingIntent(
                      this,
@@ -172,3 +209,67 @@ index e2c1f052c568618637015c022b305cbb71325133..64ffec96d25d917bb35a24154cbd3ce7
                  )
              )
          );
+@@ -208,11 +218,51 @@ public class MediaSessionService extends Service {
+         playbackStateActions.put("stop", PlaybackStateCompat.ACTION_STOP);
+     }
+ 
++    private PowerManager.WakeLock pauseWakeLock;
++
++    private void acquirePauseWakeLock() {
++        try {
++            if (pauseWakeLock == null) {
++                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
++                if (pm != null) {
++                    pauseWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Holad:MediaSessionPauseWakeLock");
++                    pauseWakeLock.setReferenceCounted(false);
++                }
++            }
++            if (pauseWakeLock != null) {
++                pauseWakeLock.acquire(45000L);
++                Log.d(TAG, "Acquired partial WakeLock for 45s during playback pause");
++            }
++        } catch (Exception e) {
++            Log.w(TAG, "Failed to acquire pause WakeLock", e);
++        }
++    }
++
++    private void releasePauseWakeLock() {
++        try {
++            if (pauseWakeLock != null && pauseWakeLock.isHeld()) {
++                pauseWakeLock.release();
++                Log.d(TAG, "Released pause WakeLock");
++            }
++        } catch (Exception e) {
++            Log.w(TAG, "Failed to release pause WakeLock", e);
++        }
++    }
++
+     public void destroy() {
++        releasePauseWakeLock();
+         stopForeground(true);
+         stopSelf();
+     }
+ 
++    @Override
++    public void onTaskRemoved(Intent rootIntent) {
++        super.onTaskRemoved(rootIntent);
++        if (playbackState != PlaybackStateCompat.STATE_PLAYING) {
++            destroy();
++        }
++    }
++
+     @Override
+     public int onStartCommand(Intent intent, int flags, int startId) {
+         if (mediaSession != null) {
+@@ -226,6 +276,11 @@ public class MediaSessionService extends Service {
+             playbackState = newPlaybackState;
+             playbackStateUpdate = true;
+             possibleActionsUpdate = true;
++            if (playbackState == PlaybackStateCompat.STATE_PAUSED) {
++                acquirePauseWakeLock();
++            } else if (playbackState == PlaybackStateCompat.STATE_PLAYING) {
++                releasePauseWakeLock();
++            }
+         }
+     }
+ 

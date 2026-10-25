@@ -6,6 +6,7 @@ import { useAudioStore } from '../store/audioStore';
 import { useHoladStore } from '../store/holadStore';
 import { useWindowVisibility, getIsWindowVisible } from './useWindowVisibility';
 import { getCoverArtUrl } from '../api/subsonic';
+import { getAudioEngine } from '../audio/AudioEngine';
 
 export function useMediaSession() {
   const currentTrack = usePlayerStore(state => state.queue[state.currentIndex]);
@@ -73,8 +74,16 @@ export function useMediaSession() {
       if (Capacitor.isNativePlatform()) {
         MediaSession.setMetadata(metadata);
         
-        MediaSession.setActionHandler({ action: 'play' }, () => setIsPlaying(true));
-        MediaSession.setActionHandler({ action: 'pause' }, () => setIsPlaying(false));
+        MediaSession.setActionHandler({ action: 'play' }, () => {
+          setIsPlaying(true);
+          const engine = getAudioEngine();
+          if (engine) engine.resume().catch(() => {});
+        });
+        MediaSession.setActionHandler({ action: 'pause' }, () => {
+          setIsPlaying(false);
+          const engine = getAudioEngine();
+          if (engine) engine.pause();
+        });
         MediaSession.setActionHandler({ action: 'previoustrack' }, () => prevTrack());
         MediaSession.setActionHandler({ action: 'nexttrack' }, () => nextTrack());
         MediaSession.setActionHandler({ action: 'seekbackward' }, () => handleSeekOffset(-30));
@@ -120,9 +129,9 @@ export function useMediaSession() {
     const setupListeners = async () => {
       try {
         const events: Array<{ event: string; handler: () => void }> = [
-          { event: 'play', handler: () => setIsPlaying(true) },
-          { event: 'pause', handler: () => setIsPlaying(false) },
-          { event: 'playpause', handler: () => setIsPlaying(!usePlayerStore.getState().isPlaying) },
+          { event: 'play', handler: () => { setIsPlaying(true); const engine = getAudioEngine(); if (engine) engine.resume().catch(() => {}); } },
+          { event: 'pause', handler: () => { setIsPlaying(false); const engine = getAudioEngine(); if (engine) engine.pause(); } },
+          { event: 'playpause', handler: () => { const playing = !usePlayerStore.getState().isPlaying; setIsPlaying(playing); const engine = getAudioEngine(); if (engine) { if (playing) engine.resume().catch(() => {}); else engine.pause(); } } },
           { event: 'nexttrack', handler: () => nextTrack() },
           { event: 'previoustrack', handler: () => prevTrack() },
         ];
