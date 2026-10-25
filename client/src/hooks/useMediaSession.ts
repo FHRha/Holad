@@ -164,13 +164,19 @@ export function useMediaSession() {
       const engine = getAudioEngine();
       if (engine) engine.pause();
     };
+    const onDirectNextTrack = () => nextTrack();
+    const onDirectPrevTrack = () => prevTrack();
     window.addEventListener('holad:mediasession:play', onDirectPlay);
     window.addEventListener('holad:mediasession:pause', onDirectPause);
+    window.addEventListener('holad:mediasession:nexttrack', onDirectNextTrack);
+    window.addEventListener('holad:mediasession:previoustrack', onDirectPrevTrack);
 
     return () => {
       isSubscribed = false;
       window.removeEventListener('holad:mediasession:play', onDirectPlay);
       window.removeEventListener('holad:mediasession:pause', onDirectPause);
+      window.removeEventListener('holad:mediasession:nexttrack', onDirectNextTrack);
+      window.removeEventListener('holad:mediasession:previoustrack', onDirectPrevTrack);
       handles.forEach((handle) => {
         try {
           if (handle && typeof handle.remove === 'function') {

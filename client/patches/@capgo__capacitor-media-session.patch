@@ -111,3 +111,398 @@ index 402bc6fb877f919269f0bfcfe535933da83c01e0..e6aaf6787001ecfaafd93b58d3634963
          plugin.actionCallback("play");
      }
  
+diff --git a/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java b/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java
+index ce25ddf64034a84490a33070dd7e578562b13057..e727768ba0966fb46f9e63933e46646fa1e3fa86 100644
+--- a/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java
++++ b/android/src/main/java/com/capgo/mediasession/MediaSessionPlugin.java
+@@ -88,10 +88,7 @@ public class MediaSessionPlugin extends Plugin {
+     @Override
+     protected void handleOnStop() {
+         super.handleOnStop();
+-
+-        if (startServiceOnlyDuringPlayback && service != null && !isPlaybackActive()) {
+-            stopMediaService();
+-        }
++        // Do not stop service on stop - keep alive for background playback and earbud controls
+     }
+ 
+     private void startMediaService() {
+@@ -111,85 +108,48 @@ public class MediaSessionPlugin extends Plugin {
+             return;
+         }
+ 
+-        try {
+-            context.unbindService(serviceConnection);
+-        } catch (IllegalArgumentException ex) {
+-            Log.w(TAG, "Service already unbound", ex);
+-        }
++        context.unbindService(serviceConnection);
++        service.destroy();
+         service = null;
+     }
+ 
+     private boolean isPlaybackActive() {
+-        return "playing".equals(playbackState) || "paused".equals(playbackState);
++        return "playing".equals(playbackState);
+     }
+ 
+     private void updateServiceMetadata() {
+-        if (service == null) {
+-            return;
++        if (service != null) {
++            service.setTitle(title);
++            service.setArtist(artist);
++            service.setAlbum(album);
++            service.setArtwork(artwork);
++            service.updateMetadata();
++            service.updateNotification();
+         }
+-        service.setTitle(title);
+-        service.setArtist(artist);
+-        service.setAlbum(album);
+-        service.setArtwork(artwork);
+-        service.update();
+     }
+ 
+     private void updateServicePlaybackState() {
+-        if (service == null) {
+-            return;
+-        }
++        if (service != null) {
++            int state = PlaybackStateCompat.STATE_NONE;
++            if ("paused".equals(playbackState)) {
++                state = PlaybackStateCompat.STATE_PAUSED;
++            } else if ("playing".equals(playbackState)) {
++                state = PlaybackStateCompat.STATE_PLAYING;
++            }
+ 
+-        if ("playing".equals(playbackState)) {
+-            service.setPlaybackState(PlaybackStateCompat.STATE_PLAYING);
+-        } else if ("paused".equals(playbackState)) {
+-            service.setPlaybackState(PlaybackStateCompat.STATE_PAUSED);
+-        } else {
+-            service.setPlaybackState(PlaybackStateCompat.STATE_NONE);
++            service.setPlaybackState(state);
++            service.updatePlaybackState();
++            service.updateNotification();
+         }
+-        service.update();
+     }
+ 
+     private void updateServicePositionState() {
+-        if (service == null) {
+-            return;
++        if (service != null) {
++            service.setDuration((long) (duration * 1000.0));
++            service.setPosition((long) (position * 1000.0));
++            service.setPlaybackSpeed((float) playbackRate);
++            service.updatePlaybackState();
+         }
+-
+-        service.setDuration(Math.round(duration * 1000));
+-        service.setPosition(Math.round(position * 1000));
+-        float playbackSpeed = playbackRate == 0.0 ? 1.0F : (float) playbackRate;
+-        service.setPlaybackSpeed(playbackSpeed);
+-        service.update();
+-    }
+-
+-    private Bitmap urlToBitmap(String url) throws IOException {
+-        if (url == null || url.isEmpty()) {
+-            return null;
+-        }
+-
+-        boolean blobUrl = url.startsWith("blob:");
+-        if (blobUrl) {
+-            Log.i(TAG, "Blob URLs are not supported for media artwork");
+-            return null;
+-        }
+-
+-        boolean httpUrl = url.startsWith("http");
+-        if (httpUrl) {
+-            HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+-            connection.setDoInput(true);
+-            connection.connect();
+-            try (InputStream inputStream = connection.getInputStream()) {
+-                return BitmapFactory.decodeStream(inputStream);
+-            }
+-        }
+-
+-        int base64Index = url.indexOf(";base64,");
+-        if (base64Index != -1) {
+-            String base64Data = url.substring(base64Index + 8);
+-            byte[] decoded = Base64.decode(base64Data, Base64.DEFAULT);
+-            return BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
+-        }
+-
+-        return null;
+     }
+ 
+     @PluginMethod
+@@ -198,20 +158,36 @@ public class MediaSessionPlugin extends Plugin {
+         artist = call.getString("artist", artist);
+         album = call.getString("album", album);
+ 
+-        try {
+-            JSArray artworkArray = call.getArray("artwork");
+-            if (artworkArray != null) {
+-                List<JSONObject> artworkList = artworkArray.toList();
+-                for (JSONObject artworkJson : artworkList) {
+-                    String src = artworkJson.optString("src", null);
+-                    if (src != null) {
+-                        artwork = urlToBitmap(src);
++        JSArray artworkArray = call.getArray("artwork");
++        if (artworkArray != null && artworkArray.length() > 0) {
++            try {
++                List<Object> artworkList = artworkArray.toList();
++                for (int i = artworkList.size() - 1; i >= 0; i--) {
++                    JSONObject artworkObject = new JSONObject((HashMap) artworkList.get(i));
++                    String src = artworkObject.getString("src");
++                    if (src.startsWith("data:")) {
++                        byte[] decodedString = Base64.decode(src.substring(src.indexOf(",") + 1), Base64.DEFAULT);
++                        artwork = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
++                        break;
++                    } else if (src.startsWith("http")) {
++                        new Thread(() -> {
++                            try {
++                                HttpURLConnection connection = (HttpURLConnection) new URL(src).openConnection();
++                                connection.setDoInput(true);
++                                connection.connect();
++                                InputStream input = connection.getInputStream();
++                                artwork = BitmapFactory.decodeStream(input);
++                                updateServiceMetadata();
++                            } catch (IOException e) {
++                                Log.w(TAG, "Failed to load artwork from url", e);
++                            }
++                        }).start();
+                         break;
+                     }
+                 }
++            } catch (JSONException e) {
++                Log.w(TAG, "Failed to parse artwork JSON", e);
+             }
+-        } catch (JSONException | IOException ex) {
+-            Log.w(TAG, "Unable to parse artwork", ex);
+         }
+ 
+         updateServiceMetadata();
+@@ -222,10 +198,24 @@ public class MediaSessionPlugin extends Plugin {
+     public void setPlaybackState(PluginCall call) {
+         playbackState = call.getString("playbackState", playbackState);
+ 
++        if ("playing".equalsIgnoreCase(playbackState)) {
++            try {
++                Class<?> clazz = Class.forName("com.holad.app.AudioDevicePlugin");
++                java.lang.reflect.Method method = clazz.getMethod("markPlaybackStarted");
++                method.invoke(null);
++            } catch (Throwable ignored) {}
++        } else if ("paused".equalsIgnoreCase(playbackState)) {
++            try {
++                Class<?> clazz = Class.forName("com.holad.app.AudioDevicePlugin");
++                java.lang.reflect.Method method = clazz.getMethod("markPlaybackPaused");
++                method.invoke(null);
++            } catch (Throwable ignored) {}
++        }
++
+         boolean playbackActive = isPlaybackActive();
+-        if (startServiceOnlyDuringPlayback && service == null && playbackActive) {
++        if (service == null && playbackActive) {
+             startMediaService();
+-        } else if (startServiceOnlyDuringPlayback && service != null && !playbackActive) {
++        } else if (service != null && "none".equals(playbackState)) {
+             stopMediaService();
+         } else {
+             updateServicePlaybackState();
+@@ -268,13 +258,62 @@ public class MediaSessionPlugin extends Plugin {
+     }
+ 
+     public void actionCallback(String action, JSObject data) {
++        if ("playpause".equals(action)) {
++            if ("playing".equalsIgnoreCase(playbackState)) {
++                actionCallback("pause");
++            } else {
++                actionCallback("play");
++            }
++            return;
++        }
++
++        data.put("action", action);
++        notifyListeners(action, data);
++        
+         PluginCall handler = actionHandlers.get(action);
+         if (handler != null && !PluginCall.CALLBACK_ID_DANGLING.equals(handler.getCallbackId())) {
+-            data.put("action", action);
++            handler.setKeepAlive(true);
+             handler.resolve(data);
+         } else {
+             Log.d(TAG, "No handler for action " + action);
+         }
++
++        // Direct WebView bridge invocation for instant responsiveness (e.g. In-Ear Wear Detection & Earbud Gestures)
++        if (getBridge() != null && getBridge().getWebView() != null) {
++            getBridge().getWebView().post(() -> {
++                try {
++                    if ("play".equals(action)) {
++                        getBridge().getWebView().evaluateJavascript(
++                            "(function() { " +
++                            "  try { if (window.getAudioEngine) { window.getAudioEngine().resume(); } } catch(e) {} " +
++                            "  window.dispatchEvent(new CustomEvent('holad:mediasession:play')); " +
++                            "})()",
++                            null
++                        );
++                    } else if ("pause".equals(action)) {
++                        getBridge().getWebView().evaluateJavascript(
++                            "(function() { " +
++                            "  try { if (window.getAudioEngine) { window.getAudioEngine().pause(); } } catch(e) {} " +
++                            "  window.dispatchEvent(new CustomEvent('holad:mediasession:pause')); " +
++                            "})()",
++                            null
++                        );
++                    } else if ("nexttrack".equals(action)) {
++                        getBridge().getWebView().evaluateJavascript(
++                            "window.dispatchEvent(new CustomEvent('holad:mediasession:nexttrack'));",
++                            null
++                        );
++                    } else if ("previoustrack".equals(action)) {
++                        getBridge().getWebView().evaluateJavascript(
++                            "window.dispatchEvent(new CustomEvent('holad:mediasession:previoustrack'));",
++                            null
++                        );
++                    }
++                } catch (Throwable t) {
++                    Log.w(TAG, "Failed direct WebView evaluation", t);
++                }
++            });
++        }
+     }
+ 
+     @PluginMethod
+diff --git a/android/src/main/java/com/capgo/mediasession/MediaSessionService.java b/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
+index e2c1f052c568618637015c022b305cbb71325133..d4cdf6508bce9577e82ea1da2978cb0c26b9d62f 100644
+--- a/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
++++ b/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
+@@ -5,12 +5,14 @@ import android.app.NotificationChannel;
+ import android.app.NotificationManager;
+ import android.app.PendingIntent;
+ import android.app.Service;
++import android.content.Context;
+ import android.content.Intent;
+ import android.content.pm.ServiceInfo;
+ import android.graphics.Bitmap;
+ import android.os.Binder;
+ import android.os.Build;
+ import android.os.IBinder;
++import android.os.PowerManager;
+ import android.support.v4.media.MediaMetadataCompat;
+ import android.support.v4.media.session.MediaSessionCompat;
+ import android.support.v4.media.session.PlaybackStateCompat;
+@@ -94,6 +96,20 @@ public class MediaSessionService extends Service {
+ 
+         mediaSession = new MediaSessionCompat(this, "CapgoMediaSession");
+         mediaSession.setCallback(new MediaSessionCallback(plugin));
++
++        Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
++        mediaButtonIntent.setClass(this, MediaButtonReceiver.class);
++        PendingIntent mbrIntent = PendingIntent.getBroadcast(
++            this,
++            0,
++            mediaButtonIntent,
++            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0
++        );
++        mediaSession.setMediaButtonReceiver(mbrIntent);
++        mediaSession.setFlags(
++            MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
++            MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
++        );
+         mediaSession.setActive(true);
+ 
+         playbackStateBuilder = new PlaybackStateCompat.Builder()
+@@ -208,14 +224,54 @@ public class MediaSessionService extends Service {
+         playbackStateActions.put("stop", PlaybackStateCompat.ACTION_STOP);
+     }
+ 
++    private PowerManager.WakeLock pauseWakeLock;
++
++    private void acquirePauseWakeLock() {
++        try {
++            if (pauseWakeLock == null) {
++                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
++                if (pm != null) {
++                    pauseWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Holad:MediaSessionPauseWakeLock");
++                    pauseWakeLock.setReferenceCounted(false);
++                }
++            }
++            if (pauseWakeLock != null) {
++                pauseWakeLock.acquire(45000L);
++                Log.d(TAG, "Acquired partial WakeLock for 45s during playback pause");
++            }
++        } catch (Exception e) {
++            Log.w(TAG, "Failed to acquire pause WakeLock", e);
++        }
++    }
++
++    private void releasePauseWakeLock() {
++        try {
++            if (pauseWakeLock != null && pauseWakeLock.isHeld()) {
++                pauseWakeLock.release();
++                Log.d(TAG, "Released pause WakeLock");
++            }
++        } catch (Exception e) {
++            Log.w(TAG, "Failed to release pause WakeLock", e);
++        }
++    }
++
+     public void destroy() {
++        releasePauseWakeLock();
+         stopForeground(true);
+         stopSelf();
+     }
+ 
++    @Override
++    public void onTaskRemoved(Intent rootIntent) {
++        super.onTaskRemoved(rootIntent);
++        if (playbackState != PlaybackStateCompat.STATE_PLAYING) {
++            destroy();
++        }
++    }
++
+     @Override
+     public int onStartCommand(Intent intent, int flags, int startId) {
+-        if (mediaSession != null) {
++        if (mediaSession != null && intent != null) {
+             MediaButtonReceiver.handleIntent(mediaSession, intent);
+         }
+         return super.onStartCommand(intent, flags, startId);
+@@ -226,6 +282,11 @@ public class MediaSessionService extends Service {
+             playbackState = newPlaybackState;
+             playbackStateUpdate = true;
+             possibleActionsUpdate = true;
++            if (playbackState == PlaybackStateCompat.STATE_PAUSED) {
++                acquirePauseWakeLock();
++            } else if (playbackState == PlaybackStateCompat.STATE_PLAYING) {
++                releasePauseWakeLock();
++            }
+         }
+     }
+ 
+@@ -281,6 +342,21 @@ public class MediaSessionService extends Service {
+         }
+     }
+ 
++    public void updateMetadata() {
++        mediaMetadataUpdate = true;
++        update();
++    }
++
++    public void updatePlaybackState() {
++        playbackStateUpdate = true;
++        update();
++    }
++
++    public void updateNotification() {
++        notificationUpdate = true;
++        update();
++    }
++
+     @SuppressLint("RestrictedApi")
+     public void update() {
+         if (possibleActionsUpdate) {
