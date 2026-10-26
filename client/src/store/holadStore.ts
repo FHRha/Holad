@@ -4,17 +4,17 @@ import { usePlayerStore } from './playerStore';
 import { useAudioStore } from './audioStore';
 import { useSettingsStore } from './settingsStore';
 import { useHistoryStore } from './historyStore';
-import { syncHistoryWithServer } from '../api/history';
-
 import { useAuthStore } from './authStore';
 import { getSocketUrl, getHoladServerUrl, getSocketPath } from '../utils/serverConfig';
-import { isTauri, isCapacitor } from '../utils/StorageManager';
-import { getAudioEngine } from '../audio/AudioEngine';
-
-const isMobileClient = () => {
-  if (typeof window === 'undefined') return false;
-  return !isTauri() && (isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
-};
+import {
+  generateDeviceId,
+  getDeviceName,
+  isMobileClient,
+  handleRemoteCommand,
+  setupPlaybackSubscriptions,
+  cleanupPlaybackSubscriptions,
+  setIsApplyingRemoteState as setSyncApplyingRemoteState,
+} from '../connect';
 
 export interface HoladDevice {
   id: string;
@@ -22,7 +22,7 @@ export interface HoladDevice {
   socketId?: string;
 }
 
-interface HoladState {
+export interface HoladState {
   socket: Socket | null;
   devices: HoladDevice[];
   activeDeviceId: string | null;
@@ -43,67 +43,8 @@ interface HoladState {
   setupStoreSubscriptions: () => void;
 }
 
-
-
-function generateDeviceId() {
-  const genId = () => typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
-  if (typeof window === 'undefined') {
-    return genId();
-  }
-  let id: string | null = null;
-  try {
-    id = localStorage.getItem('holad_deviceId');
-  } catch {}
-  if (!id) {
-    try {
-      id = sessionStorage.getItem('holad_deviceId');
-    } catch {}
-  }
-  if (!id) {
-    id = genId();
-  }
-  try {
-    localStorage.setItem('holad_deviceId', id);
-  } catch {}
-  try {
-    sessionStorage.setItem('holad_deviceId', id);
-  } catch {}
-  return id;
-}
-
-function getDeviceName() {
-  const ua = navigator.userAgent;
-  
-  if (ua.includes('Holad-Mobile')) {
-    const os = /Android/.test(ua) ? 'Android' : /iOS|iPhone|iPad/.test(ua) ? 'iOS' : 'OS';
-    return `Holad App on ${os}`;
-  }
-  
-  if (ua.includes('Holad-Desktop')) {
-    const os = /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'OS';
-    return `Holad Desktop on ${os}`;
-  }
-
-  const isMobile = /Mobi|Android/i.test(ua);
-  const browser = /Chrome/.test(ua) ? 'Chrome' : 
-                  /Safari/.test(ua) ? 'Safari' : 
-                  /Firefox/.test(ua) ? 'Firefox' : 'Browser';
-  const os = /Windows/.test(ua) ? 'Windows' : 
-             /Mac/.test(ua) ? 'Mac' : 
-             /Linux/.test(ua) ? 'Linux' : 
-             /Android/.test(ua) ? 'Android' : 
-             /iOS|iPhone|iPad/.test(ua) ? 'iOS' : 'OS';
-  
-  return `${isMobile ? 'Mobile' : 'Desktop'} ${browser} on ${os}`;
-}
-
 export const useHoladStore = create<HoladState>((set, get) => {
   let socket: Socket | null = null;
-  let unsubscribeStore: (() => void) | null = null;
-  let unsubscribeSettings: (() => void) | null = null;
-  let isApplyingRemoteState = false;
   let hasRequestedHistory = false;
   let isInitialSync = true;
 
@@ -124,7 +65,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
     isApplyingRemoteState: false,
 
     setIsApplyingRemoteState: (val: boolean) => {
-      isApplyingRemoteState = val;
+      setSyncApplyingRemoteState(val);
       set({ isApplyingRemoteState: val });
     },
 
@@ -183,7 +124,6 @@ export const useHoladStore = create<HoladState>((set, get) => {
       socket.on('holad_devices', (data: { devices: HoladDevice[], activeDeviceId: string | null }) => {
         const wasNotActive = get().activeDeviceId !== deviceId;
         
-        // Request history if we just joined and there's another device to ask
         if (!hasRequestedHistory && data.devices.length > 1) {
           hasRequestedHistory = true;
           console.log('[Holad] Emitting requestHistory because there are other devices in the room');
@@ -198,44 +138,42 @@ export const useHoladStore = create<HoladState>((set, get) => {
         const hasOtherPlaying = data.devices.some(d => d.id !== deviceId && get().isRemotePlaying);
 
         if (!isActiveDeviceOnline) {
-            if (data.devices.length === 1 && data.devices[0].id === deviceId) {
-                get().setActiveDevice(deviceId);
-            } else if (usePlayerStore.getState().isPlaying) {
-                get().setActiveDevice(deviceId);
-            } else if (data.devices.length > 0 && data.devices[0].id === deviceId && !hasOtherPlaying) {
-                get().setActiveDevice(deviceId);
-            } else {
-                usePlayerStore.getState().setIsPlaying(false);
-            }
+          if (data.devices.length === 1 && data.devices[0].id === deviceId) {
+            get().setActiveDevice(deviceId);
+          } else if (usePlayerStore.getState().isPlaying) {
+            get().setActiveDevice(deviceId);
+          } else if (data.devices.length > 0 && data.devices[0].id === deviceId && !hasOtherPlaying) {
+            get().setActiveDevice(deviceId);
+          } else {
+            usePlayerStore.getState().setIsPlaying(false);
+          }
         } else if (data.activeDeviceId === deviceId && wasNotActive) {
-            // We just became the active device! (e.g. someone transferred playback to us)
-            const playerStore = usePlayerStore.getState();
-            const audioStore = useAudioStore.getState();
-            
-            // Assert our state to the room
-            socket!.emit('holad_updateState', {
-                roomId: get().roomId,
-                deviceId: get().deviceId,
-                isPlaying: playerStore.isPlaying,
-                currentIndex: playerStore.currentIndex,
-                queue: playerStore.queue
-            });
-            
-            // Resume playback from the currently synced progress
-            if (playerStore.queue.length > 0 && playerStore.currentIndex >= 0) {
-               const track = playerStore.queue[playerStore.currentIndex];
-               const duration = audioStore.duration || track?.duration;
-               if (duration) {
-                  const targetTime = (audioStore.progress / 100) * duration;
-                  playerStore.setInitialPosition(targetTime * 1000);
-               }
+          const playerStore = usePlayerStore.getState();
+          const audioStore = useAudioStore.getState();
+          
+          socket!.emit('holad_updateState', {
+            roomId: get().roomId,
+            deviceId: get().deviceId,
+            isPlaying: playerStore.isPlaying,
+            currentIndex: playerStore.currentIndex,
+            queue: playerStore.queue
+          });
+          
+          if (playerStore.queue.length > 0 && playerStore.currentIndex >= 0) {
+            const track = playerStore.queue[playerStore.currentIndex];
+            const duration = audioStore.duration || track?.duration;
+            if (duration) {
+              const targetTime = (audioStore.progress / 100) * duration;
+              playerStore.setInitialPosition(targetTime * 1000);
             }
+          }
         }
         set({ devices: data.devices, activeDeviceId: data.activeDeviceId });
       });
 
       socket.on('holad_syncState', (state: any) => {
-        isApplyingRemoteState = true;
+        setSyncApplyingRemoteState(true);
+        set({ isApplyingRemoteState: true });
         const store = usePlayerStore.getState();
         const isMobile = isMobileClient();
 
@@ -250,8 +188,6 @@ export const useHoladStore = create<HoladState>((set, get) => {
         if (state.isPlaying !== undefined) {
           set({ isRemotePlaying: state.isPlaying });
           if (isInitialSync) {
-            // Guard against remote room state forcing pause/play during initial startup/sync
-            // if the user has ALREADY initiated local playback.
             if (!store.isPlaying) {
               store.setIsPlaying(isMobile ? false : state.isPlaying);
             }
@@ -272,397 +208,104 @@ export const useHoladStore = create<HoladState>((set, get) => {
 
         const settingsStore = useSettingsStore.getState();
         if (state.accentColor !== undefined && state.accentColor !== settingsStore.accentColor) {
-           settingsStore.setAccentColor(state.accentColor);
+          settingsStore.setAccentColor(state.accentColor);
         }
         if (state.customColors !== undefined) {
-           if (state.customColors[0] !== settingsStore.customColors[0]) settingsStore.setCustomColor(0, state.customColors[0]);
-           if (state.customColors[1] !== settingsStore.customColors[1]) settingsStore.setCustomColor(1, state.customColors[1]);
-           if (state.customColors[2] !== settingsStore.customColors[2]) settingsStore.setCustomColor(2, state.customColors[2]);
+          if (state.customColors[0] !== settingsStore.customColors[0]) settingsStore.setCustomColor(0, state.customColors[0]);
+          if (state.customColors[1] !== settingsStore.customColors[1]) settingsStore.setCustomColor(1, state.customColors[1]);
+          if (state.customColors[2] !== settingsStore.customColors[2]) settingsStore.setCustomColor(2, state.customColors[2]);
         }
         
         isInitialSync = false;
-        setTimeout(() => { isApplyingRemoteState = false; }, 50);
+        setTimeout(() => {
+          setSyncApplyingRemoteState(false);
+          set({ isApplyingRemoteState: false });
+        }, 50);
       });
 
       socket.on('holad_syncSettings', (settings: any) => {
-        isApplyingRemoteState = true;
+        setSyncApplyingRemoteState(true);
+        set({ isApplyingRemoteState: true });
         
         const settingsStore = useSettingsStore.getState();
         if (settings.accentColor !== undefined && settings.accentColor !== settingsStore.accentColor) {
-           settingsStore.setAccentColor(settings.accentColor);
+          settingsStore.setAccentColor(settings.accentColor);
         }
         if (settings.customColors !== undefined) {
-           if (settings.customColors[0] !== settingsStore.customColors[0]) settingsStore.setCustomColor(0, settings.customColors[0]);
-           if (settings.customColors[1] !== settingsStore.customColors[1]) settingsStore.setCustomColor(1, settings.customColors[1]);
-           if (settings.customColors[2] !== settingsStore.customColors[2]) settingsStore.setCustomColor(2, settings.customColors[2]);
+          if (settings.customColors[0] !== settingsStore.customColors[0]) settingsStore.setCustomColor(0, settings.customColors[0]);
+          if (settings.customColors[1] !== settingsStore.customColors[1]) settingsStore.setCustomColor(1, settings.customColors[1]);
+          if (settings.customColors[2] !== settingsStore.customColors[2]) settingsStore.setCustomColor(2, settings.customColors[2]);
         }
         
-        setTimeout(() => { isApplyingRemoteState = false; }, 50);
+        setTimeout(() => {
+          setSyncApplyingRemoteState(false);
+          set({ isApplyingRemoteState: false });
+        }, 50);
       });
 
       socket.on('holad_remoteCommand', (command: { type: string, payload?: any }) => {
-        if (command.type === 'exclusionToggled') {
-          const { entityId, entityType, isExcluded, fingerprint } = command.payload || {};
-          const playerStore = usePlayerStore.getState();
-          if (entityType === 'track') {
-            const current = playerStore.excludedTrackIds;
-            const updated = isExcluded
-              ? [...new Set([...current, entityId])]
-              : current.filter(id => id !== entityId);
-            const currentFps = playerStore.excludedFingerprints || [];
-            const updatedFps = fingerprint
-              ? (isExcluded
-                  ? [...new Set([...currentFps, fingerprint])]
-                  : currentFps.filter(f => f !== fingerprint))
-              : currentFps;
-            usePlayerStore.setState({ excludedTrackIds: updated, excludedFingerprints: updatedFps });
-          } else if (entityType === 'album') {
-            const current = playerStore.excludedAlbumIds;
-            const updated = isExcluded
-              ? [...new Set([...current, entityId])]
-              : current.filter(id => id !== entityId);
-            usePlayerStore.setState({ excludedAlbumIds: updated });
-          }
-          return;
-        }
-
-        if (command.type === 'exclusionsSynced') {
-          const { excludedTrackIds, excludedAlbumIds, excludedFingerprints } = command.payload || {};
-          usePlayerStore.setState({
-            excludedTrackIds: Array.isArray(excludedTrackIds) ? excludedTrackIds : [],
-            excludedAlbumIds: Array.isArray(excludedAlbumIds) ? excludedAlbumIds : [],
-            excludedFingerprints: Array.isArray(excludedFingerprints) ? excludedFingerprints : []
-          });
-          return;
-        }
-        
-        if (command.type === 'syncHistory') {
-          useHistoryStore.getState().addTrackToHistory(command.payload.track, command.payload.playedAt);
-          return;
-        }
-        
-        if (command.type === 'requestHistory') {
-          console.log('[Holad] Received requestHistory.');
-          const history = useHistoryStore.getState().history;
-          console.log('[Holad] Emitting history via REST API with tracks:', history.length);
-          if (history.length > 0) {
-            const { user, token, salt, url } = useAuthStore.getState();
-            fetch(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(get().roomId!)}`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-user': encodeURIComponent(user),
-                'x-token': encodeURIComponent(token),
-                'x-salt': encodeURIComponent(salt),
-                'x-url': encodeURIComponent(url)
-              },
-              body: JSON.stringify(history)
-            }).catch(err => console.error('[Holad] Failed to upload history:', err));
-          }
-          return;
-        }
-        
-        if (command.type === 'historyAvailable') {
-          console.log('[Holad] Received historyAvailable, syncing with server SQLite DB...');
-          syncHistoryWithServer().catch(err => console.error('[Holad] Failed to sync history:', err));
-          return;
-        }
-
-        if (command.type === 'clearHistory') {
-          const fromUser = (command as any).fromUserId;
-          const currentRoom = get().roomId;
-          if (!fromUser || fromUser === currentRoom) {
-            useHistoryStore.getState().clearHistory();
-          } else {
-            console.warn('[Holad] Ignored unauthorized clearHistory command from external peer:', fromUser);
-          }
-          return;
-        }
-
-        const currentActive = get().activeDeviceId;
-        if (currentActive === deviceId) {
-          const store = usePlayerStore.getState();
-          switch (command.type) {
-            case 'requestTransfer':
-              // We are active. Someone wants to take over. Send our exact state first, then transfer.
-              let currentTime = 0;
-              const engine = getAudioEngine();
-              if (engine) {
-                 currentTime = engine.getCurrentTime();
-              } else {
-                 const track = store.queue[store.currentIndex];
-                 const duration = useAudioStore.getState().duration || track?.duration || 1;
-                 currentTime = (useAudioStore.getState().progress / 100) * duration;
-              }
-              const stateToSync = {
-                isPlaying: store.isPlaying,
-                currentIndex: store.currentIndex,
-                queue: store.queue,
-                currentTime: currentTime,
-                accentColor: useSettingsStore.getState().accentColor,
-                customColors: useSettingsStore.getState().customColors,
-                lastPausedAt: get().lastPausedAt
-              };
-              socket?.emit('holad_updateState', { roomId: get().roomId, deviceId, ...stateToSync });
-              // Then hand over control
-              socket?.emit('holad_setActiveDevice', command.payload);
-              break;
-            case 'requestState': {
-              let curTime = 0;
-              const eng = getAudioEngine();
-              if (eng) {
-                 curTime = eng.getCurrentTime();
-              } else {
-                 const track = store.queue[store.currentIndex];
-                 const duration = useAudioStore.getState().duration || track?.duration || 1;
-                 curTime = (useAudioStore.getState().progress / 100) * duration;
-              }
-              const currentState = {
-                isPlaying: store.isPlaying,
-                currentIndex: store.currentIndex,
-                queue: store.queue,
-                currentTime: curTime,
-                accentColor: useSettingsStore.getState().accentColor,
-                customColors: useSettingsStore.getState().customColors,
-                lastPausedAt: get().lastPausedAt
-              };
-              socket?.emit('holad_updateState', { roomId: get().roomId, deviceId, ...currentState });
-              break;
-            }
-            case 'play':
-              store.setIsPlaying(true);
-              break;
-            case 'pause':
-              store.setIsPlaying(false);
-              break;
-            case 'togglePlay':
-              store.setIsPlaying(!store.isPlaying);
-              break;
-            case 'next':
-              store.nextTrack();
-              break;
-            case 'prev':
-              store.prevTrack();
-              break;
-            case 'seek':
-              import('../audio/AudioEngine').then(({ getAudioEngine }) => {
-                const engine = getAudioEngine();
-                if (engine) engine.seek(command.payload / 1000);
-              });
-              break;
-            case 'setQueue':
-              usePlayerStore.setState({ 
-                queue: command.payload.queue, 
-                originalQueue: command.payload.queue,
-                currentIndex: command.payload.currentIndex,
-                playActionId: usePlayerStore.getState().playActionId + 1
-              });
-              break;
-          }
-        }
+        handleRemoteCommand(command, {
+          socket: get().socket || socket,
+          deviceId: get().deviceId || deviceId,
+          roomId: get().roomId,
+          activeDeviceId: get().activeDeviceId,
+          lastPausedAt: get().lastPausedAt,
+        });
       });
 
       get().setupStoreSubscriptions();
     },
 
     setupStoreSubscriptions: () => {
-      if (unsubscribeStore) {
-        unsubscribeStore();
-        unsubscribeStore = null;
-      }
-      if (unsubscribeSettings) {
-        unsubscribeSettings();
-        unsubscribeSettings = null;
-      }
-
-      unsubscribeStore = usePlayerStore.subscribe((state, prevState) => {
-        if (isApplyingRemoteState) return;
-
-        const currentActive = get().activeDeviceId;
-        const currentDeviceId = get().deviceId || deviceId;
-        const currentSocket = get().socket || socket;
-        
-        if (currentActive === currentDeviceId) {
-          let currentTime = 0;
-          const engine = getAudioEngine();
-          if (engine) {
-             currentTime = engine.getCurrentTime();
-          } else {
-             const track = state.queue[state.currentIndex];
-             const duration = useAudioStore.getState().duration || track?.duration || 1;
-             currentTime = (useAudioStore.getState().progress / 100) * duration;
-          }
-
-          const lastPausedAt = !state.isPlaying ? (get().lastPausedAt || Date.now()) : null;
-          if (get().lastPausedAt !== lastPausedAt) {
-            set({ lastPausedAt });
-          }
-
-          const stateToSync = {
-            isPlaying: state.isPlaying,
-            currentIndex: state.currentIndex,
-            queue: state.queue,
-            currentTime: currentTime,
-            accentColor: useSettingsStore.getState().accentColor,
-            customColors: useSettingsStore.getState().customColors,
-            lastPausedAt
-          };
-          
-          if (state.isPlaying !== prevState?.isPlaying || state.currentIndex !== prevState?.currentIndex || state.queue?.length !== prevState?.queue?.length) {
-              currentSocket?.emit('holad_updateState', { roomId: get().roomId, deviceId: currentDeviceId, ...stateToSync });
-          }
-        } else if (!currentActive) {
-          if (state.isPlaying && !prevState?.isPlaying) {
-            get().setActiveDevice(currentDeviceId);
-          }
-        } else if (currentActive && currentActive !== currentDeviceId) {
-          const prevQueueLen = prevState?.queue?.length || 0;
-          const currQueueLen = state.queue?.length || 0;
-          
-          // 1. Guard against initial queue hydration on an idle device:
-          if (prevQueueLen === 0 && currQueueLen > 0 && !state.isPlaying) {
-            return;
-          }
-
-          const isCurrentActiveOnline = get().devices.some(d => d.id === currentActive);
-          const isRemoteActivePlaying = isCurrentActiveOnline && get().isRemotePlaying;
-          const queueChanged = state.queue !== prevState?.queue || currQueueLen !== prevQueueLen;
-          const trackChanged = state.currentIndex !== prevState?.currentIndex;
-
-          // 2. If remote device is offline, only an EXPLICIT user play action claims active device locally:
-          if (!isCurrentActiveOnline) {
-            if (state.isPlaying && !prevState?.isPlaying) {
-              get().setActiveDevice(currentDeviceId);
-            }
-            return;
-          }
-
-          // Idle timeout (60 seconds / 60000 ms):
-          // If the master has been paused for > 60 seconds (or has never played / room has no active playing device),
-          // pressing Play or selecting a track makes this device the new master.
-          const lastPausedAt = get().lastPausedAt;
-          const isMasterIdle = !isRemoteActivePlaying && (
-            lastPausedAt === null || (Date.now() - lastPausedAt >= 60000)
-          );
-
-          if (isMasterIdle && state.isPlaying && (!prevState?.isPlaying || trackChanged)) {
-            get().setActiveDevice(currentDeviceId);
-            return;
-          }
-
-          // 3. Remote Control mode: master is playing or paused < 60s
-          // Automatic takeover is strictly forbidden. Forward all commands to master.
-          if (queueChanged || (trackChanged && Math.abs(state.currentIndex - (prevState?.currentIndex || 0)) > 1)) {
-              isApplyingRemoteState = true;
-              usePlayerStore.setState({ 
-                 queue: prevState?.queue || [], 
-                 currentIndex: prevState?.currentIndex || 0,
-                 isPlaying: prevState?.isPlaying || false
-              }); 
-              setTimeout(() => { isApplyingRemoteState = false; }, 10);
-              
-              currentSocket?.emit('holad_remoteCommand', { 
-                 type: 'setQueue', 
-                 payload: { queue: state.queue, currentIndex: state.currentIndex } 
-              });
-              if (state.isPlaying) {
-                 currentSocket?.emit('holad_remoteCommand', { type: 'play' });
-              }
-              return;
-          }
-
-          // In-queue track change: send simple play/seek if queue structure didn't change
-          if (trackChanged && state.currentIndex >= 0 && Math.abs(state.currentIndex - (prevState?.currentIndex || 0)) <= 1) {
-             isApplyingRemoteState = true;
-             usePlayerStore.setState({ 
-               currentIndex: prevState?.currentIndex || 0,
-               isPlaying: prevState?.isPlaying || false
-             });
-             setTimeout(() => { isApplyingRemoteState = false; }, 10);
-
-             currentSocket?.emit('holad_remoteCommand', { type: 'setQueue', payload: { queue: state.queue, currentIndex: state.currentIndex } });
-             if (state.isPlaying) {
-               currentSocket?.emit('holad_remoteCommand', { type: 'play' });
-             }
-             return;
-          }
-
-          if (state.isPlaying !== prevState?.isPlaying) {
-            isApplyingRemoteState = true;
-            usePlayerStore.setState({ isPlaying: prevState?.isPlaying || false });
-            setTimeout(() => { isApplyingRemoteState = false; }, 10);
-
-            if (state.isPlaying) {
-                currentSocket?.emit('holad_remoteCommand', { type: 'play' });
-            } else {
-                currentSocket?.emit('holad_remoteCommand', { type: 'pause' });
-            }
-          }
-        }
-      });
-
-      unsubscribeSettings = useSettingsStore.subscribe((state, prevState) => {
-        if (isApplyingRemoteState) return;
-        
-        const accentColorChanged = state.accentColor !== prevState?.accentColor;
-        const customColorsChanged = state.customColors !== prevState?.customColors;
-        const currentSocket = get().socket || socket;
-        const currentDeviceId = get().deviceId || deviceId;
-
-        if (accentColorChanged || customColorsChanged) {
-           currentSocket?.emit('holad_updateSettings', { 
-               roomId: get().roomId, 
-               deviceId: currentDeviceId, 
-               accentColor: state.accentColor,
-               customColors: state.customColors
-           });
-        }
-      });
+      setupPlaybackSubscriptions();
     },
 
     disconnect: () => {
       isInitialSync = true;
-      isApplyingRemoteState = false;
       hasRequestedHistory = false;
+      setSyncApplyingRemoteState(false);
       if (socket) {
         socket.disconnect();
         socket = null;
       }
-      if (unsubscribeStore) {
-        unsubscribeStore();
-        unsubscribeStore = null;
-      }
-      if (unsubscribeSettings) {
-        unsubscribeSettings();
-        unsubscribeSettings = null;
-      }
-      set({ socket: null, devices: [], activeDeviceId: null, roomId: null, connectionStatus: 'disconnected', connectError: null, isRemotePlaying: false, lastPausedAt: null });
+      cleanupPlaybackSubscriptions();
+      set({
+        socket: null,
+        devices: [],
+        activeDeviceId: null,
+        roomId: null,
+        connectionStatus: 'disconnected',
+        connectError: null,
+        isRemotePlaying: false,
+        lastPausedAt: null,
+        isApplyingRemoteState: false,
+      });
     },
 
     setActiveDevice: (id: string) => {
       const state = get();
       set({ activeDeviceId: id });
-      if (state.socket) {
+      const currentSocket = state.socket || socket;
+      if (currentSocket) {
         const currentDeviceId = state.deviceId || deviceId;
         const isCurrentActiveOnline = state.devices.some(d => d.id === state.activeDeviceId);
         if (state.activeDeviceId && state.activeDeviceId !== currentDeviceId && isCurrentActiveOnline && state.isRemotePlaying) {
-           // Ask the current active device to transfer playback to us, providing its latest precise state first
-           state.socket.emit('holad_remoteCommand', { type: 'requestTransfer', payload: id });
-           // Fallback safety timer: if current active device doesn't complete transfer within 500ms, force direct switch
-           setTimeout(() => {
-             if (get().activeDeviceId !== id && get().socket) {
-               get().socket?.emit('holad_setActiveDevice', id);
-             }
-           }, 500);
+          currentSocket.emit('holad_remoteCommand', { type: 'requestTransfer', payload: id });
+          setTimeout(() => {
+            if (get().activeDeviceId !== id && (get().socket || socket)) {
+              (get().socket || socket)?.emit('holad_setActiveDevice', id);
+            }
+          }, 500);
         } else {
-           state.socket.emit('holad_setActiveDevice', id);
+          currentSocket.emit('holad_setActiveDevice', id);
         }
       }
     },
 
     sendRemoteCommand: (type: string, payload?: any) => {
-      if (socket) {
-        socket.emit('holad_remoteCommand', { type, payload });
+      const currentSocket = get().socket || socket;
+      if (currentSocket) {
+        currentSocket.emit('holad_remoteCommand', { type, payload });
       }
     },
 
@@ -692,8 +335,9 @@ export const useHoladStore = create<HoladState>((set, get) => {
         console.error('[Holad] Failed to push local history during manual sync:', err);
       }
       
-      if (state.socket) {
-        state.socket.emit('holad_remoteCommand', { type: 'requestHistory' });
+      const currentSocket = state.socket || socket;
+      if (currentSocket) {
+        currentSocket.emit('holad_remoteCommand', { type: 'requestHistory' });
       }
     }
   };

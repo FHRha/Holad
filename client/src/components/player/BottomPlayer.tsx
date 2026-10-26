@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import HoladConnectMenu from './HoladConnectMenu';
 import { useHoladStore } from '../../store/holadStore';
+import { useIsActiveDevice } from '../../hooks/useIsActiveDevice';
 import { useAudioStore } from '../../store/audioStore';
 import { useBookmark } from '../../hooks/useBookmark';
 import { Bookmark } from 'lucide-react';
@@ -81,10 +82,10 @@ export default function BottomPlayer() {
   };
 
   const activeDeviceId = useHoladStore(s => s.activeDeviceId);
-  const localDeviceId = useHoladStore(s => s.deviceId);
+
   const devices = useHoladStore(s => s.devices);
-  const isConnected = useHoladStore(s => s.roomId !== null);
-  const isActiveDevice = !isConnected || activeDeviceId === localDeviceId || activeDeviceId === null;
+
+  const isActiveDevice = useIsActiveDevice();
   const activeDeviceObj = devices.find(d => d.id === activeDeviceId);
 
   useAutoDj();

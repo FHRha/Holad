@@ -3,7 +3,7 @@ import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { MediaSession } from '@capgo/capacitor-media-session';
 import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
-import { useHoladStore } from '../store/holadStore';
+import { useIsActiveDevice } from './useIsActiveDevice';
 import { useWindowVisibility, getIsWindowVisible } from './useWindowVisibility';
 import { getCoverArtUrl } from '../api/subsonic';
 import { getAudioEngine } from '../audio/AudioEngine';
@@ -181,10 +181,10 @@ export function useMediaSession() {
     };
   }, [setIsPlaying, nextTrack, prevTrack]);
 
-  const isHoladConnected = useHoladStore(state => state.roomId !== null);
-  const activeDeviceId = useHoladStore(state => state.activeDeviceId);
-  const localDeviceId = useHoladStore(state => state.deviceId);
-  const isActiveDevice = !isHoladConnected || (activeDeviceId !== null && activeDeviceId === localDeviceId);
+
+
+
+  const isActiveDevice = useIsActiveDevice();
   const isWindowVisible = useWindowVisibility();
 
   useEffect(() => {

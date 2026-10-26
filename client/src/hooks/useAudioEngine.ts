@@ -3,6 +3,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { preloadTrackAssets } from '../utils/assetPreloader';
 import { useAudioStore } from '../store/audioStore';
 import { useHoladStore } from '../store/holadStore';
+import { useIsActiveDevice } from './useIsActiveDevice';
 import { useHistoryStore } from '../store/historyStore';
 import { pushHistoryEntry } from '../api/history';
 import { savePlaybackState } from '../api/playbackState';
@@ -55,10 +56,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const handleSeekChange = useAudioStore(s => s.handleSeekChange);
   const handleSeekEnd = useAudioStore(s => s.handleSeekEnd);
 
-  const holadDeviceId = useHoladStore(s => s.deviceId);
-  const holadActiveDeviceId = useHoladStore(s => s.activeDeviceId);
+
+
   const isHoladConnected = useHoladStore(s => s.roomId !== null);
-  const isActiveDevice = !isHoladConnected || (holadActiveDeviceId !== null && holadActiveDeviceId === holadDeviceId);
+  const isActiveDevice = useIsActiveDevice();
 
   const { src: audioSrc, trackId: srcTrackId, isLoading: srcLoading, isAvailable } = useTrackSource(currentTrack);
 

@@ -15,6 +15,7 @@ import LiquidSeekBar from '../common/LiquidSeekBar';
 import { useTranslation } from 'react-i18next';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useHoladStore } from '../../store/holadStore';
+import { useIsActiveDevice } from '../../hooks/useIsActiveDevice';
 import MobileQueueTab from './MobileQueueTab';
 import MobileInfoTab from './MobileInfoTab';
 import MobileLyricsTab from './MobileLyricsTab';
@@ -43,7 +44,8 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const isConnected = useHoladStore(s => s.roomId !== null);
   const activeDeviceId = useHoladStore(s => s.activeDeviceId);
   const localDeviceId = useHoladStore(s => s.deviceId);
-  const isRemoteActive = isConnected && activeDeviceId !== null && activeDeviceId !== localDeviceId;
+  const isActiveDevice = useIsActiveDevice();
+  const isRemoteActive = !isActiveDevice;
   const outputDevice = useAudioOutputDevice();
   
   const isJamRoute = window.location.pathname.startsWith('/jam');
@@ -188,7 +190,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       useHoladStore.getState().setActiveDevice(localDeviceId);
     }
 
-    if (!isPlaying && (!isConnected || activeDeviceId === localDeviceId || activeDeviceId === null)) {
+    if (!isPlaying && isActiveDevice) {
       getAudioEngine().resume().catch(() => {});
     }
     

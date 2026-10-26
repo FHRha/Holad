@@ -13,6 +13,14 @@ import path from 'path';
 import { Agent, setGlobalDispatcher } from 'undici';
 import * as database from './src/database.js';
 import { demoManager } from './src/demoManager.js';
+import {
+  ConnectRoomManager,
+  registerConnectSocketHandlers,
+  handleConnectDisconnect,
+  broadcastConnectRemoteCommand,
+  type HoladDevice,
+  type HoladRoom
+} from './src/connect/index.js';
 
 // Prioritize IPv4 DNS lookups to eliminate 5-second AAAA IPv6 timeouts on networks without IPv6
 try {
@@ -832,7 +840,7 @@ app.post('/api/holad/history/:roomId', validateRestAuth, express.json({ limit: '
       return res.status(400).send('Expected JSON object or array');
     }
 
-    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'historyAvailable' });
+    broadcastConnectRemoteCommand(io, roomId, { type: 'historyAvailable' });
     res.status(200).send('OK');
   } catch (error) {
     console.error(`[Holad] Failed to save history for room ${roomId}:`, error);
@@ -877,7 +885,7 @@ app.delete('/api/holad/history/:roomId', validateRestAuth, (req, res) => {
   const roomId = req.params.roomId as string;
   try {
     database.clearUserHistory(roomId);
-    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { type: 'clearHistory', fromUserId: roomId });
+    broadcastConnectRemoteCommand(io, roomId, { type: 'clearHistory', fromUserId: roomId });
     res.status(200).send('OK');
   } catch (error) {
     console.error(`[Holad] Failed to delete history for room ${roomId}:`, error);
@@ -907,7 +915,7 @@ app.post('/api/holad/preferences/:roomId', validateRestAuth, express.json(), (re
       custom_colors: body.custom_colors || body.customColors,
       language: body.language,
     });
-    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { 
+    broadcastConnectRemoteCommand(io, roomId, { 
       type: 'preferencesUpdated', 
       payload: body 
     });
@@ -1085,7 +1093,7 @@ app.post('/api/holad/integrations/:roomId', validateRestAuth, express.json(), (r
       token: i.token !== undefined ? i.token : null,
       enabled: i.enabled !== undefined ? Boolean(i.enabled) : true
     })));
-    io.to(`holad_${roomId}`).emit('holad_remoteCommand', { 
+    broadcastConnectRemoteCommand(io, roomId, { 
       type: 'integrationsUpdated',
       payload: items
     });
@@ -1115,7 +1123,7 @@ app.post('/api/holad/exclusions/:roomId', validateRestAuth, express.json(), (req
       const isExcluded = database.toggleExclusion(roomId, entityId, entityType, {
         title, artist, album, trackNumber, duration, fileName, path, lyrics, lyricsHash, fingerprint
       });
-      io.to(`holad_${roomId}`).emit('holad_remoteCommand', {
+      broadcastConnectRemoteCommand(io, roomId, {
         type: 'exclusionToggled',
         payload: { entityId, entityType, isExcluded, fingerprint }
       });
@@ -1124,7 +1132,7 @@ app.post('/api/holad/exclusions/:roomId', validateRestAuth, express.json(), (req
       const excludedTrackIds = req.body.excludedTrackIds || [];
       const excludedAlbumIds = req.body.excludedAlbumIds || [];
       database.setExclusions(roomId, excludedTrackIds, excludedAlbumIds);
-      io.to(`holad_${roomId}`).emit('holad_remoteCommand', {
+      broadcastConnectRemoteCommand(io, roomId, {
         type: 'exclusionsSynced',
         payload: { excludedTrackIds, excludedAlbumIds }
       });
@@ -1148,7 +1156,7 @@ app.post('/api/holad/exclusions/:roomId/reconcile', validateRestAuth, express.js
     const reconciled = database.reconcileExclusion(roomId, oldId ? String(oldId) : '', String(newId), entityType || 'track', fingerprint);
     if (reconciled) {
       const exclusions = database.getExclusions(roomId);
-      io.to(`holad_${roomId}`).emit('holad_remoteCommand', {
+      broadcastConnectRemoteCommand(io, roomId, {
         type: 'exclusionsSynced',
         payload: exclusions
       });
@@ -1712,21 +1720,7 @@ interface Room {
 const rooms = new Map<string, Room>();
 
 // Holad Connect
-interface HoladDevice {
-  id: string;
-  name: string;
-  socketId: string;
-}
-
-interface HoladRoom {
-  activeDeviceId: string | null;
-  devices: HoladDevice[];
-  cachedState: any | null;
-  lastPausedAt?: number | null;
-}
-
-const holadRooms = new Map<string, HoladRoom>();
-const holadGraceTimers = new Map<string, NodeJS.Timeout>();
+const connectRoomManager = new ConnectRoomManager();
 
 const broadcastParticipants = (roomId: string) => {
   const room = rooms.get(roomId);
@@ -1950,292 +1944,13 @@ io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
   // --- Holad Connect Events ---
-  socket.on('holad_joinRoom', async (data: { roomId: string, deviceId: string, deviceName: string, auth?: { user: string, salt: string, token: string, url: string }, demoSessionId?: string }) => {
-    const { roomId, deviceId, deviceName, auth, demoSessionId } = data;
-    
-    if (!auth || typeof auth.user !== 'string' || typeof auth.salt !== 'string' || typeof auth.token !== 'string' || typeof auth.url !== 'string') {
-      socket.emit('holad_authError', 'Missing or invalid authentication credentials');
-      socket.disconnect();
-      return;
-    }
-
-    const demoSession = demoManager.isEnabled()
-      ? (demoSessionId ? demoManager.getSession(demoSessionId) : demoManager.getSessionByGuestUserId(roomId))
-      : null;
-
-    const rawRoom = (typeof roomId === 'string' ? roomId : '').trim();
-    const authUserClean = auth.user.trim().toLowerCase();
-    const normalizedRoom = rawRoom ? rawRoom.toLowerCase() : authUserClean;
-
-    const isDemoMatch = !!demoSession && (
-      normalizedRoom === demoSession.guestUserId.toLowerCase() || 
-      (authUserClean === demoSession.account.user.toLowerCase() && normalizedRoom === demoSession.guestUserId.toLowerCase())
-    );
-
-    if (!isDemoMatch && authUserClean !== normalizedRoom) {
-      socket.emit('holad_authError', 'Room mismatch: You can only join your own room');
-      socket.disconnect();
-      return;
-    }
-
-    if (navidromeAccounts.length === 0) {
-      navidromeAccounts = database.getNavidromeAccounts();
-    }
-    
-    const dbAccount = navidromeAccounts.find(a => a.user.toLowerCase() === authUserClean);
-    const isEnvUser = !!process.env.NAVIDROME_USER && process.env.NAVIDROME_USER.toLowerCase() === authUserClean;
-    const isKnownUser = !!dbAccount || isEnvUser || isDemoMatch;
-
-    const isWhitelisted = !!process.env.NAVIDROME_URL || navidromeAccounts.length === 0 || isKnownUser || navidromeAccounts.some(a => a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
-    if (!isWhitelisted) {
-      socket.emit('holad_authError', 'Unauthorized server URL');
-      socket.disconnect();
-      return;
-    }
-
-    // Try resolving URL candidates for Subsonic verification
-    const candidates = getNavidromeCandidates(auth.url, dbAccount?.url);
-    let resolvedUrl = candidates[0] || auth.url;
-    let isPingSuccessful = false;
-
-    for (const candidate of candidates) {
-      try {
-        const pingUrl = `${candidate.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(auth.user)}&t=${encodeURIComponent(auth.token)}&s=${encodeURIComponent(auth.salt)}&v=1.16.1&c=StreamNavi&f=json`;
-        const response = await fetch(pingUrl, { signal: AbortSignal.timeout(3000) });
-        const json = await response.json().catch(() => null);
-        if (response.ok && json?.['subsonic-response']?.status === 'ok') {
-          isPingSuccessful = true;
-          resolvedUrl = candidate;
-          break;
-        }
-      } catch (error: any) {
-        // Continue to next candidate
-      }
-    }
-
-    if (!isPingSuccessful && !isKnownUser) {
-      socket.emit('holad_authError', 'Invalid Subsonic credentials or unverified server');
-      socket.disconnect();
-      return;
-    }
-
-    // Register or refresh account in DB only if this user is an authorized account on an allowed target server
-    try {
-      const cleanAuthUrl = resolvedUrl.replace(/\/$/, '');
-      if (isTargetServerAllowed(cleanAuthUrl)) {
-        const isExistingAccount = navidromeAccounts.some(a => a.user.toLowerCase() === auth.user.toLowerCase());
-        if (isExistingAccount || navidromeAccounts.length === 0) {
-          database.saveNavidromeAccount({
-            url: cleanAuthUrl,
-            user: auth.user,
-            token: auth.token,
-            salt: auth.salt
-          });
-          navidromeAccounts = database.getNavidromeAccounts();
-        }
-      }
-    } catch (e) {
-      console.warn('[Holad] Failed to auto-save account on joinRoom:', e);
-    }
-
-    socket.join(`holad_${normalizedRoom}`);
-    
-    let room = holadRooms.get(normalizedRoom);
-    if (!room) {
-      room = { activeDeviceId: null, devices: [], cachedState: null, lastPausedAt: null };
-      holadRooms.set(normalizedRoom, room);
-    }
-    
-    // Clear any pending grace disconnect timer for this device
-    const timerKey = `${normalizedRoom}:${deviceId}`;
-    if (holadGraceTimers.has(timerKey)) {
-      clearTimeout(holadGraceTimers.get(timerKey)!);
-      holadGraceTimers.delete(timerKey);
-    }
-
-    room.devices = room.devices.filter(d => d.id !== deviceId);
-    room.devices.push({ id: deviceId, name: deviceName, socketId: socket.id });
-    
-    const isActiveDeviceOnline = room.activeDeviceId && room.devices.some(d => d.id === room.activeDeviceId);
-    const isActiveDeviceInGrace = room.activeDeviceId && holadGraceTimers.has(`${normalizedRoom}:${room.activeDeviceId}`);
-    
-    if (!room.activeDeviceId || (!isActiveDeviceOnline && !isActiveDeviceInGrace)) {
-      room.activeDeviceId = deviceId;
-    }
-    
-    (socket as any).holadData = { roomId: normalizedRoom, deviceId };
-    
-    // Register user presence for social features
-    const socialUserId = demoSession ? demoSession.guestUserId : auth.user;
-    const socialUsername = demoSession ? `Гость #${demoSession.slotId}` : auth.user;
-    const userRecord = database.ensureUserWithTag(socialUserId, socialUsername);
-    registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
-    
-    const devicesPayload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
-    socket.emit('holad_devices', devicesPayload);
-    io.to(`holad_${normalizedRoom}`).emit('holad_devices', devicesPayload);
-    
-    if (room.cachedState) {
-      socket.emit('holad_syncState', room.cachedState);
-    }
-
-    if (room.activeDeviceId && room.activeDeviceId !== deviceId) {
-      const activeDev = room.devices.find(d => d.id === room.activeDeviceId);
-      if (activeDev) {
-        io.to(activeDev.socketId).emit('holad_remoteCommand', {
-          type: 'requestState',
-          fromUserId: normalizedRoom,
-          fromDeviceId: deviceId
-        });
-      }
-    }
-
-    // Sync current exclusions from DB to newly joined device
-    try {
-      const userExclusions = database.getExclusions(normalizedRoom);
-      socket.emit('holad_remoteCommand', {
-        type: 'exclusionsSynced',
-        payload: userExclusions
-      });
-    } catch (e) {
-      console.error('[Holad] Failed to sync exclusions on joinRoom:', e);
-    }
-  });
-
-  socket.on('holad_setActiveDevice', (deviceId: string) => {
-    const data = (socket as any).holadData;
-    if (!data) return;
-    const room = holadRooms.get(data.roomId);
-    if (room) {
-      // Clear any pending grace timers for this room
-      for (const [key, timer] of holadGraceTimers.entries()) {
-        if (key.startsWith(`${data.roomId}:`)) {
-          clearTimeout(timer);
-          holadGraceTimers.delete(key);
-        }
-      }
-      room.activeDeviceId = deviceId;
-      const payload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
-      socket.emit('holad_devices', payload);
-      io.to(`holad_${data.roomId}`).emit('holad_devices', payload);
-    }
-  });
-
-  socket.on('holad_requestState', () => {
-    const data = (socket as any).holadData;
-    if (!data) return;
-    const room = holadRooms.get(data.roomId);
-    if (room) {
-      if (room.cachedState) {
-        socket.emit('holad_syncState', room.cachedState);
-      }
-      if (room.activeDeviceId && room.activeDeviceId !== data.deviceId) {
-        const activeDev = room.devices.find(d => d.id === room.activeDeviceId);
-        if (activeDev) {
-          io.to(activeDev.socketId).emit('holad_remoteCommand', {
-            type: 'requestState',
-            fromUserId: data.roomId,
-            fromDeviceId: data.deviceId
-          });
-        }
-      }
-    }
-  });
-
-  socket.on('holad_updateState', (state: any) => {
-    const data = (socket as any).holadData;
-    if (!data) return;
-    const room = holadRooms.get(data.roomId);
-    if (room) {
-      if (room.activeDeviceId === data.deviceId) {
-        if (typeof state.lastPausedAt === 'number') {
-          room.lastPausedAt = state.lastPausedAt;
-        } else if (state.isPlaying === false) {
-          if (room.cachedState?.isPlaying === true || room.lastPausedAt == null) {
-            room.lastPausedAt = Date.now();
-          }
-        } else if (state.isPlaying === true) {
-          room.lastPausedAt = null;
-        }
-        room.cachedState = { ...room.cachedState, ...state, lastPausedAt: room.lastPausedAt };
-        socket.to(`holad_${data.roomId}`).emit('holad_syncState', room.cachedState);
-      } else if (!room.activeDeviceId && state.isPlaying) {
-        // Protective recovery: if room had no active device, actively playing device assumes activeDeviceId
-        room.activeDeviceId = data.deviceId;
-        room.lastPausedAt = null;
-        room.cachedState = { ...room.cachedState, ...state, lastPausedAt: null };
-        const payload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
-        io.to(`holad_${data.roomId}`).emit('holad_devices', payload);
-        socket.to(`holad_${data.roomId}`).emit('holad_syncState', room.cachedState);
-      }
-    }
-  });
-
-  socket.on('holad_updateSettings', (settings: any) => {
-    const data = (socket as any).holadData;
-    if (!data) return;
-    const room = holadRooms.get(data.roomId);
-    if (room) {
-      room.cachedState = { ...room.cachedState, ...settings };
-      io.to(`holad_${data.roomId}`).emit('holad_syncSettings', settings);
-    }
-  });
-
-  socket.on('holad_remoteCommand', (command: { type: string, payload?: any }) => {
-    const data = (socket as any).holadData;
-    if (!data) return;
-    io.to(`holad_${data.roomId}`).emit('holad_remoteCommand', {
-      ...command,
-      fromUserId: data.roomId,
-      fromDeviceId: data.deviceId
-    });
-  });
-  socket.on('holad_syncTime', (data: any) => {
-    const holadData = (socket as any).holadData;
-    if (!holadData) return;
-    socket.to(`holad_${holadData.roomId}`).emit('holad_syncTime', data);
-  });
-
-  socket.on('holad_leave', (data: { roomId: string, deviceId: string }) => {
-    const rawRoom = data?.roomId || (socket as any).holadData?.roomId;
-    const rawDevice = data?.deviceId || (socket as any).holadData?.deviceId;
-    if (!rawRoom || !rawDevice) return;
-    const normalizedRoom = typeof rawRoom === 'string' ? rawRoom.trim().toLowerCase() : '';
-    if (!normalizedRoom) return;
-    const room = holadRooms.get(normalizedRoom);
-    if (room) {
-      const timerKey = `${normalizedRoom}:${rawDevice}`;
-      if (holadGraceTimers.has(timerKey)) {
-        clearTimeout(holadGraceTimers.get(timerKey)!);
-        holadGraceTimers.delete(timerKey);
-      }
-      room.devices = room.devices.filter(d => d.id !== rawDevice && d.socketId !== socket.id);
-      if (room.activeDeviceId === rawDevice) {
-        // Hold 45 second grace period timer
-        const timer = setTimeout(() => {
-          holadGraceTimers.delete(timerKey);
-          const currentRoom = holadRooms.get(normalizedRoom);
-          if (currentRoom && currentRoom.activeDeviceId === rawDevice) {
-            currentRoom.activeDeviceId = currentRoom.devices[0]?.id ?? null;
-            io.to(`holad_${normalizedRoom}`).emit('holad_devices', {
-              devices: currentRoom.devices,
-              activeDeviceId: currentRoom.activeDeviceId
-            });
-            if (currentRoom.devices.length === 0) {
-              holadRooms.delete(normalizedRoom);
-            }
-          }
-        }, 45000);
-        holadGraceTimers.set(timerKey, timer);
-      }
-      io.to(`holad_${normalizedRoom}`).emit('holad_devices', {
-        devices: room.devices,
-        activeDeviceId: room.activeDeviceId
-      });
-      if (room.devices.length === 0 && !holadGraceTimers.has(timerKey)) {
-        holadRooms.delete(normalizedRoom);
-      }
-    }
+  registerConnectSocketHandlers(io, socket, database, connectRoomManager, {
+    demoManager,
+    getNavidromeAccounts: () => navidromeAccounts,
+    setNavidromeAccounts: (accs) => { navidromeAccounts = accs; },
+    getNavidromeCandidates,
+    isTargetServerAllowed,
+    registerUserPresence,
   });
   // --- End Holad Connect Events ---
 
@@ -2808,44 +2523,7 @@ io.on('connection', (socket) => {
     unregisterUserPresence(socket.id);
 
     // Holad Connect disconnect
-    const holadData = (socket as any).holadData;
-    if (holadData) {
-      const room = holadRooms.get(holadData.roomId);
-      if (room) {
-        room.devices = room.devices.filter(d => d.socketId !== socket.id);
-        
-        if (room.activeDeviceId === holadData.deviceId) {
-          // The active device disconnected!
-          // Hold a 45-second Grace Period for network blips / mobile sleep / temporary disconnects.
-          const timerKey = `${holadData.roomId}:${holadData.deviceId}`;
-          if (holadGraceTimers.has(timerKey)) {
-            clearTimeout(holadGraceTimers.get(timerKey)!);
-          }
-          const timer = setTimeout(() => {
-            holadGraceTimers.delete(timerKey);
-            const currentRoom = holadRooms.get(holadData.roomId);
-            if (currentRoom && currentRoom.activeDeviceId === holadData.deviceId) {
-              // Grace period expired without reconnect. Transfer to next available online device!
-              currentRoom.activeDeviceId = currentRoom.devices[0]?.id ?? null;
-              io.to(`holad_${holadData.roomId}`).emit('holad_devices', {
-                devices: currentRoom.devices,
-                activeDeviceId: currentRoom.activeDeviceId
-              });
-              if (currentRoom.devices.length === 0) {
-                holadRooms.delete(holadData.roomId);
-              }
-            }
-          }, 45000);
-          holadGraceTimers.set(timerKey, timer);
-        }
-        
-        io.to(`holad_${holadData.roomId}`).emit('holad_devices', { devices: room.devices, activeDeviceId: room.activeDeviceId });
-        
-        if (room.devices.length === 0 && !holadGraceTimers.has(`${holadData.roomId}:${holadData.deviceId}`)) {
-          holadRooms.delete(holadData.roomId);
-        }
-      }
-    }
+    handleConnectDisconnect(io, socket, connectRoomManager);
 
     // Jam disconnect
     for (const [roomId, room] of rooms.entries()) {

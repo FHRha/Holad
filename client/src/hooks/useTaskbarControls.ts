@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../store/playerStore';
-import { useHoladStore } from '../store/holadStore';
+import { useIsActiveDevice } from './useIsActiveDevice';
 import { useWindowVisibility } from './useWindowVisibility';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -8,10 +8,10 @@ import { isTauri } from '../utils/StorageManager';
 
 export function useTaskbarControls() {
   const { isPlaying, nextTrack, prevTrack } = usePlayerStore();
-  const isHoladConnected = useHoladStore(s => s.roomId !== null);
-  const activeDeviceId = useHoladStore(s => s.activeDeviceId);
-  const localDeviceId = useHoladStore(s => s.deviceId);
-  const isActiveDevice = !isHoladConnected || (activeDeviceId !== null && activeDeviceId === localDeviceId);
+
+
+
+  const isActiveDevice = useIsActiveDevice();
   const isWindowVisible = useWindowVisibility();
 
   // Initialize native taskbar buttons once mounted

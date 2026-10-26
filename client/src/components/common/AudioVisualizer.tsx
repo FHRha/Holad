@@ -3,6 +3,7 @@ import { Monitor, Smartphone, Tv2 } from 'lucide-react';
 import { useAudioStore } from '../../store/audioStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
+import { useIsActiveDevice } from '../../hooks/useIsActiveDevice';
 import { useSettingsStore, type VisualizerStyle } from '../../store/settingsStore';
 import { useTranslation } from 'react-i18next';
 import { getAudioEngine } from '../../audio/AudioEngine';
@@ -26,10 +27,12 @@ export default function AudioVisualizer() {
   const setVisualizerStyle = useSettingsStore(s => s.setVisualizerStyle);
 
   const activeDeviceId = useHoladStore(s => s.activeDeviceId);
-  const localDeviceId = useHoladStore(s => s.deviceId);
+
   const devices = useHoladStore(s => s.devices);
 
-  const isRemotePlaying = audioElement && audioElement.paused && isPlaying && activeDeviceId !== localDeviceId && activeDeviceId !== null;
+  const isActiveDevice = useIsActiveDevice();
+
+  const isRemotePlaying = audioElement && audioElement.paused && isPlaying && !isActiveDevice;
   const activeDevice = devices.find(d => d.id === activeDeviceId);
 
   // Refs for current states to keep engine zero-allocation and without re-instantiation
