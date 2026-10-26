@@ -31,6 +31,7 @@ pub mod windows_audio {
     static CURRENT_ICON_PATH: RwLock<Option<PathBuf>> = RwLock::new(None);
     static FAMILY_CACHE: Mutex<Option<(std::time::Instant, HashSet<u32>)>> = Mutex::new(None);
     static LAST_WINDOW_ICON_APPLY: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+    static CACHED_ENDPOINT: Mutex<Option<(String, super::NativeAudioDevice)>> = Mutex::new(None);
 
     fn register_registry_identity(ico_path: &std::path::Path, png_path: &std::path::Path) {
         use windows::Win32::System::Registry::{
@@ -143,120 +144,14 @@ pub mod windows_audio {
                 let _ = RegCloseKey(hkey_icon);
             }
 
-            // 4. HKCU\Software\Classes\Applications\msedgewebview2.exe
-            let subkey_edge = w!("Software\\Classes\\Applications\\msedgewebview2.exe");
-            let mut hkey_edge = windows::Win32::System::Registry::HKEY::default();
-            if RegCreateKeyW(HKEY_CURRENT_USER, subkey_edge, &mut hkey_edge).is_ok() {
-                let name: Vec<u16> = "Holad".encode_utf16().chain(std::iter::once(0)).collect();
-                let _ = RegSetValueExW(
-                    hkey_edge,
-                    w!("FriendlyAppName"),
-                    None,
-                    REG_SZ,
-                    Some(std::slice::from_raw_parts(
-                        name.as_ptr() as *const u8,
-                        name.len() * 2,
-                    )),
-                );
-                let aumid: Vec<u16> = "com.holad.desktop".encode_utf16().chain(std::iter::once(0)).collect();
-                let _ = RegSetValueExW(
-                    hkey_edge,
-                    w!("AppUserModelID"),
-                    None,
-                    REG_SZ,
-                    Some(std::slice::from_raw_parts(
-                        aumid.as_ptr() as *const u8,
-                        aumid.len() * 2,
-                    )),
-                );
-                let _ = RegCloseKey(hkey_edge);
-            }
+            // 4. Clean up any legacy msedgewebview2.exe overrides if they were set previously,
+            // to prevent hijacking Windows Shell components (Search, Copilot, Widgets).
+            use windows::Win32::System::Registry::RegDeleteTreeW;
+            let subkey_edge = w!(r"Software\Classes\Applications\msedgewebview2.exe");
+            let _ = RegDeleteTreeW(HKEY_CURRENT_USER, subkey_edge);
 
-            // 5. HKCU\Software\Classes\Applications\msedgewebview2.exe\DefaultIcon
-            let subkey_edge_icon = w!("Software\\Classes\\Applications\\msedgewebview2.exe\\DefaultIcon");
-            let mut hkey_edge_icon = windows::Win32::System::Registry::HKEY::default();
-            if RegCreateKeyW(HKEY_CURRENT_USER, subkey_edge_icon, &mut hkey_edge_icon).is_ok() {
-                let ico_str = format!("{},0\0", ico_path.to_string_lossy());
-                let ico_wide: Vec<u16> = ico_str.encode_utf16().collect();
-                let _ = RegSetValueExW(
-                    hkey_edge_icon,
-                    PCWSTR::null(),
-                    None,
-                    REG_SZ,
-                    Some(std::slice::from_raw_parts(
-                        ico_wide.as_ptr() as *const u8,
-                        ico_wide.len() * 2,
-                    )),
-                );
-                let _ = RegCloseKey(hkey_edge_icon);
-            }
-
-            // 6. HKCU\Software\Classes\AppUserModelId\msedgewebview2.exe
-            // (Windows 11 Action Center / Quick Settings SMTC identifies the media session via msedgewebview2.exe)
-            let subkey_edge_aumid = w!("Software\\Classes\\AppUserModelId\\msedgewebview2.exe");
-            let mut hkey_edge_aumid = windows::Win32::System::Registry::HKEY::default();
-            if RegCreateKeyW(HKEY_CURRENT_USER, subkey_edge_aumid, &mut hkey_edge_aumid).is_ok() {
-                let name: Vec<u16> = "Holad".encode_utf16().chain(std::iter::once(0)).collect();
-                let _ = RegSetValueExW(
-                    hkey_edge_aumid,
-                    w!("DisplayName"),
-                    None,
-                    REG_SZ,
-                    Some(std::slice::from_raw_parts(
-                        name.as_ptr() as *const u8,
-                        name.len() * 2,
-                    )),
-                );
-
-                let png_str = format!("{}\0", png_path.to_string_lossy());
-                let png_wide: Vec<u16> = png_str.encode_utf16().collect();
-                let _ = RegSetValueExW(
-                    hkey_edge_aumid,
-                    w!("IconUri"),
-                    None,
-                    REG_SZ,
-                    Some(std::slice::from_raw_parts(
-                        png_wide.as_ptr() as *const u8,
-                        png_wide.len() * 2,
-                    )),
-                );
-
-                let ico_str = format!("{},0\0", ico_path.to_string_lossy());
-                let ico_wide: Vec<u16> = ico_str.encode_utf16().collect();
-                let _ = RegSetValueExW(
-                    hkey_edge_aumid,
-                    w!("IconPath"),
-                    None,
-                    REG_SZ,
-                    Some(std::slice::from_raw_parts(
-                        ico_wide.as_ptr() as *const u8,
-                        ico_wide.len() * 2,
-                    )),
-                );
-                let _ = RegSetValueExW(
-                    hkey_edge_aumid,
-                    w!("IconLocation"),
-                    None,
-                    REG_SZ,
-                    Some(std::slice::from_raw_parts(
-                        ico_wide.as_ptr() as *const u8,
-                        ico_wide.len() * 2,
-                    )),
-                );
-
-                let bg: Vec<u16> = "FF121212".encode_utf16().chain(std::iter::once(0)).collect();
-                let _ = RegSetValueExW(
-                    hkey_edge_aumid,
-                    w!("IconBackgroundColor"),
-                    None,
-                    REG_SZ,
-                    Some(std::slice::from_raw_parts(
-                        bg.as_ptr() as *const u8,
-                        bg.len() * 2,
-                    )),
-                );
-                let _ = RegCloseKey(hkey_edge_aumid);
-            }
+            let subkey_edge_aumid = w!(r"Software\Classes\AppUserModelId\msedgewebview2.exe");
+            let _ = RegDeleteTreeW(HKEY_CURRENT_USER, subkey_edge_aumid);
         }
     }
 
@@ -379,11 +274,6 @@ pub mod windows_audio {
         apply_icon_to_process_windows(&pids, true);
         // Немедленно обновляем уже активные сессии с новой иконкой
         update_audio_session_identity();
-
-        unsafe {
-            use windows::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
-            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None);
-        }
     }
 
     fn get_current_icon_wide() -> Option<Vec<u16>> {
@@ -391,13 +281,18 @@ pub mod windows_audio {
     }
 
     /// Динамический сбор всех PID потомков нашего процесса (дети, внуки, WebView2 Audio Service).
-    /// Использует короткий 5-секундный кэш, но ТОЛЬКО если дочерние процессы уже были обнаружены,
-    /// гарантируя, что при старте приложения дочерние процессы WebView2 не будут упущены.
+    /// Использует кэш (60 секунд при обнаружении нескольких процессов, 5 секунд при старте),
+    /// гарантируя отсутствие микрофризов операционной системы от частых вызовов CreateToolhelp32Snapshot.
     pub fn get_family_pids(force_refresh: bool) -> HashSet<u32> {
         if !force_refresh {
             if let Ok(lock) = FAMILY_CACHE.lock() {
                 if let Some((cached_at, ref pids)) = *lock {
-                    if pids.len() > 1 && cached_at.elapsed() < std::time::Duration::from_secs(5) {
+                    let cache_duration = if pids.len() > 1 {
+                        std::time::Duration::from_secs(60)
+                    } else {
+                        std::time::Duration::from_secs(5)
+                    };
+                    if cached_at.elapsed() < cache_duration {
                         return pids.clone();
                     }
                 }
@@ -606,9 +501,6 @@ pub mod windows_audio {
                 return;
             }
 
-            // Устанавливаем иконку на все графические окна WebView2 и Holad (с кэшированием вызовов)
-            apply_icon_to_process_windows(&family_pids, false);
-
             let enumerator: IMMDeviceEnumerator = match CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL) {
                 Ok(e) => e,
                 Err(_) => return,
@@ -792,6 +684,16 @@ pub mod windows_audio {
                 s
             }).unwrap_or_default();
 
+            if !device_id.is_empty() {
+                if let Ok(lock) = CACHED_ENDPOINT.lock() {
+                    if let Some((ref cached_id, ref cached_dev)) = *lock {
+                        if cached_id == &device_id {
+                            return Some((device_id, cached_dev.clone()));
+                        }
+                    }
+                }
+            }
+
             let mut raw_name = String::new();
             let mut form_factor: Option<u32> = None;
 
@@ -905,14 +807,17 @@ pub mod windows_audio {
                 "speaker".to_string()
             };
 
-            Some((
-                device_id,
-                super::NativeAudioDevice {
-                    name: clean_name,
-                    is_headphones: is_hp,
-                    device_type,
-                },
-            ))
+            let result_device = super::NativeAudioDevice {
+                name: clean_name,
+                is_headphones: is_hp,
+                device_type,
+            };
+
+            if let Ok(mut lock) = CACHED_ENDPOINT.lock() {
+                *lock = Some((device_id.clone(), result_device.clone()));
+            }
+
+            Some((device_id, result_device))
         }
     }
 
@@ -921,14 +826,14 @@ pub mod windows_audio {
         get_default_audio_endpoint_info().map(|(_, dev)| dev)
     }
 
-    /// Запускает фоновый супервизор: мгновенный подхват сессий при переключении треков или смене устройств (интервал 500 мс)
+    /// Запускает фоновый супервизор: поддержание сессий при смене устройств (интервал 5000 мс)
     pub fn start_audio_session_supervisor() {
         set_current_icon("wave_dark");
 
         std::thread::spawn(|| {
             loop {
                 update_audio_session_identity();
-                std::thread::sleep(std::time::Duration::from_millis(500));
+                std::thread::sleep(std::time::Duration::from_millis(5000));
             }
         });
     }
@@ -989,7 +894,7 @@ pub mod windows_audio {
                     }
                 }
 
-                std::thread::sleep(std::time::Duration::from_millis(350));
+                std::thread::sleep(std::time::Duration::from_millis(1000));
             }
         });
     }

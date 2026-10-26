@@ -699,18 +699,50 @@ export default function MobileSettingsView() {
             />
           </label>
           
-          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
-            <div className="flex flex-col">
-              <span className="text-[15px] font-medium text-white">{t('views.settings_autodj')}</span>
-              <span className="text-[13px] text-[#b3b3b3]">{t('views.settings_autodj_desc')}</span>
-            </div>
-            <input 
-              type="checkbox" 
-              checked={isAutoDjEnabled} 
-              onChange={() => toggleAutoDj()}
-              className="accent-primary w-6 h-6 rounded"
-            />
-          </label>
+          <div className="bg-black/20 p-4 rounded-xl flex flex-col gap-4">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex flex-col pr-4">
+                <span className="text-[15px] font-medium text-white">{t('views.settings_autodj')}</span>
+                <span className="text-[13px] text-[#b3b3b3]">{t('views.settings_autodj_desc')}</span>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={isAutoDjEnabled} 
+                onChange={() => toggleAutoDj()}
+                className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
+              />
+            </label>
+
+            {isAutoDjEnabled && (
+              <div className="pt-3 border-t border-white/5 flex flex-col gap-3">
+                <span className="text-xs text-[#b3b3b3] font-medium">{t('settings.autodj_repeat_collision', 'При повторе альбома/плейлиста')}</span>
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="m_autoDjRepeatBehavior" 
+                      value="pause_on_repeat" 
+                      checked={settings.autoDjRepeatBehavior === 'pause_on_repeat'} 
+                      onChange={() => settings.setAutoDjRepeatBehavior('pause_on_repeat')}
+                      className="accent-primary w-4 h-4 cursor-pointer"
+                    />
+                    <span className="text-sm text-white">{t('settings.autodj_pause_on_repeat', 'Приоритет повтора (альбом по кругу)')}</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="m_autoDjRepeatBehavior" 
+                      value="infinite_stream" 
+                      checked={settings.autoDjRepeatBehavior === 'infinite_stream'} 
+                      onChange={() => settings.setAutoDjRepeatBehavior('infinite_stream')}
+                      className="accent-primary w-4 h-4 cursor-pointer"
+                    />
+                    <span className="text-sm text-white">{t('settings.autodj_infinite_stream', 'Бесконечный поток')}</span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="bg-black/20 p-4 rounded-xl flex flex-col gap-4">
             <label className="flex items-center justify-between cursor-pointer">

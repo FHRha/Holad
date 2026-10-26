@@ -22,6 +22,7 @@ export type AppTheme = 'dark' | 'light' | 'system';
 export type AppIcon = 'wave_dark' | 'wave_light' | 'cassette';
 export type AccentColor = string;
 export type ClickAction = 'play_now' | 'play_next';
+export type AutoDjRepeatBehavior = 'pause_on_repeat' | 'infinite_stream';
 export type StartPage = '/' | '/albums' | '/radio' | '/favorites';
 export type VisualizerStyle = 'classic' | 'modern' | 'wave' | 'radial' | 'peaks';
 export type StreamingQuality = 'opus-256' | 'raw' | 'opus-192' | 'opus-128' | 'mp3-320';
@@ -35,6 +36,7 @@ export interface SettingsState {
   customColors: [string, string, string];
   language: string;
   clickAction: ClickAction;
+  autoDjRepeatBehavior: AutoDjRepeatBehavior;
   startPage: StartPage;
   isCrossfadeEnabled: boolean;
   crossfadeDuration: number;
@@ -71,6 +73,7 @@ export interface SettingsState {
   setCustomColor: (index: number, color: string) => void;
   setLanguage: (lang: string) => void;
   setClickAction: (action: ClickAction) => void;
+  setAutoDjRepeatBehavior: (behavior: AutoDjRepeatBehavior) => void;
   setStartPage: (page: StartPage) => void;
   setIsCrossfadeEnabled: (enabled: boolean) => void;
   setCrossfadeDuration: (duration: number) => void;
@@ -122,6 +125,7 @@ export const useSettingsStore = create<SettingsState>()(
       customColors: ['', '', ''],
       language: i18n.language || 'ru',
       clickAction: 'play_now',
+      autoDjRepeatBehavior: 'pause_on_repeat',
       startPage: '/',
       isCrossfadeEnabled: true,
       crossfadeDuration: 3,
@@ -176,6 +180,7 @@ export const useSettingsStore = create<SettingsState>()(
         set({ language });
       },
       setClickAction: (clickAction) => set({ clickAction }),
+      setAutoDjRepeatBehavior: (autoDjRepeatBehavior) => set({ autoDjRepeatBehavior }),
       setStartPage: (startPage) => set({ startPage }),
       setIsCrossfadeEnabled: (isCrossfadeEnabled) => set((state) => ({
         isCrossfadeEnabled,

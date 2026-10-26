@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { usePlayerStore } from '../../store/playerStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useAudioStore } from '../../store/audioStore';
 import { AudioDeck } from '../../audio/AudioDeck';
 import { TransitionManager } from '../../audio/TransitionManager';
@@ -129,6 +130,64 @@ describe('Tier 1 - F21: Auto DJ Rules & Mobile Background Playback Stability', (
       expect(ids.filter((id) => id === 'off-1').length).toBe(1);
       expect(ids).toContain('off-2');
       expect(ids).toContain('off-3');
+    });
+
+    it('F21-3b: Auto DJ pauses recommendation fetching when repeatMode is active and autoDjRepeatBehavior is pause_on_repeat', async () => {
+      const initialQueue = [
+        createMockTrack('alb-1', 'Album Track 1', 180),
+        createMockTrack('alb-2', 'Album Track 2', 200),
+      ];
+      usePlayerStore.setState({
+        queue: initialQueue,
+        currentIndex: 0,
+        isAutoDjEnabled: true,
+        repeatMode: 'all',
+      });
+      useSettingsStore.setState({
+        autoDjRepeatBehavior: 'pause_on_repeat',
+      });
+
+      const fetchSpy = vi.spyOn(subsonicApi, 'fetchRandomTracks');
+
+      renderHook(() => useAutoDj());
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 50));
+      });
+
+      // When repeat is active and policy is pause_on_repeat, Auto DJ must NOT fetch or append tracks
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(usePlayerStore.getState().queue.length).toBe(2);
+    });
+
+    it('F21-3c: Auto DJ continues recommendation fetching when repeatMode is active if autoDjRepeatBehavior is infinite_stream', async () => {
+      const initialQueue = [
+        createMockTrack('alb-1', 'Album Track 1', 180),
+        createMockTrack('alb-2', 'Album Track 2', 200),
+      ];
+      usePlayerStore.setState({
+        queue: initialQueue,
+        currentIndex: 0,
+        isAutoDjEnabled: true,
+        repeatMode: 'all',
+      });
+      useSettingsStore.setState({
+        autoDjRepeatBehavior: 'infinite_stream',
+      });
+
+      const candidateTracks = [
+        { id: 'rec-1', title: 'Rec Track 1', duration: 150, albumId: 'alb-rec', artist: 'Art' },
+      ];
+      vi.spyOn(networkStatus, 'isOffline').mockReturnValue(false);
+      vi.spyOn(subsonicApi, 'fetchRandomTracks').mockResolvedValue(candidateTracks as any);
+
+      renderHook(() => useAutoDj());
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 50));
+      });
+
+      expect(usePlayerStore.getState().queue.length).toBeGreaterThan(2);
     });
   });
 

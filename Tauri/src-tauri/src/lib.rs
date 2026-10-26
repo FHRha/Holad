@@ -547,10 +547,6 @@ pub fn run() {
                       if is_visible {
                           window.hide().unwrap();
                           let _ = window.emit("window-visibility-change", false);
-                          #[cfg(target_os = "windows")]
-                          unsafe {
-                              let _ = windows::Win32::System::ProcessStatus::EmptyWorkingSet(windows::Win32::System::Threading::GetCurrentProcess());
-                          }
                       } else {
                           window.show().unwrap();
                           let _ = window.unminimize();
@@ -584,10 +580,6 @@ pub fn run() {
                     if *config.close_to_tray.lock().unwrap() {
                         window.hide().unwrap();
                         let _ = window.emit("window-visibility-change", false);
-                        #[cfg(target_os = "windows")]
-                        unsafe {
-                            let _ = windows::Win32::System::ProcessStatus::EmptyWorkingSet(windows::Win32::System::Threading::GetCurrentProcess());
-                        }
                         api.prevent_close();
                     } else {
                         // Exit the entire app, closing tray icon and child windows

@@ -16,10 +16,6 @@ use windows::Win32::UI::Shell::{
 use windows::Win32::UI::WindowsAndMessaging::{
     LoadImageW, RegisterWindowMessageW, IMAGE_ICON, LR_DEFAULTSIZE, LR_LOADFROMFILE, WM_COMMAND, HICON
 };
-#[cfg(target_os = "windows")]
-use windows::Win32::System::ProcessStatus::EmptyWorkingSet;
-#[cfg(target_os = "windows")]
-use windows::Win32::System::Threading::GetCurrentProcess;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::path::PathBuf;
@@ -124,9 +120,17 @@ pub fn update_taskbar_state(window: tauri::Window, is_playing: bool) {
                     let hwnd = HWND(hwnd_raw.0 as _);
                     let taskbar: Result<ITaskbarList3, _> = CoCreateInstance(&TaskbarList, None, CLSCTX_INPROC_SERVER);
                     if let Ok(taskbar) = taskbar {
+                        let _ = taskbar.HrInit();
+
+                        if !BUTTONS_ADDED.load(Ordering::SeqCst) {
+                            setup_taskbar_buttons_hwnd(hwnd);
+                            return;
+                        }
+
                         let mut btn = THUMBBUTTON {
-                            dwMask: THB_ICON | THB_TOOLTIP,
+                            dwMask: THB_ICON | THB_TOOLTIP | THB_FLAGS,
                             iId: BTN_PLAY,
+                            dwFlags: THBF_ENABLED,
                             ..Default::default()
                         };
                         
@@ -134,7 +138,9 @@ pub fn update_taskbar_state(window: tauri::Window, is_playing: bool) {
                         btn.hIcon = load_icon(&get_taskbar_icon_path(icon_name));
                         btn.szTip = encode_wide(if is_playing { "Pause" } else { "Play" });
                         
-                        let _ = taskbar.ThumbBarUpdateButtons(hwnd, &[btn]);
+                        if taskbar.ThumbBarUpdateButtons(hwnd, &[btn]).is_err() {
+                            setup_taskbar_buttons_hwnd(hwnd);
+                        }
                     }
                 }
             }
@@ -187,8 +193,6 @@ unsafe extern "system" fn subclass_proc(
             if let Some(app) = APP_HANDLE.get() {
                 let _ = app.emit("window-visibility-change", false);
             }
-            // Мгновенный сброс неиспользуемой физической памяти (Working Set Trim)
-            let _ = EmptyWorkingSet(GetCurrentProcess());
         } else if wparam.0 == SIZE_RESTORED || wparam.0 == SIZE_MAXIMIZED {
             if let Some(app) = APP_HANDLE.get() {
                 let _ = app.emit("window-visibility-change", true);

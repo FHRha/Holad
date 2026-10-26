@@ -170,12 +170,29 @@ export default function SettingsModal({
     }
   };
 
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen]);
+
   // If closed, return nothing
   if (!isModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-card w-full max-w-4xl rounded-xl shadow-2xl border border-white/10 flex h-[88vh] md:h-[600px] max-h-[800px] overflow-hidden">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={handleClose}
+    >
+      <div 
+        className="bg-card w-full max-w-4xl rounded-xl shadow-2xl border border-white/10 flex h-[88vh] md:h-[600px] max-h-[800px] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         <div className="w-60 bg-background/50 border-r border-white/5 flex flex-col p-4 shrink-0">
           <h2 className="text-lg font-bold mb-4 px-2">{t('sidebar.settings')}</h2>
@@ -809,6 +826,42 @@ export default function SettingsModal({
                       {t('settings.auto_dj_desc')}
                     </span>
                   </label>
+
+                  {isAutoDjEnabled && (
+                    <div className="mt-4 pt-3 border-t border-white/5 space-y-2">
+                      <div className="text-xs font-semibold text-secondary uppercase tracking-wider">
+                        {t('settings.autodj_repeat_collision', 'При включённом повторе альбома/плейлиста')}
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                          <input 
+                            type="radio" 
+                            name="autoDjRepeatBehavior" 
+                            value="pause_on_repeat" 
+                            checked={settings.autoDjRepeatBehavior === 'pause_on_repeat'} 
+                            onChange={() => settings.setAutoDjRepeatBehavior('pause_on_repeat')}
+                            className="accent-primary w-4 h-4 cursor-pointer"
+                          />
+                          <span className="group-hover:text-primary transition-colors text-sm">
+                            {t('settings.autodj_pause_on_repeat', 'Приоритет повтора (приостанавливать Авто DJ, альбом играет по кругу)')}
+                          </span>
+                        </label>
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                          <input 
+                            type="radio" 
+                            name="autoDjRepeatBehavior" 
+                            value="infinite_stream" 
+                            checked={settings.autoDjRepeatBehavior === 'infinite_stream'} 
+                            onChange={() => settings.setAutoDjRepeatBehavior('infinite_stream')}
+                            className="accent-primary w-4 h-4 cursor-pointer"
+                          />
+                          <span className="group-hover:text-primary transition-colors text-sm">
+                            {t('settings.autodj_infinite_stream', 'Бесконечный поток (игнорировать повтор и добавлять похожие треки)')}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </SettingSection>
 
                 <SettingSection title={t('settings.defaultVolume')}>

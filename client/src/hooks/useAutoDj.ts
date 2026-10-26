@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '../store/playerStore';
+import { useSettingsStore } from '../store/settingsStore';
 import { fetchRandomTracks, getCoverArtUrl } from '../api/subsonic';
 import { isOffline } from '../utils/networkStatus';
 import { getOfflineTracks } from '../store/downloadStore';
@@ -14,13 +15,22 @@ export function useAutoDj() {
     excludedTrackIds,
     excludedAlbumIds,
     excludedFingerprints,
+    repeatMode,
   } = usePlayerStore();
+  const autoDjRepeatBehavior = useSettingsStore((s) => s.autoDjRepeatBehavior);
 
   const isFetchingRef = useRef(false);
 
   useEffect(() => {
     const checkAutoDj = async () => {
-      if (!isAutoDjEnabled || queue.length === 0 || currentIndex < queue.length - 2) {
+      // Collision resolution: If repeat is active and user preference is pause_on_repeat,
+      // allow the playlist/album to loop smoothly instead of infinitely appending tracks
+      if (
+        !isAutoDjEnabled ||
+        (autoDjRepeatBehavior === 'pause_on_repeat' && repeatMode !== 'none') ||
+        queue.length === 0 ||
+        currentIndex < queue.length - 2
+      ) {
         return;
       }
 
@@ -96,6 +106,15 @@ export function useAutoDj() {
       }
     };
     checkAutoDj();
-  }, [currentIndex, isAutoDjEnabled, queue.length, addToQueue, excludedTrackIds, excludedAlbumIds, excludedFingerprints]);
+  }, [
+    currentIndex,
+    isAutoDjEnabled,
+    queue.length,
+    addToQueue,
+    excludedTrackIds,
+    excludedAlbumIds,
+    excludedFingerprints,
+    repeatMode,
+    autoDjRepeatBehavior,
+  ]);
 }
-

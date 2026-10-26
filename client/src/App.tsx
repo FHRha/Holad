@@ -93,7 +93,7 @@ function MainAppContent() {
   // oxlint-disable-next-line
   const { startPage } = useSettingsStore();
   // oxlint-disable-next-line
-  const { isSettingsOpen, isOfflineModalOpen, setOfflineModalOpen } = useUIStore();
+  const { isOfflineModalOpen, setOfflineModalOpen } = useUIStore();
   const { isDemoMode, isPoolExhausted, checkDemoSession } = useDemoStore();
 
   useEffect(() => {
@@ -340,10 +340,12 @@ function MainAppContent() {
                 ))
               } />
             </Routes>
-            
+          </Suspense>
+
+          <Suspense fallback={null}>
             <NowPlayingModal />
             <MobileSearchOverlay />
-            {isSettingsOpen && <SettingsModal />}
+            <SettingsModal />
             {isOfflineModalOpen && <OfflineModeModal isOpen={isOfflineModalOpen} onClose={() => setOfflineModalOpen(false)} />}
             <UpdateModal />
             <UnignoreTrackModal />
