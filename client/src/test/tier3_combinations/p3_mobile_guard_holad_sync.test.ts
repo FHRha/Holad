@@ -45,14 +45,12 @@ describe('Tier 3 - P3: Mobile Autoplay Guard + Remote Holad Sync + Local Queue',
     expect(usePlayerStore.getState().isPlaying).toBe(true);
   });
 
-  it('P3-4: When remote device is idle (isRemotePlaying=false), selecting a queue claims active role locally', () => {
-    let emittedEvent: string | null = null;
-    let emittedPayload: any = null;
+  it('P3-4: When remote device is active, selecting a queue on passive device forwards remoteCommand setQueue', () => {
+    const emitted: Array<{ event: string; payload: any }> = [];
 
     const mockSocket = {
       emit: (event: string, payload: any) => {
-        emittedEvent = event;
-        emittedPayload = payload;
+        emitted.push({ event, payload });
       }
     } as any;
 
@@ -65,16 +63,18 @@ describe('Tier 3 - P3: Mobile Autoplay Guard + Remote Holad Sync + Local Queue',
         { id: 'mobile-client-99', name: 'Mobile' },
         { id: 'desktop-host-1', name: 'Desktop' }
       ],
-      isRemotePlaying: false, // Desktop is idle in other room
+      isRemotePlaying: false,
     });
     useHoladStore.getState().setupStoreSubscriptions();
 
-    // Selecting a track/queue on mobile should claim active device locally
+    // Selecting a track/queue on mobile forwards remoteCommand setQueue in v2
     usePlayerStore.getState().setQueueAndPlay(createMockAlbumTracks(3), 0);
 
-    expect(emittedEvent).toBe('holad_setActiveDevice');
-    expect(emittedPayload).toBe('mobile-client-99');
-    expect(usePlayerStore.getState().isPlaying).toBe(true);
+    const queueCmd = emitted.find(e => e.event === 'holad_remoteCommand' && e.payload?.type === 'setQueue');
+    const playCmd = emitted.find(e => e.event === 'holad_remoteCommand' && e.payload?.type === 'play');
+
+    expect(queueCmd).toBeDefined();
+    expect(playCmd).toBeDefined();
   });
 
   it('P3-5: Safe setActiveDevice emits direct holad_setActiveDevice if previous active device is offline', () => {

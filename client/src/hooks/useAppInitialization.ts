@@ -166,8 +166,14 @@ export function useAppInitialization() {
       }
 
       fetchPlaybackState().then(serverState => {
-        // If the device is in a Holad Connect room and is not the active device, don't overwrite playerStore
         const holadState = useHoladStore.getState();
+        // If Holad Connect socket is connected and already has an active room snapshot from the server,
+        // drop the stale HTTP response so it doesn't overwrite the fresh realtime socket state
+        if (holadState.roomId && holadState.snapshot && holadState.snapshot.version > 0) {
+          return;
+        }
+
+        // If the device is in a Holad Connect room and is not the active device, don't overwrite playerStore
         if (holadState.roomId && holadState.activeDeviceId && holadState.activeDeviceId !== holadState.deviceId) {
           return;
         }
@@ -306,6 +312,15 @@ export function useAppInitialization() {
       // 3. Synchronize playback state (LWW)
       fetchPlaybackState().then(serverState => {
         if (!serverState) return;
+        const holadState = useHoladStore.getState();
+        // If Holad Connect socket is connected and already has an active room snapshot from the server,
+        // drop the stale HTTP response so it doesn't overwrite the fresh realtime socket state
+        if (holadState.roomId && holadState.snapshot && holadState.snapshot.version > 0) {
+          return;
+        }
+        if (holadState.roomId && holadState.activeDeviceId && holadState.activeDeviceId !== holadState.deviceId) {
+          return;
+        }
         const currentStore = usePlayerStore.getState();
         const savedUpdatedStr = localStorage.getItem('holad_time_updated');
         const localTimeUpdated = savedUpdatedStr ? parseInt(savedUpdatedStr, 10) : 0;

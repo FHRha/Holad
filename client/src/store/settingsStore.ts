@@ -226,7 +226,7 @@ export const useSettingsStore = create<SettingsState>()(
       setSyncTheme: (syncTheme) => set({ syncTheme }),
       syncLanguage: true,
       setSyncLanguage: (syncLanguage) => set({ syncLanguage }),
-      isHoladConnectEnabled: false,
+      isHoladConnectEnabled: true,
       autoResumeOnHeadphonesConnect: false,
       setIsHoladConnectEnabled: (isHoladConnectEnabled) => set({ isHoladConnectEnabled }),
       setAutoResumeOnHeadphonesConnect: (autoResumeOnHeadphonesConnect) => set({ autoResumeOnHeadphonesConnect }),

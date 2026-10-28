@@ -241,6 +241,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
   // Preload next track
   const preloadUpcomingTrack = useCallback(() => {
+    if (!isActiveDevice) return;
     if (!settings.preloadNextTrack || settings.preloadMode === 'disabled') return;
     if (engineRef.current.isTransitioning()) return;
 
@@ -272,7 +273,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         }
       });
     }
-  }, [settings.preloadNextTrack, settings.preloadMode, settings.preloadCovers, currentTrack]);
+  }, [isActiveDevice, settings.preloadNextTrack, settings.preloadMode, settings.preloadCovers, currentTrack]);
 
   // Handle Track Source Changes & Playback Transitions
   const prevTrackIdRef = useRef<string | null>(null);
@@ -316,7 +317,14 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const wasPlayingEngine = prevIsPlayingRef.current;
     const isMidTransition = engineRef.current.isTransitioning();
 
-    if (isPlayingStore && isActiveDevice && !isSpeakerDj) {
+    const snapshot = useHoladStore.getState().snapshot;
+    const shouldTransferPlay = didDeviceBecomeActive && snapshot && snapshot.trackId === currentTrack.id && snapshot.isPlaying;
+
+    if ((isPlayingStore || shouldTransferPlay) && isActiveDevice && !isSpeakerDj) {
+      if (shouldTransferPlay && !isPlayingStore) {
+        setIsPlaying(true);
+      }
+
       const activeDeckIdx = engineRef.current.getActiveDeckIndex();
       const shouldCrossfade = isCrossfade && wasPlayingEngine && !didDeviceBecomeActive && !isMidTransition;
       const nextDeckIdx = (shouldCrossfade ? (1 - activeDeckIdx) : activeDeckIdx) as 0 | 1;
@@ -324,11 +332,19 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       const targetEl = audioRefs[nextDeckIdx]?.current;
       if (targetEl) setAudioElement(targetEl);
 
+      let startTimeSec = initialPosition > 0 ? initialPosition / 1000 : 0;
+      if (shouldTransferPlay) {
+        const clientOffset = useHoladStore.getState().clientOffset || 0;
+        const nowServer = Date.now() - clientOffset;
+        const elapsedSec = ((nowServer - snapshot.timestamp) * (snapshot.playbackRate || 1)) / 1000;
+        startTimeSec = (snapshot.positionMs / 1000) + Math.max(0, elapsedSec);
+      }
+
       triggerAudioSessionSync();
       engineRef.current.playTrack(
         { ...currentTrack, streamUrl: audioSrc },
         {
-          startTime: initialPosition > 0 ? initialPosition / 1000 : 0,
+          startTime: startTimeSec,
           immediate: !shouldCrossfade,
           transitionDuration: durationSec,
         }
@@ -342,7 +358,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         console.warn('Track playback initiation error:', e);
       });
 
-      if (initialPosition > 0) {
+      if (initialPosition > 0 || shouldTransferPlay) {
         setInitialPosition(0);
       }
     } else {
@@ -354,26 +370,29 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       engineRef.current.setDeckTrackId(activeDeckIdx as 0 | 1, currentTrack.id);
 
       const targetPosSec = initialPosition > 0 ? initialPosition / 1000 : 0;
-      const deck = engineRef.current.getActiveDeck();
       if (targetPosSec > 0) {
         const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
         useAudioStore.getState().setDuration(dur);
         useAudioStore.getState().setProgress((targetPosSec / dur) * 100);
       }
       if (initialPosition > 0) setInitialPosition(0);
-      if (isSpeakerDj) {
+
+      // On passive clients or in speaker_dj mode, ensure decks remain paused and do NOT load audio
+      if (!isActiveDevice || isSpeakerDj) {
         engineRef.current.pause();
+        return;
       }
 
       // Defer loading standby audio stream when paused to idle callback so critical page rendering (FCP, LCP, fonts) has 100% network priority
       const preloadAudioSrc = audioSrc.includes('/api/stream/') && !audioSrc.includes('preloadChunk=')
         ? `${audioSrc}&preloadChunk=262144`
         : audioSrc;
+      const deck = engineRef.current.getActiveDeck();
       scheduleIdle(() => {
         deck.load(preloadAudioSrc, targetPosSec, 'metadata').catch(() => {});
       });
     }
-  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition]);
+  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition, setIsPlaying, playActionId, isAvailable]);
 
   // Handle async initialPosition restoring for the first track
   useEffect(() => {
@@ -381,14 +400,16 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       const posSec = initialPosition / 1000;
       const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
       if (!isPlaying) {
-        const deck = engineRef.current.getActiveDeck();
-        deck.seek(posSec, dur);
+        if (isActiveDevice) {
+          const deck = engineRef.current.getActiveDeck();
+          deck.seek(posSec, dur);
+        }
         useAudioStore.getState().setDuration(dur);
         useAudioStore.getState().setProgress((posSec / dur) * 100);
       }
       setInitialPosition(0);
     }
-  }, [initialPosition, currentTrack, audioSrc, srcLoading, isPlaying, setInitialPosition]);
+  }, [initialPosition, currentTrack, audioSrc, srcLoading, isPlaying, isActiveDevice, setInitialPosition]);
 
   const previousTrackIdRef = useRef<string | null>(null);
     useEffect(() => {
@@ -639,6 +660,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     };
 
     const handleRequestPreload = () => {
+      if (!isActiveDevice) return;
       preloadUpcomingTrack();
     };
 

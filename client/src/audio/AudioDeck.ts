@@ -21,6 +21,7 @@ export class AudioDeck implements IAudioDeck {
     private primaryElement: HTMLAudioElement;
     public state: AudioState = 'idle';
     public targetPosition: number = 0;
+    private hasCanPlayFired: boolean = false;
 
     private listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
     private boundHandlers: Map<string, (...args: any[]) => void> = new Map();
@@ -70,6 +71,7 @@ export class AudioDeck implements IAudioDeck {
         });
 
         register('canplay', () => {
+            this.hasCanPlayFired = true;
             if (this.state === 'loading' || this.state === 'stalled' || this.state === 'paused') {
                 this.setState(this.element.paused ? 'ready' : 'playing');
             }
@@ -77,6 +79,7 @@ export class AudioDeck implements IAudioDeck {
         });
 
         register('canplaythrough', () => {
+            this.hasCanPlayFired = true;
             if (this.state === 'loading' || this.state === 'stalled' || this.state === 'paused') {
                 this.setState(this.element.paused ? 'ready' : 'playing');
             }
@@ -106,7 +109,11 @@ export class AudioDeck implements IAudioDeck {
         });
 
         register('timeupdate', () => {
-            this.emit('timeupdate', this.getCurrentTime());
+            const time = this.getCurrentTime();
+            if (this.targetPosition > 0 && time === 0) {
+                return;
+            }
+            this.emit('timeupdate', time);
         });
 
         register('durationchange', () => {
@@ -187,6 +194,7 @@ export class AudioDeck implements IAudioDeck {
     public async load(src: string, position: number = 0, preloadMode: 'auto' | 'metadata' = 'auto'): Promise<void> {
         try {
             this.targetPosition = position;
+            this.hasCanPlayFired = false;
             this.setState('loading');
             
             if (this.element !== this.primaryElement) {
@@ -227,8 +235,12 @@ export class AudioDeck implements IAudioDeck {
             }
             this.setState('loading');
         
-            // Force the UI to reset immediately
-            this.emit('timeupdate', position);
+            // Force the UI to reset immediately without false 0 emissions
+            if (position > 0 || this.targetPosition > 0) {
+                this.emit('timeupdate', this.targetPosition > 0 ? this.targetPosition : position);
+            } else {
+                this.emit('timeupdate', 0);
+            }
             
             await new Promise<void>((resolve, reject) => {
                 if (this.element.readyState >= 1) {
@@ -237,6 +249,9 @@ export class AudioDeck implements IAudioDeck {
                         try {
                             this.element.currentTime = target;
                         } catch {}
+                    }
+                    if (this.element.readyState >= 3) {
+                        this.hasCanPlayFired = true;
                     }
                     this.setState(this.element.paused ? 'ready' : 'playing');
                     resolve();
@@ -259,6 +274,7 @@ export class AudioDeck implements IAudioDeck {
 
                 const onReady = () => {
                     cleanup();
+                    this.hasCanPlayFired = true;
                     const target = this.targetPosition > 0 ? this.targetPosition : position;
                     if (target > 0) {
                         try {
@@ -344,6 +360,8 @@ export class AudioDeck implements IAudioDeck {
         this.pause();
         this.element.removeAttribute('src');
         this.element.load();
+        this.targetPosition = 0;
+        this.hasCanPlayFired = false;
         this.setState('idle');
     }
 
@@ -376,8 +394,13 @@ export class AudioDeck implements IAudioDeck {
     }
 
     public getCurrentTime(): number {
-        if (this.targetPosition > 0 && (this.element.seeking || this.state === 'loading' || (this.state === 'idle' && this.element.currentTime === 0))) {
-            return this.targetPosition;
+        if (this.targetPosition > 0) {
+            if (this.state === 'loading' || !this.hasCanPlayFired || this.element.seeking || (this.element.currentTime === 0 && this.state !== 'playing')) {
+                return this.targetPosition;
+            }
+            if (this.element.currentTime === 0) {
+                return this.targetPosition;
+            }
         }
         return this.element.currentTime || 0;
     }
@@ -463,6 +486,8 @@ export class AudioDeck implements IAudioDeck {
     public destroy(): void {
         this.pause();
         this.element.src = '';
+        this.targetPosition = 0;
+        this.hasCanPlayFired = false;
         
         // Remove all attached media event listeners
         this.boundHandlers.forEach((handler, event) => {

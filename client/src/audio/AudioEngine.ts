@@ -36,6 +36,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     private isPlaying: boolean = false;
     private hasPreloadedCurrentTrack: boolean = false;
     private isPreparingPlayback: boolean = false;
+    private preparingStartPosition: number = 0;
 
     constructor(elements?: [HTMLAudioElement, HTMLAudioElement]) {
         const deck0 = new AudioDeck('deck-0', elements?.[0]);
@@ -89,6 +90,9 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
         deck.on('timeupdate', (time: number) => {
             if (deckIndex === this.activeIndex) {
+                if (this.isPreparingPlayback && this.preparingStartPosition > 0 && time === 0) {
+                    return;
+                }
                 this.emit('timeupdate', time, this.deckTrackIds[deckIndex]);
                 this.checkPreloadThreshold(time, deck.getDuration());
             }
@@ -191,6 +195,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         this.isPlaying = true;
         const streamUrl = track?.streamUrl || track?.src || (typeof track === 'string' ? track : '');
         const position = options.startTime || 0;
+        this.preparingStartPosition = position;
         const activeDeck = this.getActiveDeck();
         const standbyDeck = this.getStandbyDeck();
         const trackDuration = typeof track?.duration === 'number' && track.duration > 0 ? track.duration : undefined;
@@ -330,6 +335,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             }
         } finally {
             this.isPreparingPlayback = false;
+            this.preparingStartPosition = 0;
         }
     }
 
@@ -566,6 +572,8 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     public destroy(): void {
+        this.isPreparingPlayback = false;
+        this.preparingStartPosition = 0;
         this.hasPreloadedCurrentTrack = false;
         this.transitionManager.destroy();
         this.preloadManager.reset();

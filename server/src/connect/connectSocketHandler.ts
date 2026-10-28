@@ -5,7 +5,11 @@ import type {
   HoladLeavePayload,
   HoladRemoteCommand,
   SocketHoladData,
-  ConnectSocketHandlerOptions
+  ConnectSocketHandlerOptions,
+  PlaybackSnapshot,
+  HoladHeartbeatPayload,
+  HoladTransferPlaybackPayload,
+  HoladPingPayload
 } from './types.js';
 import { demoManager as defaultDemoManager } from '../demoManager.js';
 
@@ -37,12 +41,14 @@ export function handleConnectDisconnect(
     roomManager.startGracePeriod(roomId, deviceId, () => {
       const currentRoom = roomManager.getRoom(roomId);
       if (currentRoom && currentRoom.activeDeviceId === deviceId) {
-        // Grace period expired without reconnect. Transfer to next available online device!
-        currentRoom.activeDeviceId = currentRoom.devices[0]?.id ?? null;
+        // Grace period expired without reconnect.
+        // Server does NOT transfer sound to another device automatically!
+        roomManager.handleLeaseExpiration(roomId, deviceId);
         io.to(`holad_${roomId}`).emit('holad_devices', {
           devices: currentRoom.devices,
           activeDeviceId: currentRoom.activeDeviceId
         });
+        io.to(`holad_${roomId}`).emit('holad_syncState', currentRoom.snapshot);
         if (currentRoom.devices.length === 0) {
           roomManager.deleteRoom(roomId);
         }
@@ -71,7 +77,7 @@ export function registerConnectSocketHandlers(
     const { roomId, deviceId, deviceName, auth, demoSessionId } = data || {};
 
     if (!auth || typeof auth.user !== 'string' || typeof auth.salt !== 'string' || typeof auth.token !== 'string' || typeof auth.url !== 'string') {
-      socket.emit('holad_authError', 'Missing or invalid authentication credentials');
+      socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Missing or invalid authentication credentials' });
       socket.disconnect();
       return;
     }
@@ -91,7 +97,7 @@ export function registerConnectSocketHandlers(
     );
 
     if (!isDemoMatch && authUserClean !== normalizedRoom) {
-      socket.emit('holad_authError', 'Room mismatch: You can only join your own room');
+      socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Room mismatch: You can only join your own room' });
       socket.disconnect();
       return;
     }
@@ -110,7 +116,7 @@ export function registerConnectSocketHandlers(
 
     const isWhitelisted = !!process.env.NAVIDROME_URL || accounts.length === 0 || isKnownUser || accounts.some((a: any) => a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
     if (!isWhitelisted) {
-      socket.emit('holad_authError', 'Unauthorized server URL');
+      socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Unauthorized server URL' });
       socket.disconnect();
       return;
     }
@@ -138,7 +144,7 @@ export function registerConnectSocketHandlers(
     }
 
     if (!isPingSuccessful && !isKnownUser) {
-      socket.emit('holad_authError', 'Invalid Subsonic credentials or unverified server');
+      socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Invalid Subsonic credentials or unverified server' });
       socket.disconnect();
       return;
     }
@@ -188,9 +194,8 @@ export function registerConnectSocketHandlers(
     socket.emit('holad_devices', devicesPayload);
     io.to(`holad_${normalizedRoom}`).emit('holad_devices', devicesPayload);
 
-    if (room.cachedState) {
-      socket.emit('holad_syncState', room.cachedState);
-    }
+    // SSOT: Emit PlaybackSnapshot to newly connected client
+    socket.emit('holad_syncState', room.snapshot);
 
     if (room.activeDeviceId && room.activeDeviceId !== deviceId) {
       const activeDev = room.devices.find(d => d.id === room.activeDeviceId);
@@ -215,6 +220,39 @@ export function registerConnectSocketHandlers(
     }
   });
 
+  // NTP-light ping/pong
+  socket.on('holad_ping', (data: HoladPingPayload) => {
+    socket.emit('holad_pong', { t0: data?.t0, serverTime: Date.now() });
+  });
+
+  // Heartbeat handler for drift correction and lease renewal
+  socket.on('holad_heartbeat', (data: HoladHeartbeatPayload) => {
+    const holadData = (socket as any).holadData as SocketHoladData | undefined;
+    const targetRoomId = (data?.roomId || holadData?.roomId || '').trim().toLowerCase();
+    const targetDeviceId = data?.deviceId || holadData?.deviceId;
+    if (!targetRoomId || !targetDeviceId) return;
+
+    const result = roomManager.handleHeartbeat(targetRoomId, targetDeviceId, data);
+    if (result && result.shouldBroadcast) {
+      socket.to(`holad_${targetRoomId}`).emit('holad_syncState', result.snapshot);
+    }
+  });
+
+  // Explicit playback transfer to target device
+  socket.on('holad_transferPlayback', (data: HoladTransferPlaybackPayload) => {
+    const holadData = (socket as any).holadData as SocketHoladData | undefined;
+    const targetRoomId = (data?.roomId || holadData?.roomId || '').trim().toLowerCase();
+    const targetDeviceId = data?.targetDeviceId;
+    if (!targetRoomId || !targetDeviceId) return;
+
+    const room = roomManager.transferPlayback(targetRoomId, targetDeviceId);
+    if (room) {
+      const payload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
+      io.to(`holad_${targetRoomId}`).emit('holad_devices', payload);
+      io.to(`holad_${targetRoomId}`).emit('holad_syncState', room.snapshot);
+    }
+  });
+
   socket.on('holad_setActiveDevice', (deviceId: string) => {
     const data = (socket as any).holadData as SocketHoladData | undefined;
     if (!data) return;
@@ -223,6 +261,20 @@ export function registerConnectSocketHandlers(
       const payload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
       socket.emit('holad_devices', payload);
       io.to(`holad_${data.roomId}`).emit('holad_devices', payload);
+      io.to(`holad_${data.roomId}`).emit('holad_syncState', room.snapshot);
+    }
+  });
+
+  socket.on('holad_updateSnapshot', (patch: Partial<PlaybackSnapshot>) => {
+    const data = (socket as any).holadData as SocketHoladData | undefined;
+    if (!data) return;
+    const result = roomManager.updateSnapshot(data.roomId, data.deviceId, patch);
+    if (result && result.updated) {
+      if (result.becameActive) {
+        const payload = { devices: result.room.devices, activeDeviceId: result.room.activeDeviceId };
+        io.to(`holad_${data.roomId}`).emit('holad_devices', payload);
+      }
+      socket.to(`holad_${data.roomId}`).emit('holad_syncState', result.room.snapshot);
     }
   });
 
@@ -231,9 +283,7 @@ export function registerConnectSocketHandlers(
     if (!data) return;
     const room = roomManager.getRoom(data.roomId);
     if (room) {
-      if (room.cachedState) {
-        socket.emit('holad_syncState', room.cachedState);
-      }
+      socket.emit('holad_syncState', room.snapshot);
       if (room.activeDeviceId && room.activeDeviceId !== data.deviceId) {
         const activeDev = room.devices.find(d => d.id === room.activeDeviceId);
         if (activeDev) {
@@ -256,7 +306,7 @@ export function registerConnectSocketHandlers(
         const payload = { devices: result.room.devices, activeDeviceId: result.room.activeDeviceId };
         io.to(`holad_${data.roomId}`).emit('holad_devices', payload);
       }
-      socket.to(`holad_${data.roomId}`).emit('holad_syncState', result.room.cachedState);
+      socket.to(`holad_${data.roomId}`).emit('holad_syncState', result.room.snapshot);
     }
   });
 
@@ -300,11 +350,12 @@ export function registerConnectSocketHandlers(
         roomManager.startGracePeriod(normalizedRoom, rawDevice, () => {
           const currentRoom = roomManager.getRoom(normalizedRoom);
           if (currentRoom && currentRoom.activeDeviceId === rawDevice) {
-            currentRoom.activeDeviceId = currentRoom.devices[0]?.id ?? null;
+            roomManager.handleLeaseExpiration(normalizedRoom, rawDevice);
             io.to(`holad_${normalizedRoom}`).emit('holad_devices', {
               devices: currentRoom.devices,
               activeDeviceId: currentRoom.activeDeviceId
             });
+            io.to(`holad_${normalizedRoom}`).emit('holad_syncState', currentRoom.snapshot);
             if (currentRoom.devices.length === 0) {
               roomManager.deleteRoom(normalizedRoom);
             }

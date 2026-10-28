@@ -128,8 +128,9 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       expect(setActiveSpy).toHaveBeenCalledWith(myId);
     });
 
-    it('claims activeDeviceId when setIsPlaying(true) is called and activeDeviceId is null', () => {
+    it('sends remoteCommand "play" and does not claim activeDeviceId when setIsPlaying(true) is called and activeDeviceId is null', () => {
       const myId = useHoladStore.getState().deviceId;
+      usePlayerStore.setState({ isPlaying: false });
       useHoladStore.setState({
         roomId: 'test-room-null',
         activeDeviceId: null,
@@ -137,11 +138,13 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       });
 
       const setActiveSpy = vi.spyOn(useHoladStore.getState(), 'setActiveDevice');
+      const sendRemoteCommandSpy = vi.spyOn(useHoladStore.getState(), 'sendRemoteCommand');
 
       usePlayerStore.getState().setIsPlaying(true);
 
-      expect(setActiveSpy).toHaveBeenCalledWith(myId);
-      expect(usePlayerStore.getState().isPlaying).toBe(true);
+      expect(setActiveSpy).not.toHaveBeenCalled();
+      expect(sendRemoteCommandSpy).toHaveBeenCalledWith('play');
+      expect(usePlayerStore.getState().isPlaying).toBe(false);
     });
 
     it('does NOT steal activeDeviceId when window visibility changes to visible', () => {
@@ -204,7 +207,7 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       expect(mockSocket.emit).toHaveBeenCalledWith('holad_remoteCommand', { type: 'play' });
     });
 
-    it('Idle Timeout: remote play claims activeDeviceId locally when master has been paused >= 60s', () => {
+    it('Remote Control v2: remote play sends remoteCommand "play" even when master has been paused >= 60s without taking over locally', () => {
       const holad = useHoladStore.getState();
       const myId = holad.deviceId;
       const masterId = 'desktop-master';
@@ -215,7 +218,7 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
         roomId: 'test-room',
         activeDeviceId: masterId,
         isRemotePlaying: false,
-        lastPausedAt: Date.now() - 65000, // Paused 65 seconds ago (> 60s idle timeout)
+        lastPausedAt: Date.now() - 65000, // Paused 65 seconds ago
         devices: [
           { id: myId, name: 'Phone Remote' },
           { id: masterId, name: 'Desktop' }
@@ -228,8 +231,10 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       // User presses Play on remote device after idle timeout
       usePlayerStore.getState().setIsPlaying(true);
 
-      // Must claim active device locally!
-      expect(setActiveSpy).toHaveBeenCalledWith(myId);
+      // Must NOT steal active device in v2!
+      expect(setActiveSpy).not.toHaveBeenCalled();
+      // Must send remoteCommand 'play' to the current master
+      expect(mockSocket.emit).toHaveBeenCalledWith('holad_remoteCommand', { type: 'play' });
     });
 
     it('transfers active device to remaining online device when primary active device goes offline after grace period', () => {

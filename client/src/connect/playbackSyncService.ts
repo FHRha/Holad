@@ -4,10 +4,12 @@ import { useAudioStore } from '../store/audioStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { getAudioEngine } from '../audio/AudioEngine';
 import { useHoladStore } from '../store/holadStore';
+import type { PlaybackSnapshot, TrackCompact } from './types';
 
 let isApplyingRemoteState = false;
 let unsubscribeStore: (() => void) | null = null;
 let unsubscribeSettings: (() => void) | null = null;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let debounceTimer: any = null;
 let lastSyncTimestamp = 0;
 
@@ -30,6 +32,64 @@ export function setIsApplyingRemoteState(val: boolean): void {
     }
   } catch {
     // Store might not be initialized yet
+  }
+}
+
+/**
+ * Returns the current playback position in milliseconds.
+ */
+function getCurrentPositionMs(playerStore: any): number {
+  const engine = getAudioEngine();
+  if (engine) {
+    const t = engine.getCurrentTime();
+    if (typeof t === 'number' && isFinite(t) && t > 0) {
+      return Math.round(t * 1000);
+    }
+  }
+  const audioStore = useAudioStore.getState();
+  const track = playerStore.queue?.[playerStore.currentIndex];
+  const duration = audioStore.duration || track?.duration || 0;
+  return Math.round(((audioStore.progress / 100) * duration) * 1000);
+}
+
+/**
+ * Starts the 8-second background heartbeat when this device is the active master.
+ */
+export function startHeartbeat(socket: Socket | null, roomId: string | null, deviceId: string): void {
+  stopHeartbeat();
+  if (!socket || !roomId) return;
+
+  heartbeatTimer = setInterval(() => {
+    const holad = useHoladStore.getState();
+    const currentSocket = holad.socket || socket;
+    const currentRoom = holad.roomId || roomId;
+    const currentDevice = holad.deviceId || deviceId;
+
+    if (!currentSocket || !currentRoom || holad.activeDeviceId !== currentDevice) {
+      stopHeartbeat();
+      return;
+    }
+
+    const playerStore = usePlayerStore.getState();
+    const positionMs = getCurrentPositionMs(playerStore);
+
+    currentSocket.emit('holad_heartbeat', {
+      roomId: currentRoom,
+      deviceId: currentDevice,
+      positionMs,
+      isPlaying: playerStore.isPlaying,
+      playbackRate: playerStore.playbackRate || 1,
+    });
+  }, 8000);
+}
+
+/**
+ * Stops the background heartbeat.
+ */
+export function stopHeartbeat(): void {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
   }
 }
 
@@ -66,6 +126,7 @@ export function throttledSyncState(
  * Cleans up existing subscriptions to player and settings stores.
  */
 export function cleanupPlaybackSubscriptions(): void {
+  stopHeartbeat();
   if (unsubscribeStore) {
     unsubscribeStore();
     unsubscribeStore = null;
@@ -95,133 +156,103 @@ export function setupPlaybackSubscriptions(): void {
     const currentActive = holad.activeDeviceId;
     const currentDeviceId = holad.deviceId;
     const currentSocket = holad.socket;
+    const roomId = holad.roomId;
+
+    if (!currentSocket || !roomId) {
+      stopHeartbeat();
+      return;
+    }
 
     if (currentActive === currentDeviceId) {
-      let currentTime = 0;
-      const engine = getAudioEngine();
-      if (engine) {
-        currentTime = engine.getCurrentTime();
-      } else {
-        const track = state.queue[state.currentIndex];
-        const duration = useAudioStore.getState().duration || track?.duration || 1;
-        currentTime = (useAudioStore.getState().progress / 100) * duration;
+      // 1. ACTIVE MASTER DEVICE
+      if (!heartbeatTimer) {
+        startHeartbeat(currentSocket, roomId, currentDeviceId);
       }
 
-      const lastPausedAt = !state.isPlaying ? (holad.lastPausedAt || Date.now()) : null;
-      if (holad.lastPausedAt !== lastPausedAt) {
-        useHoladStore.setState({ lastPausedAt });
-      }
+      const isPlayingChanged = state.isPlaying !== prevState?.isPlaying;
+      const indexChanged = state.currentIndex !== prevState?.currentIndex;
+      const queueChanged = state.queue !== prevState?.queue || state.queue?.length !== prevState?.queue?.length;
+      const rateChanged = state.playbackRate !== prevState?.playbackRate;
 
-      const stateToSync = {
-        isPlaying: state.isPlaying,
-        currentIndex: state.currentIndex,
-        queue: state.queue,
-        currentTime,
-        accentColor: useSettingsStore.getState().accentColor,
-        customColors: useSettingsStore.getState().customColors,
-        lastPausedAt
-      };
+      if (isPlayingChanged || indexChanged || queueChanged || rateChanged) {
+        const positionMs = getCurrentPositionMs(state);
+        const currentTrack = state.queue[state.currentIndex];
 
-      if (
-        state.isPlaying !== prevState?.isPlaying ||
-        state.currentIndex !== prevState?.currentIndex ||
-        state.queue?.length !== prevState?.queue?.length
-      ) {
-        currentSocket?.emit('holad_updateState', {
-          roomId: holad.roomId,
+        const compactQueue: TrackCompact[] = (state.queue || []).map(t => ({
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          album: t.album,
+          duration: t.duration,
+          coverArt: t.coverArt,
+        }));
+
+        const patch: Partial<PlaybackSnapshot> = {
+          roomId,
+          trackId: currentTrack?.id ?? null,
+          currentIndex: state.currentIndex,
+          queue: compactQueue,
+          positionMs,
+          isPlaying: state.isPlaying,
+          playbackRate: state.playbackRate || 1,
+        };
+
+        currentSocket.emit('holad_updateSnapshot', patch);
+
+        currentSocket.emit('holad_updateState', {
+          roomId,
           deviceId: currentDeviceId,
-          ...stateToSync
+          isPlaying: state.isPlaying,
+          currentIndex: state.currentIndex,
+          queue: state.queue,
+          currentTime: positionMs / 1000,
+          positionMs,
+          playbackRate: state.playbackRate || 1,
+          accentColor: useSettingsStore.getState().accentColor,
+          customColors: useSettingsStore.getState().customColors,
+          lastPausedAt: !state.isPlaying ? (holad.lastPausedAt || Date.now()) : null,
         });
       }
-    } else if (!currentActive) {
-      if (state.isPlaying && !prevState?.isPlaying) {
-        useHoladStore.getState().setActiveDevice(currentDeviceId);
-      }
-    } else if (currentActive && currentActive !== currentDeviceId) {
-      const prevQueueLen = prevState?.queue?.length || 0;
-      const currQueueLen = state.queue?.length || 0;
+    } else {
+      // 2. PASSIVE DEVICE (currentActive !== currentDeviceId)
+      stopHeartbeat();
 
-      // 1. Guard against initial queue hydration on an idle device:
-      if (prevQueueLen === 0 && currQueueLen > 0 && !state.isPlaying) {
-        return;
-      }
+      const queueChanged = state.queue !== prevState?.queue || state.queue?.length !== prevState?.queue?.length;
+      const indexChanged = state.currentIndex !== prevState?.currentIndex;
+      const isPlayingChanged = state.isPlaying !== prevState?.isPlaying;
+      const repeatChanged = state.repeatMode !== prevState?.repeatMode;
+      const rateChanged = state.playbackRate !== prevState?.playbackRate;
 
-      const isCurrentActiveOnline = holad.devices.some(d => d.id === currentActive);
-      const isRemoteActivePlaying = isCurrentActiveOnline && holad.isRemotePlaying;
-      const queueChanged = state.queue !== prevState?.queue || currQueueLen !== prevQueueLen;
-      const trackChanged = state.currentIndex !== prevState?.currentIndex;
-
-      // 2. If remote device is offline, only an EXPLICIT user play action claims active device locally:
-      if (!isCurrentActiveOnline) {
-        if (state.isPlaying && !prevState?.isPlaying) {
-          useHoladStore.getState().setActiveDevice(currentDeviceId);
-        }
-        return;
-      }
-
-      // 3. Idle timeout (60 seconds / 60000 ms):
-      // If the master has been paused for > 60 seconds (or has never played / room has no active playing device),
-      // pressing Play or selecting a track makes this device the new master.
-      const lastPausedAt = holad.lastPausedAt;
-      const isMasterIdle = !isRemoteActivePlaying && (
-        lastPausedAt === null || (Date.now() - lastPausedAt >= 60000)
-      );
-
-      if (isMasterIdle && state.isPlaying && (!prevState?.isPlaying || trackChanged)) {
-        useHoladStore.getState().setActiveDevice(currentDeviceId);
-        return;
-      }
-
-      // 4. Remote Control mode: master is playing or paused < 60s
-      // Automatic takeover is strictly forbidden. Forward all commands to master.
-      if (queueChanged || (trackChanged && Math.abs(state.currentIndex - (prevState?.currentIndex || 0)) > 1)) {
-        setIsApplyingRemoteState(true);
-        usePlayerStore.setState({
-          queue: prevState?.queue || [],
-          currentIndex: prevState?.currentIndex || 0,
-          isPlaying: prevState?.isPlaying || false
-        });
-        setTimeout(() => { setIsApplyingRemoteState(false); }, 10);
-
-        currentSocket?.emit('holad_remoteCommand', {
+      if (queueChanged) {
+        currentSocket.emit('holad_remoteCommand', {
           type: 'setQueue',
-          payload: { queue: state.queue, currentIndex: state.currentIndex }
+          payload: { queue: state.queue, currentIndex: state.currentIndex },
         });
-        if (state.isPlaying) {
-          currentSocket?.emit('holad_remoteCommand', { type: 'play' });
-        }
-        return;
+      } else if (indexChanged && state.currentIndex >= 0) {
+        currentSocket.emit('holad_remoteCommand', {
+          type: 'setTrack',
+          payload: state.currentIndex,
+        });
       }
 
-      // In-queue track change: send simple play/seek if queue structure didn't change
-      if (trackChanged && state.currentIndex >= 0 && Math.abs(state.currentIndex - (prevState?.currentIndex || 0)) <= 1) {
-        setIsApplyingRemoteState(true);
-        usePlayerStore.setState({
-          currentIndex: prevState?.currentIndex || 0,
-          isPlaying: prevState?.isPlaying || false
+      if (isPlayingChanged) {
+        currentSocket.emit('holad_remoteCommand', {
+          type: state.isPlaying ? 'play' : 'pause',
         });
-        setTimeout(() => { setIsApplyingRemoteState(false); }, 10);
-
-        currentSocket?.emit('holad_remoteCommand', {
-          type: 'setQueue',
-          payload: { queue: state.queue, currentIndex: state.currentIndex }
-        });
-        if (state.isPlaying) {
-          currentSocket?.emit('holad_remoteCommand', { type: 'play' });
-        }
-        return;
       }
 
-      if (state.isPlaying !== prevState?.isPlaying) {
-        setIsApplyingRemoteState(true);
-        usePlayerStore.setState({ isPlaying: prevState?.isPlaying || false });
-        setTimeout(() => { setIsApplyingRemoteState(false); }, 10);
+      if (repeatChanged) {
+        currentSocket.emit('holad_remoteCommand', {
+          type: 'repeat',
+          payload: state.repeatMode,
+        });
+      }
 
-        if (state.isPlaying) {
-          currentSocket?.emit('holad_remoteCommand', { type: 'play' });
-        } else {
-          currentSocket?.emit('holad_remoteCommand', { type: 'pause' });
-        }
+      if (rateChanged) {
+        currentSocket.emit('holad_remoteCommand', {
+          type: 'playbackRate',
+          payload: state.playbackRate,
+        });
       }
     }
   });
@@ -240,7 +271,7 @@ export function setupPlaybackSubscriptions(): void {
         roomId: holad.roomId,
         deviceId: currentDeviceId,
         accentColor: state.accentColor,
-        customColors: state.customColors
+        customColors: state.customColors,
       });
     }
   });
