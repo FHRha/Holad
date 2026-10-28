@@ -217,20 +217,6 @@ export default function MobileSettingsView() {
       icon: <Database className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-4 mt-4">
-          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">
-            <div className="flex flex-col pr-4">
-              <span className="text-[15px] font-medium text-white">{t('settings.holad_connect', 'Holad Connect (Синхронизация)')}</span>
-              <span className="text-xs text-secondary mt-1">
-                {t('settings.holad_connect_desc', 'Удалённое управление и друзья. Временно отключено по умолчанию для стабильности.')}
-              </span>
-            </div>
-            <input 
-              type="checkbox" 
-              checked={settings.isHoladConnectEnabled} 
-              onChange={(e) => settings.setIsHoladConnectEnabled(e.target.checked)}
-              className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
-            />
-          </label>
           <button onClick={handleLogout} className="w-full bg-red-500/10 text-red-500 font-bold py-3 rounded-xl border border-red-500/20">
             {t('views.logout')}
           </button>

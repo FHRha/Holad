@@ -54,15 +54,18 @@ export default function ConnectDeviceList({
         </div>
       )}
       <div className="flex flex-col gap-1 max-h-60 overflow-y-auto px-2 pt-2">
-        {devices.map((device) => (
-          <ConnectDeviceItem
-            key={device.id}
-            device={device}
-            isActive={device.id === activeDeviceId}
-            isThisDevice={device.id === localDeviceId}
-            onSelect={onSelectDevice}
-          />
-        ))}
+        {devices.map((device) => {
+          const isItemActive = activeDeviceId ? device.id === activeDeviceId : device.id === localDeviceId;
+          return (
+            <ConnectDeviceItem
+              key={device.id}
+              device={device}
+              isActive={Boolean(isItemActive)}
+              isThisDevice={device.id === localDeviceId}
+              onSelect={onSelectDevice}
+            />
+          );
+        })}
 
         {connectionStatus === 'connecting' && (
           <div className="px-3 py-4 flex items-center justify-center gap-2 text-sm text-secondary">

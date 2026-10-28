@@ -4,13 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { useHoladStore } from '../../store/holadStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useSocialStore } from '../../store/socialStore';
-import { useSettingsStore } from '../../store/settingsStore';
 import { useAudioOutputDevice } from '../../hooks/useAudioOutputDevice';
 import {
   ConnectTriggerButton,
   ConnectAudioOutputSection,
   ConnectJamSection,
-  ConnectDisabledNotice,
   ConnectDeviceList,
 } from './connect';
 
@@ -37,7 +35,6 @@ export default function HoladConnectMenu({
   const localDeviceId = useHoladStore(s => s.deviceId);
   const setActiveDevice = useHoladStore(s => s.setActiveDevice);
   const isConnected = useHoladStore(s => s.roomId !== null);
-  const isHoladConnectEnabled = useSettingsStore(s => s.isHoladConnectEnabled);
   const connectionStatus = useHoladStore(s => s.connectionStatus);
   const connectError = useHoladStore(s => s.connectError);
   const roomId = useHoladStore(s => s.roomId);
@@ -72,8 +69,8 @@ export default function HoladConnectMenu({
     };
   }, [isOpen]);
 
-  // For icon variant, hide if enabled but not connected to Holad or Jam
-  if (variant === 'icon' && isHoladConnectEnabled && !isConnected && !jamRoomId) return null;
+  // For icon variant, hide if not connected to Holad or Jam
+  if (variant === 'icon' && !isConnected && !jamRoomId) return null;
 
   const isThisDeviceActive = activeDeviceId === localDeviceId || (activeDeviceId === null && devices.some(d => d.id === localDeviceId));
   const isActive = isThisDeviceActive && devices.length > 0;
@@ -128,9 +125,7 @@ export default function HoladConnectMenu({
         />
       )}
       
-      {!isHoladConnectEnabled ? (
-        <ConnectDisabledNotice />
-      ) : isConnected ? (
+      {isConnected ? (
         <ConnectDeviceList
           devices={devices}
           activeDeviceId={activeDeviceId}

@@ -9,7 +9,6 @@ import { useUIStore } from '../../store/uiStore';
 import { useSocialStore } from '../../store/socialStore';
 import { useAuthStore } from '../../store/authStore';
 import { useDemoStore } from '../../store/demoStore';
-import { useSettingsStore } from '../../store/settingsStore';
 import { jamSocket } from '../../api/socket';
 import { toast } from 'sonner';
 import { getShareUrl } from '../../utils/serverConfig';
@@ -56,7 +55,6 @@ export default function RightSidebar() {
   } = useSocialStore();
 
   const authUser = useAuthStore((s) => s.user);
-  const isHoladConnectEnabled = useSettingsStore((s) => s.isHoladConnectEnabled);
   const isDemoMode = useDemoStore((s) => s.isDemoMode);
   const slotId = useDemoStore((s) => s.slotId);
   const guestNick = slotId ? `${t('demo.guest', 'Гость')} #${slotId}` : t('demo.guest', 'Гость');
@@ -482,21 +480,7 @@ export default function RightSidebar() {
               </div>
             )}
 
-            {!isHoladConnectEnabled ? (
-              <div className="py-7 px-4 rounded-2xl bg-neutral-100 dark:bg-[#141414] border border-black/5 dark:border-white/5 text-center flex flex-col items-center justify-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-primary/15 text-primary flex items-center justify-center ring-1 ring-primary/25">
-                  <UsersRound size={20} />
-                </div>
-                <p className="text-xs font-bold text-foreground">
-                  {t('social.temporarily_disabled_title', 'Друзья временно недоступны')}
-                </p>
-                <p className="text-[11px] text-secondary max-w-[210px] leading-relaxed">
-                  {t('social.temporarily_disabled_desc', 'Социальные функции и список друзей временно отключены из-за проблем с Holad Connect. Jam-сессии продолжают работать!')}
-                </p>
-              </div>
-            ) : (
-              <>
-                {activeInvites.length > 0 && (
+            {activeInvites.length > 0 && (
               <div className="space-y-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-secondary px-1">
                   {t('deeplink.invite_title')}
@@ -853,8 +837,6 @@ export default function RightSidebar() {
                 </div>
               )}
             </div>
-              </>
-            )}
           </div>
         ) : (
           <div className={`flex-1 overflow-y-auto overflow-x-hidden ${isSmall ? 'p-1' : 'p-2'} space-y-1 relative`} onScroll={handleScroll}>

@@ -21,10 +21,6 @@ describe('Holad Connect v2 Client Architecture', () => {
   });
 
   describe('1. Default Settings & Store Initialization', () => {
-    it('initializes isHoladConnectEnabled as true by default', () => {
-      expect(useSettingsStore.getState().isHoladConnectEnabled).toBe(true);
-    });
-
     it('initializes holadStore with null snapshot and 0 clientOffset', () => {
       const state = useHoladStore.getState();
       expect(state.snapshot).toBeNull();

@@ -331,25 +331,6 @@ export default function SettingsModal({
                   />
                 </SettingSection>
 
-                <SettingSection title={t('settings.holad_connect_section', 'Синхронизация и Holad Connect')}>
-                  <label className="flex items-center justify-between cursor-pointer group">
-                    <div className="flex flex-col pr-4">
-                      <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                        {t('settings.holad_connect', 'Включить Holad Connect')}
-                      </span>
-                      <span className="text-xs text-secondary mt-1 leading-snug">
-                        {t('settings.holad_connect_desc', 'Синхронизация между устройствами, удалённое управление и список друзей. Временно отключено по умолчанию для обеспечения стабильности воспроизведения. Jam-сессии продолжают работать.')}
-                      </span>
-                    </div>
-                    <input 
-                      type="checkbox" 
-                      checked={settings.isHoladConnectEnabled} 
-                      onChange={(e) => settings.setIsHoladConnectEnabled(e.target.checked)}
-                      className="accent-primary w-5 h-5 rounded cursor-pointer shrink-0"
-                    />
-                  </label>
-                </SettingSection>
-
                 {/* @ts-ignore */}
                 <SettingSection title={
                   <div className="flex items-center gap-2">

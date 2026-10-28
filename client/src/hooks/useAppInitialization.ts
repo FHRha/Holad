@@ -31,7 +31,6 @@ export function useAppInitialization() {
   const user = useAuthStore(state => state.user);
   const isDemoMode = useDemoStore(state => state.isDemoMode);
   const guestUserId = useDemoStore(state => state.guestUserId);
-  const isHoladConnectEnabled = useSettingsStore(state => state.isHoladConnectEnabled);
   const isJamRoute = location.pathname.startsWith('/jam');
   const queueFetched = useRef(false);
 
@@ -41,7 +40,7 @@ export function useAppInitialization() {
     
     jamSocket.connect();
     
-    if (isAuthenticated && typeof user === 'string' && isHoladConnectEnabled) {
+    if (isAuthenticated && typeof user === 'string') {
       const targetRoom = (isDemoMode && guestUserId) ? guestUserId : user;
       useHoladStore.getState().connect(targetRoom);
       useSocialStore.getState().initSocial();
@@ -276,7 +275,7 @@ export function useAppInitialization() {
         }
       }).catch(e => console.error("Failed to fetch playback state", e));
     }
-  }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute, isDemoMode, guestUserId, isHoladConnectEnabled]);
+  }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute, isDemoMode, guestUserId]);
 
   // Online network listener for synchronizing pending changes
   useEffect(() => {

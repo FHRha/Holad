@@ -133,9 +133,14 @@ export class ConnectRoomManager {
       room.snapshot.isPlaying = false;
     }
 
-    room.snapshot.activeDeviceId = null;
-    room.activeDeviceId = null;
-    room.leaseExpiresAt = null;
+    // Transfer active status to the next available online device (e.g. Desktop), keeping playback paused
+    const remainingDevices = deviceId
+      ? room.devices.filter(d => d.id !== deviceId)
+      : room.devices;
+    const nextActive = remainingDevices[0]?.id ?? null;
+    room.snapshot.activeDeviceId = nextActive;
+    room.activeDeviceId = nextActive;
+    room.leaseExpiresAt = nextActive ? Date.now() + ConnectRoomManager.GRACE_PERIOD_MS : null;
     room.snapshot.timestamp = Date.now();
     room.snapshot.version++;
 
@@ -145,7 +150,7 @@ export class ConnectRoomManager {
         isPlaying: false,
         positionMs: room.snapshot.positionMs,
         currentTime: room.snapshot.positionMs / 1000,
-        activeDeviceId: null,
+        activeDeviceId: nextActive,
         version: room.snapshot.version
       };
     }

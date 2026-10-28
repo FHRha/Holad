@@ -96,12 +96,12 @@ describe('ConnectRoomManager Unit Tests', () => {
     // Simulate lease expiration
     manager.handleLeaseExpiration('user_test_1', 'phone-1');
 
-    // CRITICAL: activeDeviceId is null, NOT transferred to desktop-1!
-    expect(room.activeDeviceId).toBeNull();
-    expect(room.snapshot.activeDeviceId).toBeNull();
+    // activeDeviceId transfers to next online device (desktop-1), but playback is frozen to pause
+    expect(room.activeDeviceId).toBe('desktop-1');
+    expect(room.snapshot.activeDeviceId).toBe('desktop-1');
     expect(room.snapshot.isPlaying).toBe(false);
     expect(room.snapshot.positionMs).toBeGreaterThanOrEqual(10000);
-    expect(room.leaseExpiresAt).toBeNull();
+    expect(room.leaseExpiresAt).toBeGreaterThan(Date.now());
     expect(room.snapshot.version).toBe(verBefore + 1);
   });
 

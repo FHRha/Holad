@@ -109,8 +109,6 @@ export interface SettingsState {
   setSyncTheme: (sync: boolean) => void;
   syncLanguage: boolean;
   setSyncLanguage: (sync: boolean) => void;
-  isHoladConnectEnabled: boolean;
-  setIsHoladConnectEnabled: (enabled: boolean) => void;
   autoResumeOnHeadphonesConnect: boolean;
   setAutoResumeOnHeadphonesConnect: (enabled: boolean) => void;
 }
@@ -226,9 +224,7 @@ export const useSettingsStore = create<SettingsState>()(
       setSyncTheme: (syncTheme) => set({ syncTheme }),
       syncLanguage: true,
       setSyncLanguage: (syncLanguage) => set({ syncLanguage }),
-      isHoladConnectEnabled: true,
       autoResumeOnHeadphonesConnect: false,
-      setIsHoladConnectEnabled: (isHoladConnectEnabled) => set({ isHoladConnectEnabled }),
       setAutoResumeOnHeadphonesConnect: (autoResumeOnHeadphonesConnect) => set({ autoResumeOnHeadphonesConnect }),
     }),
     {
