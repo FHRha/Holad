@@ -1,64 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Palette, Settings2, MonitorPlay, Pencil, Check, HardDrive, FolderSearch, Speaker, Eye, EyeOff, RefreshCw, DownloadCloud } from 'lucide-react';
+import { X, Palette, Settings2, MonitorPlay, HardDrive, Speaker } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { UpdateService } from '../../services/UpdateService';
-import type { AppTheme, AccentColor, StartPage } from '../../store/settingsStore';
+import type { StartPage } from '../../store/settingsStore';
 import { usePlayerStore } from '../../store/playerStore';
-import { useDownloadStore } from '../../store/downloadStore';
-import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
-import VolumeSlider from '../common/VolumeSlider';
 import Dropdown from '../common/Dropdown';
 import FlagIcon from '../common/FlagIcon';
 import { pushPreferences } from '../../api/preferences';
-import { pushIntegrations } from '../../api/integrations';
-import DeleteDownloadsModal from './DeleteDownloadsModal';
-import StorageStatsBar from '../settings/StorageStatsBar';
-import StorageLimitControl from '../settings/StorageLimitControl';
-import ImageMemoryLimitControl from '../settings/ImageMemoryLimitControl';
-import StorageDangerZone from '../settings/StorageDangerZone';
-import DownloadedMusicGrid from '../settings/DownloadedMusicGrid';
-
-// Helper for HSL -> HEX conversion
-function hslToHex(h: number, s: number, l: number) {
-  l /= 100;
-  const a = s * Math.min(l, 1 - l) / 100;
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
-// Helper for HEX -> HSL conversion
-function hexToHsl(hex: string) {
-  let r = 0, g = 0, b = 0;
-  if (hex.length === 4) {
-    r = parseInt(hex[1] + hex[1], 16);
-    g = parseInt(hex[2] + hex[2], 16);
-    b = parseInt(hex[3] + hex[3], 16);
-  } else if (hex.length === 7) {
-    r = parseInt(hex.substring(1, 3), 16);
-    g = parseInt(hex.substring(3, 5), 16);
-    b = parseInt(hex.substring(5, 7), 16);
-  }
-  r /= 255; g /= 255; b /= 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h = 0, s = 0, l = (max + min) / 2;
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-      case g: h = (b - r) / d + 2; break;
-      case b: h = (r - g) / d + 4; break;
-    }
-    h /= 6;
-  }
-  return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
-}
+import SettingSection from '../settings/SettingSection';
+import {
+  AppearanceSettingsSection,
+  PlaybackSettingsSection,
+  IntegrationsSettingsSection,
+  StorageSettingsSection,
+  PlatformSettingsSection,
+} from '../settings/sections';
 
 export default function SettingsModal({
   isOpen,
@@ -73,88 +30,52 @@ export default function SettingsModal({
   const { isSettingsOpen, setSettingsOpen } = useUIStore();
   const settings = useSettingsStore();
   const isModalOpen = typeof isOpen === 'boolean' ? isOpen : isSettingsOpen;
-  
-  // Use selectors to prevent unnecessary re-renders every second when a track is playing!
-  const volume = usePlayerStore(state => state.volume);
-  const isAutoDjEnabled = usePlayerStore(state => state.isAutoDjEnabled);
-  const setVolume = usePlayerStore(state => state.setVolume);
-  const toggleAutoDj = usePlayerStore(state => state.toggleAutoDj);
-  const volumeMultiplier = usePlayerStore(state => state.volumeMultiplier || 1.0);
-  const setVolumeMultiplier = usePlayerStore(state => state.setVolumeMultiplier);
-  const role = usePlayerStore(state => state.role);
-  
-  const isJamGuest = window.location.pathname.startsWith('/jam') && (role === 'listener' || role === 'cohost');
-  
+
+  const role = usePlayerStore((state) => state.role);
+  const isJamGuest =
+    window.location.pathname.startsWith('/jam') &&
+    (role === 'listener' || role === 'cohost');
+
   const [activeTab, setActiveTab] = useState<'general' | 'appearance' | 'player' | 'audio' | 'storage'>(
-    initialTab || (isJamGuest ? 'appearance' : (typeof isOpen === 'boolean' ? 'player' : 'general'))
+    initialTab || (isJamGuest ? 'appearance' : typeof isOpen === 'boolean' ? 'player' : 'general')
   );
-  
+
   // Force active tab to appearance if jam guest
   useEffect(() => {
-      if (isJamGuest && activeTab !== 'appearance') {
-          setActiveTab('appearance');
-      }
+    if (isJamGuest && activeTab !== 'appearance') {
+      setActiveTab('appearance');
+    }
   }, [isJamGuest, activeTab]);
 
   useEffect(() => {
-    if (isModalOpen && ('__TAURI_INTERNALS__' in window)) {
-      import('@tauri-apps/plugin-autostart').then(async ({ isEnabled }) => {
-        try {
-          const enabled = await isEnabled();
-          if (settings.runOnStartup !== enabled) {
-            settings.setRunOnStartup(enabled);
+    if (isModalOpen && '__TAURI_INTERNALS__' in window) {
+      import('@tauri-apps/plugin-autostart')
+        .then(async ({ isEnabled }) => {
+          try {
+            const enabled = await isEnabled();
+            if (settings.runOnStartup !== enabled) {
+              settings.setRunOnStartup(enabled);
+            }
+          } catch (err) {
+            console.error('Failed to check autostart status:', err);
           }
-        } catch (err) {
-          console.error('Failed to check autostart status:', err);
-        }
-      }).catch(() => {});
+        })
+        .catch(() => {});
     }
-  }, [isModalOpen]);
+  }, [isModalOpen, settings]);
 
   const [resetState, setResetState] = useState<'idle' | 'confirm' | 'done'>('idle');
-  const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null);
-  const [customHexInput, setCustomHexInput] = useState('');
-  
-  // HSL State for Color Picker
-  const [hue, setHue] = useState(0);
-  const [sat, setSat] = useState(100);
-  const [light, setLight] = useState(50);
 
-  const [showLastFmKey, setShowLastFmKey] = useState(false);
-  const [showYandexToken, setShowYandexToken] = useState(false);
-
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     if (onClose) onClose();
     setSettingsOpen(false);
-  };
-
-  const openColorPicker = (index: number, color: string) => {
-    const baseColor = color || '#1db954';
-    setCustomHexInput(baseColor);
-    setEditingColorIndex(index);
-    const [h, s, l] = hexToHsl(baseColor);
-    setHue(h);
-    setSat(s);
-    setLight(l);
-  };
-
-  const updateFromHsl = (h: number, s: number, l: number) => {
-    setHue(h);
-    setSat(s);
-    setLight(l);
-    const hex = hslToHex(h, s, l);
-    setCustomHexInput(hex);
-    if (editingColorIndex !== null) {
-      settings.setCustomColor(editingColorIndex, hex);
-      settings.setAccentColor(hex);
-    }
-  };
+  }, [onClose, setSettingsOpen]);
 
   const handleReset = () => {
     if (resetState === 'idle') {
       setResetState('confirm');
       setTimeout(() => {
-        setResetState((prev) => prev === 'confirm' ? 'idle' : prev);
+        setResetState((prev) => (prev === 'confirm' ? 'idle' : prev));
       }, 3000);
     } else if (resetState === 'confirm') {
       settings.setTheme('dark');
@@ -179,91 +100,131 @@ export default function SettingsModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isModalOpen]);
+  }, [isModalOpen, handleClose]);
 
   // If closed, return nothing
   if (!isModalOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={handleClose}
     >
-      <div 
+      <div
         className="bg-card w-full max-w-4xl rounded-xl shadow-2xl border border-white/10 flex h-[88vh] md:h-[600px] max-h-[800px] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        
+        {/* Navigation Sidebar */}
         <div className="w-60 bg-background/50 border-r border-white/5 flex flex-col p-4 shrink-0">
           <h2 className="text-lg font-bold mb-4 px-2">{t('sidebar.settings')}</h2>
-          
+
           <div className="flex flex-col gap-2 relative">
             {!isJamGuest && (
-              <button 
-                onClick={() => { setActiveTab('general'); setEditingColorIndex(null); }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'general' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+              <button
+                onClick={() => setActiveTab('general')}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
+                  activeTab === 'general'
+                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10'
+                    : 'text-secondary hover:text-foreground hover:bg-white/5'
+                }`}
               >
-                <Settings2 size={20} className={activeTab === 'general' ? 'animate-pulse-slow' : ''} />
+                <Settings2
+                  size={20}
+                  className={activeTab === 'general' ? 'animate-pulse-slow' : ''}
+                />
                 <span>{t('settings.general')}</span>
               </button>
             )}
-            
-            <button 
-              onClick={() => { setActiveTab('appearance'); setEditingColorIndex(null); }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'appearance' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+
+            <button
+              onClick={() => setActiveTab('appearance')}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
+                activeTab === 'appearance'
+                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10'
+                  : 'text-secondary hover:text-foreground hover:bg-white/5'
+              }`}
             >
-              <Palette size={20} className={activeTab === 'appearance' ? 'animate-pulse-slow' : ''} />
+              <Palette
+                size={20}
+                className={activeTab === 'appearance' ? 'animate-pulse-slow' : ''}
+              />
               <span>{t('settings.appearance')}</span>
             </button>
-            
+
             {!isJamGuest && (
               <>
-                <button 
-                  onClick={() => { setActiveTab('player'); setEditingColorIndex(null); }}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'player' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+                <button
+                  onClick={() => setActiveTab('player')}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
+                    activeTab === 'player'
+                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10'
+                      : 'text-secondary hover:text-foreground hover:bg-white/5'
+                  }`}
                 >
-                  <MonitorPlay size={20} className={activeTab === 'player' ? 'animate-pulse-slow' : ''} />
+                  <MonitorPlay
+                    size={20}
+                    className={activeTab === 'player' ? 'animate-pulse-slow' : ''}
+                  />
                   <span>{t('settings.player')}</span>
                 </button>
 
-                <button 
-                  onClick={() => { setActiveTab('audio'); setEditingColorIndex(null); }}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'audio' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+                <button
+                  onClick={() => setActiveTab('audio')}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
+                    activeTab === 'audio'
+                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10'
+                      : 'text-secondary hover:text-foreground hover:bg-white/5'
+                  }`}
                 >
-                  <Speaker size={20} className={activeTab === 'audio' ? 'animate-pulse-slow' : ''} />
+                  <Speaker
+                    size={20}
+                    className={activeTab === 'audio' ? 'animate-pulse-slow' : ''}
+                  />
                   <span>{t('settings.audio')}</span>
                 </button>
 
-                <button 
-                  onClick={() => { setActiveTab('storage'); setEditingColorIndex(null); }}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'storage' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+                <button
+                  onClick={() => setActiveTab('storage')}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
+                    activeTab === 'storage'
+                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10'
+                      : 'text-secondary hover:text-foreground hover:bg-white/5'
+                  }`}
                 >
-                  <HardDrive size={20} className={activeTab === 'storage' ? 'animate-pulse-slow' : ''} />
+                  <HardDrive
+                    size={20}
+                    className={activeTab === 'storage' ? 'animate-pulse-slow' : ''}
+                  />
                   <span>{t('settings.storage')}</span>
                 </button>
               </>
             )}
           </div>
-          
+
           {!isJamGuest && (
             <div className="mt-auto pt-4">
-              <button 
+              <button
                 onClick={handleReset}
                 disabled={resetState === 'done'}
                 className={`w-full py-2 text-xs font-medium rounded-lg transition-colors ${
-                  resetState === 'idle' ? 'text-secondary hover:text-foreground hover:bg-white/5' :
-                  resetState === 'confirm' ? 'bg-red-500 text-white animate-pulse' :
-                  'bg-green-500 text-white'
+                  resetState === 'idle'
+                    ? 'text-secondary hover:text-foreground hover:bg-white/5'
+                    : resetState === 'confirm'
+                      ? 'bg-red-500 text-white animate-pulse'
+                      : 'bg-green-500 text-white'
                 }`}
               >
-                {resetState === 'idle' ? t('settings.reset') :
-                 resetState === 'confirm' ? t('settings.confirm_reset') :
-                 t('settings.reset_done')}
+                {resetState === 'idle'
+                  ? t('settings.reset')
+                  : resetState === 'confirm'
+                    ? t('settings.confirm_reset')
+                    : t('settings.reset_done')}
               </button>
             </div>
           )}
         </div>
 
+        {/* Content Pane */}
         <div className="flex-1 flex flex-col relative overflow-hidden min-w-0">
           <div className="flex items-center justify-between p-6 pb-2 shrink-0 z-20 bg-card">
             <h3 className="text-xl font-bold">
@@ -273,16 +234,16 @@ export default function SettingsModal({
               {activeTab === 'audio' && t('settings.audio')}
               {activeTab === 'storage' && t('settings.storage')}
             </h3>
-            <button 
+            <button
               onClick={handleClose}
               className="p-2 -mr-2 rounded-full hover:bg-foreground/10 transition-colors bg-background/50 backdrop-blur-md"
             >
               <X size={20} />
             </button>
           </div>
-          
-          <div className="flex-1 px-6 pb-6 pt-2 overflow-y-auto overflow-x-hidden">
 
+          <div className="flex-1 px-6 pb-6 pt-2 overflow-y-auto overflow-x-hidden">
+            {/* 1. GENERAL TAB */}
             {activeTab === 'general' && (
               <div className="space-y-6">
                 <SettingSection title={t('settings.language')}>
@@ -296,13 +257,13 @@ export default function SettingsModal({
                     }}
                     options={[
                       { label: 'Русский', value: 'ru', icon: <FlagIcon code="ru" /> },
-                      { label: 'English', value: 'en', icon: <FlagIcon code="en" /> }
+                      { label: 'English', value: 'en', icon: <FlagIcon code="en" /> },
                     ]}
                   />
                   <label className="flex items-center gap-3 cursor-pointer group mt-2">
-                    <input 
-                      type="checkbox" 
-                      checked={settings.syncLanguage} 
+                    <input
+                      type="checkbox"
+                      checked={settings.syncLanguage}
                       onChange={(e) => {
                         const val = e.target.checked;
                         settings.setSyncLanguage(val);
@@ -326,1006 +287,39 @@ export default function SettingsModal({
                       { label: t('settings.start_home'), value: '/' },
                       { label: t('settings.start_albums'), value: '/albums' },
                       { label: t('settings.start_radio'), value: '/radio' },
-                      { label: t('settings.start_favorites'), value: '/favorites' }
+                      { label: t('settings.start_favorites'), value: '/favorites' },
                     ]}
                   />
                 </SettingSection>
 
-                {/* @ts-ignore */}
-                <SettingSection title={
-                  <div className="flex items-center gap-2">
-                    {t('settings.data_sources') || "Источники информации (Data Sources)"}
-                    <button 
-                      onClick={() => window.location.reload()} 
-                      className="p-1.5 rounded-full hover:bg-foreground/10 text-secondary hover:text-foreground transition-colors"
-                      title="Refresh"
-                    >
-                      <RefreshCw size={14} />
-                    </button>
-                  </div>
-                }>
-                  <div className="flex flex-col gap-4">
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.useNavidrome} 
-                        onChange={(e) => settings.setUseNavidrome(e.target.checked)}
-                        className="accent-primary w-4 h-4 rounded cursor-pointer"
-                      />
-                      <span className="group-hover:text-primary transition-colors text-sm">
-                        {t('settings.navidrome')}
-                      </span>
-                    </label>
+                <IntegrationsSettingsSection />
 
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.useLastFm} 
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          settings.setUseLastFm(checked);
-                          pushIntegrations([
-                            { integration_name: 'lastfm', token: settings.lastFmKey, enabled: checked }
-                          ]);
-                        }}
-                        className="accent-primary w-4 h-4 rounded cursor-pointer"
-                      />
-                      <span className="group-hover:text-primary transition-colors text-sm">
-                        {t('settings.lastfm')}
-                      </span>
-                    </label>
-                    {settings.useLastFm && (
-                      <div className="pl-7 relative">
-                        <div className="relative">
-                          <input 
-                            type={showLastFmKey ? "text" : "password"}
-                            placeholder={t('settings.lastfm_key_placeholder') || "Last.fm API Key"}
-                            value={settings.lastFmKey}
-                            onChange={(e) => settings.setLastFmKey(e.target.value)}
-                            onBlur={() => {
-                              pushIntegrations([
-                                { integration_name: 'lastfm', token: settings.lastFmKey, enabled: settings.useLastFm }
-                              ]);
-                            }}
-                            className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
-                          />
-                          <button 
-                            type="button"
-                            onClick={() => setShowLastFmKey(!showLastFmKey)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
-                          >
-                            {showLastFmKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        </div>
-                        <p className="text-xs text-secondary mt-1">
-                          {t('settings.lastfm_get_key_part1')}<a href="https://www.last.fm/api/authentication" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.lastfm_get_key_link')}</a>{t('settings.lastfm_get_key_part2')}
-                          <br />
-                          <span className="text-red-400 font-medium block mt-1">{t('settings.lastfm_vpn_warning')}</span>
-                        </p>
-                      </div>
-                    )}
-
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.useYandex} 
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          settings.setUseYandex(checked);
-                          pushIntegrations([
-                            { integration_name: 'yandex', token: settings.yandexToken, enabled: checked }
-                          ]);
-                        }}
-                        className="accent-primary w-4 h-4 rounded cursor-pointer"
-                      />
-                      <span className="group-hover:text-primary transition-colors text-sm">
-                        {t('settings.yandex_music')}
-                      </span>
-                    </label>
-                    
-                    {settings.useYandex && (
-                      <div className="pl-7 relative">
-                        <div className="relative">
-                          <input 
-                            type={showYandexToken ? "text" : "password"}
-                            placeholder={t('settings.yandex_token_placeholder') || "Yandex Token"}
-                            value={settings.yandexToken}
-                            onChange={(e) => settings.setYandexToken(e.target.value)}
-                            onBlur={() => {
-                              pushIntegrations([
-                                { integration_name: 'yandex', token: settings.yandexToken, enabled: settings.useYandex }
-                              ]);
-                            }}
-                            className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm w-full outline-none focus:border-primary transition-colors text-white pr-10"
-                          />
-                          <button 
-                            type="button"
-                            onClick={() => setShowYandexToken(!showYandexToken)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
-                          >
-                            {showYandexToken ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        </div>
-                        <p className="text-xs text-secondary mt-1">
-                          {t('settings.yandex_token_desc_part1')}<a href="https://github.com/MarshalX/yandex-music-api/discussions/513" target="_blank" rel="noreferrer" className="text-primary hover:underline">{t('settings.yandex_token_desc_link')}</a>{t('settings.yandex_token_desc_part2')}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </SettingSection>
-
-                {/* Tauri-only Settings */}
-                {('__TAURI_INTERNALS__' in window) && (
-                  <SettingSection title={t('settings.desktop')}>
-                    <div className="flex flex-col gap-4">
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input 
-                          type="checkbox" 
-                          checked={settings.runOnStartup} 
-                          onChange={async (e) => {
-                            const checked = e.target.checked;
-                            settings.setRunOnStartup(checked);
-                            try {
-                              const { enable, disable } = await import('@tauri-apps/plugin-autostart');
-                              if (checked) await enable();
-                              else await disable();
-                            } catch (err) {
-                              console.error('Failed to toggle autostart', err);
-                              settings.setRunOnStartup(!checked);
-                            }
-                          }}
-                          className="accent-primary w-4 h-4 rounded cursor-pointer"
-                        />
-                        <span className="group-hover:text-primary transition-colors text-sm">
-                          {t('settings.run_on_startup')}
-                        </span>
-                      </label>
-                      
-                      <label className={`flex items-center gap-3 cursor-pointer group pl-6 ${!settings.runOnStartup ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <input 
-                          type="checkbox" 
-                          checked={settings.startMinimized} 
-                          onChange={(e) => settings.setStartMinimized(e.target.checked)}
-                          disabled={!settings.runOnStartup}
-                          className="accent-primary w-4 h-4 rounded cursor-pointer disabled:cursor-not-allowed"
-                        />
-                        <span className="group-hover:text-primary transition-colors text-sm">
-                          {t('settings.start_minimized')}
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-3 cursor-pointer group mt-2">
-                        <input 
-                          type="checkbox" 
-                          checked={settings.closeToTray} 
-                          onChange={async (e) => {
-                            const checked = e.target.checked;
-                            settings.setCloseToTray(checked);
-                            try {
-                              const { invoke } = await import('@tauri-apps/api/core');
-                              await invoke('set_close_to_tray', { enabled: checked });
-                            } catch (err) {
-                              console.error('Failed to update close_to_tray state', err);
-                            }
-                          }}
-                          className="accent-primary w-4 h-4 rounded cursor-pointer"
-                        />
-                        <span className="group-hover:text-primary transition-colors text-sm">
-                          {t('settings.close_to_tray')}
-                        </span>
-                      </label>
-                    </div>
-                  </SettingSection>
-                )}
-
-                <SettingSection title={t('settings.updates') || 'Обновления'}>
-                  <div className="flex flex-col gap-3">
-                    <button 
-                      onClick={() => UpdateService.checkForUpdates(true)}
-                      className="flex items-center justify-center gap-2 w-full max-w-xs bg-primary/10 hover:bg-primary/20 text-primary font-semibold py-2.5 px-4 rounded-xl border border-primary/20 transition-colors text-sm"
-                    >
-                      <DownloadCloud size={18} />
-                      {t('settings.check_updates') || 'Проверить обновления'}
-                    </button>
-                  </div>
-                </SettingSection>
+                <PlatformSettingsSection variant="desktop" />
               </div>
             )}
 
+            {/* 2. APPEARANCE TAB */}
             {activeTab === 'appearance' && (
-              <div className="space-y-6">
-                <SettingSection title={t('settings.theme') || 'Тема'}>
-                  <div className="flex gap-2">
-                    <ThemeOption label={t('settings.theme_dark', 'Dark')} value="dark" current={settings.theme} onSelect={(val) => {
-                      settings.setTheme(val);
-                      if (settings.syncTheme) {
-                        pushPreferences({
-                          theme: val,
-                          accent_color: settings.accentColor,
-                          custom_colors: JSON.stringify(settings.customColors)
-                        });
-                      }
-                    }} />
-                    <ThemeOption label={t('settings.theme_light', 'Light')} value="light" current={settings.theme} onSelect={(val) => {
-                      settings.setTheme(val);
-                      if (settings.syncTheme) {
-                        pushPreferences({
-                          theme: val,
-                          accent_color: settings.accentColor,
-                          custom_colors: JSON.stringify(settings.customColors)
-                        });
-                      }
-                    }} />
-                    <ThemeOption label={t('settings.theme_system', 'System')} value="system" current={settings.theme} onSelect={(val) => {
-                      settings.setTheme(val);
-                      if (settings.syncTheme) {
-                        pushPreferences({
-                          theme: val,
-                          accent_color: settings.accentColor,
-                          custom_colors: JSON.stringify(settings.customColors)
-                        });
-                      }
-                    }} />
-                  </div>
-                  <label className="flex items-center gap-3 cursor-pointer group mt-3">
-                    <input 
-                      type="checkbox" 
-                      checked={settings.syncTheme} 
-                      onChange={(e) => {
-                        const val = e.target.checked;
-                        settings.setSyncTheme(val);
-                        if (val) {
-                          pushPreferences({
-                            theme: settings.theme,
-                            accent_color: settings.accentColor,
-                            custom_colors: JSON.stringify(settings.customColors)
-                          });
-                        }
-                      }}
-                      className="accent-primary w-4 h-4 rounded cursor-pointer"
-                    />
-                    <span className="group-hover:text-primary transition-colors text-xs text-secondary">
-                      {t('settings.sync_theme')}
-                    </span>
-                  </label>
-                </SettingSection>
-
-                <SettingSection title={t('settings.appIcon') || 'App Icon'}>
-                  <div className="flex gap-2">
-                    <AppIconOption label="Wave Dark" value="wave_dark" current={settings.appIcon} onSelect={settings.setAppIcon} />
-                    <AppIconOption label="Wave Light" value="wave_light" current={settings.appIcon} onSelect={settings.setAppIcon} />
-                    <AppIconOption label="Cassette" value="cassette" current={settings.appIcon} onSelect={settings.setAppIcon} />
-                  </div>
-                </SettingSection>
-
-                <SettingSection title={t('settings.accentColor') || 'Цвет'}>
-                  <div className="flex flex-col gap-3">
-                    <div className="flex gap-2">
-                      <ColorOption color="green" hex="#1db954" current={settings.accentColor} onSelect={(color) => {
-                        settings.setAccentColor(color);
-                        if (settings.syncTheme) {
-                          pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
-                        }
-                      }} />
-                      <ColorOption color="blue" hex="#3b82f6" current={settings.accentColor} onSelect={(color) => {
-                        settings.setAccentColor(color);
-                        if (settings.syncTheme) {
-                          pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
-                        }
-                      }} />
-                      <ColorOption color="purple" hex="#a855f7" current={settings.accentColor} onSelect={(color) => {
-                        settings.setAccentColor(color);
-                        if (settings.syncTheme) {
-                          pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
-                        }
-                      }} />
-                      <ColorOption color="pink" hex="#ec4899" current={settings.accentColor} onSelect={(color) => {
-                        settings.setAccentColor(color);
-                        if (settings.syncTheme) {
-                          pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
-                        }
-                      }} />
-                      <ColorOption color="orange" hex="#f97316" current={settings.accentColor} onSelect={(color) => {
-                        settings.setAccentColor(color);
-                        if (settings.syncTheme) {
-                          pushPreferences({ theme: settings.theme, accent_color: color, custom_colors: JSON.stringify(settings.customColors) });
-                        }
-                      }} />
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-2">
-                      {settings.customColors?.map((color, idx) => {
-                        const isSelected = color && settings.accentColor === color;
-                        const isEmpty = !color;
-                        
-                        return (
-                          <div 
-                            key={idx}
-                            onClick={() => {
-                              if (isEmpty || isSelected) {
-                                openColorPicker(idx, color);
-                              } else {
-                                settings.setAccentColor(color);
-                              }
-                            }}
-                            className={`relative w-8 h-8 rounded-full border-2 transition-all cursor-pointer flex items-center justify-center ${
-                              isSelected 
-                                ? 'border-primary ring-2 ring-primary' 
-                                : isEmpty 
-                                  ? 'border-dashed border-foreground/20 hover:bg-foreground/10'
-                                  : 'border-white/10 hover:border-white/30 hover:scale-110'
-                            }`}
-                            style={color ? { backgroundColor: color } : {}}
-                            title={isEmpty ? t('settings.add_color') : isSelected ? t('settings.edit_color') : t('settings.custom_color_select')}
-                          >
-                            {isEmpty && <span className="text-foreground/40 text-lg font-light">+</span>}
-                            {isSelected && (
-                              <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity rounded-full">
-                                <Pencil size={12} className="text-[#b3b3b3]" />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </SettingSection>
-              </div>
+              <AppearanceSettingsSection showLanguage={true} />
             )}
 
-            {editingColorIndex !== null && (
-              <div className="absolute inset-0 z-50 bg-card flex flex-col p-6">
-                <button 
-                  onClick={() => setEditingColorIndex(null)}
-                  className="absolute top-4 right-4 p-2 rounded-full hover:bg-foreground/10 transition-colors z-10"
-                >
-                  <X size={20} />
-                </button>
-                <h3 className="text-xl font-bold mb-2">{t('settings.custom_color_select')}</h3>
-                
-                <div className="flex flex-col items-center justify-center flex-1 w-full max-w-md mx-auto space-y-4">
-                  <div 
-                    className="w-20 h-20 rounded-full shadow-2xl border-4 border-white/10 transition-colors duration-100"
-                    style={{ backgroundColor: customHexInput }}
-                  />
-
-                  <div className="w-full space-y-4 bg-background/50 p-5 rounded-2xl border border-white/5">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs text-secondary font-medium">
-                        <span>{t('settings.hue')}</span>
-                        <span>{hue}°</span>
-                      </div>
-                      <input 
-                        type="range" min="0" max="360" 
-                        value={hue} onChange={(e) => updateFromHsl(parseInt(e.target.value), sat, light)}
-                        className="w-full h-4 rounded-full appearance-none cursor-pointer outline-none"
-                        style={{ background: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs text-secondary font-medium">
-                        <span>{t('settings.saturation')}</span>
-                        <span>{sat}%</span>
-                      </div>
-                      <input 
-                        type="range" min="0" max="100" 
-                        value={sat} onChange={(e) => updateFromHsl(hue, parseInt(e.target.value), light)}
-                        className="w-full h-4 rounded-full appearance-none cursor-pointer outline-none"
-                        style={{ background: `linear-gradient(to right, hsl(${hue}, 0%, ${light}%), hsl(${hue}, 100%, ${light}%))` }}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs text-secondary font-medium">
-                        <span>{t('settings.lightness')}</span>
-                        <span>{light}%</span>
-                      </div>
-                      <input 
-                        type="range" min="0" max="100" 
-                        value={light} onChange={(e) => updateFromHsl(hue, sat, parseInt(e.target.value))}
-                        className="w-full h-4 rounded-full appearance-none cursor-pointer outline-none"
-                        style={{ background: `linear-gradient(to right, #000, hsl(${hue}, ${sat}%, 50%), #fff)` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="w-full relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary font-mono">HEX</span>
-                    <input 
-                      type="text" 
-                      value={customHexInput}
-                      onChange={(e) => {
-                        let val = e.target.value;
-                        if (!val.startsWith('#')) val = '#' + val;
-                        setCustomHexInput(val);
-                        if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
-                          settings.setCustomColor(editingColorIndex, val);
-                          settings.setAccentColor(val);
-                          const [h, s, l] = hexToHsl(val);
-                          setHue(h); setSat(s); setLight(l);
-                        }
-                      }}
-                      className="w-full bg-background border border-white/10 rounded-xl py-3 pl-14 pr-4 font-mono text-center text-lg outline-none focus:border-primary transition-colors uppercase"
-                      maxLength={7}
-                    />
-                  </div>
-
-                  <button 
-                    onClick={() => setEditingColorIndex(null)}
-                    className="w-full py-2.5 bg-white text-black font-bold rounded-xl hover:bg-gray-200 flex items-center justify-center gap-2 transition-colors"
-                  >
-                    <Check size={20} />
-                    {t('settings.save_and_close')}
-                  </button>
-                </div>
-              </div>
-            )}
-
+            {/* 3. PLAYER TAB */}
             {activeTab === 'player' && (
-              <div className="space-y-8">
-                <SettingSection title={t('settings.clickAction') || 'Поведение при клике на трек'}>
-                  <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="radio" 
-                        name="clickAction" 
-                        value="play_now" 
-                        checked={settings.clickAction === 'play_now'} 
-                        onChange={() => settings.setClickAction('play_now')}
-                        className="accent-primary w-4 h-4 cursor-pointer"
-                      />
-                      <span className="group-hover:text-primary transition-colors text-sm">
-                        {t('settings.replace_queue')}
-                      </span>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="radio" 
-                        name="clickAction" 
-                        value="play_next" 
-                        checked={settings.clickAction === 'play_next'} 
-                        onChange={() => settings.setClickAction('play_next')}
-                        className="accent-primary w-4 h-4 cursor-pointer"
-                      />
-                      <span className="group-hover:text-primary transition-colors text-sm">
-                        {t('settings.add_to_end')}
-                      </span>
-                    </label>
-                  </div>
-                </SettingSection>
-
-                <SettingSection title={t('settings.autoDj') || 'АВТО DJ по умолчанию'}>
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      checked={isAutoDjEnabled} 
-                      onChange={() => toggleAutoDj()}
-                      className="accent-primary w-4 h-4 rounded cursor-pointer"
-                    />
-                    <span className="group-hover:text-primary transition-colors text-sm">
-                      {t('settings.auto_dj_desc')}
-                    </span>
-                  </label>
-
-                  {isAutoDjEnabled && (
-                    <div className="mt-4 pt-3 border-t border-white/5 space-y-2">
-                      <div className="text-xs font-semibold text-secondary uppercase tracking-wider">
-                        {t('settings.autodj_repeat_collision', 'При включённом повторе альбома/плейлиста')}
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                          <input 
-                            type="radio" 
-                            name="autoDjRepeatBehavior" 
-                            value="pause_on_repeat" 
-                            checked={settings.autoDjRepeatBehavior === 'pause_on_repeat'} 
-                            onChange={() => settings.setAutoDjRepeatBehavior('pause_on_repeat')}
-                            className="accent-primary w-4 h-4 cursor-pointer"
-                          />
-                          <span className="group-hover:text-primary transition-colors text-sm">
-                            {t('settings.autodj_pause_on_repeat', 'Приоритет повтора (приостанавливать Авто DJ, альбом играет по кругу)')}
-                          </span>
-                        </label>
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                          <input 
-                            type="radio" 
-                            name="autoDjRepeatBehavior" 
-                            value="infinite_stream" 
-                            checked={settings.autoDjRepeatBehavior === 'infinite_stream'} 
-                            onChange={() => settings.setAutoDjRepeatBehavior('infinite_stream')}
-                            className="accent-primary w-4 h-4 cursor-pointer"
-                          />
-                          <span className="group-hover:text-primary transition-colors text-sm">
-                            {t('settings.autodj_infinite_stream', 'Бесконечный поток (игнорировать повтор и добавлять похожие треки)')}
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  )}
-                </SettingSection>
-
-                <SettingSection title={t('settings.defaultVolume')}>
-                  <div className="pt-2 pb-1">
-                    <VolumeSlider 
-                      value={volume} 
-                      onChange={setVolume} 
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-secondary mt-3">
-                    <span>0%</span>
-                    <span>{Math.round(volume * 100)}%</span>
-                  </div>
-                </SettingSection>
-
-                <SettingSection title={t('settings.volume_multiplier')}>
-                  <div className="flex items-center gap-3 pt-2 pb-1">
-                    <input 
-                      type="number"
-                      min="1"
-                      max="300"
-                      value={Math.round(volumeMultiplier * 100)}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        if (!isNaN(val)) setVolumeMultiplier(Math.min(Math.max(val, 1), 300) / 100);
-                      }}
-                      className="bg-black/20 border border-white/10 rounded-lg py-2 px-3 w-24 text-center outline-none focus:border-primary transition-colors text-foreground font-mono"
-                    />
-                    <span className="text-sm text-secondary font-medium">%</span>
-                  </div>
-                </SettingSection>
-              </div>
+              <PlaybackSettingsSection mode="player" />
             )}
 
+            {/* 4. AUDIO TAB */}
             {activeTab === 'audio' && (
-              <div className="space-y-8">
-                <SettingSection title={t('settings.streaming_quality') || 'Качество потока (стриминга)'}>
-                  <div className="flex flex-col gap-2">
-                    <Dropdown
-                      value={settings.streamingQuality}
-                      onChange={(val) => settings.setStreamingQuality(val)}
-                      options={[
-                        { label: t('settings.quality_opus_256', 'Opus 256 кбит/с (Рекомендуется, прозрачное)'), value: 'opus-256' },
-                        { label: t('settings.quality_raw', 'Исходное (Без сжатия / FLAC)'), value: 'raw' },
-                        { label: t('settings.quality_opus_192', 'Opus 192 кбит/с (Высокое)'), value: 'opus-192' },
-                        { label: t('settings.quality_opus_128', 'Opus 128 кбит/с (Экономия батареи и трафика)'), value: 'opus-128' },
-                        { label: t('settings.quality_mp3_320', 'MP3 320 кбит/с'), value: 'mp3-320' },
-                      ]}
-                    />
-                    <span className="text-xs text-secondary mt-1">
-                      {t('settings.streaming_quality_desc', 'Формат и битрейт аудио при воспроизведении по сети')}
-                    </span>
-                  </div>
-                </SettingSection>
-
-                <SettingSection title={t('settings.prebuffering') || 'Предварительная буферизация'}>
-                  <div className="flex flex-col gap-4">
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.preloadNextTrack} 
-                        onChange={(e) => settings.setPreloadNextTrack(e.target.checked)}
-                        className="accent-primary w-4 h-4 rounded cursor-pointer"
-                      />
-                      <span className="group-hover:text-primary transition-colors text-sm">
-                        {t('settings.preload_desc', 'Предзагрузка следующего трека до окончания текущего')}
-                      </span>
-                    </label>
-
-                    {settings.preloadNextTrack && (
-                      <div className="space-y-4 pt-3 border-t border-white/5">
-                        <div className="flex flex-col gap-2">
-                          <span className="text-xs text-secondary font-medium">
-                            {t('settings.preload_mode', 'Режим предзагрузки треков')}
-                          </span>
-                          <Dropdown
-                            value={settings.preloadMode}
-                            onChange={(val) => settings.setPreloadMode(val)}
-                            options={[
-                              { label: t('settings.preload_wifi_only', 'Только по Wi-Fi'), value: 'wifi_only' },
-                              { label: t('settings.preload_always', 'Всегда (Wi-Fi и сотовая сеть)'), value: 'always' },
-                              { label: t('settings.preload_disabled', 'Отключено'), value: 'disabled' },
-                            ]}
-                          />
-                          <span className="text-xs text-secondary">
-                            {t('settings.preload_mode_desc', 'Когда автоматически загружать следующий трек в память')}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                          <span className="text-xs text-secondary font-medium">
-                            {t('settings.preload_lookahead', 'Время предзагрузки до конца трека')}
-                          </span>
-                          <Dropdown
-                            value={settings.preloadLookahead}
-                            onChange={(val) => settings.setPreloadLookahead(Number(val) as any)}
-                            options={[
-                              { label: t('settings.preload_lookahead_5s', '5 секунд'), value: 5 },
-                              { label: t('settings.preload_lookahead_15s', '15 секунд (По умолчанию)'), value: 15 },
-                              { label: t('settings.preload_lookahead_30s', '30 секунд'), value: 30 },
-                            ]}
-                          />
-                          <span className="text-xs text-secondary">
-                            {t('settings.preload_lookahead_desc', 'За сколько секунд до окончания трека начинать предзагрузку')}
-                          </span>
-                        </div>
-
-                        <label className="flex items-center gap-3 cursor-pointer group pt-1">
-                          <input 
-                            type="checkbox" 
-                            checked={settings.preloadCovers} 
-                            onChange={(e) => settings.setPreloadCovers(e.target.checked)}
-                            className="accent-primary w-4 h-4 rounded cursor-pointer"
-                          />
-                          <div className="flex flex-col">
-                            <span className="group-hover:text-primary transition-colors text-sm">
-                              {t('settings.preload_covers', 'Предзагрузка обложек очереди')}
-                            </span>
-                            <span className="text-xs text-secondary">
-                              {t('settings.preload_covers_desc', 'Загружать обложки для следующих треков в очереди')}
-                            </span>
-                          </div>
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                </SettingSection>
-                <SettingSection title={t('settings.crossfade') || 'Плавный переход (Кроссфейд)'}>
-                  <div className="flex flex-col gap-4">
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.isCrossfadeEnabled} 
-                        onChange={(e) => settings.setIsCrossfadeEnabled(e.target.checked)}
-                        className="accent-primary w-4 h-4 rounded cursor-pointer"
-                      />
-                      <span className="group-hover:text-primary transition-colors text-sm">
-                        {t('settings.crossfade_desc') || 'Плавное перетекание одного трека в другой'}
-                      </span>
-                    </label>
-                    {settings.isCrossfadeEnabled && (
-                      <div className="pt-2 pb-1 space-y-4 opacity-100 transition-opacity">
-                        <div>
-                          <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>{t('settings.crossfade_duration') || 'Длительность кроссфейда'}</span>
-                            <span>{settings.crossfadeDuration} {t('common.seconds_short', 'сек')}</span>
-                          </div>
-                          <input 
-                            type="range" 
-                            min="1" 
-                            max="12" 
-                            value={settings.crossfadeDuration} 
-                            onChange={(e) => settings.setCrossfadeDuration(parseInt(e.target.value))}
-                            className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                          <div className="flex justify-between text-xs text-secondary mt-2">
-                            <span>1s</span>
-                            <span>12s</span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
-                          <span className="text-xs text-secondary font-medium">{t('settings.crossfade_curve') || 'Кривая кроссфейда'}</span>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => settings.setCrossfadeCurve('equalPower')}
-                              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${settings.crossfadeCurve === 'equalPower' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-secondary hover:border-white/20'}`}
-                            >
-                              {t('settings.curve_equal_power') || 'Равная мощность'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => settings.setCrossfadeCurve('linear')}
-                              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${settings.crossfadeCurve === 'linear' ? 'border-primary text-primary bg-primary/10' : 'border-white/10 text-secondary hover:border-white/20'}`}
-                            >
-                              {t('settings.curve_linear') || 'Линейная'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </SettingSection>
-
-                <SettingSection title={t('settings.gapless') || 'Без пауз (Gapless)'}>
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      checked={settings.isGaplessEnabled} 
-                      onChange={(e) => settings.setIsGaplessEnabled(e.target.checked)}
-                      className="accent-primary w-4 h-4 rounded cursor-pointer"
-                    />
-                    <span className="group-hover:text-primary transition-colors text-sm">
-                      {t('settings.gapless_desc') || 'Убирать тишину между треками (отключает кроссфейд)'}
-                    </span>
-                  </label>
-                </SettingSection>
-
-                <SettingSection title={t('settings.auto_resume_headphones') || 'Автовоспроизведение при надевании/подключении наушников'}>
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      checked={settings.autoResumeOnHeadphonesConnect} 
-                      onChange={(e) => settings.setAutoResumeOnHeadphonesConnect(e.target.checked)}
-                      className="accent-primary w-4 h-4 rounded cursor-pointer"
-                    />
-                    <span className="group-hover:text-primary transition-colors text-sm">
-                      {t('settings.auto_resume_headphones_desc') || 'Продолжать воспроизведение, если наушники возвращены в течение 45 секунд'}
-                    </span>
-                  </label>
-                </SettingSection>
-
-                <SettingSection title={t('settings.normalization') || 'Нормализация громкости'}>
-                  <div className="flex flex-col gap-4">
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.isLoudnessNormalizationEnabled} 
-                        onChange={(e) => settings.setIsLoudnessNormalizationEnabled(e.target.checked)}
-                        className="accent-primary w-4 h-4 rounded cursor-pointer"
-                      />
-                      <span className="group-hover:text-primary transition-colors text-sm">
-                        {t('settings.normalization_desc') || 'Автоматически выравнивать громкость треков (Компрессор)'}
-                      </span>
-                    </label>
-
-                    {settings.isLoudnessNormalizationEnabled && (
-                      <div className="pt-2 pb-1 space-y-6 opacity-100 transition-opacity border-t border-white/5 mt-2">
-                        
-                        <div>
-                          <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>{t('settings.audio_compressor_threshold', 'Порог срабатывания (Threshold)')}</span>
-                            <span>{settings.compressorThreshold} dB</span>
-                          </div>
-                          <input 
-                            type="range" 
-                            min="-100" 
-                            max="0" 
-                            value={settings.compressorThreshold} 
-                            onChange={(e) => settings.setCompressorThreshold(parseFloat(e.target.value))}
-                            className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                          <div className="flex justify-between text-xs text-secondary mt-2">
-                            <span>-100 dB</span>
-                            <span>0 dB</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>{t('settings.audio_compressor_ratio', 'Степень сжатия (Ratio)')}</span>
-                            <span>{settings.compressorRatio}:1</span>
-                          </div>
-                          <input 
-                            type="range" 
-                            min="1" 
-                            max="20" 
-                            step="0.5"
-                            value={settings.compressorRatio} 
-                            onChange={(e) => settings.setCompressorRatio(parseFloat(e.target.value))}
-                            className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                          <div className="flex justify-between text-xs text-secondary mt-2">
-                            <span>1:1</span>
-                            <span>20:1</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>{t('settings.audio_compressor_attack', 'Атака (Attack)')}</span>
-                            <span>{settings.compressorAttack} s</span>
-                          </div>
-                          <input 
-                            type="range" 
-                            min="0" 
-                            max="1" 
-                            step="0.001"
-                            value={settings.compressorAttack} 
-                            onChange={(e) => settings.setCompressorAttack(parseFloat(e.target.value))}
-                            className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                          <div className="flex justify-between text-xs text-secondary mt-2">
-                            <span>0 s</span>
-                            <span>1 s</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between text-xs text-secondary mb-2">
-                            <span>{t('settings.audio_compressor_release', 'Восстановление (Release)')}</span>
-                            <span>{settings.compressorRelease} s</span>
-                          </div>
-                          <input 
-                            type="range" 
-                            min="0" 
-                            max="1" 
-                            step="0.01"
-                            value={settings.compressorRelease} 
-                            onChange={(e) => settings.setCompressorRelease(parseFloat(e.target.value))}
-                            className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                          <div className="flex justify-between text-xs text-secondary mt-2">
-                            <span>0 s</span>
-                            <span>1 s</span>
-                          </div>
-                        </div>
-
-                      </div>
-                    )}
-                  </div>
-                </SettingSection>
-              </div>
+              <PlaybackSettingsSection mode="audio" />
             )}
 
+            {/* 5. STORAGE TAB */}
             {activeTab === 'storage' && (
-              <div className="space-y-8">
-                <StorageSettingsTab t={t} />
-              </div>
+              <StorageSettingsSection />
             )}
-            
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function SettingSection({ title, children }: { title: string, children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <h4 className="text-sm font-semibold text-secondary uppercase tracking-wider">{title}</h4>
-      <div className="bg-black/[0.02] dark:bg-black/25 p-4 rounded-xl border border-black/10 dark:border-black/50">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function ThemeOption({ label, value, current, onSelect }: { label: string, value: AppTheme, current: AppTheme, onSelect: (v: AppTheme) => void }) {
-  return (
-    <button 
-      onClick={() => onSelect(value)}
-      className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium shadow-sm transition-colors ${current === value ? 'border-primary text-primary bg-primary/5' : 'border-foreground/10 text-secondary hover:border-foreground/30 hover:text-foreground'}`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function AppIconOption({ label, value, current, onSelect }: { label: string, value: 'wave_dark' | 'wave_light' | 'cassette', current: string, onSelect: (v: any) => void }) {
-  return (
-    <button 
-      onClick={() => onSelect(value)}
-      className={`flex-1 py-3 px-4 rounded-lg border text-sm font-medium shadow-sm transition-colors ${current === value ? 'border-primary text-primary bg-primary/5' : 'border-foreground/10 text-secondary hover:border-foreground/30 hover:text-foreground'}`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function ColorOption({ color, hex, current, onSelect }: { color: AccentColor, hex: string, current: AccentColor, onSelect: (v: AccentColor) => void }) {
-  return (
-    <button 
-      onClick={() => onSelect(color)}
-      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${current === color ? 'ring-2 ring-offset-2 ring-offset-card ring-primary scale-110' : 'hover:scale-110'}`}
-      style={{ backgroundColor: hex }}
-    />
-  );
-}
-
-function StorageSettingsTab({ t }: { t: any }) {
-  const { downloadDirectory, setDownloadDirectory } = useDownloadStore();
-  const [actualDir, setActualDir] = useState<string>(t('sidebar.downloading', 'Загрузка...'));
-  const [isMoving, setIsMoving] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [statsKey, setStatsKey] = useState(0);
-
-  const refreshStats = () => {
-    setStatsKey((prev) => prev + 1);
-  };
-
-  React.useEffect(() => {
-    if (downloadDirectory) {
-      setActualDir(downloadDirectory);
-    } else {
-      StorageManager.getDefaultDownloadDir().then(setActualDir).catch(() => setActualDir(t('settings.error_get_path', 'Ошибка получения пути')));
-    }
-  }, [downloadDirectory]);
-
-  const handleSelectDirectory = async () => {
-    try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const selectedPath = await open({
-        directory: true,
-        multiple: false,
-        title: t('settings.select_download_folder')
-      });
-      if (selectedPath && typeof selectedPath === 'string') {
-        const currentDir = downloadDirectory || await StorageManager.getDefaultDownloadDir();
-        if (currentDir !== selectedPath) {
-          setIsMoving(true);
-          try {
-             await StorageManager.moveDirectory(currentDir, selectedPath);
-          } catch (err) {
-             console.error("Failed to move directory:", err);
-          }
-          setDownloadDirectory(selectedPath);
-          setIsMoving(false);
-          refreshStats();
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      setIsMoving(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-6">
-      <StorageStatsBar key={statsKey} onRefreshRequested={refreshStats} />
-
-      <StorageLimitControl />
-
-      <ImageMemoryLimitControl />
-
-      <SettingSection title={t('settings.download_concurrency')}>
-        <div className="flex flex-col gap-2">
-          <p className="text-xs text-secondary mb-2">
-            {t('settings.download_concurrency_desc')}
-          </p>
-          <div className="flex items-center gap-3">
-            <input 
-              type="range" 
-              min="1" 
-              max="10" 
-              value={useSettingsStore(state => state.maxDownloadConcurrency)} 
-              onChange={(e) => useSettingsStore.getState().setMaxDownloadConcurrency(parseInt(e.target.value))}
-              className="flex-1 h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
-            />
-            <span className="text-sm font-mono text-secondary w-8 text-right">
-              {useSettingsStore(state => state.maxDownloadConcurrency)}
-            </span>
-          </div>
-        </div>
-      </SettingSection>
-
-      {/* 3. Download Location (Desktop / Tauri) */}
-      {isTauri() && (
-        <SettingSection title={t('settings.download_location')}>
-          <div className="flex flex-col gap-4">
-            <div className="bg-black/30 p-3 rounded-lg border border-white/5 truncate max-w-full text-sm font-mono text-secondary" title={actualDir}>
-              {actualDir}
-            </div>
-            <button 
-              onClick={handleSelectDirectory}
-              disabled={isMoving}
-              className="flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary py-2.5 rounded-xl font-medium transition-colors"
-            >
-              {isMoving ? <span className="animate-pulse">{t('settings.moving_files')}</span> : (
-                <>
-                  <FolderSearch size={18} />
-                  <span>{t('settings.change_folder')}</span>
-                </>
-              )}
-            </button>
-          </div>
-        </SettingSection>
-      )}
-
-      {(isTauri() || isCapacitor()) && (
-        <DownloadedMusicGrid 
-          onRefreshRequested={refreshStats} 
-          onManageClick={() => setShowDeleteModal(true)} 
-        />
-      )}
-
-      <StorageDangerZone onActionComplete={refreshStats} />
-
-      {showDeleteModal && (
-        <DeleteDownloadsModal onClose={() => { setShowDeleteModal(false); refreshStats(); }} />
-      )}
     </div>
   );
 }
