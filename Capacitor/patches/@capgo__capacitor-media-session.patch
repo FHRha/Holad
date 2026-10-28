@@ -111,3 +111,54 @@ index 402bc6fb877f919269f0bfcfe535933da83c01e0..e6aaf6787001ecfaafd93b58d3634963
          plugin.actionCallback("play");
      }
  
+diff --git a/android/src/main/java/com/capgo/mediasession/MediaSessionService.java b/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
+index e2c1f052c568618637015c022b305cbb71325133..571eb81dbde15d692d91bced89deb11119b0e2b4 100644
+--- a/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
++++ b/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
+@@ -115,10 +115,21 @@ public class MediaSessionService extends Service {
+             notificationManager.createNotificationChannel(channel);
+         }
+ 
++        int smallIconId = getResources().getIdentifier("ic_stat_holad", "drawable", getPackageName());
++        if (smallIconId == 0) {
++            smallIconId = getResources().getIdentifier("ic_stat_name", "drawable", getPackageName());
++        }
++        if (smallIconId == 0) {
++            smallIconId = getResources().getIdentifier("ic_launcher_foreground", "drawable", getPackageName());
++        }
++        if (smallIconId == 0) {
++            smallIconId = getApplicationInfo().icon;
++        }
++
+         notificationStyle = new MediaStyle().setMediaSession(mediaSession.getSessionToken());
+         notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
+             .setStyle(notificationStyle)
+-            .setSmallIcon(R.drawable.ic_baseline_volume_up_24)
++            .setSmallIcon(smallIconId != 0 ? smallIconId : R.drawable.ic_baseline_volume_up_24)
+             .setContentIntent(
+                 PendingIntent.getActivity(
+                     getApplicationContext(),
+diff --git a/android/src/main/res/drawable/ic_baseline_volume_up_24.xml b/android/src/main/res/drawable/ic_baseline_volume_up_24.xml
+index 12545b5b8271b052bb24714925ad83db45cbb53d..e6833cb35453696d80daa2f400f91ea604a9d7f4 100644
+--- a/android/src/main/res/drawable/ic_baseline_volume_up_24.xml
++++ b/android/src/main/res/drawable/ic_baseline_volume_up_24.xml
+@@ -1,10 +1,12 @@
+ <vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
+     android:height="24dp"
+-    android:tint="#000000"
+-    android:viewportHeight="24"
+-    android:viewportWidth="24"
+-    android:width="24dp">
+-    <path
+-        android:fillColor="@android:color/white"
+-        android:pathData="M3,9v6h4l5,5L12,4L7,9L3,9zM16.5,12c0,-1.77 -1.02,-3.29 -2.5,-4.03v8.05c1.48,-0.73 2.5,-2.25 2.5,-4.02zM14,3.23v2.06c2.89,0.86 5,3.54 5,6.71s-2.11,5.85 -5,6.71v2.06c4.01,-0.91 7,-4.49 7,-8.77s-2.99,-7.86 -7,-8.77z" />
++    android:viewportWidth="48"
++    android:viewportHeight="48">
++    <group
++        android:translateY="1">
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M25.946,44.938c-0.664,0.845 -2.021,0.375 -2.021,-0.698V33.937a2.26,2.26 0 0,0 -2.262,-2.262H10.287c-0.92,0 -1.456,-1.04 -0.92,-1.788l7.48,-10.471c1.07,-1.497 0,-3.578 -1.842,-3.578H1.237c-0.92,0 -1.456,-1.04 -0.92,-1.788L10.013,0.474c0.214,-0.297 0.556,-0.474 0.92,-0.474h28.894c0.92,0 1.456,1.04 0.92,1.788l-7.48,10.471c-1.07,1.498 0,3.579 1.842,3.579h11.377c.943,0 1.473,1.088 0.89,1.83L25.947,44.94z" />
++    </group>
+ </vector>
