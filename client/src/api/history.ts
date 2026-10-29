@@ -163,12 +163,20 @@ export async function syncHistoryWithServer(): Promise<void> {
       }
       localStorage.setItem(initialPushKey, 'true');
     } else {
-      // Delta sync: fetch only tracks played after our newest track
-      const newestPlayedAt = localHistory[0]?.playedAt;
-      const newEntries = await fetchHistoryDelta(newestPlayedAt, 500);
-      if (newEntries.length > 0) {
-        console.log('[History API] Merged new history tracks from server:', newEntries.length);
-        useHistoryStore.getState().syncHistoryData(newEntries);
+      // Check for offline plays that haven't reached the server yet
+      const recentServer = await fetchHistoryDelta(undefined, 50);
+      const isAlreadyOnServer = (localEntry: PlayHistoryEntry) => {
+        return recentServer.some(s => s.id === localEntry.id && Math.abs(s.playedAt - localEntry.playedAt) < 5000);
+      };
+      const unpushed = localHistory.slice(0, 50).filter(l => !isAlreadyOnServer(l));
+      if (unpushed.length > 0) {
+        console.log('[History API] Pushing unpushed offline tracks to server:', unpushed.length);
+        await pushHistoryBatch(unpushed);
+      }
+
+      // Merge new tracks played on other devices
+      if (recentServer.length > 0) {
+        useHistoryStore.getState().syncHistoryData(recentServer);
       }
     }
   } catch (error) {

@@ -78,6 +78,7 @@ db.exec(`
     accent_color TEXT,
     custom_colors TEXT,
     language TEXT,
+    profiles TEXT,
     updated_at INTEGER,
     FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
   );
@@ -287,6 +288,9 @@ try {
   if (!prefColNames.has('language')) {
     db.exec('ALTER TABLE preferences ADD COLUMN language TEXT');
   }
+  if (!prefColNames.has('profiles')) {
+    db.exec('ALTER TABLE preferences ADD COLUMN profiles TEXT');
+  }
   if (!prefColNames.has('updated_at')) {
     db.exec('ALTER TABLE preferences ADD COLUMN updated_at INTEGER');
   }
@@ -454,11 +458,12 @@ export interface UserPreferences {
   accent_color?: string;
   custom_colors?: string;
   language?: string;
+  profiles?: string;
   updated_at?: number;
 }
 
 export function getPreferences(userId: string): UserPreferences | null {
-  const row = db.prepare('SELECT theme, accent_color, custom_colors, language, updated_at FROM preferences WHERE user_id = ?').get(userId) as UserPreferences | undefined;
+  const row = db.prepare('SELECT theme, accent_color, custom_colors, language, profiles, updated_at FROM preferences WHERE user_id = ?').get(userId) as UserPreferences | undefined;
   return row || null;
 }
 
@@ -472,17 +477,21 @@ export function savePreferences(userId: string, prefs: Partial<UserPreferences>)
     ? (typeof prefs.custom_colors === 'object' ? JSON.stringify(prefs.custom_colors) : prefs.custom_colors) 
     : (existing?.custom_colors ?? null);
   const language = prefs.language !== undefined ? prefs.language : (existing?.language ?? null);
+  const profiles = prefs.profiles !== undefined
+    ? (typeof prefs.profiles === 'object' ? JSON.stringify(prefs.profiles) : prefs.profiles)
+    : (existing?.profiles ?? null);
 
   db.prepare(`
-    INSERT INTO preferences (user_id, theme, accent_color, custom_colors, language, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO preferences (user_id, theme, accent_color, custom_colors, language, profiles, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(user_id) DO UPDATE SET
       theme = excluded.theme,
       accent_color = excluded.accent_color,
       custom_colors = excluded.custom_colors,
       language = excluded.language,
+      profiles = excluded.profiles,
       updated_at = excluded.updated_at
-  `).run(userId, theme, accent_color, custom_colors, language, now);
+  `).run(userId, theme, accent_color, custom_colors, language, profiles, now);
 }
 
 // Playback State API implementations
@@ -812,6 +821,37 @@ export function getCustomPlaylist(id: string): { id: string; name: string; descr
     trackIds,
     tracks
   };
+}
+
+export function getUserCustomPlaylists(userId: string): Array<{ id: string; name: string; description: string; trackIds: string[]; tracks?: any[]; userId?: string }> {
+  if (!userId) return [];
+  const rows = db.prepare('SELECT id, user_id, name, description, songs FROM playlists WHERE user_id = ? ORDER BY rowid DESC').all(userId) as any[];
+  return rows.map(pl => {
+    let tracks: any[] | undefined = undefined;
+    if (pl.songs) {
+      try {
+        const parsed = JSON.parse(pl.songs);
+        if (Array.isArray(parsed)) {
+          tracks = parsed;
+        }
+      } catch {
+        tracks = undefined;
+      }
+    }
+    const trackRows = db.prepare('SELECT track_id FROM playlist_tracks WHERE playlist_id = ? ORDER BY rowid ASC').all(pl.id) as { track_id: string }[];
+    const trackIds = tracks && tracks.length > 0 
+      ? tracks.map((t: any) => typeof t === 'string' ? t : t.id).filter(Boolean)
+      : trackRows.map(t => t.track_id);
+
+    return {
+      id: pl.id,
+      name: pl.name,
+      description: pl.description || '',
+      trackIds,
+      tracks: tracks || trackIds.map(tId => ({ id: tId })),
+      userId: pl.user_id
+    };
+  });
 }
 
 export interface ExclusionMeta {

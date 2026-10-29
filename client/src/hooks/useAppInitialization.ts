@@ -4,13 +4,15 @@ import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 import { useAuthStore } from '../store/authStore';
 import { fetchStarred, getCoverArtUrl } from '../api/subsonic';
-import { fetchExclusions, syncSetExclusions } from '../api/exclusions';
+import { fetchExclusions } from '../api/exclusions';
 import { syncHistoryWithServer } from '../api/history';
 import { fetchPreferences } from '../api/preferences';
 import { fetchIntegrations } from '../api/integrations';
 import { fetchPlaybackState, savePlaybackState } from '../api/playbackState';
 import { toCompactQueue } from '../store/slices/queueSlice';
 import { useSettingsStore } from '../store/settingsStore';
+import { usePlaylistStore, fetchUserCustomPlaylists } from '../store/playlistStore';
+import { useProfileStore } from '../store/profileStore';
 import { jamSocket } from '../api/socket';
 import { useHoladStore } from '../store/holadStore';
 import { useSocialStore } from '../store/socialStore';
@@ -60,30 +62,17 @@ export function useAppInitialization() {
 
       fetchExclusions().then(exclusions => {
         if (exclusions) {
-          const currentStore = usePlayerStore.getState();
-          const localTrackIds = currentStore.excludedTrackIds || [];
-          const localAlbumIds = currentStore.excludedAlbumIds || [];
-          const localFingerprints = currentStore.excludedFingerprints || [];
-
-          const mergedTrackIds = Array.from(new Set([...exclusions.excludedTrackIds, ...localTrackIds]));
-          const mergedAlbumIds = Array.from(new Set([...exclusions.excludedAlbumIds, ...localAlbumIds]));
-          const mergedFingerprints = Array.from(new Set([
-            ...(exclusions.excludedFingerprints || []),
-            ...localFingerprints
-          ]));
-
-          setExcludedItems(mergedTrackIds, mergedAlbumIds, mergedFingerprints);
-
-          // If local had items not present on server, sync them to server
-          const hasLocalOnlyTracks = localTrackIds.some(id => !exclusions.excludedTrackIds.includes(id));
-          const hasLocalOnlyAlbums = localAlbumIds.some(id => !exclusions.excludedAlbumIds.includes(id));
-          if (hasLocalOnlyTracks || hasLocalOnlyAlbums) {
-            syncSetExclusions(mergedTrackIds, mergedAlbumIds).catch(err => {
-              console.error('Failed to sync merged exclusions to server:', err);
-            });
-          }
+          setExcludedItems(
+            exclusions.excludedTrackIds || [],
+            exclusions.excludedAlbumIds || [],
+            exclusions.excludedFingerprints || []
+          );
         }
       }).catch(e => console.error("Failed to fetch exclusions", e));
+
+      fetchUserCustomPlaylists().then(playlists => {
+        usePlaylistStore.getState().mergeServerPlaylists(playlists);
+      }).catch(e => console.error("Failed to fetch custom playlists", e));
 
       syncHistoryWithServer().catch(e => console.error("Failed to sync history with server", e));
 
@@ -110,6 +99,9 @@ export function useAppInitialization() {
           }
           if (syncLanguage && prefs.language) {
             setLanguage(prefs.language);
+          }
+          if (prefs.profiles) {
+            useProfileStore.getState().syncWithServerProfiles(prefs.profiles, prefs.updated_at);
           }
         }
       }).catch(e => console.error("Failed to fetch preferences", e));
@@ -284,29 +276,28 @@ export function useAppInitialization() {
       fetchExclusions().then(exclusions => {
         if (exclusions) {
           const currentStore = usePlayerStore.getState();
-          const localTrackIds = currentStore.excludedTrackIds || [];
-          const localAlbumIds = currentStore.excludedAlbumIds || [];
-          const localFingerprints = currentStore.excludedFingerprints || [];
-
-          const mergedTrackIds = Array.from(new Set([...exclusions.excludedTrackIds, ...localTrackIds]));
-          const mergedAlbumIds = Array.from(new Set([...exclusions.excludedAlbumIds, ...localAlbumIds]));
-          const mergedFingerprints = Array.from(new Set([
-            ...(exclusions.excludedFingerprints || []),
-            ...localFingerprints
-          ]));
-
-          currentStore.setExcludedItems(mergedTrackIds, mergedAlbumIds, mergedFingerprints);
-
-          const hasLocalOnlyTracks = localTrackIds.some(id => !exclusions.excludedTrackIds.includes(id));
-          const hasLocalOnlyAlbums = localAlbumIds.some(id => !exclusions.excludedAlbumIds.includes(id));
-          if (hasLocalOnlyTracks || hasLocalOnlyAlbums) {
-            syncSetExclusions(mergedTrackIds, mergedAlbumIds).catch(() => {});
-          }
+          currentStore.setExcludedItems(
+            exclusions.excludedTrackIds || [],
+            exclusions.excludedAlbumIds || [],
+            exclusions.excludedFingerprints || []
+          );
         }
       }).catch(() => {});
 
       // 2. Synchronize history
       syncHistoryWithServer().catch(() => {});
+
+      // 3. Synchronize custom playlists
+      fetchUserCustomPlaylists().then(playlists => {
+        usePlaylistStore.getState().mergeServerPlaylists(playlists);
+      }).catch(() => {});
+
+      // 4. Synchronize preferences & settings profiles
+      fetchPreferences().then(prefs => {
+        if (prefs?.profiles) {
+          useProfileStore.getState().syncWithServerProfiles(prefs.profiles, prefs.updated_at);
+        }
+      }).catch(() => {});
 
       // 3. Synchronize playback state (LWW)
       fetchPlaybackState().then(serverState => {

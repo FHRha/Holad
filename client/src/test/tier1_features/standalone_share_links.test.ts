@@ -158,7 +158,7 @@ describe('Standalone Share Links Resolution & Playback', () => {
       trackIds: ['t1', 't2']
     });
 
-    expect(fetchSpy).toHaveBeenCalledWith(`${expectedBaseUrl}/api/custom-playlists`, {
+    expect(fetchSpy).toHaveBeenCalledWith(`${expectedBaseUrl}/api/custom-playlists`, expect.objectContaining({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -167,7 +167,7 @@ describe('Standalone Share Links Resolution & Playback', () => {
         description: 'Relaxing beats',
         trackIds: ['t1', 't2']
       })
-    });
+    }));
 
     // 2. createPlaylist
     fetchSpy.mockClear();

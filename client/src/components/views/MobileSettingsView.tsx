@@ -21,6 +21,7 @@ import LanguageSelector from '../common/LanguageSelector';
 import Dropdown from '../common/Dropdown';
 import FlagIcon from '../common/FlagIcon';
 import SettingSection from '../settings/SettingSection';
+import SettingsProfilesSection from '../settings/SettingsProfilesSection';
 import {
   AppearanceSettingsSection,
   PlaybackSettingsSection,
@@ -76,6 +77,7 @@ export default function MobileSettingsView() {
       icon: <Settings2 size={20} className="text-primary" />,
       content: (
         <div className="flex flex-col gap-4">
+          <SettingsProfilesSection isMobile={true} />
           <SettingSection
             title={t('settings.general_preferences', 'Региональные настройки и запуск')}
             icon={<Settings2 size={16} />}

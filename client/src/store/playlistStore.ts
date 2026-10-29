@@ -14,6 +14,7 @@ export interface CustomPlaylist {
 interface PlaylistStore {
   playlists: CustomPlaylist[];
   setPlaylists: (playlists: CustomPlaylist[]) => void;
+  mergeServerPlaylists: (serverPlaylists: CustomPlaylist[]) => void;
   createPlaylist: (name: string, description?: string) => string;
   updatePlaylist: (id: string, name?: string, description?: string) => void;
   deletePlaylist: (id: string) => void;
@@ -22,6 +23,29 @@ interface PlaylistStore {
 }
 
 import { useAuthStore } from './authStore';
+
+const playlistSaveAbortControllers = new Map<string, AbortController>();
+
+export async function fetchUserCustomPlaylists(): Promise<CustomPlaylist[]> {
+  try {
+    const baseUrl = getHoladServerUrl();
+    const user = useAuthStore.getState().user;
+    if (!user) return [];
+    const headers: Record<string, string> = {
+      'x-user-id': encodeURIComponent(user)
+    };
+    const res = await fetch(`${baseUrl}/api/custom-playlists`, {
+      method: 'GET',
+      headers
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.playlists) ? data.playlists : [];
+  } catch (err) {
+    console.error('Error fetching user custom playlists:', err);
+    return [];
+  }
+}
 
 export async function syncCustomPlaylistToServer(playlist: CustomPlaylist): Promise<void> {
   const baseUrl = getHoladServerUrl();
@@ -34,20 +58,38 @@ export async function syncCustomPlaylistToServer(playlist: CustomPlaylist): Prom
   if (user) {
     headers['x-user-id'] = encodeURIComponent(user);
   }
-  const res = await fetch(`${baseUrl}/api/custom-playlists`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      id: playlist.id,
-      name: playlist.name,
-      description: playlist.description,
-      trackIds: safeTrackIds,
-      tracks: safeTracks,
-      userId: user || undefined,
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`Failed to sync custom playlist: ${res.statusText}`);
+  const existingController = playlistSaveAbortControllers.get(playlist.id);
+  if (existingController) {
+    existingController.abort();
+    playlistSaveAbortControllers.delete(playlist.id);
+  }
+  const currentController = new AbortController();
+  playlistSaveAbortControllers.set(playlist.id, currentController);
+
+  try {
+    const res = await fetch(`${baseUrl}/api/custom-playlists`, {
+      method: 'POST',
+      headers,
+      signal: currentController.signal,
+      body: JSON.stringify({
+        id: playlist.id,
+        name: playlist.name,
+        description: playlist.description,
+        trackIds: safeTrackIds,
+        tracks: safeTracks,
+        userId: user || undefined,
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to sync custom playlist: ${res.statusText}`);
+    }
+  } catch (err: any) {
+    if (err?.name === 'AbortError') return;
+    throw err;
+  } finally {
+    if (playlistSaveAbortControllers.get(playlist.id) === currentController) {
+      playlistSaveAbortControllers.delete(playlist.id);
+    }
   }
 }
 
@@ -78,6 +120,30 @@ export const usePlaylistStore = create<PlaylistStore>()(
       playlists: [],
       
       setPlaylists: (playlists) => set({ playlists }),
+      mergeServerPlaylists: (serverPlaylists) => {
+        if (!Array.isArray(serverPlaylists) || serverPlaylists.length === 0) return;
+        set((state) => {
+          const localMap = new Map(state.playlists.map(p => [p.id, p]));
+          for (const serverPl of serverPlaylists) {
+            if (!localMap.has(serverPl.id)) {
+              localMap.set(serverPl.id, serverPl);
+            } else {
+              const local = localMap.get(serverPl.id);
+              if (local) {
+                const mergedTrackIds = Array.from(new Set([...(local.trackIds || []), ...(serverPl.trackIds || [])]));
+                localMap.set(serverPl.id, {
+                  id: serverPl.id,
+                  name: serverPl.name || local.name,
+                  description: serverPl.description !== undefined ? serverPl.description : local.description,
+                  trackIds: mergedTrackIds,
+                  tracks: serverPl.tracks || local.tracks
+                });
+              }
+            }
+          }
+          return { playlists: Array.from(localMap.values()) };
+        });
+      },
       
       createPlaylist: (name, description = '') => {
         const id = uuidv4();

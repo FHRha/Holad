@@ -416,13 +416,22 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   }, [initialPosition, currentTrack, audioSrc, srcLoading, isPlaying, isActiveDevice, setInitialPosition]);
 
   const previousTrackIdRef = useRef<string | null>(null);
-    useEffect(() => {
-      if (currentTrack?.id && previousTrackIdRef.current && currentTrack.id !== previousTrackIdRef.current) {
-        flushPositionToLocalStorage();
-        flushPlaybackProgressToServer(false);
+  useEffect(() => {
+    if (currentTrack?.id && previousTrackIdRef.current && currentTrack.id !== previousTrackIdRef.current) {
+      latestTrackIdRef.current = currentTrack.id;
+      latestPositionRef.current = initialPosition ? Math.round(initialPosition / 1000) : 0;
+      accumulatedTimeRef.current = 0;
+      syncedRef.current = false;
+      flushPositionToLocalStorage();
+      flushPlaybackProgressToServer(false);
+    } else if (currentTrack?.id && !previousTrackIdRef.current) {
+      latestTrackIdRef.current = currentTrack.id;
+      if (initialPosition > 0) {
+        latestPositionRef.current = Math.round(initialPosition / 1000);
       }
-      previousTrackIdRef.current = currentTrack?.id || null;
-    }, [currentTrack?.id, flushPositionToLocalStorage, flushPlaybackProgressToServer]);
+    }
+    previousTrackIdRef.current = currentTrack?.id || null;
+  }, [currentTrack?.id, initialPosition, flushPositionToLocalStorage, flushPlaybackProgressToServer]);
   
     // Handle play/pause toggle
     useEffect(() => {
@@ -523,18 +532,32 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     };
   }, []);
 
+  const currentTrackRef = useRef(currentTrack);
+  useEffect(() => {
+    currentTrackRef.current = currentTrack;
+  }, [currentTrack]);
+
+  const isPlayingRef = useRef(isPlaying);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  const roleRef = useRef(role);
+  useEffect(() => {
+    roleRef.current = role;
+  }, [role]);
+
   // Save progress to Holad server (every 6s during playback)
-    useEffect(() => {
-      let interval: ReturnType<typeof setInterval>;
+  useEffect(() => {
+    const interval = setInterval(() => {
       const isJamUrl = isJamPath();
-      if (currentTrack && role !== 'listener' && !isJamUrl && isPlaying) {
-        interval = setInterval(() => {
-          flushPositionToLocalStorage();
-          flushPlaybackProgressToServer(false);
-        }, 6000);
+      if (currentTrackRef.current && roleRef.current !== 'listener' && !isJamUrl && isPlayingRef.current) {
+        flushPositionToLocalStorage();
+        flushPlaybackProgressToServer(false);
       }
-      return () => clearInterval(interval);
-    }, [currentTrack, isPlaying, role, flushPositionToLocalStorage, flushPlaybackProgressToServer]);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [flushPositionToLocalStorage, flushPlaybackProgressToServer]);
 
   // Time and playback updates
   const accumulatedTimeRef = useRef(0);

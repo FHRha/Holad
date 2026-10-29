@@ -135,6 +135,32 @@ describe('API Endpoints', () => {
     expect(getHoladRes.status).toBe(200);
     expect(getHoladRes.body.playlist.id).toBe(customId);
 
+    // 10b. User Playlists list via GET /api/custom-playlists
+    const userPlId = 'pl-sync-test-123';
+    await request(app)
+      .post('/api/custom-playlists')
+      .send({
+        id: userPlId,
+        name: 'User Sync Mix',
+        description: 'Synced mix',
+        trackIds: ['tr-10', 'tr-20'],
+        userId: 'sync_user_1'
+      });
+
+    const userListRes = await request(app)
+      .get('/api/custom-playlists')
+      .set('x-user-id', 'sync_user_1');
+    expect(userListRes.status).toBe(200);
+    expect(userListRes.body.playlists).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: userPlId,
+          name: 'User Sync Mix',
+          userId: 'sync_user_1'
+        })
+      ])
+    );
+
     // 11. Invalid ID in GET request
     const badGetIdRes = await request(app).get('/api/custom-playlists/invalid%20id!');
     expect(badGetIdRes.status).toBe(400);

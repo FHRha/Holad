@@ -455,6 +455,25 @@ app.post(['/api/custom-playlists', '/Holad/api/custom-playlists'], express.json(
   }
 });
 
+app.get(['/api/custom-playlists', '/Holad/api/custom-playlists'], (req, res) => {
+  try {
+    let user = (req.headers['x-user-id'] || req.headers['x-user'] || req.query.userId || req.query.user) as string | undefined;
+    if (user && typeof user === 'string') {
+      try {
+        user = decodeURIComponent(user);
+      } catch {}
+    }
+    if (!user) {
+      return res.status(200).json({ playlists: [] });
+    }
+    const playlists = database.getUserCustomPlaylists(user);
+    return res.status(200).json({ playlists });
+  } catch (error) {
+    console.error('Error fetching user custom playlists:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get(['/api/custom-playlists/:id', '/Holad/api/custom-playlists/:id'], (req, res) => {
   const id = req.params.id as string;
   if (!id || typeof id !== 'string' || !PLAYLIST_ID_REGEX.test(id)) {
@@ -914,6 +933,7 @@ app.post('/api/holad/preferences/:roomId', validateRestAuth, express.json(), (re
       accent_color: body.accent_color || body.accentColor,
       custom_colors: body.custom_colors || body.customColors,
       language: body.language,
+      profiles: body.profiles,
     });
     broadcastConnectRemoteCommand(io, roomId, { 
       type: 'preferencesUpdated', 

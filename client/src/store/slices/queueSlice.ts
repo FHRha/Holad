@@ -306,13 +306,24 @@ export const createQueueSlice: StateCreator<
   
   playTrack: (index) => {
     triggerPlay();
-    set((state) => ({
-      currentIndex: index,
-      initialPosition: 0,
-      isPlaying: true,
-      playbackUpdatedAt: Date.now(),
-      playActionId: state.playActionId + 1
-    }));
+    const now = Date.now();
+    set((state) => {
+      if (index >= 0 && index < state.queue.length) {
+        syncQueueToServer(state.queue, index, state.queueVersion, now, {
+          ...state,
+          currentIndex: index,
+          initialPosition: 0,
+          isPlaying: true
+        });
+      }
+      return {
+        currentIndex: index,
+        initialPosition: 0,
+        isPlaying: true,
+        playbackUpdatedAt: now,
+        playActionId: state.playActionId + 1
+      };
+    });
   },
   
   nextTrack: () => {
@@ -320,6 +331,11 @@ export const createQueueSlice: StateCreator<
     const now = Date.now();
     set((state) => {
       if (state.repeatMode === 'one') {
+        syncQueueToServer(state.queue, state.currentIndex, state.queueVersion, now, {
+          ...state,
+          initialPosition: 0,
+          isPlaying: true
+        });
         return { currentIndex: state.currentIndex, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
       }
       if (state.currentIndex < state.queue.length - 1) {
@@ -328,6 +344,12 @@ export const createQueueSlice: StateCreator<
           nextIdx++;
         }
         if (nextIdx < state.queue.length) {
+          syncQueueToServer(state.queue, nextIdx, state.queueVersion, now, {
+            ...state,
+            currentIndex: nextIdx,
+            initialPosition: 0,
+            isPlaying: true
+          });
           return { currentIndex: nextIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
         }
       } else if (state.repeatMode === 'all') {
@@ -336,6 +358,12 @@ export const createQueueSlice: StateCreator<
           firstIdx++;
         }
         if (firstIdx < state.queue.length) {
+          syncQueueToServer(state.queue, firstIdx, state.queueVersion, now, {
+            ...state,
+            currentIndex: firstIdx,
+            initialPosition: 0,
+            isPlaying: true
+          });
           return { currentIndex: firstIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
         }
       }
@@ -353,6 +381,12 @@ export const createQueueSlice: StateCreator<
           prevIdx--;
         }
         if (prevIdx >= 0) {
+          syncQueueToServer(state.queue, prevIdx, state.queueVersion, now, {
+            ...state,
+            currentIndex: prevIdx,
+            initialPosition: 0,
+            isPlaying: true
+          });
           return { currentIndex: prevIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
         }
       }

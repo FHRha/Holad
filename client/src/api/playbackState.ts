@@ -102,6 +102,8 @@ export const fetchPlaybackState = async (): Promise<PlaybackStateResponse | null
   }
 };
 
+let activeSaveAbortController: AbortController | null = null;
+
 export const savePlaybackState = async (
   state: Partial<PlaybackStateInput>,
   useKeepalive = false
@@ -130,15 +132,30 @@ export const savePlaybackState = async (
     }
   }
 
+  if (activeSaveAbortController) {
+    activeSaveAbortController.abort();
+    activeSaveAbortController = null;
+  }
+  const currentController = new AbortController();
+  activeSaveAbortController = currentController;
+
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers,
-      body
+      body,
+      signal: currentController.signal
     });
     return res.ok;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      return false;
+    }
     console.error('Failed to save playback state:', error);
     return false;
+  } finally {
+    if (activeSaveAbortController === currentController) {
+      activeSaveAbortController = null;
+    }
   }
 };
