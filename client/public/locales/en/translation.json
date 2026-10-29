@@ -193,7 +193,7 @@
     "offline_mode_desc": "Force working without internet",
     "audio": "Audio",
     "about_app": "About app",
-    "about_app_desc": "Version, updates and source code",
+    "about_app_desc": "App version, updates, server, and account",
     "data_sources": "Data Sources",
     "data_sources_desc": "Data Sources settings",
     "navidrome": "Navidrome/Subsonic",
@@ -242,7 +242,10 @@
     "crossfade_crossover_info": "Crossover: {{x}}% time, {{y}}% volume ({{db}} dB)",
     "crossfade_track_outgoing": "Outgoing",
     "crossfade_track_incoming": "Incoming",
-    "volume_amplifier_level": "Amplification level"
+    "volume_amplifier_level": "Amplification level",
+    "general_desc": "Interface language, start page, and external services",
+    "player_desc": "Playback options, buffering, and data saver",
+    "audio_desc": "Crossfade, volume boost, and DSP effects"
   },
   "topbar": {
     "search": "Search...",

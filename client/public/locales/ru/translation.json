@@ -193,7 +193,7 @@
     "offline_mode_desc": "Принудительно работать без сети",
     "audio": "Звук",
     "about_app": "О приложении",
-    "about_app_desc": "Версия, обновления и исходный код",
+    "about_app_desc": "Версия приложения, обновления, сервер и аккаунт",
     "data_sources": "Источники информации",
     "data_sources_desc": "Настройки Data Sources",
     "navidrome": "Navidrome/Subsonic",
@@ -242,7 +242,10 @@
     "crossfade_crossover_info": "Пересечение: {{x}}% времени, {{y}}% громкости ({{db}} dB)",
     "crossfade_track_outgoing": "Уходящий",
     "crossfade_track_incoming": "Входящий",
-    "volume_amplifier_level": "Уровень усиления"
+    "volume_amplifier_level": "Уровень усиления",
+    "general_desc": "Язык интерфейса, стартовая страница и внешние сервисы",
+    "player_desc": "Режимы воспроизведения, буферизация и экономия трафика",
+    "audio_desc": "Кроссфейд, усилитель сигнала и звуковые эффекты"
   },
   "topbar": {
     "search": "Поиск...",
