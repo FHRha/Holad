@@ -10,10 +10,12 @@ import {
   ChevronRight,
   ChevronDown,
   Info,
+  Sliders,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDemoStore } from '../../store/demoStore';
 import { useAuthStore } from '../../store/authStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useUIStore } from '../../store/uiStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { toggleOfflineMode } from '../../utils/networkStatus';
@@ -55,6 +57,7 @@ function FilterChip({
 
 export default function MobileSettingsView() {
   const { t } = useTranslation();
+  const settings = useSettingsStore();
   const isDemoMode = useDemoStore((state) => state.isDemoMode);
   const { setAuthenticated, setCredentials } = useAuthStore();
   const { setSearchOpen, setOfflineModalOpen } = useUIStore();
@@ -127,7 +130,13 @@ export default function MobileSettingsView() {
       title: t('views.settings_audio'),
       subtitle: t('views.settings_audio_desc'),
       icon: <Music className="text-primary" size={24} />,
-      content: <PlaybackSettingsSection isMobile={true} mode="all" />,
+      content: (
+        <PlaybackSettingsSection
+          isMobile={true}
+          mode="all"
+          showAdvanced={settings.showAdvancedSettings}
+        />
+      ),
     },
     {
       id: 'network',
@@ -160,7 +169,12 @@ export default function MobileSettingsView() {
       title: t('views.settings_storage'),
       subtitle: t('views.settings_storage_desc'),
       icon: <HardDrive className="text-primary" size={24} />,
-      content: <StorageSettingsSection isMobile={true} />,
+      content: (
+        <StorageSettingsSection
+          isMobile={true}
+          showAdvanced={settings.showAdvancedSettings}
+        />
+      ),
     },
   ];
 
@@ -187,6 +201,12 @@ export default function MobileSettingsView() {
             label={t('views.filter_offline')}
             isActive={isOffline}
             onClick={handleOfflineToggle}
+          />
+          <FilterChip
+            icon={<Sliders size={16} />}
+            label={t('settings.advanced', 'Расширенные')}
+            isActive={settings.showAdvancedSettings}
+            onClick={() => settings.setShowAdvancedSettings(!settings.showAdvancedSettings)}
           />
         </div>
       </div>

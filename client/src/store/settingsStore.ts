@@ -111,6 +111,12 @@ export interface SettingsState {
   setSyncLanguage: (sync: boolean) => void;
   autoResumeOnHeadphonesConnect: boolean;
   setAutoResumeOnHeadphonesConnect: (enabled: boolean) => void;
+  showAdvancedSettings: boolean;
+  setShowAdvancedSettings: (show: boolean) => void;
+  dataSaver: boolean;
+  setDataSaver: (enabled: boolean) => void;
+  enableDiscordRpc: boolean;
+  setEnableDiscordRpc: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -226,13 +232,40 @@ export const useSettingsStore = create<SettingsState>()(
       setSyncLanguage: (syncLanguage) => set({ syncLanguage }),
       autoResumeOnHeadphonesConnect: false,
       setAutoResumeOnHeadphonesConnect: (autoResumeOnHeadphonesConnect) => set({ autoResumeOnHeadphonesConnect }),
+      showAdvancedSettings: false,
+      setShowAdvancedSettings: (showAdvancedSettings) => set({ showAdvancedSettings }),
+      dataSaver: false,
+      setDataSaver: (dataSaver) => set((state) => ({
+        dataSaver,
+        preloadMode: dataSaver ? 'wifi_only' : state.preloadMode,
+      })),
+      enableDiscordRpc: true,
+      setEnableDiscordRpc: (enableDiscordRpc) => {
+        set({ enableDiscordRpc });
+        if (isTauri()) {
+          import('@tauri-apps/api/core').then(({ invoke }) => {
+            invoke('set_discord_rpc_enabled', { enabled: enableDiscordRpc }).catch(() => {});
+          }).catch(() => {});
+        }
+      },
     }),
     {
       name: 'holad-settings',
-      version: 2,
+      version: 3,
       migrate: (persistedState: any, version: number) => {
         if (version < 2 && persistedState) {
           persistedState.autoResumeOnHeadphonesConnect = false;
+        }
+        if (version < 3 && persistedState) {
+          if (persistedState.showAdvancedSettings === undefined) {
+            persistedState.showAdvancedSettings = false;
+          }
+          if (persistedState.dataSaver === undefined) {
+            persistedState.dataSaver = false;
+          }
+          if (persistedState.enableDiscordRpc === undefined) {
+            persistedState.enableDiscordRpc = true;
+          }
         }
         return persistedState;
       },

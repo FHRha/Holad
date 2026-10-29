@@ -47,6 +47,9 @@ export function resetAllStores(): void {
     runOnStartup: false,
     startMinimized: false,
     closeToTray: true,
+    showAdvancedSettings: false,
+    dataSaver: false,
+    enableDiscordRpc: true,
   });
 
   useAudioStore.setState({

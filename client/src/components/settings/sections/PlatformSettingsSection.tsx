@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DownloadCloud } from 'lucide-react';
+import { DownloadCloud, Monitor, LogOut, User, Server } from 'lucide-react';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useAuthStore } from '../../../store/authStore';
 import { UpdateService } from '../../../services/UpdateService';
@@ -24,20 +24,22 @@ export default function PlatformSettingsSection({
 }: PlatformSettingsSectionProps) {
   const { t } = useTranslation();
   const settings = useSettingsStore();
-  const { setAuthenticated, setCredentials } = useAuthStore();
+  const { user, url, setAuthenticated, setCredentials, logout } = useAuthStore();
   const [appVersion, setAppVersion] = useState<string>('');
 
   const isMobileMode = variant === 'mobile' || (variant === 'auto' && isMobile);
 
   useEffect(() => {
-    if (isMobileMode) {
-      UpdateService.getCurrentVersion().then((v) => {
-        if (v && v !== '0.0.0') {
-          setAppVersion(v);
-        }
-      });
-    }
-  }, [isMobileMode]);
+    let mounted = true;
+    UpdateService.getCurrentVersion().then((v) => {
+      if (mounted && v && v !== '0.0.0') {
+        setAppVersion(v);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (isTauri() && !isMobileMode) {
@@ -57,6 +59,7 @@ export default function PlatformSettingsSection({
   }, [isMobileMode, settings]);
 
   const handleLogout = () => {
+    logout();
     setAuthenticated(false);
     setCredentials('', '', '', '');
     clearAppCache();
@@ -66,34 +69,55 @@ export default function PlatformSettingsSection({
   if (isMobileMode) {
     return (
       <div className={`flex flex-col gap-4 ${className}`}>
+        {/* Mobile Account Card */}
+        {showLogout && (
+          <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5 flex flex-col gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary flex-shrink-0">
+                <User size={22} />
+              </div>
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-sm font-bold text-foreground truncate">
+                  {user || t('settings.anonymous_user', 'Пользователь')}
+                </span>
+                <span className="text-xs text-secondary truncate flex items-center gap-1.5 font-mono">
+                  <Server size={11} className="inline flex-shrink-0" />
+                  {url || 'localhost'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full mt-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold py-2.5 px-4 rounded-xl border border-red-500/20 transition-colors flex items-center justify-center gap-2 text-sm"
+            >
+              <LogOut size={16} />
+              <span>{t('views.logout', 'Выйти из аккаунта')}</span>
+            </button>
+          </div>
+        )}
+
         {/* Version info and GitHub link */}
         <button
+          type="button"
           onClick={() => openExternalLink('https://github.com/FHRha/Holad')}
-          className="flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-foreground/10 text-white font-bold py-3 rounded-xl border border-white/10 transition-colors"
+          className="flex items-center justify-center gap-2 w-full bg-white/[0.02] hover:bg-white/[0.05] text-foreground font-semibold py-3 px-4 rounded-xl border border-white/5 transition-colors text-sm shadow-sm"
         >
-          <img src="/icons/github.png" className="w-[20px] h-[20px] invert" alt="GitHub" />
+          <img src="/icons/github.png" className="w-[18px] h-[18px] invert opacity-80" alt="GitHub" />
           <span>GitHub</span>
-          {appVersion && <span className="text-xs text-secondary/70 ml-1">v{appVersion}</span>}
+          {appVersion && <span className="text-xs text-secondary font-mono ml-1">v{appVersion}</span>}
         </button>
 
         {/* Check for updates */}
         <button
+          type="button"
           onClick={() => UpdateService.checkForUpdates(true)}
-          className="flex items-center justify-center gap-2 w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold py-3 rounded-xl border border-primary/20 transition-colors"
+          className="flex items-center justify-center gap-2 w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold py-3 px-4 rounded-xl border border-primary/20 transition-colors text-sm shadow-sm"
         >
-          <DownloadCloud size={20} />
+          <DownloadCloud size={18} />
           <span>{t('settings.check_updates') || 'Проверить обновления'}</span>
         </button>
-
-        {/* Logout */}
-        {showLogout && (
-          <button
-            onClick={handleLogout}
-            className="w-full bg-red-500/10 text-red-500 font-bold py-3 rounded-xl border border-red-500/20 transition-colors hover:bg-red-500/20"
-          >
-            {t('views.logout')}
-          </button>
-        )}
       </div>
     );
   }
@@ -102,9 +126,15 @@ export default function PlatformSettingsSection({
     <div className={`space-y-6 ${className}`}>
       {/* Desktop / Tauri-only System Settings */}
       {('__TAURI_INTERNALS__' in window) && (
-        <SettingSection title={t('settings.desktop')}>
-          <div className="flex flex-col gap-4">
-            <label className="flex items-center gap-3 cursor-pointer group">
+        <SettingSection
+          title={t('settings.desktop', 'Системные параметры')}
+          icon={<Monitor size={16} />}
+        >
+          <div className="flex flex-col gap-3.5">
+            <label className="flex items-center justify-between cursor-pointer group">
+              <span className="group-hover:text-primary transition-colors text-sm font-medium">
+                {t('settings.run_on_startup', 'Автозапуск при старте системы')}
+              </span>
               <input
                 type="checkbox"
                 checked={settings.runOnStartup}
@@ -122,16 +152,16 @@ export default function PlatformSettingsSection({
                 }}
                 className="accent-primary w-4 h-4 rounded cursor-pointer"
               />
-              <span className="group-hover:text-primary transition-colors text-sm">
-                {t('settings.run_on_startup')}
-              </span>
             </label>
 
             <label
-              className={`flex items-center gap-3 cursor-pointer group pl-6 ${
-                !settings.runOnStartup ? 'opacity-50 pointer-events-none' : ''
+              className={`flex items-center justify-between cursor-pointer group pl-4 border-l-2 border-white/10 ${
+                !settings.runOnStartup ? 'opacity-40 pointer-events-none' : ''
               }`}
             >
+              <span className="group-hover:text-primary transition-colors text-sm">
+                {t('settings.start_minimized', 'Запускать свёрнутым в трей')}
+              </span>
               <input
                 type="checkbox"
                 checked={settings.startMinimized}
@@ -139,12 +169,12 @@ export default function PlatformSettingsSection({
                 disabled={!settings.runOnStartup}
                 className="accent-primary w-4 h-4 rounded cursor-pointer disabled:cursor-not-allowed"
               />
-              <span className="group-hover:text-primary transition-colors text-sm">
-                {t('settings.start_minimized')}
-              </span>
             </label>
 
-            <label className="flex items-center gap-3 cursor-pointer group mt-2">
+            <label className="flex items-center justify-between cursor-pointer group">
+              <span className="group-hover:text-primary transition-colors text-sm font-medium">
+                {t('settings.close_to_tray', 'Сворачивать в трей при закрытии')}
+              </span>
               <input
                 type="checkbox"
                 checked={settings.closeToTray}
@@ -160,23 +190,33 @@ export default function PlatformSettingsSection({
                 }}
                 className="accent-primary w-4 h-4 rounded cursor-pointer"
               />
-              <span className="group-hover:text-primary transition-colors text-sm">
-                {t('settings.close_to_tray')}
-              </span>
             </label>
           </div>
         </SettingSection>
       )}
 
       {/* Desktop Updates Section */}
-      <SettingSection title={t('settings.updates') || 'Обновления'}>
-        <div className="flex flex-col gap-3">
+      <SettingSection
+        title={t('settings.updates') || 'Обновления'}
+        icon={<DownloadCloud size={16} />}
+      >
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-foreground">
+              Holad {appVersion ? `v${appVersion}` : 'Desktop'}
+            </span>
+            <span className="text-xs text-secondary">
+              {t('settings.updates_desc', 'Проверка актуальных версий приложения')}
+            </span>
+          </div>
+
           <button
+            type="button"
             onClick={() => UpdateService.checkForUpdates(true)}
-            className="flex items-center justify-center gap-2 w-full max-w-xs bg-primary/10 hover:bg-primary/20 text-primary font-semibold py-2.5 px-4 rounded-xl border border-primary/20 transition-colors text-sm"
+            className="flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary font-semibold py-2.5 px-4 rounded-xl border border-primary/20 transition-colors text-xs shadow-sm self-start sm:self-auto"
           >
-            <DownloadCloud size={18} />
-            {t('settings.check_updates') || 'Проверить обновления'}
+            <DownloadCloud size={16} />
+            <span>{t('settings.check_updates') || 'Проверить обновления'}</span>
           </button>
         </div>
       </SettingSection>

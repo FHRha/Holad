@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Palette, Settings2, MonitorPlay, HardDrive, Speaker } from 'lucide-react';
+import { X, Palette, Settings2, MonitorPlay, HardDrive, Speaker, Sliders } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { StartPage } from '../../store/settingsStore';
@@ -226,7 +226,7 @@ export default function SettingsModal({
 
         {/* Content Pane */}
         <div className="flex-1 flex flex-col relative overflow-hidden min-w-0">
-          <div className="flex items-center justify-between p-6 pb-2 shrink-0 z-20 bg-card">
+          <div className="flex items-center justify-between p-6 pb-3 shrink-0 z-20 bg-card/80 backdrop-blur-md border-b border-white/5">
             <h3 className="text-xl font-bold">
               {activeTab === 'general' && t('settings.general')}
               {activeTab === 'appearance' && t('settings.appearance')}
@@ -234,15 +234,40 @@ export default function SettingsModal({
               {activeTab === 'audio' && t('settings.audio')}
               {activeTab === 'storage' && t('settings.storage')}
             </h3>
-            <button
-              onClick={handleClose}
-              className="p-2 -mr-2 rounded-full hover:bg-foreground/10 transition-colors bg-background/50 backdrop-blur-md"
-            >
-              <X size={20} />
-            </button>
+
+            <div className="flex items-center gap-3">
+              {/* Advanced Settings Toggle Button */}
+              <button
+                type="button"
+                onClick={() => settings.setShowAdvancedSettings(!settings.showAdvancedSettings)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                  settings.showAdvancedSettings
+                    ? 'bg-primary/15 text-primary border-primary/30 shadow-sm shadow-primary/20'
+                    : 'bg-white/[0.03] text-secondary hover:text-foreground border-white/10 hover:bg-white/[0.06]'
+                }`}
+                title={t('settings.toggle_advanced', 'Переключить расширенные настройки')}
+              >
+                <Sliders size={14} className={settings.showAdvancedSettings ? 'text-primary' : ''} />
+                <span className="hidden sm:inline">
+                  {t('settings.advanced', 'Расширенные настройки')}
+                </span>
+                <div
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    settings.showAdvancedSettings ? 'bg-primary animate-pulse' : 'bg-secondary/40'
+                  }`}
+                />
+              </button>
+
+              <button
+                onClick={handleClose}
+                className="p-2 -mr-2 rounded-full hover:bg-foreground/10 transition-colors bg-background/50 backdrop-blur-md"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1 px-6 pb-6 pt-2 overflow-y-auto overflow-x-hidden">
+          <div className="flex-1 px-6 pb-6 pt-4 overflow-y-auto overflow-x-hidden">
             {/* 1. GENERAL TAB */}
             {activeTab === 'general' && (
               <div className="space-y-6">
@@ -305,17 +330,17 @@ export default function SettingsModal({
 
             {/* 3. PLAYER TAB */}
             {activeTab === 'player' && (
-              <PlaybackSettingsSection mode="player" />
+              <PlaybackSettingsSection mode="player" showAdvanced={settings.showAdvancedSettings} />
             )}
 
             {/* 4. AUDIO TAB */}
             {activeTab === 'audio' && (
-              <PlaybackSettingsSection mode="audio" />
+              <PlaybackSettingsSection mode="audio" showAdvanced={settings.showAdvancedSettings} />
             )}
 
             {/* 5. STORAGE TAB */}
             {activeTab === 'storage' && (
-              <StorageSettingsSection />
+              <StorageSettingsSection showAdvanced={settings.showAdvancedSettings} />
             )}
           </div>
         </div>
