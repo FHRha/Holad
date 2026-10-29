@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Palette, Settings2, MonitorPlay, HardDrive, Speaker } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
@@ -66,7 +66,7 @@ export default function SettingsModal({
 
   const [resetState, setResetState] = useState<'idle' | 'confirm' | 'done'>('idle');
 
-  const handleClose = React.useCallback(() => {
+  const handleClose = useCallback(() => {
     if (onClose) onClose();
     setSettingsOpen(false);
   }, [onClose, setSettingsOpen]);

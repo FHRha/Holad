@@ -1,8 +1,8 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 
 export interface SettingSectionProps {
-  title: React.ReactNode;
-  children: React.ReactNode;
+  title: ReactNode;
+  children: ReactNode;
   className?: string;
   isMobile?: boolean;
 }

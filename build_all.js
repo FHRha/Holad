@@ -71,6 +71,7 @@ if (rawVersion) {
   [
     path.join(ROOT_DIR, 'client', 'package.json'),
     path.join(ROOT_DIR, 'server', 'package.json'),
+    path.join(ROOT_DIR, 'Tauri', 'package.json'),
     path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'tauri.conf.json'),
     path.join(ROOT_DIR, 'Capacitor', 'package.json'),
     path.join(ROOT_DIR, 'installer', 'package.json'),
@@ -282,10 +283,16 @@ function runCommand(taskName, command, cwd, envOverrides = {}) {
     
     child.stdout.on('data', data => {
       output += data.toString();
+      if (!process.env.GITHUB_ACTIONS && (taskName.includes('Tauri') || taskName.includes('Android') || taskName.includes('Installer') || taskName.includes('Cargo'))) {
+        process.stdout.write(data);
+      }
     });
     
     child.stderr.on('data', data => {
       output += data.toString();
+      if (!process.env.GITHUB_ACTIONS && (taskName.includes('Tauri') || taskName.includes('Android') || taskName.includes('Installer') || taskName.includes('Cargo'))) {
+        process.stderr.write(data);
+      }
     });
     
     child.on('close', code => {
@@ -513,29 +520,34 @@ node dist/index.js
     }
   }
 
-  // Rebuild Client for Native Apps (Base: ./) if Tauri or Android is enabled
-  if ((!skipTauri || !skipAndroid) && (!skipClient || !fs.existsSync(path.join(ROOT_DIR, 'client', 'dist')))) {
-    console.log("\n--- Rebuilding Client for Native Apps (Base: ./) ---");
-    const nativePrepTasks = [
-      (async () => {
-        await ensureDependencies('Native Client Install', path.join(ROOT_DIR, 'client'));
-        await runCommand('Native Client Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'client'), { 
-          VITE_APP_BASE: './',
-          RELEASE_VERSION: currentBuildVersion
-        });
-      })()
-    ];
+  // Ensure Client for Native Apps (Base: ./) if Tauri or Android is enabled
+  const clientAlreadyBuiltForNative = !skipClient && (!process.env.VITE_APP_BASE || process.env.VITE_APP_BASE === './') && fs.existsSync(path.join(ROOT_DIR, 'client', 'dist'));
+  const nativePrepTasks = [];
 
-    // Pre-build installer frontend concurrently on Windows
-    const installerDir = path.join(ROOT_DIR, 'installer');
-    if (process.platform === 'win32' && !skipTauri && fs.existsSync(installerDir)) {
-      nativePrepTasks.push((async () => {
-        console.log("\n--- Pre-building Custom Installer Frontend ---");
-        await ensureDependencies('Installer Dependencies', installerDir);
-        await runCommand('Installer Frontend Build', `${pnpmCmd} run build`, installerDir);
-      })());
-    }
+  if ((!skipTauri || !skipAndroid) && !clientAlreadyBuiltForNative) {
+    nativePrepTasks.push((async () => {
+      console.log("\n--- Building Client for Native Apps (Base: ./) ---");
+      await ensureDependencies('Native Client Install', path.join(ROOT_DIR, 'client'));
+      await runCommand('Native Client Build', `${pnpmCmd} run build`, path.join(ROOT_DIR, 'client'), { 
+        VITE_APP_BASE: './',
+        RELEASE_VERSION: currentBuildVersion
+      });
+    })());
+  } else if (!skipTauri || !skipAndroid) {
+    console.log("\n[Native Client] ✔ Client already built with base './', skipping redundant rebuild.");
+  }
 
+  // Pre-build installer frontend concurrently on Windows
+  const installerDir = path.join(ROOT_DIR, 'installer');
+  if (process.platform === 'win32' && !skipTauri && fs.existsSync(installerDir)) {
+    nativePrepTasks.push((async () => {
+      console.log("\n--- Pre-building Custom Installer Frontend ---");
+      await ensureDependencies('Installer Dependencies', installerDir);
+      await runCommand('Installer Frontend Build', `${pnpmCmd} run build`, installerDir);
+    })());
+  }
+
+  if (nativePrepTasks.length > 0) {
     await Promise.all(nativePrepTasks);
   }
 
@@ -583,24 +595,24 @@ node dist/index.js
           } catch (e) {}
         }
 
-        let tauriBuildCmd = 'npx @tauri-apps/cli build';
+        let tauriBuildCmd = 'npx --yes @tauri-apps/cli build';
         const currentVer = getAppVersion();
         if (process.env.TAURI_BUNDLES) {
-          tauriBuildCmd = `npx @tauri-apps/cli build --bundles ${process.env.TAURI_BUNDLES}`;
+          tauriBuildCmd = `npx --yes @tauri-apps/cli build --bundles ${process.env.TAURI_BUNDLES}`;
         } else if (process.platform === 'win32') {
           if (currentVer && currentVer.includes('-')) {
             console.log(`[Tauri] Pre-release version detected (${currentVer}). Building application binary (custom installer will package setup.exe).`);
-            tauriBuildCmd = 'npx @tauri-apps/cli build --no-bundle';
+            tauriBuildCmd = 'npx --yes @tauri-apps/cli build --no-bundle';
           } else {
             console.log(`[Tauri] Stable release detected (${currentVer}). Packaging WiX MSI bundle (custom installer will package setup.exe).`);
-            tauriBuildCmd = 'npx @tauri-apps/cli build --bundles msi';
+            tauriBuildCmd = 'npx --yes @tauri-apps/cli build --bundles msi';
           }
         } else if (process.platform === 'linux') {
           if (currentVer && currentVer.includes('-')) {
             console.log(`[Tauri] Pre-release version detected (${currentVer}). Packaging deb and appimage bundles (skipping rpm which forbids hyphens in version).`);
-            tauriBuildCmd = 'npx @tauri-apps/cli build --bundles deb,appimage';
+            tauriBuildCmd = 'npx --yes @tauri-apps/cli build --bundles deb,appimage';
           } else {
-            tauriBuildCmd = 'npx @tauri-apps/cli build --bundles deb,appimage';
+            tauriBuildCmd = 'npx --yes @tauri-apps/cli build --bundles deb,appimage';
           }
         }
         await runCommand('Tauri Build', tauriBuildCmd, path.join(ROOT_DIR, 'Tauri'));

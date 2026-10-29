@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { useSettingsStore } from '../../../store/settingsStore';

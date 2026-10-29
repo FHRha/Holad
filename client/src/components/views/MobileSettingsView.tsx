@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Search,
   CloudOff,
@@ -33,7 +33,7 @@ function FilterChip({
   isActive,
   onClick,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   isActive?: boolean;
   onClick?: () => void;
