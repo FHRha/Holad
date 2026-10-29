@@ -89,7 +89,6 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
     <SettingSection
       title={t('settings.profiles.title', 'Профили настроек')}
       icon={<SlidersHorizontal size={16} />}
-      description={t('settings.profiles.subtitle', 'Быстрое сохранение и переключение 3 пользовательских сетапов звука и плеера')}
       isMobile={isMobile}
     >
       <div className="flex flex-col gap-3">
@@ -137,57 +136,55 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
           </div>
         )}
 
-        {/* 3 Slots Grid: Compact & Balanced */}
+        {/* 3 Slots Grid: Compact & Balanced with Equal Padding */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           {([1, 2, 3] as const).map((slotNum) => {
             const slotData: ProfileSlot | null = slots[slotNum - 1];
             const isActive = activeSlot === slotNum;
 
             if (!slotData) {
-              // Empty Slot (Compact Height 74px)
+              // Empty Slot (Compact Height 78px, Equal 12px Padding)
               return (
                 <button
                   key={slotNum}
                   type="button"
                   onClick={() => handleOpenCreateOrRename(slotNum, 'create')}
-                  className="h-[74px] flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl border border-dashed border-border hover:border-primary/40 bg-foreground/[0.015] hover:bg-foreground/[0.04] transition-all text-secondary hover:text-foreground group cursor-pointer"
+                  className="h-[78px] flex flex-col items-center justify-center p-3 rounded-xl border border-dashed border-border hover:border-primary/40 bg-foreground/[0.015] hover:bg-foreground/[0.04] transition-all text-secondary hover:text-foreground group cursor-pointer"
                 >
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 leading-none">
                     <Plus size={13} className="text-secondary/70 group-hover:text-primary transition-colors" />
                     <span className="text-xs font-semibold text-foreground/80 group-hover:text-foreground">
                       {t('settings.profiles.slot_label', 'Слот')} {slotNum}
                     </span>
                   </div>
-                  <span className="text-[11px] text-secondary/60">
+                  <span className="text-[11px] text-secondary/60 leading-none mt-1.5">
                     {t('settings.profiles.empty_prompt', 'Нажмите, чтобы сохранить')}
                   </span>
                 </button>
               );
             }
 
-            // Filled Slot (Compact Height 74px)
+            // Filled Slot (Compact Height 78px, Equal 12px Padding)
             return (
               <div
                 key={slotNum}
-                className={`relative h-[74px] flex flex-col justify-between p-2.5 rounded-xl border transition-all ${
+                className={`relative h-[78px] flex flex-col justify-between p-3 rounded-xl border transition-all ${
                   isActive
                     ? 'bg-primary/[0.06] border-primary/30 shadow-xs'
                     : 'bg-card/60 border-border hover:bg-foreground/[0.02]'
                 }`}
               >
                 {/* Header row: Badge + Menu Button + Quick Apply */}
-                <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-foreground/[0.06] text-secondary shrink-0">
-                      {t('settings.profiles.slot_label', 'Слот')} {slotNum}
-                    </span>
-                    {isActive && (
-                      <span className="flex items-center gap-1 text-[10px] font-semibold text-primary truncate">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
-                        {t('settings.profiles.active', 'Активен')}
-                      </span>
-                    )}
-                  </div>
+                <div className="flex items-center justify-between gap-1 leading-none">
+                  <span
+                    className={`text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded shrink-0 ${
+                      isActive
+                        ? 'bg-primary/20 text-primary'
+                        : 'bg-foreground/[0.06] text-secondary'
+                    }`}
+                  >
+                    {t('settings.profiles.slot_label', 'Слот')} {slotNum}
+                  </span>
 
                   <div className="flex items-center gap-1 shrink-0">
                     <button
@@ -262,11 +259,11 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
                 </div>
 
                 {/* Profile Name & Summary */}
-                <div className="min-w-0 pr-1">
+                <div className="min-w-0">
                   <span className="font-semibold text-xs text-foreground block truncate leading-tight" title={slotData.name}>
                     {slotData.name}
                   </span>
-                  <span className="text-[10px] text-secondary/70 block truncate mt-0.5">
+                  <span className="text-[10px] text-secondary/70 block truncate leading-tight mt-1">
                     {slotData.data.streamingQuality ? `${t('settings.profiles.quality_label', 'Качество')}: ${slotData.data.streamingQuality}` : ''}
                     {slotData.data.isCrossfadeEnabled
                       ? ` • ${t('settings.profiles.crossfade_label', 'Кроссфейд')} ${slotData.data.crossfadeDuration}s`
