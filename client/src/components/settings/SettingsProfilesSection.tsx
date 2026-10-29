@@ -44,27 +44,33 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
     setTimeout(() => setFeedbackMessage(null), 2500);
   };
 
+  const getSlotDefaultName = (slot: number) => {
+    return `${t('settings.profiles.default_name', 'Профиль')} ${slot}`;
+  };
+
   const handleOpenCreateOrRename = (slot: 1 | 2 | 3, type: 'create' | 'rename') => {
     const existing = slots[slot - 1];
     setModalState({
       type,
       slot,
-      nameInput: existing?.name || `Профиль ${slot}`,
+      nameInput: existing?.name || getSlotDefaultName(slot),
     });
     setActiveMenuSlot(null);
   };
 
   const handleConfirmModal = async () => {
     const { type, slot, nameInput } = modalState;
+    const finalName = nameInput.trim() || getSlotDefaultName(slot);
+
     if (type === 'create') {
-      await saveCurrentToSlot(slot, nameInput);
+      await saveCurrentToSlot(slot, finalName);
       showFeedback(t('settings.profiles.saved', 'Профиль сохранён'));
     } else if (type === 'rename') {
-      await renameSlot(slot, nameInput);
+      await renameSlot(slot, finalName);
       showFeedback(t('settings.profiles.renamed', 'Профиль переименован'));
     } else if (type === 'overwrite') {
       const existing = slots[slot - 1];
-      await saveCurrentToSlot(slot, existing?.name || `Профиль ${slot}`);
+      await saveCurrentToSlot(slot, existing?.name || getSlotDefaultName(slot));
       showFeedback(t('settings.profiles.overwritten', 'Профиль перезаписан текущими настройками'));
     } else if (type === 'clear') {
       await clearSlot(slot);
@@ -75,7 +81,7 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
 
   const handleApply = (slot: 1 | 2 | 3) => {
     applySlot(slot);
-    const name = slots[slot - 1]?.name || `Профиль ${slot}`;
+    const name = slots[slot - 1]?.name || getSlotDefaultName(slot);
     showFeedback(`${t('settings.profiles.applied', 'Применён профиль')}: ${name}`);
   };
 
@@ -86,35 +92,35 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
       description={t('settings.profiles.subtitle', 'Быстрое сохранение и переключение 3 пользовательских сетапов звука и плеера')}
       isMobile={isMobile}
     >
-      <div className="flex flex-col gap-3.5">
+      <div className="flex flex-col gap-3">
         {/* Helper / Info Toggle Banner */}
-        <div className="bg-background/40 border border-border/80 rounded-xl overflow-hidden transition-all">
+        <div className="bg-foreground/[0.02] border border-border rounded-xl overflow-hidden transition-all">
           <button
             type="button"
             onClick={() => setShowInfo(!showInfo)}
-            className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-foreground/[0.03] transition-colors"
+            className="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-foreground/[0.03] transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-              <Info size={14} className="text-primary flex-shrink-0" />
+              <Info size={13} className="text-primary shrink-0" />
               <span>{t('settings.profiles.info_button', 'Справка: какие настройки входят в профиль?')}</span>
             </div>
-            {showInfo ? <ChevronUp size={14} className="text-secondary" /> : <ChevronDown size={14} className="text-secondary" />}
+            {showInfo ? <ChevronUp size={13} className="text-secondary shrink-0" /> : <ChevronDown size={13} className="text-secondary shrink-0" />}
           </button>
 
           {showInfo && (
-            <div className="px-3.5 pb-3.5 pt-1 text-xs space-y-2 border-t border-border/40 text-secondary animate-in fade-in duration-150">
+            <div className="px-3 pb-3 pt-1 text-xs space-y-2 border-t border-border text-secondary animate-in fade-in duration-150">
               <div className="space-y-1">
-                <span className="font-semibold text-primary block">
+                <span className="font-semibold text-primary block text-[11px]">
                   {t('settings.profiles.included_title', 'В профиль сохраняются и синхронизируются:')}
                 </span>
-                <ul className="list-disc list-inside space-y-0.5 text-secondary pl-1">
+                <ul className="list-disc list-inside space-y-0.5 text-secondary pl-1 text-[11px]">
                   <li>{t('settings.profiles.inc_dsp', 'Звук и DSP: кроссфейд, тип и натяжение кривой, gapless, компрессор и нормализация')}</li>
                   <li>{t('settings.profiles.inc_stream', 'Стриминг: качество потока (raw/opus), режим и время предзагрузки треков')}</li>
                   <li>{t('settings.profiles.inc_player', 'Поведение плеера: действие при клике, режим повтора AutoDJ, продолжение в наушниках')}</li>
                 </ul>
               </div>
-              <div className="pt-1 border-t border-border/30 flex items-start gap-1.5 text-secondary/80">
-                <VolumeX size={13} className="text-amber-500/80 flex-shrink-0 mt-0.5" />
+              <div className="pt-1 border-t border-border flex items-start gap-1.5 text-secondary/80 text-[11px]">
+                <VolumeX size={12} className="text-amber-500/80 shrink-0 mt-0.5" />
                 <span>
                   {t('settings.profiles.excluded_note', 'Локальная громкость, автозапуск с ОС, сворачивание в трей и лимиты кэша на диске остаются строго уникальными для каждого устройства.')}
                 </span>
@@ -125,146 +131,148 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
 
         {/* Feedback message banner if triggered */}
         {feedbackMessage && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/20 text-primary text-xs rounded-xl font-medium animate-in fade-in duration-150">
-            <CheckCircle2 size={14} />
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 text-primary text-xs rounded-xl font-medium animate-in fade-in duration-150">
+            <CheckCircle2 size={13} />
             <span>{feedbackMessage}</span>
           </div>
         )}
 
-        {/* 3 Slots Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* 3 Slots Grid: Compact & Balanced */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           {([1, 2, 3] as const).map((slotNum) => {
             const slotData: ProfileSlot | null = slots[slotNum - 1];
             const isActive = activeSlot === slotNum;
 
             if (!slotData) {
-              // Empty Slot
+              // Empty Slot (Compact Height 74px)
               return (
                 <button
                   key={slotNum}
                   type="button"
                   onClick={() => handleOpenCreateOrRename(slotNum, 'create')}
-                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-dashed border-border/80 hover:border-primary/60 bg-background/20 hover:bg-card/60 transition-all text-secondary hover:text-foreground group min-h-[105px]"
+                  className="h-[74px] flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl border border-dashed border-border hover:border-primary/40 bg-foreground/[0.015] hover:bg-foreground/[0.04] transition-all text-secondary hover:text-foreground group cursor-pointer"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-foreground/[0.04] group-hover:bg-primary/10 group-hover:text-primary flex items-center justify-center transition-colors">
-                    <Plus size={16} />
-                  </div>
-                  <div className="text-center">
-                    <span className="text-xs font-medium block">
+                  <div className="flex items-center gap-1.5">
+                    <Plus size={13} className="text-secondary/70 group-hover:text-primary transition-colors" />
+                    <span className="text-xs font-semibold text-foreground/80 group-hover:text-foreground">
                       {t('settings.profiles.slot_label', 'Слот')} {slotNum}
                     </span>
-                    <span className="text-[11px] text-secondary/70">
-                      {t('settings.profiles.empty_prompt', 'Нажмите, чтобы сохранить')}
-                    </span>
                   </div>
+                  <span className="text-[11px] text-secondary/60">
+                    {t('settings.profiles.empty_prompt', 'Нажмите, чтобы сохранить')}
+                  </span>
                 </button>
               );
             }
 
-            // Filled Slot
+            // Filled Slot (Compact Height 74px)
             return (
               <div
                 key={slotNum}
-                className={`relative flex flex-col justify-between p-3.5 rounded-xl border transition-all ${
+                className={`relative h-[74px] flex flex-col justify-between p-2.5 rounded-xl border transition-all ${
                   isActive
-                    ? 'bg-primary/[0.07] border-primary/50 shadow-sm shadow-primary/5'
-                    : 'bg-card/70 border-border hover:border-border/90'
+                    ? 'bg-primary/[0.06] border-primary/30 shadow-xs'
+                    : 'bg-card/60 border-border hover:bg-foreground/[0.02]'
                 }`}
               >
-                {/* Header row: Badge + Menu Button */}
-                <div className="flex items-center justify-between gap-1 mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded-md bg-foreground/[0.06] text-secondary">
+                {/* Header row: Badge + Menu Button + Quick Apply */}
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-foreground/[0.06] text-secondary shrink-0">
                       {t('settings.profiles.slot_label', 'Слот')} {slotNum}
                     </span>
                     {isActive && (
-                      <span className="flex items-center gap-1 text-[11px] font-semibold text-primary">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                      <span className="flex items-center gap-1 text-[10px] font-semibold text-primary truncate">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
                         {t('settings.profiles.active', 'Активен')}
                       </span>
                     )}
                   </div>
 
-                  {/* Options Menu Toggle */}
-                  <div className="relative">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       type="button"
-                      onClick={() => setActiveMenuSlot(activeMenuSlot === slotNum ? null : slotNum)}
-                      className="p-1 rounded-md text-secondary hover:text-foreground hover:bg-foreground/[0.06] transition-colors"
-                      title={t('common.more', 'Ещё')}
+                      onClick={() => handleApply(slotNum)}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-primary/15 text-primary hover:bg-primary/25 border border-primary/20'
+                          : 'bg-foreground/[0.06] hover:bg-primary hover:text-primary-foreground text-foreground'
+                      }`}
+                      title={isActive ? t('settings.profiles.reapply', 'Применить снова') : t('settings.profiles.apply', 'Применить')}
                     >
-                      <MoreVertical size={14} />
+                      {isActive ? (
+                        <>
+                          <Check size={11} />
+                          <span className="text-[10px]">{t('settings.profiles.reapply_short', 'Снова')}</span>
+                        </>
+                      ) : (
+                        <span>{t('settings.profiles.apply', 'Применить')}</span>
+                      )}
                     </button>
 
-                    {/* Dropdown popup */}
-                    {activeMenuSlot === slotNum && (
-                      <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border shadow-xl rounded-xl py-1 z-30 text-xs animate-in fade-in zoom-in-95 duration-150">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenCreateOrRename(slotNum, 'rename')}
-                          className="w-full px-3 py-1.5 text-left flex items-center gap-2 hover:bg-foreground/[0.06] transition-colors text-foreground"
-                        >
-                          <Edit2 size={13} className="text-secondary" />
-                          <span>{t('settings.profiles.menu_rename', 'Переименовать')}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setModalState({ type: 'overwrite', slot: slotNum, nameInput: slotData.name });
-                            setActiveMenuSlot(null);
-                          }}
-                          className="w-full px-3 py-1.5 text-left flex items-center gap-2 hover:bg-foreground/[0.06] transition-colors text-foreground"
-                        >
-                          <RotateCw size={13} className="text-secondary" />
-                          <span>{t('settings.profiles.menu_overwrite', 'Перезаписать')}</span>
-                        </button>
-                        <div className="border-t border-border my-1" />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setModalState({ type: 'clear', slot: slotNum, nameInput: slotData.name });
-                            setActiveMenuSlot(null);
-                          }}
-                          className="w-full px-3 py-1.5 text-left flex items-center gap-2 hover:bg-red-500/10 text-red-500 transition-colors"
-                        >
-                          <Trash2 size={13} />
-                          <span>{t('settings.profiles.menu_clear', 'Очистить слот')}</span>
-                        </button>
-                      </div>
-                    )}
+                    {/* Options Menu Toggle */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setActiveMenuSlot(activeMenuSlot === slotNum ? null : slotNum)}
+                        className="p-1 rounded-md text-secondary hover:text-foreground hover:bg-foreground/[0.06] transition-colors cursor-pointer"
+                        title={t('common.more', 'Ещё')}
+                      >
+                        <MoreVertical size={13} />
+                      </button>
+
+                      {/* Dropdown popup */}
+                      {activeMenuSlot === slotNum && (
+                        <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border shadow-xl rounded-xl py-1 z-30 text-xs animate-in fade-in zoom-in-95 duration-150">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCreateOrRename(slotNum, 'rename')}
+                            className="w-full px-3 py-1.5 text-left flex items-center gap-2 hover:bg-foreground/[0.06] transition-colors text-foreground cursor-pointer"
+                          >
+                            <Edit2 size={13} className="text-secondary" />
+                            <span>{t('settings.profiles.menu_rename', 'Переименовать')}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setModalState({ type: 'overwrite', slot: slotNum, nameInput: slotData.name });
+                              setActiveMenuSlot(null);
+                            }}
+                            className="w-full px-3 py-1.5 text-left flex items-center gap-2 hover:bg-foreground/[0.06] transition-colors text-foreground cursor-pointer"
+                          >
+                            <RotateCw size={13} className="text-secondary" />
+                            <span>{t('settings.profiles.menu_overwrite', 'Перезаписать')}</span>
+                          </button>
+                          <div className="border-t border-border my-1" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setModalState({ type: 'clear', slot: slotNum, nameInput: slotData.name });
+                              setActiveMenuSlot(null);
+                            }}
+                            className="w-full px-3 py-1.5 text-left flex items-center gap-2 hover:bg-red-500/10 text-red-500 transition-colors cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                            <span>{t('settings.profiles.menu_clear', 'Очистить слот')}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Profile Name */}
-                <div className="mb-3">
-                  <span className="font-semibold text-sm text-foreground block truncate" title={slotData.name}>
+                {/* Profile Name & Summary */}
+                <div className="min-w-0 pr-1">
+                  <span className="font-semibold text-xs text-foreground block truncate leading-tight" title={slotData.name}>
                     {slotData.name}
                   </span>
-                  <span className="text-[10px] text-secondary/70 block mt-0.5">
-                    {slotData.data.streamingQuality ? `Качество: ${slotData.data.streamingQuality}` : ''}
-                    {slotData.data.isCrossfadeEnabled ? ` • Кроссфейд ${slotData.data.crossfadeDuration}с` : ' • Без кроссфейда'}
+                  <span className="text-[10px] text-secondary/70 block truncate mt-0.5">
+                    {slotData.data.streamingQuality ? `${t('settings.profiles.quality_label', 'Качество')}: ${slotData.data.streamingQuality}` : ''}
+                    {slotData.data.isCrossfadeEnabled
+                      ? ` • ${t('settings.profiles.crossfade_label', 'Кроссфейд')} ${slotData.data.crossfadeDuration}s`
+                      : ` • ${t('settings.profiles.no_crossfade', 'Без кроссфейда')}`}
                   </span>
                 </div>
-
-                {/* Action button */}
-                <button
-                  type="button"
-                  onClick={() => handleApply(slotNum)}
-                  className={`w-full py-1.5 px-3 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
-                    isActive
-                      ? 'bg-primary/20 text-primary hover:bg-primary/30 border border-primary/30'
-                      : 'bg-foreground/[0.05] hover:bg-primary hover:text-primary-foreground text-foreground'
-                  }`}
-                >
-                  {isActive ? (
-                    <>
-                      <Check size={13} />
-                      <span>{t('settings.profiles.reapply', 'Применить снова')}</span>
-                    </>
-                  ) : (
-                    <span>{t('settings.profiles.apply', 'Применить')}</span>
-                  )}
-                </button>
               </div>
             );
           })}
@@ -304,10 +312,10 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
                     type="text"
                     value={modalState.nameInput}
                     onChange={(e) => setModalState((prev) => ({ ...prev, nameInput: e.target.value }))}
-                    placeholder="Например: Домашний Hi-Fi, Улица"
+                    placeholder={t('settings.profiles.name_placeholder', 'Например: Домашний Hi-Fi, Улица')}
                     maxLength={32}
                     autoFocus
-                    className="w-full bg-background border border-border focus:border-primary px-3 py-2 text-sm rounded-xl outline-hidden transition-colors"
+                    className="w-full bg-background border border-border focus:border-primary px-3 py-2 text-sm rounded-xl outline-hidden transition-colors text-foreground"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleConfirmModal();
                     }}
@@ -319,14 +327,14 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
                 <button
                   type="button"
                   onClick={() => setModalState({ type: null, slot: 1, nameInput: '' })}
-                  className="px-3.5 py-1.5 text-xs font-medium rounded-xl border border-border hover:bg-foreground/[0.05] text-secondary hover:text-foreground transition-colors"
+                  className="px-3.5 py-1.5 text-xs font-medium rounded-xl border border-border hover:bg-foreground/[0.05] text-secondary hover:text-foreground transition-colors cursor-pointer"
                 >
                   {t('common.cancel', 'Отмена')}
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmModal}
-                  className={`px-4 py-1.5 text-xs font-medium rounded-xl text-white shadow-sm transition-all ${
+                  className={`px-4 py-1.5 text-xs font-medium rounded-xl text-white shadow-sm transition-all cursor-pointer ${
                     modalState.type === 'clear'
                       ? 'bg-red-500 hover:bg-red-600'
                       : 'bg-primary hover:bg-primary/90'
