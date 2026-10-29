@@ -197,9 +197,9 @@ describe('Mobile Theme & Player Controls Enhancement', () => {
       );
 
       // Find the Appearance accordion section and click to expand it
-      const appearanceCard = container.querySelector('.lucide-palette')?.closest('.cursor-pointer');
-      expect(appearanceCard).toBeTruthy();
-      fireEvent.click(appearanceCard!);
+      const appearanceTab = screen.getByRole('button', { name: /внешний вид/i });
+      expect(appearanceTab).toBeTruthy();
+      fireEvent.click(appearanceTab);
 
       // Check for mobile dark-only indicator
       expect(screen.getByText('Только тёмная тема')).toBeTruthy();

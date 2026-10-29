@@ -125,7 +125,7 @@ export default function PlaybackSettingsSection({
 
             {/* Auto DJ Repeat Strategy: rendered in Advanced Mode */}
             {isAdvanced && isAutoDjEnabled && (
-              <div className="mt-4 pt-3 border-t border-border/40 space-y-2">
+              <div className="mt-4 pt-3 border-t border-border space-y-2">
                 <div className="text-xs font-semibold text-secondary uppercase tracking-wider">
                   {t(
                     'settings.autodj_repeat_collision',
@@ -198,7 +198,7 @@ export default function PlaybackSettingsSection({
             <div className="pt-1 pb-1 space-y-3">
               <div className="flex justify-between items-center text-xs text-secondary font-medium">
                 <span>{t('settings.volume_amplifier_level', 'Уровень усиления')}</span>
-                <span className="font-mono text-foreground font-semibold px-2 py-0.5 rounded bg-foreground/[0.05] border border-border/60 text-xs">
+                <span className="font-mono text-foreground font-semibold px-2 py-0.5 rounded bg-foreground/[0.05] border border-border text-xs">
                   {Math.round(volumeMultiplier * 100)}%
                 </span>
               </div>
@@ -216,7 +216,6 @@ export default function PlaybackSettingsSection({
               />
               <div className="flex justify-between text-[11px] font-mono text-secondary">
                 <span>100% ({t('common.normal', 'Норма')})</span>
-                <span>200%</span>
                 <span>300%</span>
               </div>
             </div>
@@ -245,7 +244,7 @@ export default function PlaybackSettingsSection({
                   <select
                     value={settings.streamingQuality || 'raw'}
                     onChange={(e) => settings.setStreamingQuality(e.target.value as any)}
-                    className="w-full bg-foreground/[0.03] border border-border/60 rounded-xl py-2.5 px-3 text-sm text-foreground outline-none focus:border-primary appearance-none cursor-pointer pr-10"
+                    className="w-full bg-foreground/[0.03] border border-border rounded-xl py-2.5 px-3 text-sm text-foreground outline-none focus:border-primary appearance-none cursor-pointer pr-10"
                   >
                     <option value="raw" className="bg-card text-foreground">
                       {t('settings.quality_raw', 'Исходное (Без сжатия / FLAC)')}
@@ -316,7 +315,7 @@ export default function PlaybackSettingsSection({
 
           {/* Data Saver */}
           <SettingSection
-            title={t('settings.data_saver', 'Экономия трафика (Data Saver)')}
+            title={t('settings.data_saver', 'Экономия трафика')}
             icon={<Zap size={16} />}
             description={t(
               'settings.data_saver_desc',
@@ -466,7 +465,7 @@ export default function PlaybackSettingsSection({
 
               {/* 4 WebAudio DSP compressor sliders: rendered in Advanced Mode */}
               {isAdvanced && settings.isLoudnessNormalizationEnabled && (
-                <div className="pt-3 pb-1 space-y-5 border-t border-border/40 mt-1">
+                <div className="pt-3 pb-1 space-y-5 border-t border-border mt-1">
                   <div>
                     <div className="flex justify-between text-xs text-secondary mb-2">
                       <span>
@@ -598,7 +597,7 @@ export default function PlaybackSettingsSection({
                 </label>
 
                 {settings.preloadNextTrack && (
-                  <div className="space-y-4 pt-3 border-t border-border/40">
+                  <div className="space-y-4 pt-3 border-t border-border">
                     <div className="flex flex-col gap-2">
                       <span className="text-xs text-secondary font-medium">
                         {t('settings.preload_mode', 'Режим предзагрузки треков')}
@@ -608,7 +607,7 @@ export default function PlaybackSettingsSection({
                           <select
                             value={settings.preloadMode}
                             onChange={(e) => settings.setPreloadMode(e.target.value as any)}
-                            className="w-full bg-foreground/[0.03] border border-border/60 rounded-xl py-2.5 px-3 text-sm text-foreground outline-none focus:border-primary appearance-none cursor-pointer pr-10"
+                            className="w-full bg-foreground/[0.03] border border-border rounded-xl py-2.5 px-3 text-sm text-foreground outline-none focus:border-primary appearance-none cursor-pointer pr-10"
                           >
                             <option value="wifi_only" className="bg-card text-foreground">
                               {t('settings.preload_wifi_only', 'Только по Wi-Fi')}
@@ -667,7 +666,7 @@ export default function PlaybackSettingsSection({
                             onChange={(e) =>
                               settings.setPreloadLookahead(Number(e.target.value) as any)
                             }
-                            className="w-full bg-foreground/[0.03] border border-border/60 rounded-xl py-2.5 px-3 text-sm text-foreground outline-none focus:border-primary appearance-none cursor-pointer pr-10"
+                            className="w-full bg-foreground/[0.03] border border-border rounded-xl py-2.5 px-3 text-sm text-foreground outline-none focus:border-primary appearance-none cursor-pointer pr-10"
                           >
                             <option value={5} className="bg-card text-foreground">
                               {t('settings.preload_lookahead_5s', '5 секунд')}

@@ -124,7 +124,7 @@ export default function IntegrationsSettingsSection({
                         },
                       ]);
                     }}
-                    className="bg-foreground/[0.03] border border-border/60 rounded-xl px-3.5 py-2 text-sm w-full outline-none focus:border-primary transition-colors text-foreground pr-10 font-mono"
+                    className="bg-foreground/[0.03] border border-border rounded-xl px-3.5 py-2 text-sm w-full outline-none focus:border-primary transition-colors text-foreground pr-10 font-mono"
                   />
                   <button
                     type="button"
@@ -192,7 +192,7 @@ export default function IntegrationsSettingsSection({
                         },
                       ]);
                     }}
-                    className="bg-foreground/[0.03] border border-border/60 rounded-xl px-3.5 py-2 text-sm w-full outline-none focus:border-primary transition-colors text-foreground pr-10 font-mono"
+                    className="bg-foreground/[0.03] border border-border rounded-xl px-3.5 py-2 text-sm w-full outline-none focus:border-primary transition-colors text-foreground pr-10 font-mono"
                   />
                   <button
                     type="button"

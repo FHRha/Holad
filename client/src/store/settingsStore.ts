@@ -116,6 +116,7 @@ export interface SettingsState {
   showAdvancedSettings: boolean;
   setShowAdvancedSettings: (show: boolean) => void;
   dataSaver: boolean;
+  previousStreamingQuality?: StreamingQuality;
   setDataSaver: (enabled: boolean) => void;
   enableDiscordRpc: boolean;
   setEnableDiscordRpc: (enabled: boolean) => void;
@@ -141,6 +142,7 @@ export const useSettingsStore = create<SettingsState>()(
       isLoudnessNormalizationEnabled: false,
       preloadNextTrack: true,
       streamingQuality: 'raw',
+      previousStreamingQuality: 'raw',
       preloadMode: 'wifi_only',
       preloadLookahead: 15,
       preloadCovers: true,
@@ -211,7 +213,7 @@ export const useSettingsStore = create<SettingsState>()(
       })),
       setIsLoudnessNormalizationEnabled: (isLoudnessNormalizationEnabled) => set({ isLoudnessNormalizationEnabled }),
       setPreloadNextTrack: (preloadNextTrack) => set({ preloadNextTrack }),
-      setStreamingQuality: (streamingQuality) => set({ streamingQuality }),
+      setStreamingQuality: (streamingQuality) => set({ streamingQuality, previousStreamingQuality: streamingQuality }),
       setPreloadMode: (preloadMode) => set({ preloadMode }),
       setPreloadLookahead: (preloadLookahead) => set({ preloadLookahead }),
       setPreloadCovers: (preloadCovers) => set({ preloadCovers }),
@@ -248,10 +250,23 @@ export const useSettingsStore = create<SettingsState>()(
       showAdvancedSettings: false,
       setShowAdvancedSettings: (showAdvancedSettings) => set({ showAdvancedSettings }),
       dataSaver: false,
-      setDataSaver: (dataSaver) => set((state) => ({
-        dataSaver,
-        preloadMode: dataSaver ? 'wifi_only' : state.preloadMode,
-      })),
+      setDataSaver: (dataSaver) => set((state) => {
+        if (dataSaver) {
+          const prev = state.streamingQuality;
+          return {
+            dataSaver: true,
+            previousStreamingQuality: prev !== 'opus-128' ? prev : (state.previousStreamingQuality || 'raw'),
+            streamingQuality: 'opus-128',
+            preloadMode: 'wifi_only',
+          };
+        } else {
+          const restored = state.previousStreamingQuality || 'raw';
+          return {
+            dataSaver: false,
+            streamingQuality: restored,
+          };
+        }
+      }),
       enableDiscordRpc: true,
       setEnableDiscordRpc: (enableDiscordRpc) => {
         set({ enableDiscordRpc });

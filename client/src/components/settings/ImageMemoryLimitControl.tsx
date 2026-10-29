@@ -78,7 +78,7 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
               className={`py-1.5 px-2 text-xs font-semibold rounded-lg border transition-all text-center truncate ${
                 isSelected
                   ? 'border-primary text-primary bg-primary/10 shadow-sm shadow-primary/20 ring-1 ring-primary/30 font-bold'
-                  : 'border-border/60 text-secondary hover:border-border hover:text-foreground bg-foreground/[0.03]'
+                  : 'border-border text-secondary hover:border-border hover:text-foreground bg-foreground/[0.03]'
               }`}
             >
               {preset.label}
@@ -103,7 +103,7 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
         </div>
       </div>
 
-      <div className="pt-3 border-t border-border/40 flex flex-col gap-2">
+      <div className="pt-3 border-t border-border flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-1.5 text-secondary min-w-0">
             <HardDrive size={14} className="shrink-0" />

@@ -86,7 +86,7 @@ export default function JamJoinDialog() {
 
           <button
             onClick={handleContinueInBrowser}
-            className="w-full py-3 px-4 bg-foreground/10 hover:bg-foreground/15 text-foreground font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 text-sm border border-border/50"
+            className="w-full py-3 px-4 bg-foreground/10 hover:bg-foreground/15 text-foreground font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 text-sm border border-border"
           >
             <Globe size={18} />
             {t('deeplink.continue_in_browser')}

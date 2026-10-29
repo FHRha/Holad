@@ -214,7 +214,7 @@ export default function FullScreenPlayerUI({
               </button>
               
               {showJamMenu && (
-                <div className="absolute top-full right-0 mt-3 p-4 bg-card/95 backdrop-blur-xl border border-border/80 rounded-2xl shadow-2xl w-80 z-[70] animate-in fade-in slide-in-from-top-2 duration-200 text-foreground">
+                <div className="absolute top-full right-0 mt-3 p-4 bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl w-80 z-[70] animate-in fade-in slide-in-from-top-2 duration-200 text-foreground">
                   <h3 className="font-bold text-center mb-1">{t('common.jam_session_title')}</h3>
                   <p className="text-xs text-secondary text-center mb-2">{t('common.jam_session_desc')}</p>
                   <JamSessionControl hideCreate={true} />

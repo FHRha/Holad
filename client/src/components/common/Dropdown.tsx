@@ -47,7 +47,7 @@ export default function Dropdown({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between gap-3 bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-border/60 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-foreground transition-all duration-150 w-full focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 cursor-pointer shadow-xs"
+        className="flex items-center justify-between gap-3 bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold text-foreground transition-all duration-150 w-full focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 cursor-pointer shadow-xs"
       >
         <div className="flex items-center gap-2.5 truncate min-w-0">
           {selectedOption?.icon && (

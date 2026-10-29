@@ -186,17 +186,17 @@ export default function StorageSettingsSection({
             type="button"
             onClick={handleQuickClearCovers}
             disabled={clearingCovers}
-            className="flex items-center justify-between p-3.5 rounded-xl border border-border/60 bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-all group text-left disabled:opacity-50"
+            className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-all group text-left disabled:opacity-50"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 group-hover:scale-105 transition-transform flex-shrink-0">
                 <ImageIcon size={18} />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium text-foreground truncate">
+                <span className="text-sm font-medium text-foreground">
                   {t('settings.clear_cover_cache', 'Очистить кэш обложек')}
                 </span>
-                <span className="text-xs text-secondary truncate">
+                <span className="text-xs text-secondary leading-normal">
                   {t('settings.clear_cover_cache_desc', 'Удалить сохранённые изображения')}
                 </span>
               </div>
@@ -210,17 +210,17 @@ export default function StorageSettingsSection({
             type="button"
             onClick={handleQuickClearAudioBuffer}
             disabled={clearingAudio}
-            className="flex items-center justify-between p-3.5 rounded-xl border border-border/60 bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-all group text-left disabled:opacity-50"
+            className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-all group text-left disabled:opacity-50"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 group-hover:scale-105 transition-transform flex-shrink-0">
                 <Music2 size={18} />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium text-foreground truncate">
+                <span className="text-sm font-medium text-foreground">
                   {t('settings.clear_audio_buffer', 'Очистить аудиобуфер')}
                 </span>
-                <span className="text-xs text-secondary truncate">
+                <span className="text-xs text-secondary leading-normal">
                   {t('settings.clear_audio_buffer_desc', 'Сбросить временные фрагменты потоков')}
                 </span>
               </div>
@@ -241,7 +241,7 @@ export default function StorageSettingsSection({
         >
           <div className="flex flex-col gap-3">
             <div
-              className="bg-foreground/[0.03] p-3 rounded-xl border border-border/60 truncate max-w-full text-xs font-mono text-secondary"
+              className="bg-foreground/[0.03] p-3 rounded-xl border border-border truncate max-w-full text-xs font-mono text-secondary"
               title={actualDir}
             >
               {actualDir}

@@ -75,7 +75,7 @@ export default function StorageLimitControl({ className = '', isMobile = false }
               className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-all text-center truncate ${
                 isSelected
                   ? 'border-primary text-primary bg-primary/10 shadow-sm shadow-primary/20 ring-1 ring-primary/30 font-bold'
-                  : 'border-border/60 text-secondary hover:border-border hover:text-foreground bg-foreground/[0.03]'
+                  : 'border-border text-secondary hover:border-border hover:text-foreground bg-foreground/[0.03]'
               }`}
             >
               {displayLabel}

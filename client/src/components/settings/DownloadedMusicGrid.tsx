@@ -298,7 +298,7 @@ export default function DownloadedMusicGrid({
             <button
               type="button"
               onClick={onManageClick}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-foreground/[0.03] hover:bg-foreground/[0.06] text-secondary hover:text-foreground border border-border/60 transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-foreground/[0.03] hover:bg-foreground/[0.06] text-secondary hover:text-foreground border border-border transition-colors"
               title={t('settings.manage_downloads')}
             >
               <Trash2 size={16} />
@@ -306,7 +306,7 @@ export default function DownloadedMusicGrid({
             </button>
           )}
 
-          <div className="flex items-center bg-foreground/[0.03] p-1 rounded-xl border border-border/60">
+          <div className="flex items-center bg-foreground/[0.03] p-1 rounded-xl border border-border">
             <button
               type="button"
               onClick={() => setViewMode('grid')}
@@ -539,7 +539,7 @@ function DownloadedCardItem({
         <span className="text-[11px] text-secondary truncate mt-0.5">
           {item.artist || item.album || (item.type === 'album' ? t('settings.album') : t('settings.track'))}
         </span>
-        <div className="flex items-center justify-between text-[10px] text-secondary/70 font-mono mt-1 pt-1 border-t border-border/40">
+        <div className="flex items-center justify-between text-[10px] text-secondary/70 font-mono mt-1 pt-1 border-t border-border">
           <span>{formatBytes(item.sizeBytes || item.totalBytes || 0)}</span>
           {item.duration ? <span>{Math.floor(item.duration / 60)}:{(item.duration % 60).toString().padStart(2, '0')}</span> : null}
         </div>

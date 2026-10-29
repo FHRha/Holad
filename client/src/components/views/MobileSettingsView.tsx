@@ -2,25 +2,23 @@ import { useState, type ReactNode } from 'react';
 import {
   Search,
   CloudOff,
-  Database,
   Palette,
-  Music,
-  Globe,
   HardDrive,
-  ChevronRight,
-  ChevronDown,
   Info,
   Sliders,
+  Settings2,
+  MonitorPlay,
+  Speaker,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useDemoStore } from '../../store/demoStore';
-import { useAuthStore } from '../../store/authStore';
-import { useSettingsStore } from '../../store/settingsStore';
+import { useSettingsStore, type StartPage } from '../../store/settingsStore';
 import { useUIStore } from '../../store/uiStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { toggleOfflineMode } from '../../utils/networkStatus';
-import { clearAppCache } from '../../utils/storage';
 import LanguageSelector from '../common/LanguageSelector';
+import Dropdown from '../common/Dropdown';
+import FlagIcon from '../common/FlagIcon';
+import SettingSection from '../settings/SettingSection';
 import {
   AppearanceSettingsSection,
   PlaybackSettingsSection,
@@ -29,7 +27,15 @@ import {
   PlatformSettingsSection,
 } from '../settings/sections';
 
-function FilterChip({
+export type MobileSettingsTab =
+  | 'general'
+  | 'appearance'
+  | 'player'
+  | 'audio'
+  | 'storage'
+  | 'about';
+
+function TabChip({
   icon,
   label,
   isActive,
@@ -42,15 +48,16 @@ function FilterChip({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
+      className={`flex-shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all border ${
         isActive
           ? 'bg-primary/15 text-primary border-primary/30 shadow-sm shadow-primary/20'
           : 'bg-card text-secondary hover:bg-foreground/[0.06] hover:text-foreground border-border'
       }`}
     >
       {icon}
-      {label}
+      <span>{label}</span>
     </button>
   );
 }
@@ -58,16 +65,10 @@ function FilterChip({
 export default function MobileSettingsView() {
   const { t } = useTranslation();
   const settings = useSettingsStore();
-  const isDemoMode = useDemoStore((state) => state.isDemoMode);
-  const { setAuthenticated, setCredentials } = useAuthStore();
   const { setSearchOpen, setOfflineModalOpen } = useUIStore();
   const { isOffline } = useNetworkStatus();
 
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
-
-  const toggleSection = (id: string) => {
-    setExpandedSection((prev) => (prev === id ? null : id));
-  };
+  const [activeTab, setActiveTab] = useState<MobileSettingsTab>('general');
 
   const handleOfflineToggle = () => {
     toggleOfflineMode();
@@ -76,118 +77,17 @@ export default function MobileSettingsView() {
     }
   };
 
-  const handleLogout = () => {
-    setAuthenticated(false);
-    setCredentials('', '', '', '');
-    clearAppCache();
-    window.location.reload();
-  };
-
-  const sections = [
-    {
-      id: 'about',
-      title: t('settings.about_app') || 'О приложении',
-      subtitle: t('settings.about_app_desc') || 'Версия, обновления и исходный код',
-      icon: <Info className="text-primary" size={24} />,
-      content: <PlatformSettingsSection variant="mobile" showLogout={false} />,
-    },
-    ...(!isDemoMode
-      ? [
-          {
-            id: 'server',
-            title: t('views.settings_server_account'),
-            subtitle: t('views.settings_server_desc'),
-            icon: <Database className="text-primary" size={24} />,
-            content: (
-              <div className="flex flex-col gap-4 mt-4">
-                <button
-                  onClick={handleLogout}
-                  className="w-full bg-red-500/10 text-red-500 font-bold py-3 rounded-xl border border-red-500/20 transition-colors hover:bg-red-500/20"
-                >
-                  {t('views.logout')}
-                </button>
-              </div>
-            ),
-          },
-        ]
-      : []),
-    {
-      id: 'datasources',
-      title: t('settings.data_sources') || 'Источники информации',
-      subtitle: t('settings.data_sources_desc') || 'Настройки Data Sources',
-      icon: <Globe className="text-primary" size={24} />,
-      content: <IntegrationsSettingsSection isMobile={true} />,
-    },
-    {
-      id: 'appearance',
-      title: t('views.settings_appearance'),
-      subtitle: t('views.settings_appearance_desc'),
-      icon: <Palette className="text-primary" size={24} />,
-      content: <AppearanceSettingsSection isMobile={true} />,
-    },
-    {
-      id: 'audio',
-      title: t('views.settings_audio'),
-      subtitle: t('views.settings_audio_desc'),
-      icon: <Music className="text-primary" size={24} />,
-      content: (
-        <PlaybackSettingsSection
-          isMobile={true}
-          mode="all"
-          showAdvanced={settings.showAdvancedSettings}
-        />
-      ),
-    },
-    {
-      id: 'network',
-      title: t('views.settings_network'),
-      subtitle: t('views.settings_network_desc'),
-      icon: <Globe className="text-primary" size={24} />,
-      content: (
-        <div className="flex flex-col gap-6 mt-4">
-          <label className="flex items-center justify-between bg-foreground/[0.03] border border-border/60 p-4 rounded-xl cursor-pointer">
-            <div className="flex flex-col pr-4">
-              <span className="text-[15px] font-medium text-foreground">
-                {t('settings.offline_mode')}
-              </span>
-              <span className="text-[13px] text-secondary">
-                {t('settings.offline_mode_desc')}
-              </span>
-            </div>
-            <input
-              type="checkbox"
-              checked={isOffline}
-              onChange={handleOfflineToggle}
-              className="accent-primary w-6 h-6 rounded flex-shrink-0 cursor-pointer"
-            />
-          </label>
-        </div>
-      ),
-    },
-    {
-      id: 'storage',
-      title: t('views.settings_storage'),
-      subtitle: t('views.settings_storage_desc'),
-      icon: <HardDrive className="text-primary" size={24} />,
-      content: (
-        <StorageSettingsSection
-          isMobile={true}
-          showAdvanced={settings.showAdvancedSettings}
-        />
-      ),
-    },
-  ];
-
   return (
     <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto overflow-x-hidden flex-col pb-32 w-full">
-      <div className="px-4 pt-4 pb-2 sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border/40 z-[60] w-full">
-        <div className="flex items-center gap-3 mb-4 w-full relative z-[70]">
+      {/* Sticky Header with Search, Language and Tab Bar */}
+      <div className="px-4 pt-4 pb-2 sticky top-0 bg-background/85 backdrop-blur-xl border-b border-border z-[60] w-full flex flex-col gap-3">
+        <div className="flex items-center gap-3 w-full relative z-[70]">
           <div
-            className="flex items-center flex-1 bg-card rounded-xl px-3 py-2.5 border border-border cursor-text"
+            className="flex items-center flex-1 bg-card rounded-xl px-3 py-2.5 border border-border cursor-text shadow-xs"
             onClick={() => setSearchOpen(true)}
           >
-            <Search size={20} className="text-secondary mr-2 pointer-events-none" />
-            <div className="bg-transparent text-secondary outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
+            <Search size={18} className="text-secondary mr-2 pointer-events-none" />
+            <div className="bg-transparent text-secondary outline-none flex-1 text-sm font-medium select-none pointer-events-none truncate">
               {t('views.search_placeholder')}
             </div>
           </div>
@@ -195,56 +95,199 @@ export default function MobileSettingsView() {
             <LanguageSelector align="right" />
           </div>
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-2">
-          <FilterChip
-            icon={<CloudOff size={16} />}
-            label={t('views.filter_offline')}
-            isActive={isOffline}
-            onClick={handleOfflineToggle}
+
+        {/* Horizontal Scrollable Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
+          <TabChip
+            icon={<Settings2 size={14} />}
+            label={t('settings.general', 'Общие')}
+            isActive={activeTab === 'general'}
+            onClick={() => setActiveTab('general')}
           />
-          <FilterChip
-            icon={<Sliders size={16} />}
-            label={t('settings.advanced', 'Расширенные')}
-            isActive={settings.showAdvancedSettings}
+          <TabChip
+            icon={<Palette size={14} />}
+            label={t('settings.appearance', 'Внешний вид')}
+            isActive={activeTab === 'appearance'}
+            onClick={() => setActiveTab('appearance')}
+          />
+          <TabChip
+            icon={<MonitorPlay size={14} />}
+            label={t('settings.player', 'Плеер')}
+            isActive={activeTab === 'player'}
+            onClick={() => setActiveTab('player')}
+          />
+          <TabChip
+            icon={<Speaker size={14} />}
+            label={t('settings.audio', 'Звук')}
+            isActive={activeTab === 'audio'}
+            onClick={() => setActiveTab('audio')}
+          />
+          <TabChip
+            icon={<HardDrive size={14} />}
+            label={t('settings.storage', 'Хранилище')}
+            isActive={activeTab === 'storage'}
+            onClick={() => setActiveTab('storage')}
+          />
+          <TabChip
+            icon={<Info size={14} />}
+            label={t('settings.about_app', 'О приложении')}
+            isActive={activeTab === 'about'}
+            onClick={() => setActiveTab('about')}
+          />
+
+          <div className="h-4 w-[1px] bg-border mx-1 flex-shrink-0" />
+
+          {/* Quick Filter Toggles */}
+          <button
+            type="button"
             onClick={() => settings.setShowAdvancedSettings(!settings.showAdvancedSettings)}
-          />
+            className={`flex-shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all border ${
+              settings.showAdvancedSettings
+                ? 'bg-primary/15 text-primary border-primary/30 shadow-sm'
+                : 'bg-card text-secondary hover:text-foreground border-border'
+            }`}
+          >
+            <Sliders size={13} />
+            <span>{t('settings.advanced', 'Расширенные')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOfflineToggle}
+            className={`flex-shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all border ${
+              isOffline
+                ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                : 'bg-card text-secondary hover:text-foreground border-border'
+            }`}
+          >
+            <CloudOff size={13} />
+            <span>{t('views.filter_offline', 'Офлайн')}</span>
+          </button>
         </div>
       </div>
 
-      <div className="w-full flex-1 flex flex-col px-4 py-6 gap-4">
-        {sections.map((section) => {
-          const isExpanded = expandedSection === section.id;
-
-          return (
-            <div
-              key={section.id}
-              className="bg-card rounded-2xl border border-border overflow-hidden transition-all duration-300 shadow-sm"
+      {/* Tab Content Panes */}
+      <div className="w-full flex-1 flex flex-col px-4 py-5 gap-5">
+        {/* 1. GENERAL TAB */}
+        {activeTab === 'general' && (
+          <div className="flex flex-col gap-5 animate-in fade-in duration-150">
+            {/* General Preferences */}
+            <SettingSection
+              title={t('settings.general_preferences', 'Региональные настройки и запуск')}
+              icon={<Settings2 size={16} />}
+              isMobile={true}
             >
-              <div
-                className="flex items-center p-5 gap-4 cursor-pointer"
-                onClick={() => toggleSection(section.id)}
-              >
-                <div className="flex-shrink-0">{section.icon}</div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-foreground text-[17px] font-bold mb-1">{section.title}</h3>
-                  <p className="text-secondary text-[13px] leading-snug pr-4">
-                    {section.subtitle}
-                  </p>
+              <div className="flex flex-col">
+                <div className="flex flex-col gap-2 pb-4">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">
+                      {t('settings.language', 'Язык интерфейса')}
+                    </span>
+                    <span className="text-xs text-secondary">
+                      {t('settings.language_desc', 'Язык интерфейса приложения')}
+                    </span>
+                  </div>
+                  <Dropdown
+                    value={settings.language}
+                    onChange={(val) => {
+                      settings.setLanguage(val);
+                      if (settings.syncLanguage) {
+                        settings.setSyncLanguage(true);
+                      }
+                    }}
+                    options={[
+                      { label: 'Русский', value: 'ru', icon: <FlagIcon code="ru" /> },
+                      { label: 'English', value: 'en', icon: <FlagIcon code="en" /> },
+                    ]}
+                  />
+                  <label className="flex items-center gap-2.5 cursor-pointer mt-1">
+                    <input
+                      type="checkbox"
+                      checked={settings.syncLanguage}
+                      onChange={(e) => settings.setSyncLanguage(e.target.checked)}
+                      className="accent-primary w-4 h-4 rounded cursor-pointer"
+                    />
+                    <span className="text-xs text-secondary">
+                      {t('settings.sync_language', 'Синхронизировать язык с сервером')}
+                    </span>
+                  </label>
                 </div>
-                <div className="flex-shrink-0 text-secondary">
-                  {isExpanded ? <ChevronDown size={24} /> : <ChevronRight size={24} />}
+
+                <div className="h-[1px] w-full bg-border my-2" />
+
+                <div className="flex flex-col gap-2 pt-2">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">
+                      {t('settings.startPage', 'Стартовая страница')}
+                    </span>
+                    <span className="text-xs text-secondary">
+                      {t('settings.start_page_desc', 'Раздел, открываемый при запуске')}
+                    </span>
+                  </div>
+                  <Dropdown
+                    value={settings.startPage}
+                    onChange={(val) => settings.setStartPage(val as StartPage)}
+                    options={[
+                      { label: t('settings.start_home', 'Главная'), value: '/' },
+                      { label: t('settings.start_albums', 'Альбомы'), value: '/albums' },
+                      { label: t('settings.start_radio', 'Радио'), value: '/radio' },
+                      { label: t('settings.start_favorites', 'Избранное'), value: '/favorites' },
+                    ]}
+                  />
                 </div>
               </div>
+            </SettingSection>
 
-              {isExpanded && (
-                <div className="px-5 pb-5 pt-0 animate-in fade-in slide-in-from-top-4">
-                  <div className="h-[1px] w-full bg-border/40 mb-4" />
-                  {section.content}
-                </div>
-              )}
-            </div>
-          );
-        })}
+            {/* Integrations (Discord RPC, LastFM, Yandex, Navidrome) */}
+            <IntegrationsSettingsSection isMobile={true} />
+          </div>
+        )}
+
+        {/* 2. APPEARANCE TAB */}
+        {activeTab === 'appearance' && (
+          <div className="animate-in fade-in duration-150">
+            <AppearanceSettingsSection isMobile={true} showLanguage={false} />
+          </div>
+        )}
+
+        {/* 3. PLAYER TAB */}
+        {activeTab === 'player' && (
+          <div className="animate-in fade-in duration-150">
+            <PlaybackSettingsSection
+              isMobile={true}
+              mode="player"
+              showAdvanced={settings.showAdvancedSettings}
+            />
+          </div>
+        )}
+
+        {/* 4. AUDIO TAB */}
+        {activeTab === 'audio' && (
+          <div className="animate-in fade-in duration-150">
+            <PlaybackSettingsSection
+              isMobile={true}
+              mode="audio"
+              showAdvanced={settings.showAdvancedSettings}
+            />
+          </div>
+        )}
+
+        {/* 5. STORAGE TAB */}
+        {activeTab === 'storage' && (
+          <div className="animate-in fade-in duration-150">
+            <StorageSettingsSection
+              isMobile={true}
+              showAdvanced={settings.showAdvancedSettings}
+            />
+          </div>
+        )}
+
+        {/* 6. ABOUT TAB (Version, Updates, GitHub, and Account Logout) */}
+        {activeTab === 'about' && (
+          <div className="animate-in fade-in duration-150">
+            <PlatformSettingsSection variant="mobile" showLogout={true} />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -102,7 +102,7 @@ export default function PlatformSettingsSection({
         <button
           type="button"
           onClick={() => openExternalLink('https://github.com/FHRha/Holad')}
-          className="flex items-center justify-center gap-2 w-full bg-foreground/[0.03] hover:bg-foreground/[0.06] text-foreground font-semibold py-3 px-4 rounded-xl border border-border/60 transition-colors text-sm shadow-sm"
+          className="flex items-center justify-center gap-2 w-full bg-foreground/[0.03] hover:bg-foreground/[0.06] text-foreground font-semibold py-3 px-4 rounded-xl border border-border transition-colors text-sm shadow-sm"
         >
           <img src="/icons/github.png" className="w-[18px] h-[18px] invert opacity-80" alt="GitHub" />
           <span>GitHub</span>
@@ -155,7 +155,7 @@ export default function PlatformSettingsSection({
             </label>
 
             <label
-              className={`flex items-center justify-between cursor-pointer group pl-4 border-l-2 border-border/60 ${
+              className={`flex items-center justify-between cursor-pointer group pl-4 border-l-2 border-border ${
                 !settings.runOnStartup ? 'opacity-40 pointer-events-none' : ''
               }`}
             >
@@ -221,7 +221,7 @@ export default function PlatformSettingsSection({
             </button>
           </div>
 
-          <div className="border-t border-border/40 pt-3">
+          <div className="border-t border-border pt-3">
             <label className="flex items-center justify-between cursor-pointer group">
               <div className="flex flex-col pr-4">
                 <span className="group-hover:text-primary transition-colors text-sm font-medium text-foreground">

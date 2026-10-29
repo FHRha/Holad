@@ -7,15 +7,15 @@ import {
   gainToDb,
 } from '../../audio/crossfade';
 
-const SVG_WIDTH = 320;
-const SVG_HEIGHT = 130;
-const PAD_LEFT = 36;
-const PAD_RIGHT = 14;
-const PAD_TOP = 14;
-const PAD_BOTTOM = 20;
+const SVG_WIDTH = 500;
+const SVG_HEIGHT = 200;
+const PAD_LEFT = 44;
+const PAD_RIGHT = 18;
+const PAD_TOP = 18;
+const PAD_BOTTOM = 28;
 
-const GRAPH_WIDTH = SVG_WIDTH - PAD_LEFT - PAD_RIGHT; // 270
-const GRAPH_HEIGHT = SVG_HEIGHT - PAD_TOP - PAD_BOTTOM; // 96
+const GRAPH_WIDTH = SVG_WIDTH - PAD_LEFT - PAD_RIGHT; // 438
+const GRAPH_HEIGHT = SVG_HEIGHT - PAD_TOP - PAD_BOTTOM; // 154
 
 export default function CrossfadeCurveVisualizer() {
   const { t } = useTranslation();
@@ -151,10 +151,10 @@ export default function CrossfadeCurveVisualizer() {
                     settings.setCrossfadeCurve(preset.id);
                   }
                 }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-medium border transition-all text-center ${
+                className={`py-1.5 px-2.5 rounded-lg text-xs font-medium border transition-all text-center ${
                   isActive
                     ? 'border-primary text-primary bg-primary/10 shadow-sm font-semibold'
-                    : 'border-white/10 text-secondary hover:border-white/20 hover:text-foreground bg-white/[0.02]'
+                    : 'border-border text-secondary hover:text-foreground bg-foreground/[0.03]'
                 }`}
               >
                 {t(preset.nameKey)}
@@ -165,11 +165,11 @@ export default function CrossfadeCurveVisualizer() {
       </div>
 
       {/* 2D Interactive SVG Visualizer */}
-      <div className="relative w-full rounded-xl bg-black/30 border border-white/10 p-2 overflow-hidden shadow-inner">
+      <div className="relative w-full rounded-2xl bg-foreground/[0.02] border border-border p-2 sm:p-3 overflow-hidden shadow-inner">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
-          className={`w-full h-[130px] overflow-visible touch-none ${
+          className={`w-full h-auto max-h-[220px] aspect-[2.5/1] overflow-visible touch-none ${
             isDragging ? 'cursor-grabbing' : 'cursor-crosshair'
           }`}
           onPointerDown={handlePointerDown}
@@ -196,7 +196,7 @@ export default function CrossfadeCurveVisualizer() {
             x2={PAD_LEFT + GRAPH_WIDTH}
             y2={y0db}
             stroke="currentColor"
-            className="text-white/10"
+            className="text-foreground/15"
             strokeDasharray="2 3"
           />
           {/* Horizontal: -3 dB (Equal Power) */}
@@ -206,7 +206,7 @@ export default function CrossfadeCurveVisualizer() {
             x2={PAD_LEFT + GRAPH_WIDTH}
             y2={yMinus3db}
             stroke="currentColor"
-            className="text-primary/20"
+            className="text-primary/30"
             strokeDasharray="3 3"
           />
           {/* Horizontal: -6 dB (50%) */}
@@ -216,7 +216,7 @@ export default function CrossfadeCurveVisualizer() {
             x2={PAD_LEFT + GRAPH_WIDTH}
             y2={yMinus6db}
             stroke="currentColor"
-            className="text-white/10"
+            className="text-foreground/15"
             strokeDasharray="2 3"
           />
           {/* Horizontal: 0% / Bottom */}
@@ -226,7 +226,7 @@ export default function CrossfadeCurveVisualizer() {
             x2={PAD_LEFT + GRAPH_WIDTH}
             y2={y0pct}
             stroke="currentColor"
-            className="text-white/20"
+            className="text-foreground/20"
           />
 
           {/* Vertical: Midpoint (50%) */}
@@ -236,7 +236,7 @@ export default function CrossfadeCurveVisualizer() {
             x2={xMid}
             y2={PAD_TOP + GRAPH_HEIGHT}
             stroke="currentColor"
-            className="text-white/15"
+            className="text-foreground/15"
             strokeDasharray="2 3"
           />
 

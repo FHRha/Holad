@@ -243,7 +243,7 @@ export default function SettingsModal({
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
                   settings.showAdvancedSettings
                     ? 'bg-primary/15 text-primary border-primary/30 shadow-sm shadow-primary/20'
-                    : 'bg-foreground/[0.03] text-secondary hover:text-foreground border-border/60 hover:bg-foreground/[0.06]'
+                    : 'bg-foreground/[0.03] text-secondary hover:text-foreground border-border hover:bg-foreground/[0.06]'
                 }`}
                 title={t('settings.toggle_advanced', 'Переключить расширенные настройки')}
               >
@@ -314,7 +314,7 @@ export default function SettingsModal({
                     </div>
 
                     {/* Divider */}
-                    <div className="border-b border-border/40 my-1" />
+                    <div className="border-b border-border my-1" />
 
                     {/* Row 2: Start Page */}
                     <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

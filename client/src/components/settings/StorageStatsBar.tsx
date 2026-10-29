@@ -78,14 +78,14 @@ export default function StorageStatsBar({
           type="button"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="p-2 rounded-lg bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-border/60 text-secondary hover:text-foreground transition-all disabled:opacity-50"
+          className="p-2 rounded-lg bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-border text-secondary hover:text-foreground transition-all disabled:opacity-50"
           title={t('settings.refresh_stats')}
         >
           <RefreshCw size={15} className={isRefreshing ? 'animate-spin text-primary' : ''} />
         </button>
       </div>
 
-      <div className="w-full h-3.5 bg-foreground/10 rounded-full overflow-hidden p-0.5 border border-border/40 shadow-inner">
+      <div className="w-full h-3.5 bg-foreground/10 rounded-full overflow-hidden p-0.5 border border-border shadow-inner">
         <div className="w-full h-full rounded-full overflow-hidden flex">
           {displayAudioBytes > 0 && (
             <div
@@ -118,7 +118,7 @@ export default function StorageStatsBar({
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
         {isNative && (
-          <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border/60">
+          <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border">
             <div className="w-3 h-3 rounded-full bg-[#3b82f6] flex-shrink-0" />
             <div className="flex flex-col min-w-0">
               <span className="text-[11px] text-secondary flex items-center gap-1 truncate">
@@ -132,7 +132,7 @@ export default function StorageStatsBar({
           </div>
         )}
 
-        <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border/60">
+        <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border">
           <div className="w-3 h-3 rounded-full bg-[#a855f7] flex-shrink-0" />
           <div className="flex flex-col min-w-0">
             <span className="text-[11px] text-secondary flex items-center gap-1 truncate">
@@ -145,7 +145,7 @@ export default function StorageStatsBar({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border/60">
+        <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border">
           <div className="w-3 h-3 rounded-full bg-[#f59e0b] flex-shrink-0" />
           <div className="flex flex-col min-w-0">
             <span className="text-[11px] text-secondary flex items-center gap-1 truncate">
@@ -158,7 +158,7 @@ export default function StorageStatsBar({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border/60">
+        <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border">
           <div className="w-3 h-3 rounded-full bg-foreground/30 flex-shrink-0" />
           <div className="flex flex-col min-w-0">
             <span className="text-[11px] text-secondary flex items-center gap-1 truncate">

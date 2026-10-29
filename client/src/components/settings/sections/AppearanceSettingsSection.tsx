@@ -35,7 +35,7 @@ export function ThemeOption({
       className={`flex-1 py-3 px-4 rounded-xl border text-sm font-medium transition-all flex items-center justify-center gap-2.5 ${
         isSelected
           ? 'border-primary/50 text-primary bg-primary/10 shadow-sm ring-1 ring-primary/30'
-          : 'border-border/60 bg-foreground/[0.03] text-secondary hover:border-border hover:text-foreground'
+          : 'border-border bg-foreground/[0.03] text-secondary hover:border-border hover:text-foreground'
       }`}
     >
       {icon}
@@ -63,7 +63,7 @@ export function AppIconOption({
       className={`flex-1 py-3 px-3 rounded-xl border text-xs sm:text-sm font-medium transition-all text-center truncate ${
         isSelected
           ? 'border-primary/50 text-primary bg-primary/10 shadow-sm ring-1 ring-primary/30'
-          : 'border-border/60 bg-foreground/[0.03] text-secondary hover:border-border hover:text-foreground'
+          : 'border-border bg-foreground/[0.03] text-secondary hover:border-border hover:text-foreground'
       }`}
     >
       {label}
@@ -403,8 +403,8 @@ export default function AppearanceSettingsSection({
                       isSelected
                         ? 'border-primary ring-2 ring-primary scale-110 shadow-md'
                         : isEmpty
-                          ? 'border-dashed border-border/80 hover:border-border hover:bg-foreground/[0.05]'
-                          : 'border-border/60 hover:border-border hover:scale-105'
+                          ? 'border-dashed border-border hover:border-border hover:bg-foreground/[0.05]'
+                          : 'border-border hover:border-border hover:scale-105'
                     }`}
                     style={color ? { backgroundColor: color } : {}}
                     title={
