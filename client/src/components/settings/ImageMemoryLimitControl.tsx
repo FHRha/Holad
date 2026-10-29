@@ -50,7 +50,7 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
     : `${imageCacheLimitMb} MB`;
 
   return (
-    <div className={`flex flex-col gap-4 bg-background/50 rounded-xl border border-white/5 ${isMobile ? 'p-3' : 'p-4'} ${className}`}>
+    <div className={`flex flex-col gap-4 bg-card rounded-xl border border-border ${isMobile ? 'p-3' : 'p-4'} ${className}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ImageIcon size={18} className="text-primary" />
@@ -78,7 +78,7 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
               className={`py-1.5 px-2 text-xs font-semibold rounded-lg border transition-all text-center truncate ${
                 isSelected
                   ? 'border-primary text-primary bg-primary/10 shadow-sm shadow-primary/20 ring-1 ring-primary/30 font-bold'
-                  : 'border-white/10 text-secondary hover:border-white/25 hover:text-foreground bg-white/[0.02]'
+                  : 'border-border/60 text-secondary hover:border-border hover:text-foreground bg-foreground/[0.03]'
               }`}
             >
               {preset.label}
@@ -95,17 +95,15 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
           step="16"
           value={imageCacheLimitMb}
           onChange={(e) => setImageCacheLimitMb(parseInt(e.target.value, 10))}
-          className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+          className="w-full h-2 bg-foreground/10 rounded-lg appearance-none cursor-pointer accent-primary"
         />
         <div className="relative w-full h-4 text-[11px] font-mono text-secondary select-none">
           <span className="absolute left-0">32 MB</span>
-          <span className="absolute left-[23.8%] -translate-x-1/2">512 MB</span>
-          <span className="absolute left-[49.2%] -translate-x-1/2">1 GB</span>
           <span className="absolute right-0">2 GB</span>
         </div>
       </div>
 
-      <div className="pt-3 border-t border-white/5 flex flex-col gap-2">
+      <div className="pt-3 border-t border-border/40 flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-1.5 text-secondary min-w-0">
             <HardDrive size={14} className="shrink-0" />
@@ -125,7 +123,7 @@ export default function ImageMemoryLimitControl({ className = '', isMobile = fal
           </button>
         </div>
 
-        <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+        <div className="w-full h-1.5 bg-foreground/10 rounded-full overflow-hidden">
           <div
             className={`h-full transition-all duration-300 ${
               stats.usagePercent > 90

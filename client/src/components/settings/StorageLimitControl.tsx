@@ -38,7 +38,7 @@ export default function StorageLimitControl({ className = '', isMobile = false }
   return (
     <div
       data-testid="storage-limit-control"
-      className={`flex flex-col gap-4 bg-background/50 rounded-xl border border-white/5 ${isMobile ? 'p-3' : 'p-4'} ${className}`}
+      className={`flex flex-col gap-4 bg-card rounded-xl border border-border ${isMobile ? 'p-3' : 'p-4'} ${className}`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -75,7 +75,7 @@ export default function StorageLimitControl({ className = '', isMobile = false }
               className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-all text-center truncate ${
                 isSelected
                   ? 'border-primary text-primary bg-primary/10 shadow-sm shadow-primary/20 ring-1 ring-primary/30 font-bold'
-                  : 'border-white/10 text-secondary hover:border-white/25 hover:text-foreground bg-white/[0.02]'
+                  : 'border-border/60 text-secondary hover:border-border hover:text-foreground bg-foreground/[0.03]'
               }`}
             >
               {displayLabel}

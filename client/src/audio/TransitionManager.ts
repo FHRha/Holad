@@ -1,4 +1,5 @@
 import type { CrossfadeCurve, IAudioDeck, IWebAudioPipeline, TransitionOptions } from './types';
+import { calculateCrossfadeGains } from './crossfade';
 
 export class TransitionManager {
     private isTransitioning: boolean = false;
@@ -69,6 +70,7 @@ export class TransitionManager {
         const rawDuration = typeof options.duration === 'number' && !isNaN(options.duration) ? options.duration : 3;
         const durationSeconds = Math.max(0.05, Math.min(12, rawDuration));
         const curve: CrossfadeCurve = options.curve || 'equalPower';
+        const tension = options.tension || { x: 0.5, y: 0.707 };
         const incomingIndex: 0 | 1 = (1 - outgoingIndex) as 0 | 1;
         
         const usePipeline = pipeline && !(outgoingDeck as any).isTainted && !(incomingDeck as any).isTainted;
@@ -152,7 +154,7 @@ export class TransitionManager {
 
         if (usePipeline) {
             const startTime = pipeline.context.currentTime + 0.02;
-            pipeline.scheduleCrossfade(outgoingIndex, incomingIndex, durationSeconds, curve, startTime);
+            pipeline.scheduleCrossfade(outgoingIndex, incomingIndex, durationSeconds, curve, startTime, tension);
         } else {
             const steps = 30;
             const stepTime = (durationSeconds * 1000) / steps;
@@ -162,17 +164,9 @@ export class TransitionManager {
                 currentStep++;
                 const t = Math.min(1.0, currentStep / steps);
                 
-                let outVol, inVol;
-                if (curve === 'linear') {
-                    outVol = 1.0 - t;
-                    inVol = t;
-                } else {
-                    outVol = Math.cos(t * 0.5 * Math.PI);
-                    inVol = Math.cos((1 - t) * 0.5 * Math.PI);
-                }
-                
-                outgoingDeck.setVolume(outVol * masterVolume);
-                incomingDeck.setVolume(inVol * masterVolume);
+                const gains = calculateCrossfadeGains(t, curve, tension);
+                outgoingDeck.setVolume(gains.outGain * masterVolume);
+                incomingDeck.setVolume(gains.inGain * masterVolume);
                 
                 if (currentStep >= steps && this.transitionInterval) {
                     clearInterval(this.transitionInterval);

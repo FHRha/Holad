@@ -9,8 +9,6 @@ import { useSettingsStore } from '../../store/settingsStore';
 export default function UpdateModal() {
   const { t } = useTranslation();
   const appIcon = useSettingsStore(state => state.appIcon);
-  const includePrereleases = useSettingsStore(state => state.includePrereleases);
-  const setIncludePrereleases = useSettingsStore(state => state.setIncludePrereleases);
   const { isUpdateModalOpen, setUpdateModalOpen, updateInfo, setUpdateProgress } = useUIStore();
 
   if (!isUpdateModalOpen || !updateInfo) return null;
@@ -190,23 +188,6 @@ export default function UpdateModal() {
               </button>
             )}
 
-            {!isBusy && (
-              <div className="flex items-center justify-center pt-2 pb-1">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-secondary hover:text-foreground transition-colors">
-                  <input 
-                    type="checkbox"
-                    checked={includePrereleases}
-                    onChange={async (e) => {
-                      const val = e.target.checked;
-                      setIncludePrereleases(val);
-                      await UpdateService.checkForUpdates(true);
-                    }}
-                    className="accent-primary w-4 h-4 rounded cursor-pointer"
-                  />
-                  <span>{t('settings.include_prereleases', 'Искать тестовые версии (Pre-release)')}</span>
-                </label>
-              </div>
-            )}
 
             {!isBusy && (
               <button 

@@ -18,6 +18,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         isCrossfadeEnabled: true,
         crossfadeDuration: 3,
         crossfadeCurve: 'equalPower',
+        crossfadeTension: { x: 0.5, y: 0.707 },
         isGaplessEnabled: false,
         isLoudnessNormalizationEnabled: true,
         preloadNextTrack: true,
@@ -260,7 +261,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                 await this.transitionManager.performCrossfade(
                     outgoingDeck,
                     incomingDeck,
-                    { duration: effectiveDuration, curve: this.settings.crossfadeCurve },
+                    { duration: effectiveDuration, curve: this.settings.crossfadeCurve, tension: this.settings.crossfadeTension },
                     this.pipeline || undefined,
                     outgoingIndex,
                     this.volume * this.volumeMultiplier

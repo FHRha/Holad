@@ -310,23 +310,17 @@ describe('Milestone 2: Storage Statistics, Memory Limit & Danger Zone Core', () 
   // Milestone 2 R2 Enhancements: UI Adaptation, Slider Marks & Layout Verification
   // ==========================================================================
   describe('Milestone 2 R2: UI Adaptation, Slider Marks & Layout Verification', () => {
-    it('ImageMemoryLimitControl contains correctly positioned percentage scale ticks', async () => {
+    it('ImageMemoryLimitControl contains correctly positioned min and max scale ticks', async () => {
       let rendered: any;
       await act(async () => {
         rendered = render(<ImageMemoryLimitControl />);
       });
 
       const label32 = rendered.container.querySelector('.left-0');
-      const label512 = rendered.container.querySelector('.left-\\[23\\.8\\%\\]');
-      const label1GB = rendered.container.querySelector('.left-\\[49\\.2\\%\\]');
       const label2GB = rendered.container.querySelector('.right-0');
 
       expect(label32).not.toBeNull();
       expect(label32.textContent).toBe('32 MB');
-      expect(label512).not.toBeNull();
-      expect(label512.textContent).toBe('512 MB');
-      expect(label1GB).not.toBeNull();
-      expect(label1GB.textContent).toBe('1 GB');
       expect(label2GB).not.toBeNull();
       expect(label2GB.textContent).toBe('2 GB');
     });

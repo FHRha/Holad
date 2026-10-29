@@ -252,7 +252,7 @@ export default function DownloadedMusicGrid({
 
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-background/50 p-4 rounded-xl border border-white/5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-xl border border-border">
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <Layers size={18} className="text-primary" />
@@ -298,7 +298,7 @@ export default function DownloadedMusicGrid({
             <button
               type="button"
               onClick={onManageClick}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/5 hover:bg-foreground/10 text-secondary hover:text-foreground border border-white/10 transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-foreground/[0.03] hover:bg-foreground/[0.06] text-secondary hover:text-foreground border border-border/60 transition-colors"
               title={t('settings.manage_downloads')}
             >
               <Trash2 size={16} />
@@ -306,11 +306,11 @@ export default function DownloadedMusicGrid({
             </button>
           )}
 
-          <div className="flex items-center bg-black/30 p-1 rounded-xl border border-white/5">
+          <div className="flex items-center bg-foreground/[0.03] p-1 rounded-xl border border-border/60">
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white/15 text-primary' : 'text-secondary hover:text-foreground'}`}
+              className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-primary/15 text-primary' : 'text-secondary hover:text-foreground'}`}
               title={t('settings.grid_view')}
             >
               <LayoutGrid size={18} />
@@ -318,7 +318,7 @@ export default function DownloadedMusicGrid({
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white/15 text-primary' : 'text-secondary hover:text-foreground'}`}
+              className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-primary/15 text-primary' : 'text-secondary hover:text-foreground'}`}
               title={t('settings.list_view')}
             >
               <List size={18} />
@@ -336,25 +336,25 @@ export default function DownloadedMusicGrid({
 
       {completedItems.length > 0 && (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 bg-background/50 p-1 rounded-xl border border-white/5 text-xs font-medium">
+          <div className="flex items-center gap-1.5 bg-card p-1 rounded-xl border border-border text-xs font-medium">
             <button
               type="button"
               onClick={() => setActiveFilter('all')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${activeFilter === 'all' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+              className={`px-3 py-1.5 rounded-lg transition-all ${activeFilter === 'all' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'text-secondary hover:text-foreground hover:bg-foreground/[0.05]'}`}
             >
               {t('settings.filter_all')} ({completedItems.length})
             </button>
             <button
               type="button"
               onClick={() => setActiveFilter('albums')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${activeFilter === 'albums' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+              className={`px-3 py-1.5 rounded-lg transition-all ${activeFilter === 'albums' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'text-secondary hover:text-foreground hover:bg-foreground/[0.05]'}`}
             >
               {t('settings.filter_albums')} ({albumCount})
             </button>
             <button
               type="button"
               onClick={() => setActiveFilter('tracks')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${activeFilter === 'tracks' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'text-secondary hover:text-foreground hover:bg-white/5'}`}
+              className={`px-3 py-1.5 rounded-lg transition-all ${activeFilter === 'tracks' ? 'bg-primary text-primary-foreground font-bold shadow-sm' : 'text-secondary hover:text-foreground hover:bg-foreground/[0.05]'}`}
             >
               {t('settings.filter_tracks')} ({trackCount})
             </button>
@@ -367,14 +367,14 @@ export default function DownloadedMusicGrid({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('settings.search_downloads')}
-              className="w-full bg-background/50 border border-white/10 rounded-xl py-1.5 pl-8 pr-3 text-xs text-foreground placeholder:text-secondary focus:border-primary outline-none transition-colors"
+              className="w-full bg-card border border-border rounded-xl py-1.5 pl-8 pr-3 text-xs text-foreground placeholder:text-secondary focus:border-primary outline-none transition-colors"
             />
           </div>
         </div>
       )}
 
       {completedItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 px-4 rounded-2xl bg-background/30 border border-dashed border-white/10 text-center">
+        <div className="flex flex-col items-center justify-center py-12 px-4 rounded-2xl bg-card/50 border border-dashed border-border text-center">
           <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-3">
             <Music size={26} className="text-primary" />
           </div>
@@ -478,7 +478,7 @@ function DownloadedCardItem({
   return (
     <div 
       ref={containerRef}
-      className="group relative bg-[#181818] hover:bg-[#222222] border border-white/5 hover:border-white/15 rounded-xl p-2.5 flex flex-col transition-all duration-200 cursor-pointer"
+      className="group relative bg-card hover:bg-foreground/[0.04] border border-border hover:border-foreground/20 rounded-xl p-2.5 flex flex-col transition-all duration-200 cursor-pointer"
       onContextMenu={(e) => {
         e.preventDefault();
         openMenu(
@@ -539,7 +539,7 @@ function DownloadedCardItem({
         <span className="text-[11px] text-secondary truncate mt-0.5">
           {item.artist || item.album || (item.type === 'album' ? t('settings.album') : t('settings.track'))}
         </span>
-        <div className="flex items-center justify-between text-[10px] text-secondary/70 font-mono mt-1 pt-1 border-t border-white/5">
+        <div className="flex items-center justify-between text-[10px] text-secondary/70 font-mono mt-1 pt-1 border-t border-border/40">
           <span>{formatBytes(item.sizeBytes || item.totalBytes || 0)}</span>
           {item.duration ? <span>{Math.floor(item.duration / 60)}:{(item.duration % 60).toString().padStart(2, '0')}</span> : null}
         </div>
@@ -597,7 +597,7 @@ function DownloadedRowItem({
   return (
     <div 
       ref={containerRef}
-      className="group flex items-center justify-between gap-3 p-2.5 rounded-xl bg-[#181818] hover:bg-[#222222] border border-white/5 hover:border-white/10 transition-colors cursor-pointer"
+      className="group flex items-center justify-between gap-3 p-2.5 rounded-xl bg-card hover:bg-foreground/[0.04] border border-border hover:border-foreground/20 transition-colors cursor-pointer"
       onContextMenu={(e) => {
         e.preventDefault();
         openMenu(

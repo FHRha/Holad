@@ -197,9 +197,9 @@ export default function StorageDangerZone({
         </p>
 
         <div className="grid grid-cols-1 gap-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-background/60 border border-white/5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-card border border-border">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white/5 text-secondary flex-shrink-0">
+              <div className="p-2 rounded-lg bg-foreground/[0.05] text-secondary flex-shrink-0">
                 <ImageIcon size={18} />
               </div>
               <div className="flex flex-col min-w-0">
@@ -236,9 +236,9 @@ export default function StorageDangerZone({
             </button>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-background/60 border border-white/5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-card border border-border">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white/5 text-secondary flex-shrink-0">
+              <div className="p-2 rounded-lg bg-foreground/[0.05] text-secondary flex-shrink-0">
                 <Database size={18} />
               </div>
               <div className="flex flex-col min-w-0">

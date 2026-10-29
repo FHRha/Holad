@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2, WifiOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useHoladStore, type HoladDevice } from '../../../store/holadStore';
 import ConnectDeviceItem from './ConnectDeviceItem';
@@ -54,7 +54,7 @@ export default function ConnectDeviceList({
         </div>
       )}
       <div className="flex flex-col gap-1 max-h-60 overflow-y-auto px-2 pt-2">
-        {devices.map((device) => {
+        {devices.length > 0 && devices.map((device) => {
           const isItemActive = activeDeviceId ? device.id === activeDeviceId : device.id === localDeviceId;
           return (
             <ConnectDeviceItem
@@ -82,21 +82,35 @@ export default function ConnectDeviceList({
                 {connectError}
               </span>
             )}
-            {roomId && (
-              <button
-                type="button"
-                onClick={handleRetry}
-                className="px-3 py-1 bg-white/10 hover:bg-white/20 text-foreground rounded-lg transition-colors text-xs font-semibold"
-              >
-                {t('player.retry')}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="px-3 py-1 bg-white/10 hover:bg-white/20 text-foreground rounded-lg transition-colors text-xs font-semibold"
+            >
+              {t('player.retry', 'Переподключиться')}
+            </button>
           </div>
         )}
 
-        {connectionStatus !== 'connecting' && connectionStatus !== 'error' && devices.length === 0 && (
-          <div className="px-3 py-4 text-center text-sm text-secondary">
-            {t('player.devices_not_found')}
+        {connectionStatus === 'disconnected' && (
+          <div className="px-3 py-4 flex flex-col items-center gap-2 text-center text-xs text-secondary">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/5 text-secondary">
+              <WifiOff size={16} />
+            </div>
+            <span>{t('player.disconnected', 'Отключено от сервера Holad Connect')}</span>
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="px-3 py-1 bg-white/10 hover:bg-white/20 text-foreground rounded-lg transition-colors text-xs font-semibold"
+            >
+              {t('player.retry', 'Переподключиться')}
+            </button>
+          </div>
+        )}
+
+        {connectionStatus === 'connected' && devices.length === 0 && (
+          <div className="px-3 py-4 flex items-center justify-center gap-2 text-center text-sm text-secondary animate-pulse">
+            <span>{t('player.devices_not_found')}</span>
           </div>
         )}
       </div>

@@ -47,7 +47,7 @@ export default function Dropdown({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between gap-3 bg-black/[0.03] hover:bg-black/[0.06] dark:bg-black/30 dark:hover:bg-black/45 border border-black/10 dark:border-black/50 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-foreground transition-all duration-150 w-full focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 cursor-pointer shadow-xs"
+        className="flex items-center justify-between gap-3 bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-border/60 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-foreground transition-all duration-150 w-full focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 cursor-pointer shadow-xs"
       >
         <div className="flex items-center gap-2.5 truncate min-w-0">
           {selectedOption?.icon && (
@@ -69,7 +69,7 @@ export default function Dropdown({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 top-full mt-1.5 w-full min-w-[140px] bg-white/95 dark:bg-[#1a1a1c]/95 backdrop-blur-xl border border-black/10 dark:border-black/60 rounded-xl shadow-2xl shadow-black/20 dark:shadow-[0_16px_48px_rgba(0,0,0,0.85)] p-1.5 animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+        <div className="absolute z-50 top-full mt-1.5 w-full min-w-[140px] bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
           <div className="flex flex-col gap-0.5 max-h-60 overflow-y-auto custom-scrollbar">
             {options.map((option, index) => {
               const isSelected = option.value === value;
@@ -84,7 +84,7 @@ export default function Dropdown({
                   className={`w-full text-left px-3 py-2 text-sm font-medium rounded-lg transition-all duration-100 flex items-center justify-between gap-2.5 cursor-pointer ${
                     isSelected
                       ? 'bg-primary/15 text-primary font-semibold'
-                      : 'text-secondary hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5'
+                      : 'text-secondary hover:text-foreground hover:bg-foreground/[0.06]'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 truncate min-w-0">

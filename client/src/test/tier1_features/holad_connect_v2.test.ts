@@ -1,21 +1,45 @@
+import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { useHoladStore } from '../../store/holadStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useAuthStore } from '../../store/authStore';
+import { getSocketUrl, getSocketPath } from '../../utils/serverConfig';
+import ConnectDeviceList from '../../components/player/connect/ConnectDeviceList';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
 import type { PlaybackSnapshot } from '../../connect/types';
 import { AudioDeck } from '../../audio/AudioDeck';
 import { AudioEngine } from '../../audio/AudioEngine';
 
+let socketEventHandlers: Record<string, Function> = {};
+const mockSocketInstance = {
+  on: vi.fn((event: string, handler: Function) => {
+    socketEventHandlers[event] = handler;
+  }),
+  emit: vi.fn(),
+  disconnect: vi.fn(),
+  connected: false,
+};
+
+vi.mock('socket.io-client', () => ({
+  io: vi.fn(() => mockSocketInstance),
+}));
+
 describe('Holad Connect v2 Client Architecture', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    socketEventHandlers = {};
+    mockSocketInstance.on.mockImplementation((event: string, handler: Function) => {
+      socketEventHandlers[event] = handler;
+    });
     resetAllStores();
     useHoladStore.getState().disconnect();
   });
 
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
     useHoladStore.getState().disconnect();
   });
@@ -430,6 +454,193 @@ describe('Holad Connect v2 Client Architecture', () => {
       );
 
       expect(shouldDropHttp).toBe(false);
+    });
+  });
+
+  describe('12. Robust Device Extraction in holad_devices', () => {
+    it('correctly handles object payload with { devices, activeDeviceId }', () => {
+      useHoladStore.getState().connect('room-devices-1');
+      const handler = socketEventHandlers['holad_devices'];
+      expect(handler).toBeDefined();
+
+      handler({
+        devices: [
+          { id: 'd-1', name: 'Browser PC' },
+          { id: 'd-2', name: 'Living Room TV' },
+        ],
+        activeDeviceId: 'd-2',
+      });
+
+      const state = useHoladStore.getState();
+      expect(state.devices).toHaveLength(2);
+      expect(state.devices[0].name).toBe('Browser PC');
+      expect(state.activeDeviceId).toBe('d-2');
+    });
+
+    it('correctly handles raw array payload without crashing and sets activeDeviceId to null', () => {
+      useHoladStore.getState().connect('room-devices-2');
+      const handler = socketEventHandlers['holad_devices'];
+      expect(handler).toBeDefined();
+
+      handler([
+        { id: 'dev-raw-1', name: 'Raw Device 1' },
+      ]);
+
+      const state = useHoladStore.getState();
+      expect(state.devices).toEqual([{ id: 'dev-raw-1', name: 'Raw Device 1' }]);
+      expect(state.activeDeviceId).toBeNull();
+    });
+
+    it('safely handles null/empty/malformed payload by defaulting to empty array', () => {
+      useHoladStore.getState().connect('room-devices-3');
+      const handler = socketEventHandlers['holad_devices'];
+      expect(handler).toBeDefined();
+
+      handler({ devices: null });
+      expect(useHoladStore.getState().devices).toEqual([]);
+      expect(useHoladStore.getState().activeDeviceId).toBeNull();
+
+      handler(null);
+      expect(useHoladStore.getState().devices).toEqual([]);
+      expect(useHoladStore.getState().activeDeviceId).toBeNull();
+    });
+  });
+
+  describe('13. Connection Resilience & Error Reset in connect(roomId)', () => {
+    it('resets connectError and properly stores roomId when connecting from disconnected status', () => {
+      useHoladStore.setState({
+        connectionStatus: 'disconnected',
+        connectError: 'Network failed previously',
+        roomId: null,
+      });
+
+      useHoladStore.getState().connect('room-resilience');
+
+      const state = useHoladStore.getState();
+      expect(state.connectError).toBeNull();
+      expect(state.roomId).toBe('room-resilience');
+      expect(state.connectionStatus).toBe('connecting');
+    });
+  });
+
+  describe('14. ServerConfig Socket URL & Path Resolution in Tauri/Capacitor', () => {
+    afterEach(() => {
+      delete (window as any).__TAURI_INTERNALS__;
+      delete (window as any).Capacitor;
+      localStorage.clear();
+      useAuthStore.getState().logout();
+    });
+
+    it('falls back to useAuthStore.url origin and pathname in Tauri when customUrl is absent', () => {
+      (window as any).__TAURI_INTERNALS__ = {};
+      useAuthStore.getState().setCredentials('https://music.example.com:8443/musicapp', 'user', 'tok', 'salt');
+
+      expect(getSocketUrl()).toBe('https://music.example.com:8443');
+      expect(getSocketPath()).toBe('/musicapp/socket.io');
+    });
+
+    it('falls back to /socket.io in Tauri when authUrl has no subpath', () => {
+      (window as any).__TAURI_INTERNALS__ = {};
+      useAuthStore.getState().setCredentials('https://subsonic.server.net', 'user', 'tok', 'salt');
+
+      expect(getSocketUrl()).toBe('https://subsonic.server.net');
+      expect(getSocketPath()).toBe('/socket.io');
+    });
+
+    it('prefers custom holadServerUrl over useAuthStore in Capacitor', () => {
+      (window as any).Capacitor = { isNative: true };
+      useAuthStore.getState().setCredentials('https://auth-server.net', 'user', 'tok', 'salt');
+      localStorage.setItem('holadServerUrl', 'http://custom-socket.local:9000/custom');
+
+      expect(getSocketUrl()).toBe('http://custom-socket.local:9000');
+      expect(getSocketPath()).toBe('/custom/socket.io');
+    });
+  });
+
+  describe('15. ConnectDeviceList UI Connection States', () => {
+    it('renders clean disconnected state without showing "devices_not_found"', () => {
+      const onRetryMock = vi.fn();
+      const { container } = render(
+        React.createElement(ConnectDeviceList, {
+          connectionStatus: 'disconnected',
+          devices: [],
+          onSelectDevice: vi.fn(),
+          onRetry: onRetryMock,
+        })
+      );
+
+      expect(container.textContent).toContain('Отключено от сервера Holad Connect');
+      expect(container.textContent).not.toContain('Устройства не найдены');
+
+      const retryBtn = screen.getByRole('button', { name: /Повторить|Переподключиться|retry/i });
+      expect(retryBtn).toBeDefined();
+      fireEvent.click(retryBtn);
+      expect(onRetryMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders connecting state with spinner and connecting text', () => {
+      const { container } = render(
+        React.createElement(ConnectDeviceList, {
+          connectionStatus: 'connecting',
+          devices: [],
+          onSelectDevice: vi.fn(),
+        })
+      );
+
+      expect(container.textContent).toMatch(/Подключение|connecting/i);
+      expect(container.textContent).not.toContain('Устройства не найдены');
+    });
+
+    it('renders error state with connection_failed, error details, and retry button', () => {
+      const onRetryMock = vi.fn();
+      const { container } = render(
+        React.createElement(ConnectDeviceList, {
+          connectionStatus: 'error',
+          connectError: 'Network unreachable',
+          devices: [],
+          onSelectDevice: vi.fn(),
+          onRetry: onRetryMock,
+        })
+      );
+
+      expect(container.textContent).toMatch(/Ошибка подключения|connection_failed/i);
+      expect(container.textContent).toContain('Network unreachable');
+      const retryBtn = screen.getByRole('button', { name: /Повторить|Переподключиться|retry/i });
+      fireEvent.click(retryBtn);
+      expect(onRetryMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders devices_not_found only when connectionStatus is connected and devices is empty', () => {
+      const { container } = render(
+        React.createElement(ConnectDeviceList, {
+          connectionStatus: 'connected',
+          devices: [],
+          onSelectDevice: vi.fn(),
+        })
+      );
+
+      expect(container.textContent).toMatch(/Устройства не найдены|devices_not_found/i);
+    });
+
+    it('renders device items when devices are present', () => {
+      const onSelectMock = vi.fn();
+      const testDevices = [
+        { id: 'dev-1', name: 'Living Room TV' },
+        { id: 'dev-2', name: 'Mobile Phone' },
+      ];
+
+      const { container } = render(
+        React.createElement(ConnectDeviceList, {
+          connectionStatus: 'connected',
+          devices: testDevices,
+          localDeviceId: 'dev-2',
+          activeDeviceId: 'dev-1',
+          onSelectDevice: onSelectMock,
+        })
+      );
+
+      expect(container.textContent).toContain('Living Room TV');
+      expect(container.textContent).not.toContain('Устройства не найдены');
     });
   });
 });

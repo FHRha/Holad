@@ -45,8 +45,8 @@ function FilterChip({
       onClick={onClick}
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
         isActive
-          ? 'bg-primary text-white border-transparent shadow-md'
-          : 'dark:bg-zinc-800 text-[#b3b3b3] hover:bg-foreground/10 hover:text-foreground border-transparent'
+          ? 'bg-primary/15 text-primary border-primary/30 shadow-sm shadow-primary/20'
+          : 'bg-card text-secondary hover:bg-foreground/[0.06] hover:text-foreground border-border'
       }`}
     >
       {icon}
@@ -145,12 +145,12 @@ export default function MobileSettingsView() {
       icon: <Globe className="text-primary" size={24} />,
       content: (
         <div className="flex flex-col gap-6 mt-4">
-          <label className="flex items-center justify-between bg-black/20 p-4 rounded-xl cursor-pointer">
+          <label className="flex items-center justify-between bg-foreground/[0.03] border border-border/60 p-4 rounded-xl cursor-pointer">
             <div className="flex flex-col pr-4">
-              <span className="text-[15px] font-medium text-white">
+              <span className="text-[15px] font-medium text-foreground">
                 {t('settings.offline_mode')}
               </span>
-              <span className="text-[13px] text-[#b3b3b3]">
+              <span className="text-[13px] text-secondary">
                 {t('settings.offline_mode_desc')}
               </span>
             </div>
@@ -180,14 +180,14 @@ export default function MobileSettingsView() {
 
   return (
     <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto overflow-x-hidden flex-col pb-32 w-full">
-      <div className="px-4 pt-4 pb-2 sticky top-0 bg-black/40 backdrop-blur-xl z-[60] w-full">
+      <div className="px-4 pt-4 pb-2 sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border/40 z-[60] w-full">
         <div className="flex items-center gap-3 mb-4 w-full relative z-[70]">
           <div
-            className="flex items-center flex-1 bg-[#282828] rounded-xl px-3 py-2.5 border border-white/5 cursor-text"
+            className="flex items-center flex-1 bg-card rounded-xl px-3 py-2.5 border border-border cursor-text"
             onClick={() => setSearchOpen(true)}
           >
-            <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
-            <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
+            <Search size={20} className="text-secondary mr-2 pointer-events-none" />
+            <div className="bg-transparent text-secondary outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
               {t('views.search_placeholder')}
             </div>
           </div>
@@ -218,7 +218,7 @@ export default function MobileSettingsView() {
           return (
             <div
               key={section.id}
-              className="bg-[#181818]/90 backdrop-blur-md rounded-2xl border border-white/5 overflow-hidden transition-all duration-300"
+              className="bg-card rounded-2xl border border-border overflow-hidden transition-all duration-300 shadow-sm"
             >
               <div
                 className="flex items-center p-5 gap-4 cursor-pointer"
@@ -226,19 +226,19 @@ export default function MobileSettingsView() {
               >
                 <div className="flex-shrink-0">{section.icon}</div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-white text-[17px] font-bold mb-1">{section.title}</h3>
-                  <p className="text-[#b3b3b3] text-[13px] leading-snug pr-4">
+                  <h3 className="text-foreground text-[17px] font-bold mb-1">{section.title}</h3>
+                  <p className="text-secondary text-[13px] leading-snug pr-4">
                     {section.subtitle}
                   </p>
                 </div>
-                <div className="flex-shrink-0 text-[#b3b3b3]">
+                <div className="flex-shrink-0 text-secondary">
                   {isExpanded ? <ChevronDown size={24} /> : <ChevronRight size={24} />}
                 </div>
               </div>
 
               {isExpanded && (
                 <div className="px-5 pb-5 pt-0 animate-in fade-in slide-in-from-top-4">
-                  <div className="h-[1px] w-full bg-white/5 mb-4" />
+                  <div className="h-[1px] w-full bg-border/40 mb-4" />
                   {section.content}
                 </div>
               )}

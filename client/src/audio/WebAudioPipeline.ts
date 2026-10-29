@@ -1,4 +1,5 @@
-import type { IWebAudioPipeline } from './types';
+import type { CrossfadeCurve, IWebAudioPipeline } from './types';
+import { calculateCrossfadeGains } from './crossfade';
 
 export class WebAudioPipeline implements IWebAudioPipeline {
     public readonly context: AudioContext;
@@ -256,7 +257,14 @@ export class WebAudioPipeline implements IWebAudioPipeline {
         }
     }
 
-    public scheduleCrossfade(outgoingDeckIndex: 0 | 1, incomingDeckIndex: 0 | 1, duration: number, curve: 'equalPower' | 'linear', startTime: number): void {
+    public scheduleCrossfade(
+        outgoingDeckIndex: 0 | 1,
+        incomingDeckIndex: 0 | 1,
+        duration: number,
+        curve: CrossfadeCurve = 'equalPower',
+        startTime: number,
+        tension?: { x: number; y: number }
+    ): void {
         if (!this.deckGains || !this.deckGains[outgoingDeckIndex] || !this.deckGains[incomingDeckIndex]) return;
         const outGainParam = this.deckGains[outgoingDeckIndex].gain;
         const inGainParam = this.deckGains[incomingDeckIndex].gain;
@@ -269,8 +277,7 @@ export class WebAudioPipeline implements IWebAudioPipeline {
             if (curve === 'linear') {
                 outGainParam.linearRampToValueAtTime(0, startTime + duration);
                 inGainParam.linearRampToValueAtTime(1, startTime + duration);
-            } else {
-                // equalPower
+            } else if (curve === 'equalPower' && (!tension || (Math.abs(tension.x - 0.5) < 0.005 && Math.abs(tension.y - 0.707) < 0.005))) {
                 const steps = 30;
                 const outCurve = new Float32Array(steps);
                 const inCurve = new Float32Array(steps);
@@ -281,6 +288,21 @@ export class WebAudioPipeline implements IWebAudioPipeline {
                     inCurve[i] = Math.cos((1 - t) * 0.5 * Math.PI);
                 }
                 
+                outGainParam.setValueCurveAtTime(outCurve, startTime + 0.01, duration);
+                inGainParam.setValueCurveAtTime(inCurve, startTime + 0.01, duration);
+            } else {
+                const steps = 30;
+                const outCurve = new Float32Array(steps);
+                const inCurve = new Float32Array(steps);
+                const effTension = tension || (curve === 'exponential' ? { x: 0.5, y: 0.35 } : { x: 0.5, y: 0.707 });
+
+                for (let i = 0; i < steps; i++) {
+                    const t = i / (steps - 1);
+                    const gains = calculateCrossfadeGains(t, curve, effTension);
+                    outCurve[i] = gains.outGain;
+                    inCurve[i] = gains.inGain;
+                }
+
                 outGainParam.setValueCurveAtTime(outCurve, startTime + 0.01, duration);
                 inGainParam.setValueCurveAtTime(inCurve, startTime + 0.01, duration);
             }

@@ -41,6 +41,7 @@ export interface SettingsState {
   isCrossfadeEnabled: boolean;
   crossfadeDuration: number;
   crossfadeCurve: CrossfadeCurve;
+  crossfadeTension?: { x: number; y: number };
   isGaplessEnabled: boolean;
   isLoudnessNormalizationEnabled: boolean;
   preloadNextTrack: boolean;
@@ -78,6 +79,7 @@ export interface SettingsState {
   setIsCrossfadeEnabled: (enabled: boolean) => void;
   setCrossfadeDuration: (duration: number) => void;
   setCrossfadeCurve: (curve: CrossfadeCurve) => void;
+  setCrossfadeTension: (tension: { x: number; y: number }) => void;
   setIsGaplessEnabled: (enabled: boolean) => void;
   setIsLoudnessNormalizationEnabled: (enabled: boolean) => void;
   setPreloadNextTrack: (enabled: boolean) => void;
@@ -134,6 +136,7 @@ export const useSettingsStore = create<SettingsState>()(
       isCrossfadeEnabled: true,
       crossfadeDuration: 3,
       crossfadeCurve: 'equalPower',
+      crossfadeTension: { x: 0.5, y: 0.707 },
       isGaplessEnabled: false,
       isLoudnessNormalizationEnabled: false,
       preloadNextTrack: true,
@@ -191,7 +194,17 @@ export const useSettingsStore = create<SettingsState>()(
         isGaplessEnabled: isCrossfadeEnabled ? false : state.isGaplessEnabled,
       })),
       setCrossfadeDuration: (crossfadeDuration) => set({ crossfadeDuration: Math.max(1, Math.min(12, crossfadeDuration)) }),
-      setCrossfadeCurve: (crossfadeCurve) => set({ crossfadeCurve }),
+      setCrossfadeCurve: (crossfadeCurve) => set((state) => {
+        let tension = state.crossfadeTension || { x: 0.5, y: 0.707 };
+        if (crossfadeCurve === 'equalPower') tension = { x: 0.5, y: 0.707 };
+        else if (crossfadeCurve === 'linear') tension = { x: 0.5, y: 0.5 };
+        else if (crossfadeCurve === 'exponential') tension = { x: 0.5, y: 0.35 };
+        return { crossfadeCurve, crossfadeTension: tension };
+      }),
+      setCrossfadeTension: (crossfadeTension) => set({
+        crossfadeTension,
+        crossfadeCurve: 'custom',
+      }),
       setIsGaplessEnabled: (isGaplessEnabled) => set((state) => ({
         isGaplessEnabled,
         isCrossfadeEnabled: isGaplessEnabled ? false : state.isCrossfadeEnabled,
@@ -224,7 +237,7 @@ export const useSettingsStore = create<SettingsState>()(
       setLastFmKey: (lastFmKey) => set({ lastFmKey }),
       setYandexToken: (yandexToken) => set({ yandexToken }),
       setVisualizerStyle: (visualizerStyle) => set({ visualizerStyle }),
-      includePrereleases: typeof __APP_VERSION__ !== 'undefined' && typeof __APP_VERSION__ === 'string' ? __APP_VERSION__.includes('-') : false,
+      includePrereleases: false,
       setIncludePrereleases: (includePrereleases) => set({ includePrereleases }),
       syncTheme: true,
       setSyncTheme: (syncTheme) => set({ syncTheme }),
@@ -265,6 +278,11 @@ export const useSettingsStore = create<SettingsState>()(
           }
           if (persistedState.enableDiscordRpc === undefined) {
             persistedState.enableDiscordRpc = true;
+          }
+        }
+        if (persistedState) {
+          if (!persistedState.crossfadeTension) {
+            persistedState.crossfadeTension = { x: 0.5, y: 0.707 };
           }
         }
         return persistedState;

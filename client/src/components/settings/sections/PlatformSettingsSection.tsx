@@ -71,7 +71,7 @@ export default function PlatformSettingsSection({
       <div className={`flex flex-col gap-4 ${className}`}>
         {/* Mobile Account Card */}
         {showLogout && (
-          <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5 flex flex-col gap-3 shadow-sm">
+          <div className="bg-card p-4 rounded-2xl border border-border flex flex-col gap-3 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary flex-shrink-0">
                 <User size={22} />
@@ -102,7 +102,7 @@ export default function PlatformSettingsSection({
         <button
           type="button"
           onClick={() => openExternalLink('https://github.com/FHRha/Holad')}
-          className="flex items-center justify-center gap-2 w-full bg-white/[0.02] hover:bg-white/[0.05] text-foreground font-semibold py-3 px-4 rounded-xl border border-white/5 transition-colors text-sm shadow-sm"
+          className="flex items-center justify-center gap-2 w-full bg-foreground/[0.03] hover:bg-foreground/[0.06] text-foreground font-semibold py-3 px-4 rounded-xl border border-border/60 transition-colors text-sm shadow-sm"
         >
           <img src="/icons/github.png" className="w-[18px] h-[18px] invert opacity-80" alt="GitHub" />
           <span>GitHub</span>
@@ -155,7 +155,7 @@ export default function PlatformSettingsSection({
             </label>
 
             <label
-              className={`flex items-center justify-between cursor-pointer group pl-4 border-l-2 border-white/10 ${
+              className={`flex items-center justify-between cursor-pointer group pl-4 border-l-2 border-border/60 ${
                 !settings.runOnStartup ? 'opacity-40 pointer-events-none' : ''
               }`}
             >
@@ -200,24 +200,45 @@ export default function PlatformSettingsSection({
         title={t('settings.updates') || 'Обновления'}
         icon={<DownloadCloud size={16} />}
       >
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-foreground">
-              Holad {appVersion ? `v${appVersion}` : 'Desktop'}
-            </span>
-            <span className="text-xs text-secondary">
-              {t('settings.updates_desc', 'Проверка актуальных версий приложения')}
-            </span>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-foreground">
+                Holad {appVersion ? `v${appVersion}` : 'Desktop'}
+              </span>
+              <span className="text-xs text-secondary">
+                {t('settings.updates_desc', 'Проверка актуальных версий приложения')}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => UpdateService.checkForUpdates(true)}
+              className="flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary font-semibold py-2.5 px-4 rounded-xl border border-primary/20 transition-colors text-xs shadow-sm self-start sm:self-auto"
+            >
+              <DownloadCloud size={16} />
+              <span>{t('settings.check_updates') || 'Проверить обновления'}</span>
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => UpdateService.checkForUpdates(true)}
-            className="flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary font-semibold py-2.5 px-4 rounded-xl border border-primary/20 transition-colors text-xs shadow-sm self-start sm:self-auto"
-          >
-            <DownloadCloud size={16} />
-            <span>{t('settings.check_updates') || 'Проверить обновления'}</span>
-          </button>
+          <div className="border-t border-border/40 pt-3">
+            <label className="flex items-center justify-between cursor-pointer group">
+              <div className="flex flex-col pr-4">
+                <span className="group-hover:text-primary transition-colors text-sm font-medium text-foreground">
+                  {t('settings.include_prereleases', 'Получать предварительные сборки (бета-версии)')}
+                </span>
+                <span className="text-xs text-secondary">
+                  {t('settings.include_prereleases_desc', 'Проверять и предлагать к установке тестовые pre-release версии')}
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.includePrereleases}
+                onChange={(e) => settings.setIncludePrereleases(e.target.checked)}
+                className="accent-primary w-4 h-4 rounded cursor-pointer shrink-0"
+              />
+            </label>
+          </div>
         </div>
       </SettingSection>
     </div>

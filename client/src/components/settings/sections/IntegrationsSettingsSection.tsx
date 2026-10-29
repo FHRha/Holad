@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw, Eye, EyeOff, Gamepad2, Globe, ExternalLink, Radio } from 'lucide-react';
+import { RefreshCw, Eye, EyeOff, Gamepad2, Globe, Radio } from 'lucide-react';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { pushIntegrations } from '../../../api/integrations';
-import { openExternalLink } from '../../../utils/linkHelper';
 import SettingSection from '../SettingSection';
 
 export interface IntegrationsSettingsSectionProps {
@@ -33,31 +32,17 @@ export default function IntegrationsSettingsSection({
         )}
         isMobile={isMobile}
       >
-        <div className="flex flex-col gap-3">
-          <label className="flex items-center justify-between cursor-pointer group">
-            <span className="text-sm font-medium group-hover:text-primary transition-colors">
-              {t('settings.enable_discord_rpc', 'Транслировать статус в Discord')}
-            </span>
-            <input
-              type="checkbox"
-              checked={settings.enableDiscordRpc}
-              onChange={(e) => settings.setEnableDiscordRpc(e.target.checked)}
-              className="accent-primary w-4 h-4 rounded cursor-pointer"
-            />
-          </label>
-
-          <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs text-secondary">
-            <span>Holad 2.0 Discord RPC Client</span>
-            <button
-              type="button"
-              onClick={() => openExternalLink('https://github.com/FHRha/Holad')}
-              className="flex items-center gap-1.5 text-primary hover:underline font-medium"
-            >
-              <span>GitHub</span>
-              <ExternalLink size={12} />
-            </button>
-          </div>
-        </div>
+        <label className="flex items-center justify-between cursor-pointer group">
+          <span className="text-sm font-medium group-hover:text-primary transition-colors text-foreground">
+            {t('settings.enable_discord_rpc', 'Транслировать статус в Discord')}
+          </span>
+          <input
+            type="checkbox"
+            checked={settings.enableDiscordRpc}
+            onChange={(e) => settings.setEnableDiscordRpc(e.target.checked)}
+            className="accent-primary w-4 h-4 rounded cursor-pointer"
+          />
+        </label>
       </SettingSection>
 
       {/* 2. Data Sources & Music Providers */}
@@ -68,7 +53,7 @@ export default function IntegrationsSettingsSection({
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="p-1 rounded-lg hover:bg-white/10 text-secondary hover:text-foreground transition-colors ml-auto"
+              className="p-1 rounded-lg hover:bg-foreground/10 text-secondary hover:text-foreground transition-colors ml-auto"
               title={t('common.refresh') || 'Refresh'}
             >
               <RefreshCw size={13} />
@@ -100,7 +85,7 @@ export default function IntegrationsSettingsSection({
             </p>
           </div>
 
-          <div className="h-[1px] w-full bg-white/5" />
+          <div className="h-[1px] w-full bg-border/40" />
 
           {/* Last.fm Scrobbling */}
           <div className="flex flex-col gap-2">
@@ -139,7 +124,7 @@ export default function IntegrationsSettingsSection({
                         },
                       ]);
                     }}
-                    className="bg-black/25 border border-white/10 rounded-xl px-3.5 py-2 text-sm w-full outline-none focus:border-primary transition-colors text-foreground pr-10 font-mono"
+                    className="bg-foreground/[0.03] border border-border/60 rounded-xl px-3.5 py-2 text-sm w-full outline-none focus:border-primary transition-colors text-foreground pr-10 font-mono"
                   />
                   <button
                     type="button"
@@ -168,7 +153,7 @@ export default function IntegrationsSettingsSection({
             )}
           </div>
 
-          <div className="h-[1px] w-full bg-white/5" />
+          <div className="h-[1px] w-full bg-border/40" />
 
           {/* Yandex.Music */}
           <div className="flex flex-col gap-2">
@@ -207,7 +192,7 @@ export default function IntegrationsSettingsSection({
                         },
                       ]);
                     }}
-                    className="bg-black/25 border border-white/10 rounded-xl px-3.5 py-2 text-sm w-full outline-none focus:border-primary transition-colors text-foreground pr-10 font-mono"
+                    className="bg-foreground/[0.03] border border-border/60 rounded-xl px-3.5 py-2 text-sm w-full outline-none focus:border-primary transition-colors text-foreground pr-10 font-mono"
                   />
                   <button
                     type="button"

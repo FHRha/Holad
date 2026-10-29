@@ -186,7 +186,7 @@ export default function StorageSettingsSection({
             type="button"
             onClick={handleQuickClearCovers}
             disabled={clearingCovers}
-            className="flex items-center justify-between p-3.5 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-all group text-left disabled:opacity-50"
+            className="flex items-center justify-between p-3.5 rounded-xl border border-border/60 bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-all group text-left disabled:opacity-50"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 group-hover:scale-105 transition-transform flex-shrink-0">
@@ -210,7 +210,7 @@ export default function StorageSettingsSection({
             type="button"
             onClick={handleQuickClearAudioBuffer}
             disabled={clearingAudio}
-            className="flex items-center justify-between p-3.5 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-all group text-left disabled:opacity-50"
+            className="flex items-center justify-between p-3.5 rounded-xl border border-border/60 bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-all group text-left disabled:opacity-50"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 group-hover:scale-105 transition-transform flex-shrink-0">
@@ -241,7 +241,7 @@ export default function StorageSettingsSection({
         >
           <div className="flex flex-col gap-3">
             <div
-              className="bg-black/25 p-3 rounded-xl border border-white/5 truncate max-w-full text-xs font-mono text-secondary"
+              className="bg-foreground/[0.03] p-3 rounded-xl border border-border/60 truncate max-w-full text-xs font-mono text-secondary"
               title={actualDir}
             >
               {actualDir}
@@ -292,7 +292,7 @@ export default function StorageSettingsSection({
                   max="10"
                   value={maxDownloadConcurrency}
                   onChange={(e) => setMaxDownloadConcurrency(parseInt(e.target.value, 10))}
-                  className="flex-1 h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                  className="flex-1 h-2 bg-foreground/10 rounded-lg appearance-none cursor-pointer accent-primary"
                 />
                 <span className="text-sm font-mono font-bold text-foreground w-8 text-right">
                   {maxDownloadConcurrency}

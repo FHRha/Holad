@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Check, X, Moon, Sun, Monitor, Languages, Palette, AppWindow, Paintbrush } from 'lucide-react';
+import { Pencil, Check, X, Moon, Sun, Monitor, Palette, AppWindow, Paintbrush, Plus } from 'lucide-react';
 import { useSettingsStore } from '../../../store/settingsStore';
 import type { AppTheme, AccentColor } from '../../../store/settingsStore';
 import { pushPreferences } from '../../../api/preferences';
 import { hexToHsl, hslToHex } from '../../../utils/colorUtils';
-import Dropdown from '../../common/Dropdown';
-import FlagIcon from '../../common/FlagIcon';
 import SettingSection from '../SettingSection';
 
 export interface AppearanceSettingsSectionProps {
@@ -37,7 +35,7 @@ export function ThemeOption({
       className={`flex-1 py-3 px-4 rounded-xl border text-sm font-medium transition-all flex items-center justify-center gap-2.5 ${
         isSelected
           ? 'border-primary/50 text-primary bg-primary/10 shadow-sm ring-1 ring-primary/30'
-          : 'border-white/5 bg-white/[0.02] text-secondary hover:border-white/20 hover:text-foreground'
+          : 'border-border/60 bg-foreground/[0.03] text-secondary hover:border-border hover:text-foreground'
       }`}
     >
       {icon}
@@ -65,7 +63,7 @@ export function AppIconOption({
       className={`flex-1 py-3 px-3 rounded-xl border text-xs sm:text-sm font-medium transition-all text-center truncate ${
         isSelected
           ? 'border-primary/50 text-primary bg-primary/10 shadow-sm ring-1 ring-primary/30'
-          : 'border-white/5 bg-white/[0.02] text-secondary hover:border-white/20 hover:text-foreground'
+          : 'border-border/60 bg-foreground/[0.03] text-secondary hover:border-border hover:text-foreground'
       }`}
     >
       {label}
@@ -102,7 +100,6 @@ export function ColorOption({
 
 export default function AppearanceSettingsSection({
   isMobile = false,
-  showLanguage = false,
   className = '',
   onColorPickerStateChange,
 }: AppearanceSettingsSectionProps) {
@@ -152,49 +149,7 @@ export default function AppearanceSettingsSection({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* 1. Interface Language (if enabled) */}
-      {showLanguage && (
-        <SettingSection
-          title={t('settings.language')}
-          icon={<Languages size={16} />}
-          isMobile={isMobile}
-        >
-          <div className="flex flex-col gap-3">
-            <Dropdown
-              value={settings.language}
-              onChange={(val) => {
-                settings.setLanguage(val);
-                if (settings.syncLanguage) {
-                  pushPreferences({ language: val });
-                }
-              }}
-              options={[
-                { label: 'Русский', value: 'ru', icon: <FlagIcon code="ru" /> },
-                { label: 'English', value: 'en', icon: <FlagIcon code="en" /> },
-              ]}
-            />
-            <label className="flex items-center gap-3 cursor-pointer group pt-1">
-              <input
-                type="checkbox"
-                checked={settings.syncLanguage}
-                onChange={(e) => {
-                  const val = e.target.checked;
-                  settings.setSyncLanguage(val);
-                  if (val) {
-                    pushPreferences({ language: settings.language });
-                  }
-                }}
-                className="accent-primary w-4 h-4 rounded cursor-pointer"
-              />
-              <span className="group-hover:text-primary transition-colors text-xs text-secondary">
-                {t('settings.sync_language')}
-              </span>
-            </label>
-          </div>
-        </SettingSection>
-      )}
-
-      {/* 2. Theme */}
+      {/* 1. Theme */}
       <SettingSection
         title={t('settings.theme') || 'Тема оформления'}
         icon={<Palette size={16} />}
@@ -412,7 +367,7 @@ export default function AppearanceSettingsSection({
               }}
             />
 
-            <div className="h-6 w-[1px] bg-white/10 mx-1 hidden sm:block" />
+            <div className="h-6 w-[1px] bg-border mx-1 hidden sm:block" />
 
             {/* 3 Custom Slots */}
             <div className="flex items-center gap-2.5">
@@ -448,8 +403,8 @@ export default function AppearanceSettingsSection({
                       isSelected
                         ? 'border-primary ring-2 ring-primary scale-110 shadow-md'
                         : isEmpty
-                          ? 'border-dashed border-white/20 hover:border-white/40 hover:bg-white/5'
-                          : 'border-white/10 hover:border-white/30 hover:scale-105'
+                          ? 'border-dashed border-border/80 hover:border-border hover:bg-foreground/[0.05]'
+                          : 'border-border/60 hover:border-border hover:scale-105'
                     }`}
                     style={color ? { backgroundColor: color } : {}}
                     title={
@@ -460,7 +415,7 @@ export default function AppearanceSettingsSection({
                           : t('settings.custom_color_select', 'Выбрать этот цвет')
                     }
                   >
-                    {isEmpty && <span className="text-secondary text-base font-light">+</span>}
+                    {isEmpty && <Plus size={14} strokeWidth={2.2} className="text-secondary" />}
                     {isSelected && (
                       <div
                         className={`absolute inset-0 bg-black/40 ${
@@ -478,10 +433,10 @@ export default function AppearanceSettingsSection({
 
           {/* Mobile inline color picker */}
           {isMobile && editingColorIndex !== null && (
-            <div className="bg-black/40 p-4 rounded-2xl border border-white/10 space-y-4 animate-in fade-in">
+            <div className="bg-card p-4 rounded-2xl border border-border space-y-4 animate-in fade-in">
               <div className="flex justify-between items-center mb-1">
                 <span className="font-bold text-sm text-foreground">{t('views.settings_color_setup', 'Настройка цвета')}</span>
-                <button type="button" onClick={closeColorPicker} className="p-1 rounded-lg hover:bg-white/10">
+                <button type="button" onClick={closeColorPicker} className="p-1 rounded-lg hover:bg-foreground/10">
                   <Check size={18} className="text-primary" />
                 </button>
               </div>
@@ -528,11 +483,11 @@ export default function AppearanceSettingsSection({
 
           <div className="flex flex-col items-center justify-center flex-1 w-full max-w-md mx-auto space-y-5">
             <div
-              className="w-20 h-20 rounded-full shadow-2xl border-4 border-white/10 transition-colors duration-100"
+              className="w-20 h-20 rounded-full shadow-2xl border-4 border-border transition-colors duration-100"
               style={{ backgroundColor: customHexInput }}
             />
 
-            <div className="w-full space-y-4 bg-background/60 p-5 rounded-2xl border border-white/5">
+            <div className="w-full space-y-4 bg-background/60 p-5 rounded-2xl border border-border">
               <div className="space-y-2">
                 <div className="flex justify-between text-xs text-secondary font-medium">
                   <span>{t('settings.hue', 'Оттенок (Hue)')}</span>
@@ -609,7 +564,7 @@ export default function AppearanceSettingsSection({
                     setLight(l);
                   }
                 }}
-                className="w-full bg-background border border-white/10 rounded-xl py-2.5 pl-14 pr-4 font-mono text-center text-base outline-none focus:border-primary transition-colors uppercase"
+                className="w-full bg-background border border-border rounded-xl py-2.5 pl-14 pr-4 font-mono text-center text-base outline-none focus:border-primary transition-colors uppercase text-foreground"
                 maxLength={7}
               />
             </div>

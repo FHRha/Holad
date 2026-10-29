@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Palette, Settings2, MonitorPlay, HardDrive, Speaker, Sliders } from 'lucide-react';
+import { X, Palette, Settings2, MonitorPlay, HardDrive, Speaker, Sliders, Globe } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { StartPage } from '../../store/settingsStore';
@@ -111,11 +111,11 @@ export default function SettingsModal({
       onClick={handleClose}
     >
       <div
-        className="bg-card w-full max-w-4xl rounded-xl shadow-2xl border border-white/10 flex h-[88vh] md:h-[600px] max-h-[800px] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="bg-card w-full max-w-4xl rounded-xl shadow-2xl border border-border flex h-[88vh] md:h-[600px] max-h-[800px] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Navigation Sidebar */}
-        <div className="w-60 bg-background/50 border-r border-white/5 flex flex-col p-4 shrink-0">
+        <div className="w-60 bg-background/50 border-r border-border flex flex-col p-4 shrink-0">
           <h2 className="text-lg font-bold mb-4 px-2">{t('sidebar.settings')}</h2>
 
           <div className="flex flex-col gap-2 relative">
@@ -125,7 +125,7 @@ export default function SettingsModal({
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
                   activeTab === 'general'
                     ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10'
-                    : 'text-secondary hover:text-foreground hover:bg-white/5'
+                    : 'text-secondary hover:text-foreground hover:bg-foreground/[0.05]'
                 }`}
               >
                 <Settings2
@@ -141,7 +141,7 @@ export default function SettingsModal({
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
                 activeTab === 'appearance'
                   ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10'
-                  : 'text-secondary hover:text-foreground hover:bg-white/5'
+                  : 'text-secondary hover:text-foreground hover:bg-foreground/[0.05]'
               }`}
             >
               <Palette
@@ -158,7 +158,7 @@ export default function SettingsModal({
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
                     activeTab === 'player'
                       ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10'
-                      : 'text-secondary hover:text-foreground hover:bg-white/5'
+                      : 'text-secondary hover:text-foreground hover:bg-foreground/[0.05]'
                   }`}
                 >
                   <MonitorPlay
@@ -173,7 +173,7 @@ export default function SettingsModal({
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
                     activeTab === 'audio'
                       ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10'
-                      : 'text-secondary hover:text-foreground hover:bg-white/5'
+                      : 'text-secondary hover:text-foreground hover:bg-foreground/[0.05]'
                   }`}
                 >
                   <Speaker
@@ -188,7 +188,7 @@ export default function SettingsModal({
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
                     activeTab === 'storage'
                       ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10'
-                      : 'text-secondary hover:text-foreground hover:bg-white/5'
+                      : 'text-secondary hover:text-foreground hover:bg-foreground/[0.05]'
                   }`}
                 >
                   <HardDrive
@@ -208,7 +208,7 @@ export default function SettingsModal({
                 disabled={resetState === 'done'}
                 className={`w-full py-2 text-xs font-medium rounded-lg transition-colors ${
                   resetState === 'idle'
-                    ? 'text-secondary hover:text-foreground hover:bg-white/5'
+                    ? 'text-secondary hover:text-foreground hover:bg-foreground/[0.05]'
                     : resetState === 'confirm'
                       ? 'bg-red-500 text-white animate-pulse'
                       : 'bg-green-500 text-white'
@@ -226,7 +226,7 @@ export default function SettingsModal({
 
         {/* Content Pane */}
         <div className="flex-1 flex flex-col relative overflow-hidden min-w-0">
-          <div className="flex items-center justify-between p-6 pb-3 shrink-0 z-20 bg-card/80 backdrop-blur-md border-b border-white/5">
+          <div className="flex items-center justify-between p-6 pb-3 shrink-0 z-20 bg-card/80 backdrop-blur-md border-b border-border">
             <h3 className="text-xl font-bold">
               {activeTab === 'general' && t('settings.general')}
               {activeTab === 'appearance' && t('settings.appearance')}
@@ -243,7 +243,7 @@ export default function SettingsModal({
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
                   settings.showAdvancedSettings
                     ? 'bg-primary/15 text-primary border-primary/30 shadow-sm shadow-primary/20'
-                    : 'bg-white/[0.03] text-secondary hover:text-foreground border-white/10 hover:bg-white/[0.06]'
+                    : 'bg-foreground/[0.03] text-secondary hover:text-foreground border-border/60 hover:bg-foreground/[0.06]'
                 }`}
                 title={t('settings.toggle_advanced', 'Переключить расширенные настройки')}
               >
@@ -251,11 +251,6 @@ export default function SettingsModal({
                 <span className="hidden sm:inline">
                   {t('settings.advanced', 'Расширенные настройки')}
                 </span>
-                <div
-                  className={`w-2 h-2 rounded-full transition-colors ${
-                    settings.showAdvancedSettings ? 'bg-primary animate-pulse' : 'bg-secondary/40'
-                  }`}
-                />
               </button>
 
               <button
@@ -271,50 +266,76 @@ export default function SettingsModal({
             {/* 1. GENERAL TAB */}
             {activeTab === 'general' && (
               <div className="space-y-6">
-                <SettingSection title={t('settings.language')}>
-                  <Dropdown
-                    value={settings.language}
-                    onChange={(val) => {
-                      settings.setLanguage(val);
-                      if (settings.syncLanguage) {
-                        pushPreferences({ language: val });
-                      }
-                    }}
-                    options={[
-                      { label: 'Русский', value: 'ru', icon: <FlagIcon code="ru" /> },
-                      { label: 'English', value: 'en', icon: <FlagIcon code="en" /> },
-                    ]}
-                  />
-                  <label className="flex items-center gap-3 cursor-pointer group mt-2">
-                    <input
-                      type="checkbox"
-                      checked={settings.syncLanguage}
-                      onChange={(e) => {
-                        const val = e.target.checked;
-                        settings.setSyncLanguage(val);
-                        if (val) {
-                          pushPreferences({ language: settings.language });
-                        }
-                      }}
-                      className="accent-primary w-4 h-4 rounded cursor-pointer"
-                    />
-                    <span className="group-hover:text-primary transition-colors text-xs text-secondary">
-                      {t('settings.sync_language')}
-                    </span>
-                  </label>
-                </SettingSection>
+                <SettingSection
+                  title={t('settings.general_preferences', 'Региональные настройки и запуск')}
+                  icon={<Globe size={16} />}
+                >
+                  <div className="flex flex-col">
+                    {/* Row 1: Language */}
+                    <div className="pb-4 space-y-2.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-foreground">{t('settings.language')}</div>
+                          <div className="text-xs text-secondary">{t('settings.language_desc', 'Язык интерфейса приложения')}</div>
+                        </div>
+                        <div className="w-full sm:w-60">
+                          <Dropdown
+                            value={settings.language}
+                            onChange={(val) => {
+                              settings.setLanguage(val);
+                              if (settings.syncLanguage) {
+                                pushPreferences({ language: val });
+                              }
+                            }}
+                            options={[
+                              { label: 'Русский', value: 'ru', icon: <FlagIcon code="ru" /> },
+                              { label: 'English', value: 'en', icon: <FlagIcon code="en" /> },
+                            ]}
+                          />
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-2.5 cursor-pointer group pt-0.5">
+                        <input
+                          type="checkbox"
+                          checked={settings.syncLanguage}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            settings.setSyncLanguage(val);
+                            if (val) {
+                              pushPreferences({ language: settings.language });
+                            }
+                          }}
+                          className="accent-primary w-4 h-4 rounded cursor-pointer"
+                        />
+                        <span className="group-hover:text-primary transition-colors text-xs text-secondary">
+                          {t('settings.sync_language')}
+                        </span>
+                      </label>
+                    </div>
 
-                <SettingSection title={t('settings.startPage')}>
-                  <Dropdown
-                    value={settings.startPage}
-                    onChange={(val) => settings.setStartPage(val as StartPage)}
-                    options={[
-                      { label: t('settings.start_home'), value: '/' },
-                      { label: t('settings.start_albums'), value: '/albums' },
-                      { label: t('settings.start_radio'), value: '/radio' },
-                      { label: t('settings.start_favorites'), value: '/favorites' },
-                    ]}
-                  />
+                    {/* Divider */}
+                    <div className="border-b border-border/40 my-1" />
+
+                    {/* Row 2: Start Page */}
+                    <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-foreground">{t('settings.startPage')}</div>
+                        <div className="text-xs text-secondary">{t('settings.start_page_desc', 'Раздел, открываемый при запуске приложения')}</div>
+                      </div>
+                      <div className="w-full sm:w-60">
+                        <Dropdown
+                          value={settings.startPage}
+                          onChange={(val) => settings.setStartPage(val as StartPage)}
+                          options={[
+                            { label: t('settings.start_home'), value: '/' },
+                            { label: t('settings.start_albums'), value: '/albums' },
+                            { label: t('settings.start_radio'), value: '/radio' },
+                            { label: t('settings.start_favorites'), value: '/favorites' },
+                          ]}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </SettingSection>
 
                 <IntegrationsSettingsSection />
@@ -325,7 +346,7 @@ export default function SettingsModal({
 
             {/* 2. APPEARANCE TAB */}
             {activeTab === 'appearance' && (
-              <AppearanceSettingsSection showLanguage={true} />
+              <AppearanceSettingsSection />
             )}
 
             {/* 3. PLAYER TAB */}

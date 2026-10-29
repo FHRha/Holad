@@ -153,6 +153,10 @@ export const useHoladStore = create<HoladState>((set, get) => {
       const normalizedRoom = (roomId || '').trim().toLowerCase();
       if (!normalizedRoom) return;
 
+      if (get().connectionStatus === 'disconnected' || !socket) {
+        set({ connectError: null, roomId: normalizedRoom });
+      }
+
       if (socket) {
         if (get().roomId === normalizedRoom && socket.connected) return;
         get().disconnect();
@@ -222,11 +226,14 @@ export const useHoladStore = create<HoladState>((set, get) => {
         get().disconnect(true);
       });
 
-      socket.on('holad_devices', (data: { devices: HoladDevice[]; activeDeviceId: string | null }) => {
-        const previousActive = get().activeDeviceId;
-        const newActive = data.activeDeviceId ?? null;
+      socket.on('holad_devices', (data: any) => {
+        const rawDevices = (data as any)?.devices ?? (Array.isArray(data) ? data : []);
+        const deviceList: HoladDevice[] = Array.isArray(rawDevices) ? rawDevices : [];
+        const newActive = (data as any)?.activeDeviceId ?? null;
 
-        if (!hasRequestedHistory && data.devices.length > 1) {
+        const previousActive = get().activeDeviceId;
+
+        if (!hasRequestedHistory && deviceList.length > 1) {
           hasRequestedHistory = true;
           console.log('[Holad] Emitting requestHistory because there are other devices in the room');
           socket!.emit('holad_remoteCommand', { type: 'requestHistory' });
@@ -237,7 +244,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
         }
 
         // Strictly respect server SSOT activeDeviceId. Never self-proclaim active!
-        set({ devices: data.devices, activeDeviceId: newActive });
+        set({ devices: deviceList, activeDeviceId: newActive });
 
         if (newActive === deviceId && previousActive !== deviceId) {
           stopPassiveTicker();

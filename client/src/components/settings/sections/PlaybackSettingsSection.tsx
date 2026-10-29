@@ -6,7 +6,6 @@ import {
   Waves,
   FastForward,
   Activity,
-  Headphones,
   MousePointerClick,
   Sparkles,
   Volume2,
@@ -19,6 +18,7 @@ import { usePlayerStore } from '../../../store/playerStore';
 import VolumeSlider from '../../common/VolumeSlider';
 import Dropdown from '../../common/Dropdown';
 import SettingSection from '../SettingSection';
+import CrossfadeCurveVisualizer from '../CrossfadeCurveVisualizer';
 
 export interface PlaybackSettingsSectionProps {
   mode?: 'all' | 'player' | 'audio';
@@ -125,7 +125,7 @@ export default function PlaybackSettingsSection({
 
             {/* Auto DJ Repeat Strategy: rendered in Advanced Mode */}
             {isAdvanced && isAutoDjEnabled && (
-              <div className="mt-4 pt-3 border-t border-white/5 space-y-2">
+              <div className="mt-4 pt-3 border-t border-border/40 space-y-2">
                 <div className="text-xs font-semibold text-secondary uppercase tracking-wider">
                   {t(
                     'settings.autodj_repeat_collision',
@@ -185,9 +185,9 @@ export default function PlaybackSettingsSection({
             </div>
           </SettingSection>
 
-          {/* Volume Multiplier */}
+          {/* Volume Multiplier / Amplifier */}
           <SettingSection
-            title={t('settings.volume_multiplier') || 'Множитель громкости'}
+            title={t('settings.volume_multiplier', 'Усилитель громкости')}
             icon={<Gauge size={16} />}
             description={t(
               'settings.volume_multiplier_desc',
@@ -195,19 +195,30 @@ export default function PlaybackSettingsSection({
             )}
             isMobile={isMobile}
           >
-            <div className="flex items-center gap-3 pt-1 pb-1">
+            <div className="pt-1 pb-1 space-y-3">
+              <div className="flex justify-between items-center text-xs text-secondary font-medium">
+                <span>{t('settings.volume_amplifier_level', 'Уровень усиления')}</span>
+                <span className="font-mono text-foreground font-semibold px-2 py-0.5 rounded bg-foreground/[0.05] border border-border/60 text-xs">
+                  {Math.round(volumeMultiplier * 100)}%
+                </span>
+              </div>
               <input
-                type="number"
-                min="1"
+                type="range"
+                min={Math.min(100, Math.round(volumeMultiplier * 100))}
                 max="300"
+                step="5"
                 value={Math.round(volumeMultiplier * 100)}
                 onChange={(e) => {
                   const val = parseInt(e.target.value, 10);
-                  if (!isNaN(val)) setVolumeMultiplier(Math.min(Math.max(val, 1), 300) / 100);
+                  if (!isNaN(val)) setVolumeMultiplier(val / 100);
                 }}
-                className="bg-black/20 border border-white/10 rounded-lg py-2 px-3 w-24 text-center outline-none focus:border-primary transition-colors text-foreground font-mono"
+                className="w-full h-2 bg-foreground/10 rounded-lg appearance-none cursor-pointer accent-primary"
               />
-              <span className="text-sm text-secondary font-medium">%</span>
+              <div className="flex justify-between text-[11px] font-mono text-secondary">
+                <span>100% ({t('common.normal', 'Норма')})</span>
+                <span>200%</span>
+                <span>300%</span>
+              </div>
             </div>
           </SettingSection>
         </>
@@ -234,27 +245,27 @@ export default function PlaybackSettingsSection({
                   <select
                     value={settings.streamingQuality || 'raw'}
                     onChange={(e) => settings.setStreamingQuality(e.target.value as any)}
-                    className="w-full bg-foreground/10 border border-white/20 rounded-lg py-2.5 px-3 text-sm text-white outline-none focus:border-primary appearance-none cursor-pointer pr-10"
+                    className="w-full bg-foreground/[0.03] border border-border/60 rounded-xl py-2.5 px-3 text-sm text-foreground outline-none focus:border-primary appearance-none cursor-pointer pr-10"
                   >
-                    <option value="raw" className="bg-zinc-900 text-white">
+                    <option value="raw" className="bg-card text-foreground">
                       {t('settings.quality_raw', 'Исходное (Без сжатия / FLAC)')}
                     </option>
-                    <option value="opus-256" className="bg-zinc-900 text-white">
+                    <option value="opus-256" className="bg-card text-foreground">
                       {t(
                         'settings.quality_opus_256',
                         'Opus 256 кбит/с (Рекомендуется, прозрачное)'
                       )}
                     </option>
-                    <option value="opus-192" className="bg-zinc-900 text-white">
+                    <option value="opus-192" className="bg-card text-foreground">
                       {t('settings.quality_opus_192', 'Opus 192 кбит/с (Высокое)')}
                     </option>
-                    <option value="opus-128" className="bg-zinc-900 text-white">
+                    <option value="opus-128" className="bg-card text-foreground">
                       {t(
                         'settings.quality_opus_128',
                         'Opus 128 кбит/с (Экономия батареи и трафика)'
                       )}
                     </option>
-                    <option value="mp3-320" className="bg-zinc-900 text-white">
+                    <option value="mp3-320" className="bg-card text-foreground">
                       {t('settings.quality_mp3_320', 'MP3 320 кбит/с')}
                     </option>
                   </select>
@@ -388,45 +399,16 @@ export default function PlaybackSettingsSection({
                       settings.setCrossfadeDuration(val);
                     }
                   }}
-                  className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                  className="w-full h-2 bg-foreground/10 rounded-lg appearance-none cursor-pointer accent-primary"
                 />
                 <div className="flex justify-between text-[11px] font-mono text-secondary">
                   <span>0s ({t('common.off', 'Выкл')})</span>
-                  <span>6s</span>
                   <span>12s</span>
                 </div>
 
                 {/* Crossfade curve: rendered in Advanced Mode */}
                 {isAdvanced && settings.isCrossfadeEnabled && (
-                  <div className="flex flex-col gap-2 pt-3 border-t border-white/5">
-                    <span className="text-xs text-secondary font-medium">
-                      {t('settings.crossfade_curve') || 'Кривая кроссфейда'}
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => settings.setCrossfadeCurve('equalPower')}
-                        className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${
-                          settings.crossfadeCurve === 'equalPower'
-                            ? 'border-primary text-primary bg-primary/10'
-                            : 'border-white/10 text-secondary hover:border-white/20'
-                        }`}
-                      >
-                        {t('settings.curve_equal_power') || 'Равная мощность'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => settings.setCrossfadeCurve('linear')}
-                        className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${
-                          settings.crossfadeCurve === 'linear'
-                            ? 'border-primary text-primary bg-primary/10'
-                            : 'border-white/10 text-secondary hover:border-white/20'
-                        }`}
-                      >
-                        {t('settings.curve_linear') || 'Линейная'}
-                      </button>
-                    </div>
-                  </div>
+                  <CrossfadeCurveVisualizer />
                 )}
               </div>
             </div>
@@ -452,34 +434,6 @@ export default function PlaybackSettingsSection({
                 type="checkbox"
                 checked={settings.isGaplessEnabled}
                 onChange={(e) => settings.setIsGaplessEnabled(e.target.checked)}
-                className="accent-primary w-4 h-4 rounded cursor-pointer flex-shrink-0"
-              />
-            </label>
-          </SettingSection>
-
-          {/* Auto Resume Headphones */}
-          <SettingSection
-            title={
-              t('settings.auto_resume_headphones') ||
-              'Автовоспроизведение в наушниках'
-            }
-            icon={<Headphones size={16} />}
-            isMobile={isMobile}
-          >
-            <label className="flex items-center justify-between cursor-pointer group">
-              <div className="flex flex-col pr-4">
-                <span className="group-hover:text-primary transition-colors text-sm font-medium">
-                  {t('settings.auto_resume_enable', 'Авто-возобновление в наушниках')}
-                </span>
-                <span className="text-xs text-secondary">
-                  {t('settings.auto_resume_headphones_desc') ||
-                    'Продолжать воспроизведение, если наушники возвращены в течение 45 секунд'}
-                </span>
-              </div>
-              <input
-                type="checkbox"
-                checked={settings.autoResumeOnHeadphonesConnect}
-                onChange={(e) => settings.setAutoResumeOnHeadphonesConnect(e.target.checked)}
                 className="accent-primary w-4 h-4 rounded cursor-pointer flex-shrink-0"
               />
             </label>
@@ -512,7 +466,7 @@ export default function PlaybackSettingsSection({
 
               {/* 4 WebAudio DSP compressor sliders: rendered in Advanced Mode */}
               {isAdvanced && settings.isLoudnessNormalizationEnabled && (
-                <div className="pt-3 pb-1 space-y-5 border-t border-white/5 mt-1">
+                <div className="pt-3 pb-1 space-y-5 border-t border-border/40 mt-1">
                   <div>
                     <div className="flex justify-between text-xs text-secondary mb-2">
                       <span>
@@ -531,7 +485,7 @@ export default function PlaybackSettingsSection({
                       max="0"
                       value={settings.compressorThreshold}
                       onChange={(e) => settings.setCompressorThreshold(parseFloat(e.target.value))}
-                      className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                      className="w-full h-2 bg-foreground/10 rounded-lg appearance-none cursor-pointer accent-primary"
                     />
                     <div className="flex justify-between text-[11px] font-mono text-secondary mt-1">
                       <span>-100 dB</span>
@@ -555,7 +509,7 @@ export default function PlaybackSettingsSection({
                       step="0.5"
                       value={settings.compressorRatio}
                       onChange={(e) => settings.setCompressorRatio(parseFloat(e.target.value))}
-                      className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                      className="w-full h-2 bg-foreground/10 rounded-lg appearance-none cursor-pointer accent-primary"
                     />
                     <div className="flex justify-between text-[11px] font-mono text-secondary mt-1">
                       <span>1:1</span>
@@ -579,7 +533,7 @@ export default function PlaybackSettingsSection({
                       step="0.001"
                       value={settings.compressorAttack}
                       onChange={(e) => settings.setCompressorAttack(parseFloat(e.target.value))}
-                      className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                      className="w-full h-2 bg-foreground/10 rounded-lg appearance-none cursor-pointer accent-primary"
                     />
                     <div className="flex justify-between text-[11px] font-mono text-secondary mt-1">
                       <span>0 s</span>
@@ -603,7 +557,7 @@ export default function PlaybackSettingsSection({
                       step="0.01"
                       value={settings.compressorRelease}
                       onChange={(e) => settings.setCompressorRelease(parseFloat(e.target.value))}
-                      className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer accent-primary"
+                      className="w-full h-2 bg-foreground/10 rounded-lg appearance-none cursor-pointer accent-primary"
                     />
                     <div className="flex justify-between text-[11px] font-mono text-secondary mt-1">
                       <span>0 s</span>
@@ -644,7 +598,7 @@ export default function PlaybackSettingsSection({
                 </label>
 
                 {settings.preloadNextTrack && (
-                  <div className="space-y-4 pt-3 border-t border-white/5">
+                  <div className="space-y-4 pt-3 border-t border-border/40">
                     <div className="flex flex-col gap-2">
                       <span className="text-xs text-secondary font-medium">
                         {t('settings.preload_mode', 'Режим предзагрузки треков')}
@@ -654,15 +608,15 @@ export default function PlaybackSettingsSection({
                           <select
                             value={settings.preloadMode}
                             onChange={(e) => settings.setPreloadMode(e.target.value as any)}
-                            className="w-full bg-foreground/10 border border-white/20 rounded-lg py-2.5 px-3 text-sm text-white outline-none focus:border-primary appearance-none cursor-pointer pr-10"
+                            className="w-full bg-foreground/[0.03] border border-border/60 rounded-xl py-2.5 px-3 text-sm text-foreground outline-none focus:border-primary appearance-none cursor-pointer pr-10"
                           >
-                            <option value="wifi_only" className="bg-zinc-900 text-white">
+                            <option value="wifi_only" className="bg-card text-foreground">
                               {t('settings.preload_wifi_only', 'Только по Wi-Fi')}
                             </option>
-                            <option value="always" className="bg-zinc-900 text-white">
+                            <option value="always" className="bg-card text-foreground">
                               {t('settings.preload_always', 'Всегда (Wi-Fi и сотовая сеть)')}
                             </option>
-                            <option value="disabled" className="bg-zinc-900 text-white">
+                            <option value="disabled" className="bg-card text-foreground">
                               {t('settings.preload_disabled', 'Отключено')}
                             </option>
                           </select>
@@ -713,15 +667,15 @@ export default function PlaybackSettingsSection({
                             onChange={(e) =>
                               settings.setPreloadLookahead(Number(e.target.value) as any)
                             }
-                            className="w-full bg-foreground/10 border border-white/20 rounded-lg py-2.5 px-3 text-sm text-white outline-none focus:border-primary appearance-none cursor-pointer pr-10"
+                            className="w-full bg-foreground/[0.03] border border-border/60 rounded-xl py-2.5 px-3 text-sm text-foreground outline-none focus:border-primary appearance-none cursor-pointer pr-10"
                           >
-                            <option value={5} className="bg-zinc-900 text-white">
+                            <option value={5} className="bg-card text-foreground">
                               {t('settings.preload_lookahead_5s', '5 секунд')}
                             </option>
-                            <option value={15} className="bg-zinc-900 text-white">
+                            <option value={15} className="bg-card text-foreground">
                               {t('settings.preload_lookahead_15s', '15 секунд (По умолчанию)')}
                             </option>
-                            <option value={30} className="bg-zinc-900 text-white">
+                            <option value={30} className="bg-card text-foreground">
                               {t('settings.preload_lookahead_30s', '30 секунд')}
                             </option>
                           </select>

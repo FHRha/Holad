@@ -1,6 +1,6 @@
 export type AudioState = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'stalled' | 'ended' | 'error';
 
-export type CrossfadeCurve = 'equalPower' | 'linear';
+export type CrossfadeCurve = 'equalPower' | 'linear' | 'exponential' | 'custom';
 
 export interface VolumeState {
     master: number;
@@ -12,6 +12,7 @@ export interface AudioEngineSettings {
     isCrossfadeEnabled: boolean;
     crossfadeDuration: number; // in seconds (1 - 12)
     crossfadeCurve: CrossfadeCurve;
+    crossfadeTension?: { x: number; y: number };
     isGaplessEnabled: boolean;
     isLoudnessNormalizationEnabled: boolean;
     preloadNextTrack: boolean;
@@ -25,6 +26,7 @@ export interface AudioEngineSettings {
 export interface TransitionOptions {
     duration?: number;
     curve?: CrossfadeCurve;
+    tension?: { x: number; y: number };
     immediate?: boolean;
     isAutoSkip?: boolean;
 }
@@ -77,7 +79,7 @@ export interface IWebAudioPipeline {
     setMasterVolume(volume: number, multiplier?: number, rampDuration?: number): void;
     setNormalizationEnabled(enabled: boolean): void;
     setCompressorSettings(settings: { threshold?: number; ratio?: number; attack?: number; release?: number }): void;
-    scheduleCrossfade(outgoingDeckIndex: 0 | 1, incomingDeckIndex: 0 | 1, duration: number, curve: CrossfadeCurve, startTime: number): void;
+    scheduleCrossfade(outgoingDeckIndex: 0 | 1, incomingDeckIndex: 0 | 1, duration: number, curve: CrossfadeCurve, startTime: number, tension?: { x: number; y: number }): void;
     unlockContext(): Promise<void>;
     getFrequencyData(array: Uint8Array): void;
     getDeckGain(deckIndex: 0 | 1): number;

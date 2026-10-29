@@ -1,4 +1,6 @@
 import { getBasePath } from './basePath';
+import { isTauri, isCapacitor } from './StorageManager';
+import { useAuthStore } from '../store/authStore';
 
 export const getHoladServerUrl = (): string => {
   const customUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('holadServerUrl') : null;
@@ -29,6 +31,19 @@ export const getSocketUrl = (): string => {
       return customUrl.replace(/\/$/, '');
     }
   }
+
+  if (isTauri() || isCapacitor()) {
+    try {
+      const authUrl = useAuthStore.getState().url;
+      if (authUrl) {
+        const fullUrl = authUrl.includes('://') ? authUrl : `http://${authUrl}`;
+        return new URL(fullUrl).origin;
+      }
+    } catch {
+      // fallback
+    }
+  }
+
   return import.meta.env.VITE_SERVER_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 };
 
@@ -43,6 +58,21 @@ export const getSocketPath = (): string => {
       }
     } catch {}
   }
+
+  if (isTauri() || isCapacitor()) {
+    try {
+      const authUrl = useAuthStore.getState().url;
+      if (authUrl) {
+        const fullUrl = authUrl.includes('://') ? authUrl : `http://${authUrl}`;
+        const parsed = new URL(fullUrl);
+        const pathname = parsed.pathname.replace(/\/$/, '');
+        if (pathname) {
+          return `${pathname}/socket.io`;
+        }
+      }
+    } catch {}
+  }
+
   const base = getBasePath();
   return base ? `${base}/socket.io` : '/socket.io';
 };
