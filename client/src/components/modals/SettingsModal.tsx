@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Palette, Settings2, MonitorPlay, HardDrive, Speaker, Sliders, Globe } from 'lucide-react';
+import { X, Palette, Settings2, MonitorPlay, HardDrive, Speaker, Sliders, Globe, RotateCcw } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { StartPage } from '../../store/settingsStore';
@@ -204,21 +204,25 @@ export default function SettingsModal({
           {!isJamGuest && (
             <div className="mt-auto pt-4">
               <button
+                type="button"
                 onClick={handleReset}
                 disabled={resetState === 'done'}
-                className={`w-full py-2 text-xs font-medium rounded-lg transition-colors ${
+                className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs transition-all duration-200 border flex items-center justify-center gap-2 shadow-xs cursor-pointer select-none ${
                   resetState === 'idle'
-                    ? 'text-secondary hover:text-foreground hover:bg-foreground/[0.05]'
+                    ? 'bg-red-500/10 hover:bg-red-500/20 text-red-500 border-red-500/30 active:scale-[0.99]'
                     : resetState === 'confirm'
-                      ? 'bg-red-500 text-white animate-pulse'
-                      : 'bg-green-500 text-white'
+                      ? 'bg-red-500 text-white border-red-600 animate-pulse shadow-md shadow-red-500/20'
+                      : 'bg-green-500/15 text-green-500 border-green-500/30'
                 }`}
               >
-                {resetState === 'idle'
-                  ? t('settings.reset')
-                  : resetState === 'confirm'
-                    ? t('settings.confirm_reset')
-                    : t('settings.reset_done')}
+                <RotateCcw size={15} />
+                <span>
+                  {resetState === 'idle'
+                    ? t('settings.reset', 'Сбросить настройки')
+                    : resetState === 'confirm'
+                      ? t('settings.confirm_reset', 'Подтвердите сброс')
+                      : t('settings.reset_done', 'Настройки сброшены')}
+                </span>
               </button>
             </div>
           )}
