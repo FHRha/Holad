@@ -59,9 +59,9 @@ export default function LibraryView() {
         <NavTab to="/library/playlists" label={t('sidebar.playlists')} />
       </div>
 
-      <div className="md:hidden px-4 pt-4 pb-2 shrink-0 bg-background/80 backdrop-blur-xl z-10 relative">
+      <div className="md:hidden px-4 pt-4 pb-2 shrink-0 bg-background/80 backdrop-blur-xl border-b border-border z-10 relative">
         <div 
-          className="flex items-center bg-card rounded-xl px-3 py-2.5 mb-4 border border-border cursor-text"
+          className="flex items-center bg-card rounded-xl px-3 py-2.5 mb-4 border border-border cursor-text shadow-xs"
           onClick={() => setSearchOpen(true)}
         >
           <Search size={20} className="text-secondary mr-2 pointer-events-none" />
@@ -95,13 +95,13 @@ export default function LibraryView() {
 
           <button 
             onClick={() => setViewMode(prev => prev === 'grid' ? 'list' : 'grid')}
-            className="absolute right-0 text-secondary hover:text-foreground transition-colors bg-card p-2 rounded-full z-10"
+            className="absolute right-0 text-secondary hover:text-foreground transition-colors bg-card border border-border p-2 rounded-full z-10 shadow-xs"
           >
             {viewMode === 'grid' ? <List size={20} /> : <LayoutGrid size={20} />}
           </button>
         </div>
         
-        <div className="flex bg-card rounded-2xl p-1 gap-1 overflow-x-auto hide-scrollbar">
+        <div className="flex bg-card rounded-2xl border border-border p-1 gap-1 overflow-x-auto hide-scrollbar">
           <MobileNavTab to="/library/tracks" label={t('sidebar.tracks')} />
           <MobileNavTab to="/library/albums" label={t('sidebar.albums')} />
           <MobileNavTab to="/library/artists" label={t('views.artists_short_tab')} />
@@ -152,8 +152,8 @@ function FilterChip({ icon, label, isActive, onClick, testId }: { icon: React.Re
       data-testid={testId}
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
         isActive 
-          ? 'bg-primary text-primary-foreground border-transparent shadow-md' 
-          : 'bg-foreground/5 border-transparent text-secondary hover:text-foreground hover:bg-foreground/10'
+          ? 'bg-primary text-primary-foreground border-transparent shadow-sm shadow-primary/25' 
+          : 'bg-card border border-border text-secondary hover:bg-foreground/[0.06] hover:text-foreground'
       }`}
     >
       {icon}

@@ -20,7 +20,7 @@ function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode,
     <button 
       onClick={onClick}
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
-        isActive ? 'bg-primary text-white border-transparent shadow-md' : 'bg-zinc-200 dark:bg-zinc-800 text-[#b3b3b3] hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-foreground border-transparent'
+        isActive ? 'bg-primary text-primary-foreground border-transparent shadow-sm shadow-primary/25' : 'bg-card border border-border text-secondary hover:bg-foreground/[0.06] hover:text-foreground'
       }`}
     >
       {icon}
@@ -147,13 +147,13 @@ export default function FavoritesView() {
       </div>
 
       <div ref={setMobileScrollParent} className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32 w-full">
-        <div className="px-4 pt-4 pb-2 sticky top-0 bg-black/40 backdrop-blur-xl z-10 w-full">
+        <div className="px-4 pt-4 pb-2 sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border z-10 w-full">
           <div 
-            className="flex items-center bg-[#282828] rounded-xl px-3 py-2.5 mb-4 w-full border border-white/5 cursor-text"
+            className="flex items-center bg-card rounded-xl px-3 py-2.5 mb-4 w-full border border-border cursor-text shadow-xs"
             onClick={() => setSearchOpen(true)}
           >
-            <Search size={20} className="text-[#b3b3b3] mr-2 pointer-events-none" />
-            <div className="bg-transparent text-[#b3b3b3] outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
+            <Search size={20} className="text-secondary mr-2 pointer-events-none" />
+            <div className="bg-transparent text-secondary outline-none flex-1 text-[15px] font-medium select-none pointer-events-none">
               {t('views.search_placeholder')}
             </div>
           </div>
@@ -172,16 +172,16 @@ export default function FavoritesView() {
             </div>
             <button 
               onClick={() => setViewMode(prev => prev === 'grid' ? 'list' : 'grid')}
-              className="absolute right-0 text-[#b3b3b3] hover:text-foreground transition-colors bg-[#282828] p-2 rounded-full z-10"
+              className="absolute right-0 text-secondary hover:text-foreground transition-colors bg-card border border-border p-2 rounded-full z-10 shadow-xs"
             >
               {viewMode === 'grid' ? <List size={20} /> : <LayoutGrid size={20} />}
             </button>
           </div>
 
-          <div className="flex bg-[#282828] rounded-xl overflow-hidden w-full p-1 mb-2">
-             <button onClick={() => setMobileTab('tracks')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'tracks' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>{t('views.tab_tracks')}</button>
-             <button onClick={() => setMobileTab('albums')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'albums' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>{t('views.tab_albums')}</button>
-             <button onClick={() => setMobileTab('artists')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'artists' ? 'bg-[#3e3e3e] text-white rounded-xl' : 'text-[#b3b3b3]'}`}>{t('views.tab_artists')}</button>
+          <div className="flex bg-card rounded-xl border border-border overflow-hidden w-full p-1 mb-2">
+             <button onClick={() => setMobileTab('tracks')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'tracks' ? 'bg-background text-foreground shadow-xs rounded-lg' : 'text-secondary hover:text-foreground'}`}>{t('views.tab_tracks')}</button>
+             <button onClick={() => setMobileTab('albums')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'albums' ? 'bg-background text-foreground shadow-xs rounded-lg' : 'text-secondary hover:text-foreground'}`}>{t('views.tab_albums')}</button>
+             <button onClick={() => setMobileTab('artists')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'artists' ? 'bg-background text-foreground shadow-xs rounded-lg' : 'text-secondary hover:text-foreground'}`}>{t('views.tab_artists')}</button>
           </div>
         </div>
         

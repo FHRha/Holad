@@ -10,6 +10,7 @@ import {
   MonitorPlay,
   Speaker,
   ChevronDown,
+  RotateCcw,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore, type StartPage } from '../../store/settingsStore';
@@ -201,48 +202,51 @@ export default function MobileSettingsView() {
 
   return (
     <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto overflow-x-hidden flex-col pb-32 w-full">
-      {/* Sticky Header with Search, Language and Quick Action Bar */}
-      <div className="px-4 pt-4 pb-2.5 sticky top-0 bg-background/85 backdrop-blur-xl border-b border-border z-[60] w-full flex flex-col gap-3">
-        <div className="flex items-center gap-3 w-full relative z-[70]">
+      {/* Sticky Header with Search, Language and Quick Action Bar (matching Favorites/Library standard) */}
+      <div className="px-4 pt-4 pb-2 sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border z-[60] w-full">
+        <div className="flex items-center gap-2.5 mb-4 w-full relative z-[70]">
           <div
-            className="flex items-center flex-1 bg-card rounded-xl px-3 py-2.5 border border-border cursor-text shadow-xs"
+            className="flex items-center flex-1 bg-card rounded-xl px-3 py-2.5 border border-border cursor-text shadow-xs min-w-0"
             onClick={() => setSearchOpen(true)}
           >
-            <Search size={18} className="text-secondary mr-2 pointer-events-none" />
-            <div className="bg-transparent text-secondary outline-none flex-1 text-sm font-medium select-none pointer-events-none truncate">
+            <Search size={20} className="text-secondary mr-2 pointer-events-none flex-shrink-0" />
+            <div className="bg-transparent text-secondary outline-none flex-1 text-[15px] font-medium select-none pointer-events-none truncate">
               {t('views.search_placeholder')}
             </div>
           </div>
           <div className="flex-shrink-0">
-            <LanguageSelector align="right" />
+            <LanguageSelector
+              align="right"
+              className="w-11 h-11 rounded-full bg-card border border-border text-secondary hover:text-foreground hover:bg-foreground/[0.06] flex items-center justify-center transition-colors cursor-pointer shadow-xs"
+            />
           </div>
         </div>
 
-        {/* Quick Action Toolbar (Advanced Settings & Offline Mode) */}
-        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-0.5">
+        {/* Quick Action Chips (matching Favorites & Library FilterChip design) */}
+        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar mb-2">
           <button
             type="button"
             onClick={() => settings.setShowAdvancedSettings(!settings.showAdvancedSettings)}
-            className={`flex-shrink-0 flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all border ${
+            className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border select-none ${
               settings.showAdvancedSettings
-                ? 'bg-primary/15 text-primary border-primary/30 shadow-sm shadow-primary/20'
-                : 'bg-card text-secondary hover:text-foreground border-border'
+                ? 'bg-primary text-primary-foreground border-transparent shadow-sm shadow-primary/25'
+                : 'bg-card text-secondary hover:bg-foreground/[0.06] hover:text-foreground border-border'
             }`}
           >
-            <Sliders size={14} className={settings.showAdvancedSettings ? 'text-primary' : ''} />
+            <Sliders size={16} />
             <span>{t('settings.advanced', 'Расширенные настройки')}</span>
           </button>
 
           <button
             type="button"
             onClick={handleOfflineToggle}
-            className={`flex-shrink-0 flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all border ${
+            className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border select-none ${
               isOffline
-                ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                : 'bg-card text-secondary hover:text-foreground border-border'
+                ? 'bg-amber-500 text-white border-transparent shadow-sm shadow-amber-500/25'
+                : 'bg-card text-secondary hover:bg-foreground/[0.06] hover:text-foreground border-border'
             }`}
           >
-            <CloudOff size={14} />
+            <CloudOff size={16} />
             <span>{t('views.filter_offline', 'Офлайн')}</span>
           </button>
         </div>
@@ -294,25 +298,28 @@ export default function MobileSettingsView() {
           );
         })}
 
-        {/* Reset settings button */}
-        <div className="pt-3 pb-6 flex justify-center">
+        {/* Prominent Red Reset Button */}
+        <div className="pt-4 pb-8 flex justify-center w-full">
           <button
             type="button"
             onClick={handleReset}
             disabled={resetState === 'done'}
-            className={`px-4 py-2 text-xs font-medium rounded-xl transition-colors border ${
+            className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm transition-all duration-200 border flex items-center justify-center gap-2.5 shadow-xs cursor-pointer select-none ${
               resetState === 'idle'
-                ? 'text-secondary hover:text-foreground border-transparent hover:border-border'
+                ? 'bg-red-500/10 hover:bg-red-500/20 text-red-500 border-red-500/30 active:scale-[0.99]'
                 : resetState === 'confirm'
-                  ? 'bg-red-500/15 text-red-500 border-red-500/30 animate-pulse'
+                  ? 'bg-red-500 text-white border-red-600 animate-pulse shadow-md shadow-red-500/20'
                   : 'bg-green-500/15 text-green-500 border-green-500/30'
             }`}
           >
-            {resetState === 'idle'
-              ? t('settings.reset', 'Сбросить настройки')
-              : resetState === 'confirm'
-                ? t('settings.confirm_reset', 'Подтвердите сброс')
-                : t('settings.reset_done', 'Настройки сброшены')}
+            <RotateCcw size={17} />
+            <span>
+              {resetState === 'idle'
+                ? t('settings.reset', 'Сбросить настройки')
+                : resetState === 'confirm'
+                  ? t('settings.confirm_reset', 'Подтвердите сброс')
+                  : t('settings.reset_done', 'Настройки сброшены')}
+            </span>
           </button>
         </div>
       </div>

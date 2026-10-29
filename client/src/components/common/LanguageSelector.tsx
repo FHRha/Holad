@@ -5,7 +5,13 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { pushPreferences } from '../../api/preferences';
 import FlagIcon from './FlagIcon';
 
-export default function LanguageSelector({ align = 'right' }: { align?: 'left' | 'right' } = {}) {
+export default function LanguageSelector({
+  align = 'right',
+  className = '',
+}: {
+  align?: 'left' | 'right';
+  className?: string;
+} = {}) {
   const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -43,7 +49,7 @@ export default function LanguageSelector({ align = 'right' }: { align?: 'left' |
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         aria-label={t('topbar.language', 'Язык')}
-        className="w-10 h-10 ml-2 rounded-full bg-foreground/5 hover:bg-foreground/10 flex items-center justify-center text-secondary hover:text-foreground transition-colors cursor-pointer"
+        className={className || "w-10 h-10 ml-2 rounded-full bg-foreground/5 hover:bg-foreground/10 flex items-center justify-center text-secondary hover:text-foreground transition-colors cursor-pointer"}
         title={t('topbar.language')}
       >
         <Globe size={18} />
