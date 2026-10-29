@@ -191,7 +191,7 @@ function MainAppContent() {
     const root = document.documentElement;
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-    const applyTheme = () => {
+    const updateThemeClasses = () => {
       if (isMobile && !isLoginRoute) {
         root.classList.add('dark');
         root.classList.remove('light');
@@ -212,6 +212,38 @@ function MainAppContent() {
           root.classList.remove('dark');
           root.classList.add('light');
         }
+      }
+    };
+
+    const applyTheme = () => {
+      if (typeof document === 'undefined') return;
+
+      // Use View Transitions API if supported for hardware-accelerated GPU crossfade
+      const doc = document as any;
+      if (typeof doc.startViewTransition === 'function') {
+        doc.startViewTransition(() => {
+          updateThemeClasses();
+        });
+      } else {
+        // Fallback: temporarily disable transitions to prevent 10 FPS jank
+        const css = document.createElement('style');
+        css.appendChild(
+          document.createTextNode(
+            `*, *::before, *::after {
+              -webkit-transition: none !important;
+              -moz-transition: none !important;
+              -o-transition: none !important;
+              -ms-transition: none !important;
+              transition: none !important;
+            }`
+          )
+        );
+        document.head.appendChild(css);
+        updateThemeClasses();
+        void window.getComputedStyle(css).opacity;
+        requestAnimationFrame(() => {
+          document.head.removeChild(css);
+        });
       }
     };
 
@@ -482,57 +514,7 @@ function App() {
     window.location.pathname.toLowerCase().includes('/holad') || 
     isJamPath();
   const needsServerUrl = !serverUrlSet && !isHostedOnBackend;
-  const theme = useSettingsStore(state => state.theme);
-  const accentColor = useSettingsStore(state => state.accentColor);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-    const applyTheme = () => {
-      if (theme === 'dark') {
-        root.classList.add('dark');
-        root.classList.remove('light');
-      } else if (theme === 'light') {
-        root.classList.remove('dark');
-        root.classList.add('light');
-      } else {
-        if (mediaQuery.matches) {
-          root.classList.add('dark');
-          root.classList.remove('light');
-        } else {
-          root.classList.remove('dark');
-          root.classList.add('light');
-        }
-      }
-    };
-
-    applyTheme();
-
-    if (theme === 'system' || !theme) {
-      const handleChange = () => applyTheme();
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    }
-
-    const colors: Record<string, string> = {
-      green: '#1db954',
-      blue: '#3b82f6',
-      purple: '#a855f7',
-      red: '#ef4444',
-      orange: '#f97316',
-      pink: '#ec4899',
-      yellow: '#eab308'
-    };
-    
-    const hexColor = colors[accentColor] || (accentColor.startsWith('#') ? accentColor : colors.green);
-    const rgbStr = hexToRgb(hexColor); // e.g. "29, 185, 84"
-    const rgbSpaceStr = rgbStr.replace(/,/g, ''); // "29 185 84"
-    
-    // Set all possible variations so it works regardless of which tailwind.config.js is currently cached in dev server
-    root.style.setProperty('--color-primary', rgbSpaceStr); 
-    root.style.setProperty('--color-primary-rgb', rgbStr);
-  }, [theme, accentColor]);
   
   const isJamRouteGlobal = isJamPath();
   

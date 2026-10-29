@@ -133,3 +133,10 @@ button, a, input, select, [role="button"] {
   transform: scale(1.15);
 }
 
+
+/* Smooth GPU-accelerated View Transitions for Theme Crossfade */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.22s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}

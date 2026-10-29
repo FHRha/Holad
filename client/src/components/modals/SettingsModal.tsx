@@ -225,7 +225,7 @@ export default function SettingsModal({
         </div>
 
         {/* Content Pane */}
-        <div className="flex-1 flex flex-col relative overflow-hidden min-w-0">
+        <div id="settings-content-pane" className="flex-1 flex flex-col relative overflow-hidden min-w-0">
           <div className="flex items-center justify-between p-6 pb-3 shrink-0 z-20 bg-card/80 backdrop-blur-md border-b border-border">
             <h3 className="text-xl font-bold">
               {activeTab === 'general' && t('settings.general')}

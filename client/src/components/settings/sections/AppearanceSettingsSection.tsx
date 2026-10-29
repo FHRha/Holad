@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Pencil, Check, X, Moon, Sun, Monitor, Palette, AppWindow, Paintbrush, Plus } from 'lucide-react';
 import { useSettingsStore } from '../../../store/settingsStore';
@@ -128,23 +129,49 @@ export default function AppearanceSettingsSection({
     onColorPickerStateChange?.(false);
   };
 
+  const updateLiveColor = (hex: string) => {
+    try {
+      let clean = hex.startsWith('#') ? hex.slice(1) : hex;
+      if (clean.length === 3) clean = clean.split('').map((x) => x + x).join('');
+      if (clean.length === 6) {
+        const num = parseInt(clean, 16);
+        if (!isNaN(num)) {
+          const r = (num >> 16) & 255;
+          const g = (num >> 8) & 255;
+          const b = num & 255;
+          const rgbStr = `${r}, ${g}, ${b}`;
+          const rgbSpaceStr = `${r} ${g} ${b}`;
+          requestAnimationFrame(() => {
+            document.documentElement.style.setProperty('--color-primary', rgbSpaceStr);
+            document.documentElement.style.setProperty('--color-primary-rgb', rgbStr);
+          });
+        }
+      }
+    } catch (_) {}
+  };
+
   const updateFromHsl = (h: number, s: number, l: number) => {
     setHue(h);
     setSat(s);
     setLight(l);
     const hex = hslToHex(h, s, l);
     setCustomHexInput(hex);
-    if (editingColorIndex !== null) {
-      settings.setCustomColor(editingColorIndex, hex);
-      settings.setAccentColor(hex);
+    updateLiveColor(hex);
+  };
+
+  const saveAndCloseColorPicker = () => {
+    if (editingColorIndex !== null && customHexInput) {
+      settings.setCustomColor(editingColorIndex, customHexInput);
+      settings.setAccentColor(customHexInput);
       if (settings.syncTheme) {
         pushPreferences({
           theme: settings.theme,
-          accent_color: hex,
+          accent_color: customHexInput,
           custom_colors: JSON.stringify(settings.customColors),
         });
       }
     }
+    closeColorPicker();
   };
 
   return (
@@ -470,116 +497,128 @@ export default function AppearanceSettingsSection({
       </SettingSection>
 
       {/* 5. Desktop HSL Overlay Modal */}
-      {!isMobile && editingColorIndex !== null && (
-        <div className="absolute inset-0 z-50 bg-card/95 backdrop-blur-md flex flex-col p-6 animate-in fade-in duration-150">
-          <button
-            type="button"
-            onClick={closeColorPicker}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-foreground/10 transition-colors z-10"
-          >
-            <X size={20} />
-          </button>
-          <h3 className="text-xl font-bold mb-2">{t('settings.custom_color_select', 'Настройка палитры')}</h3>
-
-          <div className="flex flex-col items-center justify-center flex-1 w-full max-w-md mx-auto space-y-5">
-            <div
-              className="w-20 h-20 rounded-full shadow-2xl border-4 border-border transition-colors duration-100"
-              style={{ backgroundColor: customHexInput }}
-            />
-
-            <div className="w-full space-y-4 bg-background/60 p-5 rounded-2xl border border-border">
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-secondary font-medium">
-                  <span>{t('settings.hue', 'Оттенок (Hue)')}</span>
-                  <span className="font-mono">{hue}°</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="360"
-                  value={hue}
-                  onChange={(e) => updateFromHsl(parseInt(e.target.value, 10), sat, light)}
-                  className="w-full h-3.5 rounded-full appearance-none cursor-pointer outline-none"
-                  style={{
-                    background:
-                      'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
-                  }}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-secondary font-medium">
-                  <span>{t('settings.saturation', 'Насыщенность')}</span>
-                  <span className="font-mono">{sat}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={sat}
-                  onChange={(e) => updateFromHsl(hue, parseInt(e.target.value, 10), light)}
-                  className="w-full h-3.5 rounded-full appearance-none cursor-pointer outline-none"
-                  style={{
-                    background: `linear-gradient(to right, hsl(${hue}, 0%, ${light}%), hsl(${hue}, 100%, ${light}%))`,
-                  }}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-secondary font-medium">
-                  <span>{t('settings.lightness', 'Яркость')}</span>
-                  <span className="font-mono">{light}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={light}
-                  onChange={(e) => updateFromHsl(hue, sat, parseInt(e.target.value, 10))}
-                  className="w-full h-3.5 rounded-full appearance-none cursor-pointer outline-none"
-                  style={{
-                    background: `linear-gradient(to right, #000, hsl(${hue}, ${sat}%, 50%), #fff)`,
-                  }}
-                />
-              </div>
+      {!isMobile && editingColorIndex !== null && (() => {
+        const overlay = (
+          <div className="absolute inset-0 z-50 bg-card/90 backdrop-blur-xl flex flex-col p-6 animate-in fade-in duration-150">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-foreground">
+                {t('settings.custom_color_select', 'Выбор своего цвета')}
+              </h3>
+              <button
+                type="button"
+                onClick={closeColorPicker}
+                className="p-2 -mr-2 rounded-full hover:bg-foreground/10 text-secondary hover:text-foreground transition-colors cursor-pointer"
+                title={t('common.close', 'Закрыть')}
+              >
+                <X size={20} />
+              </button>
             </div>
 
-            <div className="w-full relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary font-mono text-sm">
-                HEX
-              </span>
-              <input
-                type="text"
-                value={customHexInput}
-                onChange={(e) => {
-                  let val = e.target.value;
-                  if (!val.startsWith('#')) val = '#' + val;
-                  setCustomHexInput(val);
-                  if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
-                    settings.setCustomColor(editingColorIndex, val);
-                    settings.setAccentColor(val);
-                    const [h, s, l] = hexToHsl(val);
-                    setHue(h);
-                    setSat(s);
-                    setLight(l);
-                  }
-                }}
-                className="w-full bg-background border border-border rounded-xl py-2.5 pl-14 pr-4 font-mono text-center text-base outline-none focus:border-primary transition-colors uppercase text-foreground"
-                maxLength={7}
+            <div className="flex flex-col items-center justify-center flex-1 w-full max-w-md mx-auto space-y-5">
+              <div
+                className="w-20 h-20 rounded-full shadow-2xl border-4 border-border transition-colors duration-100"
+                style={{ backgroundColor: customHexInput }}
               />
-            </div>
 
-            <button
-              type="button"
-              onClick={closeColorPicker}
-              className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:opacity-90 flex items-center justify-center gap-2 transition-opacity shadow-lg shadow-primary/20"
-            >
-              <Check size={18} />
-              <span>{t('settings.save_and_close', 'Сохранить и закрыть')}</span>
-            </button>
+              <div className="w-full space-y-4 bg-foreground/[0.03] p-5 rounded-2xl border border-border shadow-xs">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs text-secondary font-medium">
+                    <span>{t('settings.hue', 'Оттенок (Hue)')}</span>
+                    <span className="font-mono">{hue}°</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="360"
+                    value={hue}
+                    onChange={(e) => updateFromHsl(parseInt(e.target.value, 10), sat, light)}
+                    className="w-full h-3.5 rounded-full appearance-none cursor-pointer outline-none"
+                    style={{
+                      background:
+                        'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs text-secondary font-medium">
+                    <span>{t('settings.saturation', 'Насыщенность')}</span>
+                    <span className="font-mono">{sat}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={sat}
+                    onChange={(e) => updateFromHsl(hue, parseInt(e.target.value, 10), light)}
+                    className="w-full h-3.5 rounded-full appearance-none cursor-pointer outline-none"
+                    style={{
+                      background: `linear-gradient(to right, hsl(${hue}, 0%, ${light}%), hsl(${hue}, 100%, ${light}%))`,
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs text-secondary font-medium">
+                    <span>{t('settings.lightness', 'Яркость')}</span>
+                    <span className="font-mono">{light}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={light}
+                    onChange={(e) => updateFromHsl(hue, sat, parseInt(e.target.value, 10))}
+                    className="w-full h-3.5 rounded-full appearance-none cursor-pointer outline-none"
+                    style={{
+                      background: `linear-gradient(to right, #000, hsl(${hue}, ${sat}%, 50%), #fff)`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="w-full relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary font-mono text-sm pointer-events-none">
+                  HEX
+                </span>
+                <input
+                  type="text"
+                  value={customHexInput}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (!val.startsWith('#')) val = '#' + val;
+                    setCustomHexInput(val);
+                    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                      const [h, s, l] = hexToHsl(val);
+                      setHue(h);
+                      setSat(s);
+                      setLight(l);
+                      updateLiveColor(val);
+                    }
+                  }}
+                  className="w-full bg-foreground/[0.04] hover:bg-foreground/[0.06] focus:bg-foreground/[0.07] border border-border focus:border-primary/50 rounded-xl py-2.5 pl-14 pr-4 font-mono text-center text-base outline-none transition-all uppercase text-foreground shadow-xs"
+                  maxLength={7}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={saveAndCloseColorPicker}
+                className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:opacity-90 flex items-center justify-center gap-2 transition-opacity shadow-lg shadow-primary/20 cursor-pointer"
+              >
+                <Check size={18} />
+                <span>{t('settings.save_and_close', 'Сохранить и закрыть')}</span>
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+
+        const contentPane = typeof document !== 'undefined' ? document.getElementById('settings-content-pane') : null;
+        if (contentPane) {
+          return createPortal(overlay, contentPane);
+        }
+        return overlay;
+      })()}
     </div>
   );
 }
