@@ -186,22 +186,22 @@ export default function StorageSettingsSection({
             type="button"
             onClick={handleQuickClearCovers}
             disabled={clearingCovers}
-            className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-all group text-left disabled:opacity-50"
+            className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-all group text-left disabled:opacity-50 gap-3"
           >
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 group-hover:scale-105 transition-transform flex-shrink-0">
                 <ImageIcon size={18} />
               </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium text-foreground">
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-sm font-medium text-foreground leading-snug break-words">
                   {t('settings.clear_cover_cache', 'Очистить кэш обложек')}
                 </span>
-                <span className="text-xs text-secondary leading-normal">
+                <span className="text-xs text-secondary leading-normal break-words mt-0.5">
                   {t('settings.clear_cover_cache_desc', 'Удалить сохранённые изображения')}
                 </span>
               </div>
             </div>
-            <div className="flex-shrink-0 text-secondary pl-2">
+            <div className="flex-shrink-0 text-secondary pl-1">
               {clearingCovers ? <Loader2 size={16} className="animate-spin text-primary" /> : <Check size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
             </div>
           </button>
@@ -210,22 +210,22 @@ export default function StorageSettingsSection({
             type="button"
             onClick={handleQuickClearAudioBuffer}
             disabled={clearingAudio}
-            className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-all group text-left disabled:opacity-50"
+            className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-all group text-left disabled:opacity-50 gap-3"
           >
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 group-hover:scale-105 transition-transform flex-shrink-0">
                 <Music2 size={18} />
               </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium text-foreground">
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-sm font-medium text-foreground leading-snug break-words">
                   {t('settings.clear_audio_buffer', 'Очистить аудиобуфер')}
                 </span>
-                <span className="text-xs text-secondary leading-normal">
+                <span className="text-xs text-secondary leading-normal break-words mt-0.5">
                   {t('settings.clear_audio_buffer_desc', 'Сбросить временные фрагменты потоков')}
                 </span>
               </div>
             </div>
-            <div className="flex-shrink-0 text-secondary pl-2">
+            <div className="flex-shrink-0 text-secondary pl-1">
               {clearingAudio ? <Loader2 size={16} className="animate-spin text-primary" /> : <Check size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
             </div>
           </button>

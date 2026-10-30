@@ -111,9 +111,9 @@ export default function MobileSettingsView() {
                     type="checkbox"
                     checked={settings.syncLanguage}
                     onChange={(e) => settings.setSyncLanguage(e.target.checked)}
-                    className="accent-primary w-4 h-4 rounded cursor-pointer"
+                    className="accent-primary w-4 h-4 rounded cursor-pointer shrink-0"
                   />
-                  <span className="text-xs text-secondary">
+                  <span className="text-xs text-secondary leading-snug">
                     {t('settings.sync_language', 'Синхронизировать язык с сервером')}
                   </span>
                 </label>
@@ -276,7 +276,7 @@ export default function MobileSettingsView() {
                   <h3 className="text-foreground text-[16px] font-semibold leading-tight">
                     {section.title}
                   </h3>
-                  <p className="text-secondary text-xs mt-0.5 leading-normal line-clamp-1">
+                  <p className="text-secondary/80 text-xs mt-0.5 leading-relaxed">
                     {section.subtitle}
                   </p>
                 </div>

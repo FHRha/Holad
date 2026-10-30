@@ -33,14 +33,14 @@ export function ThemeOption({
     <button
       type="button"
       onClick={() => onSelect(value)}
-      className={`flex-1 py-3 px-4 rounded-xl border text-sm font-medium transition-all flex items-center justify-center gap-2.5 ${
+      className={`flex-1 py-3 px-3 sm:px-4 rounded-xl border text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-2 min-w-0 ${
         isSelected
           ? 'border-primary/50 text-primary bg-primary/10 shadow-sm ring-1 ring-primary/30'
           : 'border-border bg-foreground/[0.03] text-secondary hover:border-border hover:text-foreground'
       }`}
     >
-      {icon}
-      <span>{label}</span>
+      <span className="shrink-0">{icon}</span>
+      <span className="break-words leading-tight">{label}</span>
     </button>
   );
 }
@@ -61,7 +61,7 @@ export function AppIconOption({
     <button
       type="button"
       onClick={() => onSelect(value)}
-      className={`flex-1 py-3 px-3 rounded-xl border text-xs sm:text-sm font-medium transition-all text-center truncate ${
+      className={`flex-1 py-3 px-2 sm:px-3 rounded-xl border text-xs sm:text-sm font-medium transition-all text-center break-words leading-tight min-w-0 ${
         isSelected
           ? 'border-primary/50 text-primary bg-primary/10 shadow-sm ring-1 ring-primary/30'
           : 'border-border bg-foreground/[0.03] text-secondary hover:border-border hover:text-foreground'
@@ -184,11 +184,11 @@ export default function AppearanceSettingsSection({
       >
         {isMobile ? (
           <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <span className="text-sm font-semibold text-secondary">
                 {t('views.settings_theme')}
               </span>
-              <span className="text-xs text-secondary/80 font-medium">
+              <span className="text-xs text-secondary/80 font-medium break-words">
                 {t('settings.mobile_dark_only', 'Тёмная тема (AMOLED)')}
               </span>
             </div>
@@ -196,16 +196,16 @@ export default function AppearanceSettingsSection({
               <button
                 type="button"
                 disabled
-                className="flex-1 py-3 px-4 rounded-xl border text-sm font-medium border-primary/50 text-primary bg-primary/10 cursor-default flex items-center justify-center gap-2"
+                className="flex-1 py-3 px-4 rounded-xl border text-sm font-medium border-primary/50 text-primary bg-primary/10 cursor-default flex items-center justify-center gap-2 min-w-0"
               >
-                <Moon size={16} />
-                <span>{t('settings.theme_dark', 'Dark')}</span>
+                <Moon size={16} className="shrink-0" />
+                <span className="break-words leading-tight">{t('settings.theme_dark', 'Dark')}</span>
               </button>
             </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <div className="flex gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5">
               <ThemeOption
                 label={t('settings.theme_dark', 'Dark')}
                 value="dark"
@@ -287,7 +287,7 @@ export default function AppearanceSettingsSection({
         icon={<AppWindow size={16} />}
         isMobile={isMobile}
       >
-        <div className="flex gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5">
           <AppIconOption
             label="Wave Dark"
             value="wave_dark"

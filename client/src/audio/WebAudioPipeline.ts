@@ -77,7 +77,7 @@ export class WebAudioPipeline implements IWebAudioPipeline {
 
     public async resume(): Promise<void> {
         this.cancelSleepTimer();
-        if (this.context.state === 'suspended') {
+        if (this.context.state === 'suspended' || (this.context.state as string) === 'interrupted') {
             try {
                 await this.context.resume();
             } catch (e) {
@@ -122,6 +122,12 @@ export class WebAudioPipeline implements IWebAudioPipeline {
             }
 
             this.deckElements[deckIndex] = element;
+
+            if (this.deckSources[deckIndex]) {
+                try {
+                    this.deckSources[deckIndex]?.disconnect();
+                } catch {}
+            }
 
             const onPlay = () => {
                 this.cancelSleepTimer();
@@ -269,14 +275,18 @@ export class WebAudioPipeline implements IWebAudioPipeline {
         const outGainParam = this.deckGains[outgoingDeckIndex].gain;
         const inGainParam = this.deckGains[incomingDeckIndex].gain;
 
+        const effectiveStartTime = Math.max(startTime, this.context.currentTime + 0.01);
+
         // Cancel previous automation
-        this.safeCancel(outGainParam, startTime);
-        this.safeCancel(inGainParam, startTime);
+        this.safeCancel(outGainParam, effectiveStartTime);
+        this.safeCancel(inGainParam, effectiveStartTime);
 
         try {
             if (curve === 'linear') {
-                outGainParam.linearRampToValueAtTime(0, startTime + duration);
-                inGainParam.linearRampToValueAtTime(1, startTime + duration);
+                outGainParam.setValueAtTime(outGainParam.value, effectiveStartTime);
+                inGainParam.setValueAtTime(inGainParam.value, effectiveStartTime);
+                outGainParam.linearRampToValueAtTime(0, effectiveStartTime + duration);
+                inGainParam.linearRampToValueAtTime(1, effectiveStartTime + duration);
             } else if (curve === 'equalPower' && (!tension || (Math.abs(tension.x - 0.5) < 0.005 && Math.abs(tension.y - 0.707) < 0.005))) {
                 const steps = 30;
                 const outCurve = new Float32Array(steps);
@@ -288,8 +298,8 @@ export class WebAudioPipeline implements IWebAudioPipeline {
                     inCurve[i] = Math.cos((1 - t) * 0.5 * Math.PI);
                 }
                 
-                outGainParam.setValueCurveAtTime(outCurve, startTime + 0.01, duration);
-                inGainParam.setValueCurveAtTime(inCurve, startTime + 0.01, duration);
+                outGainParam.setValueCurveAtTime(outCurve, effectiveStartTime, duration);
+                inGainParam.setValueCurveAtTime(inCurve, effectiveStartTime, duration);
             } else {
                 const steps = 30;
                 const outCurve = new Float32Array(steps);
@@ -303,8 +313,8 @@ export class WebAudioPipeline implements IWebAudioPipeline {
                     inCurve[i] = gains.inGain;
                 }
 
-                outGainParam.setValueCurveAtTime(outCurve, startTime + 0.01, duration);
-                inGainParam.setValueCurveAtTime(inCurve, startTime + 0.01, duration);
+                outGainParam.setValueCurveAtTime(outCurve, effectiveStartTime, duration);
+                inGainParam.setValueCurveAtTime(inCurve, effectiveStartTime, duration);
             }
         } catch (e) {
             try {

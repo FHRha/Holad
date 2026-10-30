@@ -29,12 +29,19 @@ function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode,
   );
 }
 
+interface FavoritesViewCache {
+  albums: any[];
+  tracks: any[];
+}
+
+let cachedFavoritesData: FavoritesViewCache | null = null;
+
 export default function FavoritesView() {
   const { t } = useTranslation();
   const { setSearchOpen } = useUIStore();
-  const [albums, setAlbums] = useState<any[]>([]);
-  const [tracks, setTracks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [albums, setAlbums] = useState<any[]>(() => cachedFavoritesData?.albums || []);
+  const [tracks, setTracks] = useState<any[]>(() => cachedFavoritesData?.tracks || []);
+  const [loading, setLoading] = useState(() => !cachedFavoritesData);
   const likedCount = usePlayerStore(s => s.likedTrackIds.length);
   const [mobileTab, setMobileTab] = useState<'tracks' | 'albums' | 'artists'>('tracks');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -48,18 +55,32 @@ export default function FavoritesView() {
   }, [likedCount]);
 
   const loadStarred = async () => {
+    if (!cachedFavoritesData) {
+      setLoading(true);
+    }
     try {
       const data = await fetchStarred();
-      setAlbums(data.album || []);
-      setTracks(data.song || []);
+      const newAlbums = data.album || [];
+      const newTracks = data.song || [];
+      setAlbums(newAlbums);
+      setTracks(newTracks);
+      cachedFavoritesData = {
+        albums: newAlbums,
+        tracks: newTracks,
+      };
     } catch (error) {
       console.error('Failed to load favorites from server, checking local offline items:', error);
       const offlineTracks = getOfflineTracks();
       const offlineAlbums = getDownloadedAlbums();
       const currentLiked = usePlayerStore.getState().likedTrackIds;
       const likedOfflineTracks = offlineTracks.filter(t => currentLiked.includes(t.id));
-      setTracks(likedOfflineTracks.length > 0 ? likedOfflineTracks : offlineTracks);
+      const fallbackTracks = likedOfflineTracks.length > 0 ? likedOfflineTracks : offlineTracks;
+      setTracks(fallbackTracks);
       setAlbums(offlineAlbums);
+      cachedFavoritesData = {
+        albums: offlineAlbums,
+        tracks: fallbackTracks,
+      };
     } finally {
       setLoading(false);
     }

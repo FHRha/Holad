@@ -9,18 +9,23 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import PlaylistCover from '../common/PlaylistCover';
 import { isJamPath } from '../../utils/basePath';
 
+let cachedPlaylistsData: any[] | null = null;
+
 export default function PlaylistsView() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { openMenu } = useContextMenuStore();
-  const [playlists, setPlaylists] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [playlists, setPlaylists] = useState<any[]>(() => cachedPlaylistsData || []);
+  const [loading, setLoading] = useState(() => !cachedPlaylistsData);
   const customPlaylists = usePlaylistStore(state => state.playlists);
   const { isOffline } = useNetworkStatus();
 
   useEffect(() => {
     let isMounted = true;
     const fetchAllPlaylists = async () => {
+      if (!cachedPlaylistsData && isMounted) {
+        setLoading(true);
+      }
       try {
         let serverPlaylists: any[] = [];
         if (!isOffline) {
@@ -49,7 +54,9 @@ export default function PlaylistsView() {
         });
 
         if (isMounted) {
-          setPlaylists([...mappedCustomPlaylists, ...(serverPlaylists || [])]);
+          const combined = [...mappedCustomPlaylists, ...(serverPlaylists || [])];
+          cachedPlaylistsData = combined;
+          setPlaylists(combined);
         }
       } catch (err) {
         console.error('Failed to process playlists:', err);

@@ -9,6 +9,7 @@ import { useAuthStore } from '../store/authStore';
 import i18n from '../i18n';
 import { useSettingsStore } from '../store/settingsStore';
 import { useDemoStore } from '../store/demoStore';
+import { useProfileStore } from '../store/profileStore';
 
 import { getSocketUrl, getSocketPath } from '../utils/serverConfig';
 import { getBasePath, isJamPath } from '../utils/basePath';
@@ -181,6 +182,12 @@ class JamSocketService {
     this.socket.on('social_friendRemoved', (data: any) => {
       if (data && data.friendId) {
         useSocialStore.getState().removeFriendFromList(data.friendId);
+      }
+    });
+
+    this.socket.on('preferencesUpdated', (payload: any) => {
+      if (payload?.profiles) {
+        useProfileStore.getState().syncWithServerProfiles(payload.profiles, payload.updated_at);
       }
     });
 

@@ -11,6 +11,13 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { VirtuosoGrid } from 'react-virtuoso';
 
+interface AlbumsViewCache {
+  albums: any[];
+  hasMore: boolean;
+}
+
+let cachedAlbumsData: AlbumsViewCache | null = null;
+
 export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 'list' }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -18,21 +25,28 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
   const { isOffline } = useNetworkStatus();
   const downloads = useDownloadStore(state => state.downloads);
   const { openMenu } = useContextMenuStore();
-  const [albums, setAlbums] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [albums, setAlbums] = useState<any[]>(() => cachedAlbumsData?.albums || []);
+  const [loading, setLoading] = useState(() => !cachedAlbumsData);
 
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(() => cachedAlbumsData ? cachedAlbumsData.hasMore : true);
   const [loadingMore, setLoadingMore] = useState(false);
   const virtuosoRef = useRef<any>(null);
 
   useEffect(() => {
     const loadInitial = async () => {
-      setLoading(true);
+      if (!cachedAlbumsData) {
+        setLoading(true);
+      }
       try {
         const data = await fetchAlbums(0, 50);
         const sorted = [...(data || [])].sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
         setAlbums(sorted);
-        if (data.length < 50) setHasMore(false);
+        const more = (data || []).length >= 50;
+        setHasMore(more);
+        cachedAlbumsData = {
+          albums: sorted,
+          hasMore: more,
+        };
       } catch (err) {
         console.error('Failed to fetch albums, falling back to downloaded albums:', err);
         const downloaded = getDownloadedAlbums().map(d => ({
@@ -61,7 +75,12 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
       setAlbums(prev => {
         const combined = [...prev, ...data];
         const unique = Array.from(new Map(combined.map(a => [a.id, a])).values());
-        return unique.sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
+        const sorted = unique.sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
+        if (cachedAlbumsData) {
+          cachedAlbumsData.albums = sorted;
+          cachedAlbumsData.hasMore = data.length >= 50;
+        }
+        return sorted;
       });
     } catch (err) {
       console.error('Failed to load more albums:', err);
@@ -175,4 +194,3 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
     </div>
   );
 }
-

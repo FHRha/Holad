@@ -31,6 +31,8 @@ pub mod windows_audio {
     static CURRENT_ICON_PATH: RwLock<Option<PathBuf>> = RwLock::new(None);
     static FAMILY_CACHE: Mutex<Option<(std::time::Instant, HashSet<u32>)>> = Mutex::new(None);
     static LAST_WINDOW_ICON_APPLY: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+    static APPLIED_WINDOW_ICONS: Mutex<Option<HashMap<isize, PathBuf>>> = Mutex::new(None);
+    static LAST_BURST_TRIGGER: Mutex<Option<std::time::Instant>> = Mutex::new(None);
     static CACHED_ENDPOINT: Mutex<Option<(String, super::NativeAudioDevice)>> = Mutex::new(None);
 
     fn register_registry_identity(ico_path: &std::path::Path, png_path: &std::path::Path) {
@@ -368,14 +370,14 @@ pub mod windows_audio {
         }
     }
 
-    /// Устанавливает значок Holad на все окна семейства процессов (Holad.exe + msedgewebview2.exe).
-    /// Это гарантирует, что Windows Volume Mixer и параметры Windows 10/11, запрашивающие
-    /// значок окна процесса через WM_GETICON, получают аутентичную четкую иконку Holad.
+    /// Устанавливает значок Holad исключительно на главные видимые окна процесса Holad.exe.
+    /// Не шлет WM_SETICON на дочерние и скрытые окна WebView2 Chromium,
+    /// и не рассылает WM_SETICON повторно, если для окна уже был установлен этот значок.
     fn apply_icon_to_process_windows(pids: &HashSet<u32>, force: bool) {
         if !force {
             if let Ok(lock) = LAST_WINDOW_ICON_APPLY.lock() {
                 if let Some(last) = *lock {
-                    if last.elapsed() < std::time::Duration::from_secs(3) {
+                    if last.elapsed() < std::time::Duration::from_secs(5) {
                         return;
                     }
                 }
@@ -388,7 +390,7 @@ pub mod windows_audio {
         use windows::Win32::UI::WindowsAndMessaging::{
             LoadImageW, IMAGE_ICON, LR_LOADFROMFILE,
             SendMessageTimeoutW, SMTO_ABORTIFHUNG, WM_SETICON, ICON_BIG, ICON_SMALL,
-            EnumWindows, EnumChildWindows, GetWindowThreadProcessId,
+            EnumWindows, GetWindowThreadProcessId, IsWindowVisible, GetParent,
         };
         use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
         use windows::core::BOOL;
@@ -404,7 +406,11 @@ pub mod windows_audio {
             let mut pid = 0u32;
             GetWindowThreadProcessId(hwnd, Some(&mut pid));
             if ctx.pids.contains(&pid) {
-                ctx.hwnds.push(hwnd);
+                // Только видимые окна верхнего уровня без родителя (не дочерние окна WebView2!)
+                let is_top_level = GetParent(hwnd).map(|p| p.0.is_null()).unwrap_or(true);
+                if IsWindowVisible(hwnd).as_bool() && is_top_level {
+                    ctx.hwnds.push(hwnd);
+                }
             }
             BOOL(1)
         }
@@ -415,12 +421,8 @@ pub mod windows_audio {
         };
 
         unsafe {
+            // Перечисляем только окна верхнего уровня через EnumWindows, НИКОГДА не вызывая EnumChildWindows!
             let _ = EnumWindows(Some(enum_proc), LPARAM(&mut ctx as *mut EnumContext as isize));
-
-            let top_hwnds = ctx.hwnds.clone();
-            for top in top_hwnds {
-                let _ = EnumChildWindows(Some(top), Some(enum_proc), LPARAM(&mut ctx as *mut EnumContext as isize));
-            }
 
             if ctx.hwnds.is_empty() {
                 return;
@@ -431,6 +433,9 @@ pub mod windows_audio {
 
             let mut path_wide: Vec<u16> = ico_path.as_os_str().encode_wide().collect();
             path_wide.push(0);
+
+            let mut applied_guard = APPLIED_WINDOW_ICONS.lock().ok();
+            let mut applied_map = applied_guard.as_mut().map(|opt| opt.get_or_insert_with(HashMap::new));
 
             let h_big = LoadImageW(
                 None,
@@ -450,6 +455,19 @@ pub mod windows_audio {
             );
 
             for hwnd in ctx.hwnds {
+                let hwnd_val = hwnd.0 as isize;
+
+                // Проверяем, не была ли эта иконка уже установлена для данного окна
+                if !force {
+                    if let Some(ref map) = applied_map {
+                        if let Some(prev_path) = map.get(&hwnd_val) {
+                            if prev_path == &ico_path {
+                                continue;
+                            }
+                        }
+                    }
+                }
+
                 if let Ok(big) = h_big {
                     if !big.0.is_null() {
                         let mut res = 0usize;
@@ -478,12 +496,18 @@ pub mod windows_audio {
                         );
                     }
                 }
+
+                if let Some(ref mut map) = applied_map {
+                    map.insert(hwnd_val, ico_path.clone());
+                }
             }
         }
     }
 
-    /// Синхронизирует имя "Holad" и выбранную иконку в микшере громкости Windows
-    pub fn update_audio_session_identity() {
+    /// Синхронизирует имя "Holad" и выбранную иконку в микшере громкости Windows.
+    /// Возвращает true, если была обнаружена и обновлена сессия нашего процесса.
+    pub fn update_audio_session_identity() -> bool {
+        let mut any_matched = false;
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
 
@@ -498,12 +522,12 @@ pub mod windows_audio {
             };
 
             if icon_path_wide.is_empty() {
-                return;
+                return false;
             }
 
             let enumerator: IMMDeviceEnumerator = match CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL) {
                 Ok(e) => e,
-                Err(_) => return,
+                Err(_) => return false,
             };
 
             let app_name = w!("Holad");
@@ -536,6 +560,10 @@ pub mod windows_audio {
                 }
             }
 
+            let target_ico_path = CURRENT_ICON_PATH.read().ok().and_then(|p| p.clone())
+                .unwrap_or_else(|| PathBuf::from("C:\\ProgramData\\Holad\\icons\\holad_wave_dark.ico"));
+            let target_ico_str = target_ico_path.to_string_lossy();
+
             for device in devices {
                 let session_manager: IAudioSessionManager2 = match device.Activate(CLSCTX_ALL, None) {
                     Ok(sm) => sm,
@@ -567,17 +595,42 @@ pub mod windows_audio {
                                 }
 
                                 if is_match {
-                                    let _ = control.SetDisplayName(app_name, std::ptr::null());
-                                    let _ = control2.SetDisplayName(app_name, std::ptr::null());
+                                    any_matched = true;
 
-                                    let res1 = control.SetIconPath(target_icon_pcwstr, std::ptr::null());
-                                    let _ = control2.SetIconPath(target_icon_pcwstr, std::ptr::null());
+                                    // Проверяем текущее имя и путь к иконке, чтобы не вызывать повторно
+                                    // SetDisplayName/SetIconPath, что приводит к сбросу кэша значков
+                                    // в Windows Explorer и мерцанию рабочего стола.
+                                    let current_disp = control.GetDisplayName().ok().and_then(|pwstr| {
+                                        let s = pwstr.to_string().ok();
+                                        windows::Win32::System::Com::CoTaskMemFree(Some(pwstr.0 as *const _));
+                                        s
+                                    });
+                                    let current_icon = control.GetIconPath().ok().and_then(|pwstr| {
+                                        let s = pwstr.to_string().ok();
+                                        windows::Win32::System::Com::CoTaskMemFree(Some(pwstr.0 as *const _));
+                                        s
+                                    });
 
-                                    if res1.is_err() {
-                                        if let Some(ref exe_wide) = exe_icon_wide {
-                                            let exe_pcwstr = PCWSTR(exe_wide.as_ptr());
-                                            let _ = control.SetIconPath(exe_pcwstr, std::ptr::null());
-                                            let _ = control2.SetIconPath(exe_pcwstr, std::ptr::null());
+                                    let name_matches = current_disp.as_deref() == Some("Holad");
+                                    let icon_matches = current_icon.as_deref().map_or(false, |p| {
+                                        p.contains(&*target_ico_str)
+                                    });
+
+                                    if !name_matches {
+                                        let _ = control.SetDisplayName(app_name, std::ptr::null());
+                                        let _ = control2.SetDisplayName(app_name, std::ptr::null());
+                                    }
+
+                                    if !icon_matches {
+                                        let res1 = control.SetIconPath(target_icon_pcwstr, std::ptr::null());
+                                        let _ = control2.SetIconPath(target_icon_pcwstr, std::ptr::null());
+
+                                        if res1.is_err() {
+                                            if let Some(ref exe_wide) = exe_icon_wide {
+                                                let exe_pcwstr = PCWSTR(exe_wide.as_ptr());
+                                                let _ = control.SetIconPath(exe_pcwstr, std::ptr::null());
+                                                let _ = control2.SetIconPath(exe_pcwstr, std::ptr::null());
+                                            }
                                         }
                                     }
                                 }
@@ -587,19 +640,30 @@ pub mod windows_audio {
                 }
             }
         }
+        any_matched
     }
 
-    /// Запускает серию ультрабыстрых попыток (0, 15, 35, 70, 120, 200, 350, 550, 850, 1300, 2000 мс)
-    /// при старте воспроизведения для мгновенного перехвата сессии в EarTrumpet и микшере Windows.
+    /// Аккуратная синхронизация имени и иконки аудиосессии с защитой от спама и частых повторов.
+    /// Выполняет быструю проверку и при необходимости одну отложенную повторную попытку (через 200 мс),
+    /// если аудиосессия WebView2 еще инициализировалась драйвером.
     pub fn trigger_sync_burst() {
+        if let Ok(mut lock) = LAST_BURST_TRIGGER.lock() {
+            if let Some(last) = *lock {
+                if last.elapsed() < std::time::Duration::from_millis(1500) {
+                    return;
+                }
+            }
+            *lock = Some(std::time::Instant::now());
+        }
+
         invalidate_family_pids();
         std::thread::spawn(|| {
-            let delays = [0, 15, 35, 70, 120, 200, 350, 550, 850, 1300, 2000];
-            for delay in delays {
-                if delay > 0 {
-                    std::thread::sleep(std::time::Duration::from_millis(delay));
-                }
-                update_audio_session_identity();
+            let matched = update_audio_session_identity();
+            if !matched {
+                // Если сессия еще не появилась в микшере (WebView2 только начинает поток),
+                // делаем одну аккуратную повторную попытку через 200 мс
+                std::thread::sleep(std::time::Duration::from_millis(200));
+                let _ = update_audio_session_identity();
             }
         });
     }
@@ -826,16 +890,11 @@ pub mod windows_audio {
         get_default_audio_endpoint_info().map(|(_, dev)| dev)
     }
 
-    /// Запускает фоновый супервизор: поддержание сессий при смене устройств (интервал 5000 мс)
+    /// Инициализирует аудиосессию при старте приложения без постоянного 5-секундного цикла,
+    /// предотвращая сброс кэша значков Windows Explorer и мерцание рабочего стола.
     pub fn start_audio_session_supervisor() {
         set_current_icon("wave_dark");
-
-        std::thread::spawn(|| {
-            loop {
-                update_audio_session_identity();
-                std::thread::sleep(std::time::Duration::from_millis(5000));
-            }
-        });
+        update_audio_session_identity();
     }
 
     /// Запускает фоновый монитор аудиоустройств: отслеживает смену вывода,
@@ -990,7 +1049,9 @@ pub mod linux_audio {
 #[allow(dead_code)]
 pub mod windows_audio {
     pub fn set_current_icon(_icon_name: &str) {}
-    pub fn update_audio_session_identity() {}
+    pub fn update_audio_session_identity() -> bool {
+        false
+    }
     pub fn trigger_sync_burst() {}
     pub fn start_audio_session_supervisor() {}
     pub fn start_audio_device_supervisor(_app: tauri::AppHandle) {}

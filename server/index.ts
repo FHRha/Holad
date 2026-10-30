@@ -935,10 +935,14 @@ app.post('/api/holad/preferences/:roomId', validateRestAuth, express.json(), (re
       language: body.language,
       profiles: body.profiles,
     });
+    const saved = database.getPreferences(roomId);
+    const payload = saved || { ...body, updated_at: Date.now() };
     broadcastConnectRemoteCommand(io, roomId, { 
       type: 'preferencesUpdated', 
-      payload: body 
+      payload 
     });
+    io.to(`holad_${roomId}`).emit('preferencesUpdated', payload);
+    io.to(roomId).emit('preferencesUpdated', payload);
     res.status(200).send('OK');
   } catch (error) {
     console.error(`[Holad] Failed to save preferences for room ${roomId}:`, error);

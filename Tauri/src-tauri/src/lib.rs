@@ -1,6 +1,7 @@
 mod taskbar;
 mod audio_session;
 mod updater;
+mod discord_rpc;
 use std::sync::Mutex;
 use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState, TrayIconEvent};
 use tauri::Manager;
@@ -409,9 +410,12 @@ pub fn run() {
         open_downloads_folder,
         get_music_download_dir,
         set_music_download_dir,
-        updater::download_and_install_update
+        updater::download_and_install_update,
+        discord_rpc::set_discord_rpc_enabled,
+        discord_rpc::update_discord_activity
     ])
     .setup(|app| {
+      discord_rpc::init();
       let is_autostart = std::env::args().any(|arg| arg == "--autostart");
       
       #[cfg(target_os = "windows")]

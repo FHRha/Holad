@@ -1,5 +1,4 @@
 import type { AudioState, BufferedRange, IAudioDeck } from './types';
-import { isCapacitor } from '../utils/StorageManager';
 
 export const isLocalMediaUrl = (url: string): boolean => {
     if (!url) return false;
@@ -42,12 +41,7 @@ export class AudioDeck implements IAudioDeck {
         
         this.primaryElement = this.element;
 
-        if (isCapacitor()) {
-            this.element.removeAttribute('crossorigin');
-            this.element.crossOrigin = null;
-        } else {
-            this.element.crossOrigin = 'anonymous';
-        }
+        this.element.crossOrigin = 'anonymous';
         this.element.preload = 'auto';
         (this.element as any).playsInline = true;
         this.element.setAttribute('playsinline', 'true');
@@ -164,6 +158,7 @@ export class AudioDeck implements IAudioDeck {
                 
                 this.element = newElement;
                 this.isTainted = true;
+                this.emit('elementReplaced', newElement);
                 
                 const currentTime = this.state === 'loading' ? this.targetPosition : oldElement.currentTime;
                 
@@ -212,9 +207,10 @@ export class AudioDeck implements IAudioDeck {
                 
                 this.element = this.primaryElement;
                 (this as any).isTainted = false;
+                this.emit('elementReplaced', this.primaryElement);
             }
             
-            if (isLocalMediaUrl(src) || isCapacitor()) {
+            if (isLocalMediaUrl(src)) {
                 this.element.removeAttribute('crossorigin');
                 this.element.crossOrigin = null;
             } else {
@@ -325,6 +321,12 @@ export class AudioDeck implements IAudioDeck {
             // Check if error is an intentional abort
             if (err?.name === 'AbortError') {
                 return;
+            }
+            // Autoplay / user gesture policy restriction: do not strip crossOrigin!
+            if (err?.name === 'NotAllowedError') {
+                this.setState('paused');
+                this.emit('error', err);
+                throw err;
             }
             if (this.element.getAttribute('crossorigin') === 'anonymous') {
                 console.warn('AudioDeck: Play error with crossOrigin, retrying without it');

@@ -13,12 +13,20 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { Virtuoso } from 'react-virtuoso';
 
+interface TracksViewCache {
+  tracks: any[];
+  globalArtists: any[];
+  hasMore: boolean;
+}
+
+let cachedTracksData: TracksViewCache | null = null;
+
 export default function TracksView() {
   const { t } = useTranslation();
   const { isOffline } = useNetworkStatus();
-  const [tracks, setTracks] = useState<any[]>([]);
-  const [globalArtists, setGlobalArtists] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tracks, setTracks] = useState<any[]>(() => cachedTracksData?.tracks || []);
+  const [globalArtists, setGlobalArtists] = useState<any[]>(() => cachedTracksData?.globalArtists || []);
+  const [loading, setLoading] = useState(() => !cachedTracksData);
 
   const activeFilter = useUIStore(s => s.activeFilter);
   const downloads = useDownloadStore(state => state.downloads);
@@ -71,21 +79,29 @@ export default function TracksView() {
     toggleAlbum
   } = useTrackFilters(baseTracks, baseArtists);
 
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(() => cachedTracksData ? cachedTracksData.hasMore : true);
   const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     const loadInitial = async () => {
-      setLoading(true);
+      if (!cachedTracksData) {
+        setLoading(true);
+      }
       try {
         const [tracksData, artistsData] = await Promise.all([
           searchTracks('', 50, 0),
           getArtists()
         ]);
         const sorted = tracksData.sort((a: any, b: any) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
+        const more = tracksData.length >= 50;
         setTracks(sorted);
         setGlobalArtists(artistsData);
-        if (tracksData.length < 50) setHasMore(false);
+        setHasMore(more);
+        cachedTracksData = {
+          tracks: sorted,
+          globalArtists: artistsData,
+          hasMore: more,
+        };
       } catch (e) {
         console.error('Failed to load initial tracks:', e);
         const offlineList = getOfflineTracks();
@@ -112,7 +128,12 @@ export default function TracksView() {
         const combined = [...prev, ...newTracks];
         // optional: deduplicate by id if search3 gives weird results
         const unique = Array.from(new Map(combined.map(t => [t.id, t])).values());
-        return unique.sort((a: any, b: any) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
+        const sorted = unique.sort((a: any, b: any) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
+        if (cachedTracksData) {
+          cachedTracksData.tracks = sorted;
+          cachedTracksData.hasMore = newTracks.length >= 50;
+        }
+        return sorted;
       });
     } catch (e) {
       console.error('Failed to load more tracks:', e);

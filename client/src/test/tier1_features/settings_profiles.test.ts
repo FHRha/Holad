@@ -180,4 +180,28 @@ describe('Settings Profiles (3 Custom Presets System)', () => {
       })
     );
   });
+
+  it('SSOT: server profiles take priority when local slots are all null even if localUpdatedAt > serverUpdatedAt', () => {
+    const serverProfiles = [
+      { slot: 1, name: 'Server Master HiFi', data: captureCurrentProfileData(), updatedAt: 100 },
+      null,
+      null,
+    ];
+
+    // Local client has all null slots, but localUpdatedAt is mistakenly large (e.g. newly initialized store)
+    useProfileStore.setState({
+      slots: [null, null, null],
+      profilesUpdatedAt: 999999,
+    });
+
+    useProfileStore.getState().syncWithServerProfiles(serverProfiles, 100);
+
+    // Server profiles MUST be applied, NOT overwritten with empty slots!
+    const state = useProfileStore.getState();
+    expect(state.slots[0]?.name).toBe('Server Master HiFi');
+    expect(state.slots[1]).toBeNull();
+    expect(state.slots[2]).toBeNull();
+    // pushPreferences should NOT have been called with empty slots
+    expect(preferencesApi.pushPreferences).not.toHaveBeenCalled();
+  });
 });

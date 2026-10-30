@@ -417,6 +417,16 @@ export const useHoladStore = create<HoladState>((set, get) => {
         });
       });
 
+      socket.on('preferencesUpdated', (payload: any) => {
+        handleRemoteCommand({ type: 'preferencesUpdated', payload }, {
+          socket: get().socket || socket,
+          deviceId: get().deviceId || deviceId,
+          roomId: get().roomId,
+          activeDeviceId: get().activeDeviceId,
+          lastPausedAt: get().lastPausedAt,
+        });
+      });
+
       get().setupStoreSubscriptions();
     },
 

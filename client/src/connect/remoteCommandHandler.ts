@@ -4,6 +4,7 @@ import { useAudioStore } from '../store/audioStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useHistoryStore } from '../store/historyStore';
 import { useAuthStore } from '../store/authStore';
+import { useProfileStore } from '../store/profileStore';
 import { syncHistoryWithServer } from '../api/history';
 import { getHoladServerUrl } from '../utils/serverConfig';
 import { getAudioEngine } from '../audio/AudioEngine';
@@ -106,6 +107,38 @@ export function handleRemoteCommand(
       useHistoryStore.getState().clearHistory();
     } else {
       console.warn('[Holad] Ignored unauthorized clearHistory command from external peer:', fromUser);
+    }
+    return;
+  }
+
+  if (command.type === 'preferencesUpdated') {
+    const prefs = command.payload;
+    if (prefs?.profiles) {
+      useProfileStore.getState().syncWithServerProfiles(prefs.profiles, prefs.updated_at);
+    }
+    if (prefs) {
+      const { syncTheme, syncLanguage, setTheme, setAccentColor, setCustomColor, setLanguage } = useSettingsStore.getState();
+      if (syncTheme) {
+        if (prefs.theme && (prefs.theme === 'dark' || prefs.theme === 'light' || prefs.theme === 'system')) {
+          setTheme(prefs.theme);
+        }
+        if (prefs.accent_color) {
+          setAccentColor(prefs.accent_color);
+        }
+        if (prefs.custom_colors) {
+          try {
+            const colors = typeof prefs.custom_colors === 'string' ? JSON.parse(prefs.custom_colors) : prefs.custom_colors;
+            if (Array.isArray(colors)) {
+              colors.forEach((col: string, idx: number) => {
+                if (idx < 3) setCustomColor(idx, col);
+              });
+            }
+          } catch {}
+        }
+      }
+      if (syncLanguage && prefs.language) {
+        setLanguage(prefs.language);
+      }
     }
     return;
   }

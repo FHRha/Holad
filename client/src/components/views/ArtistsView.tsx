@@ -9,16 +9,21 @@ import { useDownloadStore, getOfflineTracks } from '../../store/downloadStore';
 import { useDebounce } from '../../hooks/useDebounce';
 import { VirtuosoGrid } from 'react-virtuoso';
 
+let cachedArtistsData: any[] | null = null;
+
 export default function ArtistsView() {
   const { t } = useTranslation();
   const activeFilter = useUIStore(s => s.activeFilter);
   const { isOffline } = useNetworkStatus();
   const downloads = useDownloadStore(state => state.downloads);
-  const [artists, setArtists] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [artists, setArtists] = useState<any[]>(() => cachedArtistsData || []);
+  const [loading, setLoading] = useState(() => !cachedArtistsData);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
+    if (!cachedArtistsData) {
+      setLoading(true);
+    }
     getArtists().then(data => {
       // data is an array of { id, name, albumCount, starred, ... }
       // The user wants artists sorted by importance (e.g. albums/tracks count)
@@ -39,6 +44,7 @@ export default function ArtistsView() {
         return a.name.localeCompare(b.name);
       });
       
+      cachedArtistsData = sorted;
       setArtists(sorted);
       setLoading(false);
     }).catch(err => {
@@ -78,6 +84,7 @@ export default function ArtistsView() {
       });
       
       const sorted = Array.from(artistMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      cachedArtistsData = sorted;
       setArtists(sorted);
       setLoading(false);
     });

@@ -171,12 +171,25 @@ export const useProfileStore = create<ProfileState>()(
           if (!Array.isArray(parsed)) return;
 
           const localUpdatedAt = get().profilesUpdatedAt || 0;
+          const localSlots = get().slots;
+          const hasLocalProfiles = localSlots.some((s) => s !== null);
+          const hasServerProfiles = parsed.some((item) => item && typeof item === 'object' && item.name && item.data);
 
-          // Priority: Database (SSOT). If local has newer un-synced offline edits, push local to server.
-          if (localUpdatedAt > serverUpdatedAt && localUpdatedAt > 0) {
+          // SSOT Priority: If server has at least one valid profile slot, and local has NO profiles (all null),
+          // server ALWAYS takes priority (SSOT), regardless of localUpdatedAt. Never overwrite server profiles with empty slots!
+          if (!hasLocalProfiles && hasServerProfiles) {
+            // Server always takes priority over empty local slots
+          } else if (hasLocalProfiles && !hasServerProfiles && localUpdatedAt > serverUpdatedAt) {
+            // Local has profiles, but server has none: push local profiles to server
+            pushPreferences({
+              profiles: JSON.stringify(localSlots),
+            }).catch(() => {});
+            return;
+          } else if (localUpdatedAt > serverUpdatedAt && localUpdatedAt > 0 && hasLocalProfiles) {
+            // Priority: Database (SSOT). If local has newer un-synced offline edits, push local to server.
             console.log('[ProfileStore] Local profiles are newer than server DB, uploading local profiles...');
             pushPreferences({
-              profiles: JSON.stringify(get().slots),
+              profiles: JSON.stringify(localSlots),
             }).catch(() => {});
             return;
           }
@@ -202,7 +215,9 @@ export const useProfileStore = create<ProfileState>()(
           set({
             slots: sanitizedSlots,
             activeSlot: nextActive,
-            profilesUpdatedAt: Math.max(serverUpdatedAt, localUpdatedAt),
+            profilesUpdatedAt: (!hasLocalProfiles && hasServerProfiles)
+              ? (serverUpdatedAt || Date.now())
+              : Math.max(serverUpdatedAt, localUpdatedAt),
           });
         } catch (e) {
           console.warn('[ProfileStore] Error parsing server profiles:', e);

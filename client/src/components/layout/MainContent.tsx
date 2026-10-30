@@ -10,13 +10,22 @@ import { useUIStore } from '../../store/uiStore';
 import { getDownloadedAlbums, getOfflineTracks } from '../../store/downloadStore';
 import { isMobileDevice } from '../../App';
 
+interface MainContentCache {
+  albums: any[];
+  recentTracks: any[];
+  frequentAlbums: any[];
+  genres: any[];
+}
+
+let cachedMainContent: MainContentCache | null = null;
+
 export default function MainContent() {
   const { t } = useTranslation();
-  const [albums, setAlbums] = useState<any[]>([]);
-  const [recentTracks, setRecentTracks] = useState<any[]>([]);
-  const [frequentAlbums, setFrequentAlbums] = useState<any[]>([]);
-  const [genres, setGenres] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [albums, setAlbums] = useState<any[]>(() => cachedMainContent?.albums || []);
+  const [recentTracks, setRecentTracks] = useState<any[]>(() => cachedMainContent?.recentTracks || []);
+  const [frequentAlbums, setFrequentAlbums] = useState<any[]>(() => cachedMainContent?.frequentAlbums || []);
+  const [genres, setGenres] = useState<any[]>(() => cachedMainContent?.genres || []);
+  const [loading, setLoading] = useState(() => !cachedMainContent);
   const [isMobile, setIsMobile] = useState(isMobileDevice);
 
   useEffect(() => {
@@ -64,16 +73,31 @@ export default function MainContent() {
 
   const loadContent = async () => {
     try {
+      if (!cachedMainContent) {
+        setLoading(true);
+      }
       const [albumData, recentData, frequentData, genreData] = await Promise.all([
         fetchAlbums(),
         fetchRandomTracks(15), // Mocking recent tracks with random tracks for now
         fetchFrequentAlbums(),
         getGenres()
       ]);
-      setAlbums(albumData || []);
-      setRecentTracks(recentData || []);
-      setFrequentAlbums(frequentData || []);
-      setGenres((genreData || []).slice(0, 15)); // top 15 genres for main page
+      const newAlbums = albumData || [];
+      const newRecent = recentData || [];
+      const newFrequent = frequentData || [];
+      const newGenres = (genreData || []).slice(0, 15); // top 15 genres for main page
+
+      setAlbums(newAlbums);
+      setRecentTracks(newRecent);
+      setFrequentAlbums(newFrequent);
+      setGenres(newGenres);
+
+      cachedMainContent = {
+        albums: newAlbums,
+        recentTracks: newRecent,
+        frequentAlbums: newFrequent,
+        genres: newGenres,
+      };
     } catch (e) {
       console.error(e);
     } finally {

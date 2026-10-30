@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   SlidersHorizontal, 
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import SettingSection from './SettingSection';
 import { useProfileStore, type ProfileSlot } from '../../store/profileStore';
+import { fetchPreferences } from '../../api/preferences';
 
 interface Props {
   isMobile?: boolean;
@@ -23,7 +24,17 @@ interface Props {
 
 export default function SettingsProfilesSection({ isMobile = false }: Props) {
   const { t } = useTranslation();
-  const { slots, activeSlot, saveCurrentToSlot, applySlot, renameSlot, clearSlot } = useProfileStore();
+  const { slots, activeSlot, saveCurrentToSlot, applySlot, renameSlot, clearSlot, syncWithServerProfiles } = useProfileStore();
+
+  useEffect(() => {
+    fetchPreferences().then((prefs) => {
+      if (prefs?.profiles) {
+        syncWithServerProfiles(prefs.profiles, prefs.updated_at);
+      }
+    }).catch((err) => {
+      console.warn('[SettingsProfilesSection] Failed to fetch latest preferences:', err);
+    });
+  }, [syncWithServerProfiles]);
 
   const [showInfo, setShowInfo] = useState(false);
   const [activeMenuSlot, setActiveMenuSlot] = useState<number | null>(null);
@@ -143,13 +154,13 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
             const isActive = activeSlot === slotNum;
 
             if (!slotData) {
-              // Empty Slot (Compact Height 78px, Equal 12px Padding)
+              // Empty Slot
               return (
                 <button
                   key={slotNum}
                   type="button"
                   onClick={() => handleOpenCreateOrRename(slotNum, 'create')}
-                  className="h-[78px] flex flex-col items-center justify-center p-3 rounded-xl border border-dashed border-border hover:border-primary/40 bg-foreground/[0.015] hover:bg-foreground/[0.04] transition-all text-secondary hover:text-foreground group cursor-pointer"
+                  className="min-h-[78px] h-auto flex flex-col items-center justify-center p-3 rounded-xl border border-dashed border-border hover:border-primary/40 bg-foreground/[0.015] hover:bg-foreground/[0.04] transition-all text-secondary hover:text-foreground group cursor-pointer"
                 >
                   <div className="flex items-center gap-1.5 leading-none">
                     <Plus size={13} className="text-secondary/70 group-hover:text-primary transition-colors" />
@@ -164,11 +175,11 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
               );
             }
 
-            // Filled Slot (Compact Height 78px, Equal 12px Padding)
+            // Filled Slot
             return (
               <div
                 key={slotNum}
-                className={`relative h-[78px] flex flex-col justify-between p-3 rounded-xl border transition-all ${
+                className={`relative min-h-[78px] h-auto flex flex-col justify-between p-3 rounded-xl border transition-all gap-2 ${
                   isActive
                     ? 'bg-primary/[0.06] border-primary/30 shadow-xs'
                     : 'bg-card/60 border-border hover:bg-foreground/[0.02]'
@@ -263,7 +274,7 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
                   <span className="font-semibold text-xs text-foreground block truncate leading-tight" title={slotData.name}>
                     {slotData.name}
                   </span>
-                  <span className="text-[10px] text-secondary/70 block truncate leading-tight mt-1">
+                  <span className="text-[10px] text-secondary/80 block leading-relaxed mt-1 break-words">
                     {slotData.data.streamingQuality ? `${t('settings.profiles.quality_label', 'Качество')}: ${slotData.data.streamingQuality}` : ''}
                     {slotData.data.isCrossfadeEnabled
                       ? ` • ${t('settings.profiles.crossfade_label', 'Кроссфейд')} ${slotData.data.crossfadeDuration}s`

@@ -3,7 +3,6 @@ import { WebAudioPipeline } from './WebAudioPipeline';
 import { PreloadManager } from './PreloadManager';
 import { TransitionManager } from './TransitionManager';
 import type { AudioEngineSettings, AudioState, IAudioCore, IAudioDeck, IAudioEngine, IWebAudioPipeline, PlayTrackOptions } from './types';
-import { isCapacitor } from '../utils/StorageManager';
 
 export class AudioEngine implements IAudioEngine, IAudioCore {
     private static instance: AudioEngine | null = null;
@@ -60,12 +59,6 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     private initPipeline(): void {
-        if (isCapacitor()) {
-            this.pipeline = null;
-            this.decks[0].setVolume(this.volume * this.volumeMultiplier);
-            this.decks[1].setVolume(this.volume * this.volumeMultiplier);
-            return;
-        }
         try {
             if (this.pipeline) {
                 this.pipeline.destroy();
@@ -88,6 +81,12 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
     private bindDeckEvents(deckIndex: 0 | 1): void {
         const deck = this.decks[deckIndex];
+
+        deck.on('elementReplaced', (newEl: HTMLAudioElement) => {
+            if (this.pipeline) {
+                this.pipeline.attachDeck(deckIndex, newEl);
+            }
+        });
 
         deck.on('timeupdate', (time: number) => {
             if (deckIndex === this.activeIndex) {

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { useIsActiveDevice } from './useIsActiveDevice';
 import { useWindowVisibility } from './useWindowVisibility';
@@ -8,8 +8,7 @@ import { isTauri } from '../utils/StorageManager';
 
 export function useTaskbarControls() {
   const { isPlaying, nextTrack, prevTrack } = usePlayerStore();
-
-
+  const prevIsPlayingRef = useRef(false);
 
   const isActiveDevice = useIsActiveDevice();
   const isWindowVisible = useWindowVisibility();
@@ -54,9 +53,11 @@ export function useTaskbarControls() {
     invoke('update_taskbar_state', { isPlaying: shouldShowPlaying })
       .catch((err) => console.warn('Failed to update taskbar state:', err));
 
-    if (isActiveDevice) {
+    // Only sync audio session when playback actually starts, avoiding unnecessary Explorer refreshes
+    if (isActiveDevice && isPlaying && !prevIsPlayingRef.current) {
       invoke('sync_audio_session')
         .catch(() => {});
     }
+    prevIsPlayingRef.current = isPlaying;
   }, [isPlaying, isActiveDevice, isWindowVisible]);
 }

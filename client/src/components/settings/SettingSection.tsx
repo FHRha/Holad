@@ -18,21 +18,21 @@ export default function SettingSection({
   isMobile = false,
 }: SettingSectionProps) {
   const header = (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1 min-w-0">
       <div className="flex items-center gap-2.5">
         {icon && <span className="text-primary flex-shrink-0">{icon}</span>}
         {typeof title === 'string' ? (
-          <h4 className="text-xs font-semibold text-secondary uppercase tracking-wider">
+          <h4 className="text-xs font-semibold text-secondary uppercase tracking-wider break-words">
             {title}
           </h4>
         ) : (
-          <div className="text-xs font-semibold text-secondary uppercase tracking-wider">
+          <div className="text-xs font-semibold text-secondary uppercase tracking-wider break-words">
             {title}
           </div>
         )}
       </div>
       {description && (
-        <p className="text-xs text-secondary/80 leading-relaxed pl-0">
+        <p className="text-xs text-secondary/80 leading-relaxed pl-0 break-words">
           {description}
         </p>
       )}
@@ -41,9 +41,9 @@ export default function SettingSection({
 
   if (isMobile) {
     return (
-      <div className={`flex flex-col gap-2.5 ${className}`}>
+      <div className={`flex flex-col gap-2.5 min-w-0 ${className}`}>
         {header}
-        <div className="bg-card border border-border shadow-sm rounded-2xl p-4 flex flex-col gap-3.5">
+        <div className="bg-card border border-border shadow-sm rounded-2xl p-4 flex flex-col gap-3.5 min-w-0 overflow-hidden">
           {children}
         </div>
       </div>
@@ -51,9 +51,9 @@ export default function SettingSection({
   }
 
   return (
-    <div className={`flex flex-col gap-2.5 ${className}`}>
+    <div className={`flex flex-col gap-2.5 min-w-0 ${className}`}>
       {header}
-      <div className="bg-card border border-border shadow-sm rounded-2xl p-5">
+      <div className="bg-card border border-border shadow-sm rounded-2xl p-5 min-w-0">
         {children}
       </div>
     </div>

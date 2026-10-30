@@ -111,15 +111,15 @@ export default function PlaybackSettingsSection({
             icon={<Sparkles size={16} />}
             isMobile={isMobile}
           >
-            <label className="flex items-center justify-between cursor-pointer group">
-              <span className="group-hover:text-primary transition-colors text-sm font-medium">
+            <label className="flex items-center justify-between cursor-pointer group gap-3">
+              <span className="group-hover:text-primary transition-colors text-sm font-medium leading-snug min-w-0 flex-1">
                 {t('settings.auto_dj_desc', 'Автоматически подбирать похожие треки в конец очереди')}
               </span>
               <input
                 type="checkbox"
                 checked={isAutoDjEnabled}
                 onChange={() => toggleAutoDj()}
-                className="accent-primary w-4 h-4 rounded cursor-pointer flex-shrink-0"
+                className="accent-primary w-4 h-4 rounded cursor-pointer shrink-0"
               />
             </label>
 
@@ -324,15 +324,15 @@ export default function PlaybackSettingsSection({
             isMobile={isMobile}
           >
             <div className="flex flex-col gap-3">
-              <label className="flex items-center justify-between cursor-pointer group">
-                <span className="text-sm font-medium group-hover:text-primary transition-colors">
+              <label className="flex items-center justify-between cursor-pointer group gap-3">
+                <span className="text-sm font-medium group-hover:text-primary transition-colors leading-snug min-w-0 flex-1">
                   {t('settings.data_saver_enable', 'Режим экономии трафика')}
                 </span>
                 <input
                   type="checkbox"
                   checked={settings.dataSaver}
                   onChange={(e) => settings.setDataSaver(e.target.checked)}
-                  className="accent-primary w-4 h-4 rounded cursor-pointer"
+                  className="accent-primary w-4 h-4 rounded cursor-pointer shrink-0"
                 />
               </label>
 
@@ -357,12 +357,12 @@ export default function PlaybackSettingsSection({
             isMobile={isMobile}
           >
             <div className="flex flex-col gap-4">
-              <label className="flex items-center justify-between cursor-pointer group">
-                <div className="flex flex-col pr-4">
-                  <span className="group-hover:text-primary transition-colors text-sm font-medium">
+              <label className="flex items-center justify-between cursor-pointer group gap-3">
+                <div className="flex flex-col pr-2 min-w-0 flex-1">
+                  <span className="group-hover:text-primary transition-colors text-sm font-medium leading-snug">
                     {t('settings.crossfade_enable', 'Включить плавный переход')}
                   </span>
-                  <span className="text-xs text-secondary">
+                  <span className="text-xs text-secondary leading-normal mt-0.5 break-words">
                     {t('settings.crossfade_desc') ||
                       'Плавное перетекание одного трека в другой'}
                   </span>
@@ -371,7 +371,7 @@ export default function PlaybackSettingsSection({
                   type="checkbox"
                   checked={settings.isCrossfadeEnabled}
                   onChange={(e) => settings.setIsCrossfadeEnabled(e.target.checked)}
-                  className="accent-primary w-4 h-4 rounded cursor-pointer flex-shrink-0"
+                  className="accent-primary w-4 h-4 rounded cursor-pointer shrink-0"
                 />
               </label>
 
@@ -445,12 +445,12 @@ export default function PlaybackSettingsSection({
             isMobile={isMobile}
           >
             <div className="flex flex-col gap-4">
-              <label className="flex items-center justify-between cursor-pointer group">
-                <div className="flex flex-col pr-4">
-                  <span className="group-hover:text-primary transition-colors text-sm font-medium">
+              <label className="flex items-center justify-between cursor-pointer group gap-3">
+                <div className="flex flex-col pr-2 min-w-0 flex-1">
+                  <span className="group-hover:text-primary transition-colors text-sm font-medium leading-snug">
                     {t('settings.normalization_enable', 'Выравнивать громкость треков')}
                   </span>
-                  <span className="text-xs text-secondary">
+                  <span className="text-xs text-secondary leading-normal mt-0.5 break-words">
                     {t('settings.normalization_desc') ||
                       'Автоматически выравнивать громкость треков (DSP компрессор)'}
                   </span>
@@ -459,7 +459,7 @@ export default function PlaybackSettingsSection({
                   type="checkbox"
                   checked={settings.isLoudnessNormalizationEnabled}
                   onChange={(e) => settings.setIsLoudnessNormalizationEnabled(e.target.checked)}
-                  className="accent-primary w-4 h-4 rounded cursor-pointer flex-shrink-0"
+                  className="accent-primary w-4 h-4 rounded cursor-pointer shrink-0"
                 />
               </label>
 
@@ -576,12 +576,12 @@ export default function PlaybackSettingsSection({
               isMobile={isMobile}
             >
               <div className="flex flex-col gap-4">
-                <label className="flex items-center justify-between cursor-pointer group">
-                  <div className="flex flex-col pr-4">
-                    <span className="group-hover:text-primary transition-colors text-sm font-medium">
+                <label className="flex items-center justify-between cursor-pointer group gap-3">
+                  <div className="flex flex-col pr-2 min-w-0 flex-1">
+                    <span className="group-hover:text-primary transition-colors text-sm font-medium leading-snug">
                       {t('settings.preload_desc', 'Предзагрузка следующего трека')}
                     </span>
-                    <span className="text-xs text-secondary">
+                    <span className="text-xs text-secondary leading-normal mt-0.5 break-words">
                       {t(
                         'settings.preload_subdesc',
                         'Заранее загружает следующий аудиопоток для непрерывного воспроизведения'
@@ -592,7 +592,7 @@ export default function PlaybackSettingsSection({
                     type="checkbox"
                     checked={settings.preloadNextTrack}
                     onChange={(e) => settings.setPreloadNextTrack(e.target.checked)}
-                    className="accent-primary w-4 h-4 rounded cursor-pointer flex-shrink-0"
+                    className="accent-primary w-4 h-4 rounded cursor-pointer shrink-0"
                   />
                 </label>
 

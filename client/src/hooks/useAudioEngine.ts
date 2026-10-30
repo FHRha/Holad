@@ -19,10 +19,13 @@ import { getIsWindowVisible, subscribeWindowVisibility } from './useWindowVisibi
 
 const scheduleIdle = typeof requestIdleCallback !== 'undefined' ? requestIdleCallback : (cb: Function) => setTimeout(cb, 500);
 
+let lastAudioSessionSyncTime = 0;
 const triggerAudioSessionSync = () => {
-  if (isTauri()) {
-    invoke('sync_audio_session').catch(() => {});
-  }
+  if (!isTauri()) return;
+  const now = Date.now();
+  if (now - lastAudioSessionSyncTime < 2000) return;
+  lastAudioSessionSyncTime = now;
+  invoke('sync_audio_session').catch(() => {});
 };
 
 export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | null>, React.RefObject<HTMLAudioElement | null>], currentTrack: any) {
@@ -523,12 +526,18 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       
       document.removeEventListener('click', handleInteraction);
       document.removeEventListener('touchstart', handleInteraction);
+      document.removeEventListener('pointerdown', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
     };
     document.addEventListener('click', handleInteraction);
     document.addEventListener('touchstart', handleInteraction, { passive: true });
+    document.addEventListener('pointerdown', handleInteraction, { passive: true });
+    document.addEventListener('keydown', handleInteraction, { passive: true });
     return () => {
       document.removeEventListener('click', handleInteraction);
       document.removeEventListener('touchstart', handleInteraction);
+      document.removeEventListener('pointerdown', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
     };
   }, []);
 

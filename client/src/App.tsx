@@ -18,6 +18,7 @@ import { useTaskbarControls } from './hooks/useTaskbarControls';
 import { useTrayIntegration } from './hooks/useTrayIntegration';
 import { useWindowVisibility } from './hooks/useWindowVisibility';
 import { useAudioOutputDevice, initAudioDeviceManager } from './hooks/useAudioOutputDevice';
+import { useDiscordRpc } from './hooks/useDiscordRpc';
 import OfflineModeModal from './components/modals/OfflineModeModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { preloadAndDecodeImage } from './utils/assetPreloader';
@@ -61,6 +62,16 @@ const UnignoreTrackModal = lazy(() => import('./components/modals/UnignoreTrackM
 const JamJoinDialog = lazy(() => import('./components/modals/JamJoinDialog'));
 const DemoCapacityView = lazy(() => import('./components/views/DemoCapacityView'));
 
+export const preloadMobileViews = () => {
+  void import('./components/layout/LibraryView');
+  void import('./components/views/FavoritesView');
+  void import('./components/views/MobileSettingsView');
+  void import('./components/views/AlbumsView');
+  void import('./components/views/TracksView');
+  void import('./components/views/ArtistsView');
+  void import('./components/views/PlaylistsView');
+};
+
 export const isMobileDevice = () => {
   if (typeof window === 'undefined') return false;
   if (isTauri()) return false;
@@ -103,6 +114,12 @@ function MainAppContent() {
   useEffect(() => {
     initAudioDeviceManager();
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      preloadMobileViews();
+    }
+  }, [isAuthenticated]);
   
   // oxlint-disable-next-line
   useTaskbarControls();
@@ -112,6 +129,8 @@ function MainAppContent() {
   useWindowVisibility();
   // oxlint-disable-next-line
   useAudioOutputDevice();
+  // oxlint-disable-next-line
+  useDiscordRpc();
   
   // oxlint-disable-next-line
   useEffect(() => {

@@ -61,15 +61,15 @@ export default function StorageStatsBar({
 
   return (
     <div className={`flex flex-col gap-4 bg-card rounded-xl border border-border ${isMobile ? 'p-3' : 'p-4'} ${className}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-2">
-            <HardDrive size={18} className="text-primary" />
+            <HardDrive size={18} className="text-primary shrink-0" />
             <span className="text-sm font-semibold text-foreground">
               {t('settings.storage_stats_title')}
             </span>
           </div>
-          <span className="text-xs text-secondary mt-0.5 font-mono">
+          <span className="text-xs text-secondary mt-0.5 font-mono break-words">
             {usedOfTotalString}
           </span>
         </div>
@@ -78,7 +78,7 @@ export default function StorageStatsBar({
           type="button"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="p-2 rounded-lg bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-border text-secondary hover:text-foreground transition-all disabled:opacity-50"
+          className="p-2 rounded-lg bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-border text-secondary hover:text-foreground transition-all disabled:opacity-50 shrink-0"
           title={t('settings.refresh_stats')}
         >
           <RefreshCw size={15} className={isRefreshing ? 'animate-spin text-primary' : ''} />
@@ -118,53 +118,53 @@ export default function StorageStatsBar({
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
         {isNative && (
-          <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border">
+          <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border min-w-0">
             <div className="w-3 h-3 rounded-full bg-[#3b82f6] flex-shrink-0" />
-            <div className="flex flex-col min-w-0">
-              <span className="text-[11px] text-secondary flex items-center gap-1 truncate">
-                <Music2 size={11} className="inline text-[#3b82f6]" />
-                {t('settings.storage_audio')}
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-[11px] text-secondary flex items-center gap-1 leading-snug break-words">
+                <Music2 size={11} className="inline text-[#3b82f6] shrink-0" />
+                <span className="break-words">{t('settings.storage_audio')}</span>
               </span>
-              <span className="text-xs font-mono font-medium text-foreground truncate">
+              <span className="text-xs font-mono font-medium text-foreground break-words mt-0.5">
                 {formatBytes(displayAudioBytes)}
               </span>
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border">
+        <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border min-w-0">
           <div className="w-3 h-3 rounded-full bg-[#a855f7] flex-shrink-0" />
-          <div className="flex flex-col min-w-0">
-            <span className="text-[11px] text-secondary flex items-center gap-1 truncate">
-              <ImageIcon size={11} className="inline text-[#a855f7]" />
-              {t('settings.storage_images')}
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-[11px] text-secondary flex items-center gap-1 leading-snug break-words">
+              <ImageIcon size={11} className="inline text-[#a855f7] shrink-0" />
+              <span className="break-words">{t('settings.storage_images')}</span>
             </span>
-            <span className="text-xs font-mono font-medium text-foreground truncate">
+            <span className="text-xs font-mono font-medium text-foreground break-words mt-0.5">
               {formatBytes(stats.imageBytes)}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border">
+        <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border min-w-0">
           <div className="w-3 h-3 rounded-full bg-[#f59e0b] flex-shrink-0" />
-          <div className="flex flex-col min-w-0">
-            <span className="text-[11px] text-secondary flex items-center gap-1 truncate">
-              <Database size={11} className="inline text-[#f59e0b]" />
-              {t('settings.storage_metadata')}
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-[11px] text-secondary flex items-center gap-1 leading-snug break-words">
+              <Database size={11} className="inline text-[#f59e0b] shrink-0" />
+              <span className="break-words">{t('settings.storage_metadata')}</span>
             </span>
-            <span className="text-xs font-mono font-medium text-foreground truncate">
+            <span className="text-xs font-mono font-medium text-foreground break-words mt-0.5">
               {formatBytes(stats.metadataBytes)}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border">
+        <div className="flex items-center gap-2.5 p-2 rounded-lg bg-foreground/[0.03] border border-border min-w-0">
           <div className="w-3 h-3 rounded-full bg-foreground/30 flex-shrink-0" />
-          <div className="flex flex-col min-w-0">
-            <span className="text-[11px] text-secondary flex items-center gap-1 truncate">
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-[11px] text-secondary flex items-center gap-1 leading-snug break-words">
               {t('settings.storage_free')}
             </span>
-            <span className="text-xs font-mono font-medium text-foreground truncate">
+            <span className="text-xs font-mono font-medium text-foreground break-words mt-0.5">
               {formatBytes(stats.freeBytes)}
             </span>
           </div>
