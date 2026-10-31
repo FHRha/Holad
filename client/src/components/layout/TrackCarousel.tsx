@@ -126,7 +126,7 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
                 <span className="truncate">{track.title || track.name}</span>
                 {isItemDownloaded(downloads, track.id, track.albumId, track) && <Download size={14} className="text-primary shrink-0" />}
               </span>
-              <span className="text-[13px] text-[#b3b3b3] truncate">{track.artist}</span>
+              <span className="text-[13px] text-secondary truncate">{track.artist}</span>
             </div>
           </LongPressWrapper>
         ))}

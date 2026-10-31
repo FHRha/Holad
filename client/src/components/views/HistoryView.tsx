@@ -237,7 +237,7 @@ export default function HistoryView() {
                   <div className="relative w-12 h-12 mr-3 flex-shrink-0">
                     <TrackImage src={getImageUrl(entry.coverArt || entry.id, 100)} className="w-full h-full rounded-md object-cover" alt={entry.title} trackId={entry.id} />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-md transition-opacity">
-                      <Play fill="currentColor" size={20} className="text-[#b3b3b3]" />
+                      <Play fill="currentColor" size={20} className="text-secondary" />
                     </div>
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">

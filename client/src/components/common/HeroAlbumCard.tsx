@@ -296,7 +296,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
           <div className="flex justify-between items-start">
             <Heart 
               size={24} 
-              className={`cursor-pointer transition-colors hover:scale-110 ${isLiked ? 'text-primary' : 'text-[#b3b3b3] hover:text-primary'}`} 
+              className={`cursor-pointer transition-colors hover:scale-110 ${isLiked ? 'text-primary' : 'text-secondary hover:text-primary'}`} 
               fill={isLiked ? "currentColor" : "none"}
               onClick={handleLike}
             />
@@ -336,8 +336,8 @@ export default function HeroAlbumCard({ album }: { album: any }) {
           </div>
 
           <div className="flex justify-between items-end">
-            <Ban size={22} className={`cursor-pointer transition-colors hover:text-red-500 ${isExcluded ? 'text-red-500' : 'text-[#b3b3b3]'}`} onClick={(e) => { e.stopPropagation(); toggleAlbumExclude(album.id); }} />
-            <MoreHorizontal size={24} className="text-[#b3b3b3] hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
+            <Ban size={22} className={`cursor-pointer transition-colors hover:text-red-500 ${isExcluded ? 'text-red-500' : 'text-secondary'}`} onClick={(e) => { e.stopPropagation(); toggleAlbumExclude(album.id); }} />
+            <MoreHorizontal size={24} className="text-secondary hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>
       </div>

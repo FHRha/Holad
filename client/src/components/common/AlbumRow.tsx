@@ -39,7 +39,7 @@ export function AlbumRow({
         <span className="text-[15px] text-foreground font-bold truncate">
           {albumTitle}
         </span>
-        <span className="text-[#b3b3b3] text-[13px] truncate">
+        <span className="text-secondary text-[13px] truncate">
           {album.artist}
         </span>
       </div>

@@ -202,7 +202,7 @@ export default function AlbumView() {
                     ) : (
                       <>
                         <span className="group-hover:hidden">{index + 1}</span>
-                        <Play size={14} className="hidden group-hover:block mx-auto text-[#b3b3b3] stroke-none" fill="currentColor" />
+                        <Play size={14} className="hidden group-hover:block mx-auto text-secondary stroke-none" fill="currentColor" />
                       </>
                     )}
                   </div>
@@ -217,7 +217,7 @@ export default function AlbumView() {
                     <div className="hidden md:flex w-24 justify-center gap-4">
                       <Heart 
                         size={16} 
-                        className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3]/50 hover:text-foreground'}`}
+                        className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-secondary/50 hover:text-foreground'}`}
                         fill={isTrackLiked ? "currentColor" : "none"}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -228,7 +228,7 @@ export default function AlbumView() {
                       />
                       <Ban
                         size={16}
-                        className={`opacity-0 group-hover:opacity-100 transition-opacity ${isExcluded ? 'opacity-100 text-red-500' : 'text-[#b3b3b3]/50 hover:text-red-400'}`}
+                        className={`opacity-0 group-hover:opacity-100 transition-opacity ${isExcluded ? 'opacity-100 text-red-500' : 'text-secondary/50 hover:text-red-400'}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleTrackExclude(track.id, track);

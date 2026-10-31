@@ -9,6 +9,7 @@ import type { Track } from '../../store/playerStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useUIStore } from '../../store/uiStore';
 import { formatGenre } from '../../utils/formatters';
+import { getSpotifyGenreColor } from '../../constants/genreColors';
 
 const StationCard = ({ id, title, icon: Icon, description, onClick, colorClass, loadingStation }: any) => {
   const isThisLoading = loadingStation === id;
@@ -254,12 +255,7 @@ export default function RadioView() {
             <h2 className="text-2xl font-bold text-foreground mb-6">{t('views.radio_genres')}</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {visibleGenres.map((genre: any, idx: number) => {
-                const spotifyColors = [
-                  'bg-[#BA2500]', 'bg-[#1E3264]', 'bg-[#C20E4A]', 'bg-[#0E6E06]', 
-                  'bg-[#1960B8]', 'bg-[#C42818]', 'bg-[#944703]', 'bg-[#5B3EE6]', 
-                  'bg-[#6E428C]', 'bg-[#2E586C]', 'bg-[#BA0D72]', 'bg-[#006450]'
-                ];
-                const colorClass = spotifyColors[idx % spotifyColors.length];
+                const colorClass = getSpotifyGenreColor(idx);
                 
                 return (
                   <StationCard 

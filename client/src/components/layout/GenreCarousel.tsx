@@ -9,6 +9,7 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { getOfflineTracks } from '../../store/downloadStore';
 import { useUIStore } from '../../store/uiStore';
 import { formatGenre } from '../../utils/formatters';
+import { getSpotifyGenreColor } from '../../constants/genreColors';
 
 interface GenreCarouselProps {
   title: string;
@@ -143,12 +144,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
         style={{ scrollSnapType: 'x mandatory' }}
       >
         {visibleGenres.map((genre, idx) => {
-          const spotifyColors = [
-            'bg-[#BA2500]', 'bg-[#1E3264]', 'bg-[#C20E4A]', 'bg-[#0E6E06]', 
-            'bg-[#1960B8]', 'bg-[#C42818]', 'bg-[#944703]', 'bg-[#5B3EE6]', 
-            'bg-[#6E428C]', 'bg-[#2E586C]', 'bg-[#BA0D72]', 'bg-[#006450]'
-          ];
-          const colorClass = spotifyColors[idx % spotifyColors.length];
+          const colorClass = getSpotifyGenreColor(idx);
           const isThisLoading = loadingStation === genre.value;
 
           return (

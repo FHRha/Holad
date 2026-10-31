@@ -187,7 +187,7 @@ export default function FavoritesView() {
               <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
                 <Heart size={64} className="mb-6 text-primary" strokeWidth={1.5} />
                 <h2 className="text-2xl font-bold text-foreground mb-4">{t('views.no_favorite_tracks')}</h2>
-                <p className="text-[#b3b3b3] text-[15px] leading-relaxed max-w-[280px]">
+                <p className="text-secondary text-[15px] leading-relaxed max-w-[280px]">
                   {t('views.no_favorite_tracks_desc')}
                 </p>
               </div>
@@ -216,7 +216,7 @@ export default function FavoritesView() {
               <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
                 <Heart size={64} className="mb-6 text-primary" strokeWidth={1.5} />
                 <h2 className="text-2xl font-bold text-foreground mb-4">{t('views.no_favorite_albums')}</h2>
-                <p className="text-[#b3b3b3] text-[15px] leading-relaxed max-w-[280px]">
+                <p className="text-secondary text-[15px] leading-relaxed max-w-[280px]">
                   {t('views.no_favorite_albums_desc')}
                 </p>
               </div>
@@ -260,7 +260,7 @@ export default function FavoritesView() {
             <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
               <Heart size={64} className="mb-6 text-primary" strokeWidth={1.5} />
               <h2 className="text-2xl font-bold text-foreground mb-4">{t('views.no_favorite_artists')}</h2>
-              <p className="text-[#b3b3b3] text-[15px] leading-relaxed max-w-[280px]">
+              <p className="text-secondary text-[15px] leading-relaxed max-w-[280px]">
                 {t('views.no_favorite_artists_desc')}
               </p>
             </div>

@@ -100,7 +100,7 @@ export default function PlaylistsView() {
       </div>
 
       {playlists.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 text-[#b3b3b3]">
+        <div className="flex flex-col items-center justify-center h-64 text-secondary">
           <p className="text-lg font-bold mb-2">{t('views.no_playlists')}</p>
           <p className="text-sm">{t('views.no_playlists_desc')}</p>
         </div>

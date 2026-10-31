@@ -242,7 +242,7 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
             <div className="flex justify-between items-start z-20 w-full">
               <Heart 
                 size={20} 
-                className={`cursor-pointer transition-colors hover:scale-110 ${isLiked ? 'text-primary' : 'text-[#b3b3b3] hover:text-primary'}`} 
+                className={`cursor-pointer transition-colors hover:scale-110 ${isLiked ? 'text-primary' : 'text-secondary hover:text-primary'}`} 
                 fill={isLiked ? "currentColor" : "none"}
                 onClick={handleLike}
               />
@@ -282,8 +282,8 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
           </div>
 
           <div className={`flex ${!isGuest ? 'justify-between' : 'justify-end w-full absolute top-3 right-3'} items-end z-20`}>
-            {!isGuest && <Ban size={18} className={`cursor-pointer transition-colors hover:text-red-500 ${isExcluded ? 'text-red-500' : 'text-[#b3b3b3]'}`} onClick={(e) => { e.stopPropagation(); toggleAlbumExclude(album.id); }} />}
-            <MoreHorizontal size={20} className="text-[#b3b3b3] hover:text-foreground cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
+            {!isGuest && <Ban size={18} className={`cursor-pointer transition-colors hover:text-red-500 ${isExcluded ? 'text-red-500' : 'text-secondary'}`} onClick={(e) => { e.stopPropagation(); toggleAlbumExclude(album.id); }} />}
+            <MoreHorizontal size={20} className="text-secondary hover:text-foreground cursor-pointer" onClick={(e) => { e.stopPropagation(); handleContextMenu(e); }} />
           </div>
         </div>
       </div>

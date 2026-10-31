@@ -113,7 +113,7 @@ const TrackRow = memo(function TrackRow({
           ) : (
             <>
               <span className="group-hover:hidden">{index + 1}</span>
-              <Play size={14} className="hidden group-hover:block mx-auto text-[#b3b3b3] stroke-none" fill="currentColor" />
+              <Play size={14} className="hidden group-hover:block mx-auto text-secondary stroke-none" fill="currentColor" />
             </>
           )}
         </div>
@@ -128,13 +128,13 @@ const TrackRow = memo(function TrackRow({
           <div className="hidden md:flex w-24 justify-center gap-4">
             <Heart 
               size={16} 
-              className={`opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3]/50 hover:text-foreground'}`}
+              className={`opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${isTrackLiked ? 'opacity-100 text-primary' : 'text-secondary/50 hover:text-foreground'}`}
               fill={isTrackLiked ? 'currentColor' : 'none'}
               onClick={handleLike}
             />
             <Ban
               size={16}
-              className={`opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${isExcluded ? 'opacity-100 text-red-500' : 'text-[#b3b3b3]/50 hover:text-red-400'}`}
+              className={`opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${isExcluded ? 'opacity-100 text-red-500' : 'text-secondary/50 hover:text-red-400'}`}
               onClick={handleExclude}
             />
           </div>
@@ -164,7 +164,7 @@ const TrackRow = memo(function TrackRow({
           ) : (
             <>
               <span className="group-hover:hidden">{index + 1}</span>
-              <Play size={14} className="hidden group-hover:block mx-auto text-[#b3b3b3] stroke-none" fill="currentColor" />
+              <Play size={14} className="hidden group-hover:block mx-auto text-secondary stroke-none" fill="currentColor" />
             </>
           )}
         </div>
@@ -179,13 +179,13 @@ const TrackRow = memo(function TrackRow({
           <div className="hidden md:flex w-24 justify-center gap-4">
             <Heart 
               size={16} 
-              className={`opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3]/50 hover:text-foreground'}`}
+              className={`opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${isTrackLiked ? 'opacity-100 text-primary' : 'text-secondary/50 hover:text-foreground'}`}
               fill={isTrackLiked ? 'currentColor' : 'none'}
               onClick={handleLike}
             />
             <Ban
               size={16}
-              className={`opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${isExcluded ? 'opacity-100 text-red-500' : 'text-[#b3b3b3]/50 hover:text-red-400'}`}
+              className={`opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${isExcluded ? 'opacity-100 text-red-500' : 'text-secondary/50 hover:text-red-400'}`}
               onClick={handleExclude}
             />
           </div>
@@ -228,7 +228,7 @@ const TrackRow = memo(function TrackRow({
             <span className="truncate">{track.title || track.name}</span>
             {isDownloaded && <Download size={14} className="text-primary shrink-0 group-hover:text-primary" />}
           </p>
-          <p className="text-[13px] md:text-xs text-[#b3b3b3] md:text-secondary truncate">
+          <p className="text-[13px] md:text-xs text-secondary truncate">
             {formatArtistName(track.artist)}{track.album ? ` • ${track.album}` : ''}
           </p>
         </div>
@@ -237,7 +237,7 @@ const TrackRow = memo(function TrackRow({
           className="md:opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
           onClick={handleLike}
         >
-          <Heart size={18} fill={isTrackLiked ? 'currentColor' : 'none'} className={isTrackLiked ? 'text-primary' : 'text-[#b3b3b3] md:text-white/30 hover:text-foreground'} />
+          <Heart size={18} fill={isTrackLiked ? 'currentColor' : 'none'} className={isTrackLiked ? 'text-primary' : 'text-secondary md:text-white/30 hover:text-foreground'} />
         </button>
 
         <div className="w-12 hidden md:block text-right text-xs text-secondary">
@@ -264,7 +264,7 @@ const TrackRow = memo(function TrackRow({
         ) : (
           <>
             <span className="group-hover:hidden">{index + 1}</span>
-            <Play size={14} className="hidden group-hover:block text-[#b3b3b3] stroke-none" fill="currentColor" />
+            <Play size={14} className="hidden group-hover:block text-secondary stroke-none" fill="currentColor" />
           </>
         )}
       </div>
@@ -276,7 +276,7 @@ const TrackRow = memo(function TrackRow({
             <span className="truncate">{track.title || track.name}</span>
             {isDownloaded && <Download size={14} className="text-primary shrink-0" />}
           </span>
-          <span className="text-[13px] md:text-xs text-[#b3b3b3] md:text-secondary truncate">{formatArtistName(track.artist)}{track.album ? ` • ${track.album}` : ''}</span>
+          <span className="text-[13px] md:text-xs text-secondary truncate">{formatArtistName(track.artist)}{track.album ? ` • ${track.album}` : ''}</span>
         </div>
       </div>
 
@@ -300,13 +300,13 @@ const TrackRow = memo(function TrackRow({
         <div className="w-16 md:w-24 flex items-center justify-end md:justify-center gap-2 md:gap-4 md:ml-4">
           <Heart 
             size={18} 
-            className={`md:opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${isTrackLiked ? 'opacity-100 text-primary' : 'text-[#b3b3b3] md:text-[#b3b3b3]/30 hover:text-foreground'}`}
+            className={`md:opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${isTrackLiked ? 'opacity-100 text-primary' : 'text-secondary/30 hover:text-foreground'}`}
             fill={isTrackLiked ? 'currentColor' : 'none'}
             onClick={handleLike}
           />
           <Ban
             size={18}
-            className={`md:opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${isExcluded ? 'opacity-100 text-red-500' : 'text-[#b3b3b3] md:text-[#b3b3b3]/30 hover:text-red-400'}`}
+            className={`md:opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ${isExcluded ? 'opacity-100 text-red-500' : 'text-secondary/30 hover:text-red-400'}`}
             onClick={handleExclude}
           />
         </div>

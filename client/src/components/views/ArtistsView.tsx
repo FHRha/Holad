@@ -138,13 +138,13 @@ export default function ArtistsView() {
       
       <div className="flex-1 overflow-hidden flex flex-col px-4 pt-4 md:p-6">
         <div className="relative w-full mb-6 md:hidden shrink-0">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#b3b3b3]" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
           <input 
             type="text" 
             placeholder={t('views.search_artist')} 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[#282828] border-none rounded-xl py-2.5 pl-10 pr-4 text-[15px] font-medium text-white placeholder-[#b3b3b3] outline-none transition-all"
+            className="w-full bg-[#282828] border-none rounded-xl py-2.5 pl-10 pr-4 text-[15px] font-medium text-white placeholder:text-secondary outline-none transition-all"
           />
         </div>
 

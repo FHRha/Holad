@@ -19,6 +19,7 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { formatGenre } from '../../utils/formatters';
 import FilterChip from '../common/FilterChip';
+import { getSpotifyGenreColor } from '../../constants/genreColors';
 
 function ScrollableSection({ title, children, onRefresh }: { title: string, children: React.ReactNode, onRefresh?: () => void }) {
   const { t } = useTranslation();
@@ -325,12 +326,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
               <div className="w-0 h-0 border-t-4 border-t-transparent border-l-6 border-l-current border-b-4 border-b-transparent ml-2"></div>
             </button>
             {visibleGenres.map((g, idx) => {
-              const spotifyColors = [
-                'bg-[#BA2500]', 'bg-[#1E3264]', 'bg-[#C20E4A]', 'bg-[#0E6E06]', 
-                'bg-[#1960B8]', 'bg-[#C42818]', 'bg-[#944703]', 'bg-[#5B3EE6]', 
-                'bg-[#6E428C]', 'bg-[#2E586C]', 'bg-[#BA0D72]', 'bg-[#006450]'
-              ];
-              const colorClass = spotifyColors[idx % spotifyColors.length];
+              const colorClass = getSpotifyGenreColor(idx);
 
               return (
                 <button 
