@@ -7,6 +7,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import type { Track } from '../../store/playerStore';
 import ArtistLinks from './ArtistLinks';
+import RatingStars from './RatingStars';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useDownloadStore } from '../../store/downloadStore';
 import { isJamPath } from '../../utils/basePath';
@@ -95,9 +96,7 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
     else starItem(album.id, true);
   };
 
-  const handleRate = (e: React.MouseEvent, starValue: number) => {
-    e.stopPropagation();
-    e.preventDefault();
+  const handleRate = (starValue: number) => {
     const newRating = starValue === rating ? 0 : starValue;
     setRatingState(newRating);
     setItemRating(album.id, newRating).catch(console.error);
@@ -247,17 +246,12 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
                 fill={isLiked ? "currentColor" : "none"}
                 onClick={handleLike}
               />
-              <div className="flex text-yellow-400 drop-shadow-md cursor-pointer z-20">
-                {[1, 2, 3, 4, 5].map((starValue) => (
-                  <Star 
-                    key={starValue} 
-                    size={14} 
-                    fill={starValue <= rating ? 'currentColor' : 'transparent'} 
-                    className={`hover:scale-125 transition-transform ${starValue > rating ? 'text-foreground/30' : ''}`} 
-                    onClick={(e) => handleRate(e, starValue)}
-                  />
-                ))}
-              </div>
+              <RatingStars
+                rating={rating}
+                size={14}
+                className="drop-shadow-md cursor-pointer z-20"
+                onRate={handleRate}
+              />
             </div>
           )}
 

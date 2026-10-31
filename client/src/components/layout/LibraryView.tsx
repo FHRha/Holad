@@ -10,6 +10,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { toggleOfflineMode } from '../../utils/networkStatus';
+import FilterChip from '../common/FilterChip';
 
 export default function LibraryView() {
   const { t } = useTranslation();
@@ -145,19 +146,4 @@ function MobileNavTab({ to, label }: { to: string, label: string }) {
   );
 }
 
-function FilterChip({ icon, label, isActive, onClick, testId }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void, testId?: string }) {
-  return (
-    <button 
-      onClick={onClick}
-      data-testid={testId}
-      className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
-        isActive 
-          ? 'bg-primary text-primary-foreground border-transparent shadow-sm shadow-primary/25' 
-          : 'bg-card border border-border text-secondary hover:bg-foreground/[0.06] hover:text-foreground'
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
+

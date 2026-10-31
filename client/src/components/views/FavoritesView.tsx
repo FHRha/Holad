@@ -1,9 +1,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState, useCallback } from 'react';
-import { fetchStarred, getCoverArtUrl, getAlbum } from '../../api/subsonic';
+import { fetchStarred, getAlbum } from '../../api/subsonic';
 import { Heart, Search, CloudOff, Download, LayoutGrid, List } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import TrackImage from '../common/TrackImage';
 import TrackRow from '../common/TrackRow';
 import AlbumCard from '../common/AlbumCard';
 import { usePlayerStore } from '../../store/playerStore';
@@ -12,22 +11,10 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useUIStore } from '../../store/uiStore';
 import { getOfflineTracks, getDownloadedAlbums } from '../../store/downloadStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
-import LongPressWrapper from '../common/LongPressWrapper';
 import { Virtuoso } from 'react-virtuoso';
-
-function FilterChip({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void }) {
-  return (
-    <button 
-      onClick={onClick}
-      className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
-        isActive ? 'bg-primary text-primary-foreground border-transparent shadow-sm shadow-primary/25' : 'bg-card border border-border text-secondary hover:bg-foreground/[0.06] hover:text-foreground'
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
+import FilterChip from '../common/FilterChip';
+import AlbumRow from '../common/AlbumRow';
+import { mapSubsonicTracks, mapSubsonicTrack } from '../../utils/trackMapper';
 
 interface FavoritesViewCache {
   albums: any[];
@@ -87,19 +74,7 @@ export default function FavoritesView() {
   };
 
   const handlePlayTrack = useCallback((index: number, trackList: any[]) => {
-    const mappedTracks: Track[] = trackList.map((t) => ({
-      id: t.id,
-      title: t.title,
-      artist: t.artist,
-      album: t.album,
-      albumId: t.albumId,
-      artistId: t.artistId,
-      coverArt: getCoverArtUrl(t.coverArt || t.id, 300),
-      duration: t.duration,
-      userRating: t.userRating,
-      bitRate: t.bitRate,
-      suffix: t.suffix
-    }));
+    const mappedTracks: Track[] = mapSubsonicTracks(trackList);
     
     const action = useSettingsStore.getState().clickAction;
     
@@ -249,24 +224,19 @@ export default function FavoritesView() {
               <div className={viewMode === 'grid' ? "grid grid-cols-2 gap-4 py-4" : "flex flex-col gap-4 py-4"}>
                 {searchedAlbums.map((album) => (
                   viewMode === 'list' ? (
-                    <LongPressWrapper 
-                      key={album.id} 
-                      className="flex items-center gap-4 cursor-pointer"
+                    <AlbumRow
+                      key={album.id}
+                      album={album}
                       onClick={() => {
                         if (window.innerWidth < 768) {
                           usePlayerStore.getState().setIsProcessing(true);
                           getAlbum(album.id).then(tracks => {
-                            const mappedTracks = tracks.map((t: any) => ({
-                              id: t.id,
-                              title: t.title,
-                              artist: t.artist,
+                            const mappedTracks = tracks.map((t: any) => mapSubsonicTrack({
+                              ...t,
                               album: album.title || album.name,
                               albumId: album.id,
                               artistId: t.artistId || album.artistId,
-                              coverArt: getCoverArtUrl(album.coverArt || album.id, 300),
-                              duration: t.duration,
-                              bitRate: t.bitRate,
-                              suffix: t.suffix
+                              coverArt: album.coverArt || album.id,
                             }));
                             usePlayerStore.getState().setQueueAndPlay(mappedTracks, 0);
                             usePlayerStore.getState().setIsProcessing(false);
@@ -277,15 +247,7 @@ export default function FavoritesView() {
                         e.preventDefault?.();
                         openMenu(e.clientX, e.clientY, album, 'album');
                       }}
-                    >
-                      <div className="relative w-16 h-16 flex-shrink-0">
-                        <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full rounded-md object-cover" alt={album.name} />
-                      </div>
-                      <div className="flex flex-col flex-1 overflow-hidden">
-                        <span className="text-[15px] text-foreground font-bold truncate">{album.name || album.title}</span>
-                        <span className="text-[#b3b3b3] text-[13px] truncate">{album.artist}</span>
-                      </div>
-                    </LongPressWrapper>
+                    />
                   ) : (
                     <AlbumCard key={album.id} album={album} />
                   )

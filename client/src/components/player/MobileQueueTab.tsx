@@ -10,6 +10,7 @@ import { SortableItem } from '../common/dnd/SortableItem';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { fetchPlaybackState } from '../../api/playbackState';
+import { mapSubsonicTracks } from '../../utils/trackMapper';
 import { getCoverArtUrl } from '../../api/subsonic';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 
@@ -25,18 +26,7 @@ export default function MobileQueueTab() {
     try {
       const q = await fetchPlaybackState();
       if (q && q.queue && q.queue.length > 0) {
-        const mapped = q.queue.map((t: any) => ({
-          id: t.id,
-          title: t.title,
-          artist: t.artist,
-          album: t.album,
-          albumId: t.albumId,
-          artistId: t.artistId,
-          coverArt: t.coverArt || getCoverArtUrl(t.id, 300),
-          duration: t.duration,
-          bitRate: t.bitRate,
-          suffix: t.suffix
-        }));
+        const mapped = mapSubsonicTracks(q.queue);
         setQueue(mapped);
         const currentId = q.song_id;
         if (currentId) {

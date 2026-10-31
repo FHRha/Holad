@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import ThemeSelector from '../common/ThemeSelector';
 import LanguageSelector from '../common/LanguageSelector';
 import { useDemoStore } from '../../store/demoStore';
+import { mapSubsonicTrack, mapSubsonicTracks } from '../../utils/trackMapper';
 
 async function resolveTracksFromIds(trackIds: string[]) {
   const offlineTracks = getOfflineTracks();
@@ -146,18 +147,7 @@ export default function JamLayout() {
         getSong(trackId).then((t) => {
           if (loadedTargetRef.current !== targetKey) return;
           if (t) {
-            const singleTrack = {
-              id: t.id,
-              title: t.title,
-              artist: t.artist,
-              album: t.album,
-              albumId: t.albumId,
-              artistId: t.artistId,
-              coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
-              duration: t.duration,
-              bitRate: t.bitRate,
-              suffix: t.suffix
-            };
+            const singleTrack = mapSubsonicTrack(t);
             setQueueAndPlay([singleTrack], 0);
             if (!location.pathname.includes(`/track/${trackId}`)) {
               navigate(`/jam/track/${trackId}`, { replace: true });
@@ -176,17 +166,11 @@ export default function JamLayout() {
           if (loadedTargetRef.current !== targetKey) return;
           if (a && a.song) {
             const songs = Array.isArray(a.song) ? a.song : [a.song];
-            const tracks = songs.map((t: any) => ({
-              id: t.id,
-              title: t.title,
-              artist: t.artist,
-              album: t.album,
+            const tracks = songs.map((t: any) => mapSubsonicTrack({
+              ...t,
               albumId: t.albumId || a.id,
               artistId: t.artistId || a.artistId,
-              coverArt: getCoverArtUrl(t.coverArt || a.coverArt || a.id, 300),
-              duration: t.duration,
-              bitRate: t.bitRate,
-              suffix: t.suffix
+              coverArt: t.coverArt || a.coverArt || a.id,
             }));
             setQueueAndPlay(tracks, 0);
           }
@@ -265,18 +249,7 @@ export default function JamLayout() {
             if (loadedTargetRef.current !== targetKey) return;
             if (p && p.entry) {
               const songs = Array.isArray(p.entry) ? p.entry : [p.entry];
-              const tracks = songs.map((t: any) => ({
-                id: t.id,
-                title: t.title || t.name,
-                artist: t.artist,
-                album: t.album,
-                albumId: t.albumId,
-                artistId: t.artistId,
-                coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
-                duration: t.duration,
-                bitRate: t.bitRate,
-                suffix: t.suffix
-              }));
+              const tracks = mapSubsonicTracks(songs);
               setQueueAndPlay(tracks, 0);
             }
           } catch (err) {

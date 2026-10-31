@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { useDownloadStore, verifyDownloads } from '../../store/downloadStore';
 import { Trash2, FolderOpen, AlertTriangle, Loader2, Pause, Play, RefreshCw } from 'lucide-react';
 import { StorageManager, isTauri } from '../../utils/StorageManager';
+import { deleteDownloadedItem } from '../../utils/downloadHelper';
 import DownloadedMusicGrid from '../settings/DownloadedMusicGrid';
 
 export default function DownloadsView() {
   const { t } = useTranslation();
-  const { downloads, removeDownload, clearHistory, downloadDirectory } = useDownloadStore();
+  const { downloads, clearHistory, downloadDirectory } = useDownloadStore();
   const [isScanning, setIsScanning] = useState(false);
 
   const handleOpenFolder = async () => {
@@ -36,38 +37,13 @@ export default function DownloadsView() {
   };
 
   const handleDeleteItem = async (item: any) => {
-    if (item.status === 'downloading' || item.status === 'queued' || item.status === 'paused') {
-      import('../../utils/downloadHelper').then(m => m.cancelActiveDownload(item.id));
-    }
-    
-    if (item.path && item.path !== 'album_completed' && item.path !== 'album_empty') {
-      try {
-        if (item.type === 'album') {
-          await StorageManager.removeDirectory(item.path);
-        } else {
-          await StorageManager.removeTrack(item.path);
-        }
-      } catch (e) {
-        console.error('Failed to remove file from disk', e);
-      }
-    }
-    removeDownload(item.id);
+    await deleteDownloadedItem(item);
   };
 
   const handleClearAll = async () => {
     const completedItems = Object.values(downloads || {}).filter(d => d.status === 'completed' || d.status === 'error');
     for (const item of completedItems) {
-      if (item.path && item.path !== 'album_completed' && item.path !== 'album_empty') {
-        try {
-          if (item.type === 'album') {
-            await StorageManager.removeDirectory(item.path);
-          } else {
-            await StorageManager.removeTrack(item.path);
-          }
-        } catch (e) {
-          console.error('Failed to remove file from disk', e);
-        }
-      }
+      await deleteDownloadedItem(item);
     }
     clearHistory();
   };

@@ -1,14 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
-import { fetchAlbums, getCoverArtUrl } from '../../api/subsonic';
+import { fetchAlbums } from '../../api/subsonic';
 import { useTranslation } from 'react-i18next';
 import AlbumCard from '../common/AlbumCard';
-import TrackImage from '../common/TrackImage';
+import AlbumRow from '../common/AlbumRow';
 import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
 import { useDownloadStore, isItemDownloaded, getDownloadedAlbums } from '../../store/downloadStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
-import LongPressWrapper from '../common/LongPressWrapper';
 import { VirtuosoGrid } from 'react-virtuoso';
 
 interface AlbumsViewCache {
@@ -148,24 +147,17 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
 
           if (viewMode === 'list') {
             return (
-              <LongPressWrapper 
-                key={album.id} 
-                id={isFirstOfLetter ? `letter-${letter}` : undefined} 
-                className="flex items-center gap-4 cursor-pointer scroll-mt-24 w-full"
+              <AlbumRow
+                key={album.id}
+                album={album}
+                id={isFirstOfLetter ? `letter-${letter}` : undefined}
+                className="scroll-mt-24 w-full"
                 onClick={() => navigate(`/album/${album.id}`)}
                 onLongPress={(e: any) => {
                   e.preventDefault?.();
                   openMenu(e.clientX, e.clientY, album, 'album');
                 }}
-              >
-                <div className="relative w-16 h-16 flex-shrink-0">
-                  <TrackImage src={getCoverArtUrl(album.coverArt || album.id, 300)} className="w-full h-full rounded-md object-cover" trackId={album.id} />
-                </div>
-                <div className="flex flex-col flex-1 overflow-hidden">
-                  <span className="text-[15px] text-white font-bold truncate">{album.name || album.title}</span>
-                  <span className="text-[#b3b3b3] text-[13px] truncate">{album.artist}</span>
-                </div>
-              </LongPressWrapper>
+              />
             );
           }
 

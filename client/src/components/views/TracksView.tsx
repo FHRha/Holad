@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Play, Heart, Clock, Search, FilterX, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { searchTracks, getCoverArtUrl, getArtists } from '../../api/subsonic';
+import { searchTracks, getArtists } from '../../api/subsonic';
+import { mapSubsonicTracks } from '../../utils/trackMapper';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
 import { useUIStore } from '../../store/uiStore';
@@ -145,19 +146,7 @@ export default function TracksView() {
   const finalTracks = filteredTracks;
 
   const handlePlay = useCallback((index: number) => {
-    const mapped: Track[] = finalTracks.map(t => ({
-      id: t.id,
-      title: t.title,
-      artist: t.artist,
-      album: t.album,
-      albumId: t.albumId,
-      artistId: t.artistId,
-      coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
-      duration: t.duration,
-      userRating: t.userRating,
-      bitRate: t.bitRate,
-      suffix: t.suffix
-    }));
+    const mapped: Track[] = mapSubsonicTracks(finalTracks);
     
     const action = useSettingsStore.getState().clickAction;
     

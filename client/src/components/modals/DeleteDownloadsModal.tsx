@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react';
 import { X, Trash2, CheckSquare, Square, Music, Disc3, Search } from 'lucide-react';
 import { useDownloadStore } from '../../store/downloadStore';
-import { StorageManager } from '../../utils/StorageManager';
+import { deleteDownloadedItem } from '../../utils/downloadHelper';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 
 interface Props {
   onClose: () => void;
@@ -11,7 +10,7 @@ interface Props {
 
 export default function DeleteDownloadsModal({ onClose }: Props) {
   const { t } = useTranslation();
-  const { downloads, removeDownload } = useDownloadStore();
+  const { downloads } = useDownloadStore();
   
   const completedItems = useMemo(() => {
     return Object.values(downloads)
@@ -65,33 +64,7 @@ export default function DeleteDownloadsModal({ onClose }: Props) {
     for (const id of selectedIds) {
       const item = downloads[id];
       if (!item) continue;
-      
-      if (item.path && item.path !== 'album_completed' && item.path !== 'album_empty') {
-        try {
-          if (item.type === 'album') {
-            await StorageManager.removeDirectory(item.path);
-          } else {
-            await StorageManager.removeTrack(item.path);
-          }
-        } catch (e) {
-          console.error(`Failed to delete file ${item.path}:`, e);
-        }
-      }
-
-      if (item.type === 'album') {
-        for (const childId in downloads) {
-          if (downloads[childId].albumId === item.id) {
-            if (downloads[childId].path && downloads[childId].path !== item.path) {
-              try { await StorageManager.removeTrack(downloads[childId].path); } catch (e: any) {
-                if (e.message && !e.message.includes('does not exist')) toast.error(t('settings.storage_error', { defaultValue: 'Failed to delete file' }) + ': ' + e.message);
-              }
-            }
-            removeDownload(childId);
-          }
-        }
-      }
-
-      removeDownload(id);
+      await deleteDownloadedItem(item);
     }
 
     setIsDeleting(false);

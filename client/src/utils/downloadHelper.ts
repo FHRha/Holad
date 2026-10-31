@@ -612,3 +612,44 @@ export const downloadEntireLibrary = async (
     skippedCount
   };
 };
+
+
+export const deleteDownloadedItem = async (item: {
+  id: string;
+  type?: string;
+  path?: string;
+  status?: string;
+}): Promise<void> => {
+  if (item.status === 'downloading' || item.status === 'queued' || item.status === 'paused') {
+    cancelActiveDownload(item.id);
+  }
+
+  if (item.path && item.path !== 'album_completed' && item.path !== 'album_empty') {
+    try {
+      if (item.type === 'album') {
+        await StorageManager.removeDirectory(item.path);
+      } else {
+        await StorageManager.removeTrack(item.path);
+      }
+    } catch (e) {
+      console.error('Failed to remove file from disk', e);
+    }
+  }
+
+  // If album, also remove indexed child tracks from downloadStore and storage
+  if (item.type === 'album') {
+    const curDownloads = useDownloadStore.getState().downloads;
+    for (const childId in curDownloads) {
+      if (curDownloads[childId].albumId === item.id) {
+        if (curDownloads[childId].path && curDownloads[childId].path !== item.path) {
+          try {
+            await StorageManager.removeTrack(curDownloads[childId].path);
+          } catch {}
+        }
+        useDownloadStore.getState().removeDownload(childId);
+      }
+    }
+  }
+
+  useDownloadStore.getState().removeDownload(item.id);
+};

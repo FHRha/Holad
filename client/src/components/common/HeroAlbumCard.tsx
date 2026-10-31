@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Heart, Star, MoreHorizontal, SkipForward, ListPlus, Download, Ban } from 'lucide-react';
+import { Play, Heart, MoreHorizontal, SkipForward, ListPlus, Download, Ban } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { usePlayerStore } from '../../store/playerStore';
@@ -8,6 +8,7 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import type { Track } from '../../store/playerStore';
 import { extractDominantColor } from '../../utils/colorExtractor';
 import ArtistLinks from './ArtistLinks';
+import RatingStars from './RatingStars';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useDownloadStore } from '../../store/downloadStore';
 
@@ -124,9 +125,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
     else starItem(album.id, true);
   };
 
-  const handleRate = (e: React.MouseEvent, starValue: number) => {
-    e.stopPropagation();
-    e.preventDefault();
+  const handleRate = (starValue: number) => {
     const newRating = starValue === rating ? 0 : starValue;
     setRatingState(newRating);
     setItemRating(album.id, newRating).catch(console.error);
@@ -301,17 +300,13 @@ export default function HeroAlbumCard({ album }: { album: any }) {
               fill={isLiked ? "currentColor" : "none"}
               onClick={handleLike}
             />
-            <div className="flex text-yellow-400 drop-shadow-md cursor-pointer z-20">
-              {[1, 2, 3, 4, 5].map((starValue) => (
-                <Star 
-                  key={starValue} 
-                  size={14} 
-                  fill={starValue <= rating ? 'currentColor' : 'transparent'} 
-                  className={`hover:scale-125 transition-transform ${starValue > rating ? 'text-white/30' : ''}`} 
-                  onClick={(e) => handleRate(e, starValue)}
-                />
-              ))}
-            </div>
+            <RatingStars
+              rating={rating}
+              size={14}
+              className="drop-shadow-md cursor-pointer z-20"
+              unfilledClassName="text-white/30"
+              onRate={handleRate}
+            />
           </div>
 
           <div className="flex items-center justify-center gap-3 lg:gap-5">

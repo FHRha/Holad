@@ -4,7 +4,7 @@ import { AlertTriangle, Image as ImageIcon, Database, Trash2, Check, Loader2 } f
 import { clearAppCache } from '../../utils/storage';
 import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
 import { useDownloadStore } from '../../store/downloadStore';
-import { cancelActiveDownload } from '../../utils/downloadHelper';
+import { deleteDownloadedItem } from '../../utils/downloadHelper';
 import { clearImageCache } from '../../utils/imageCache';
 import { toast } from 'sonner';
 
@@ -121,30 +121,10 @@ export default function StorageDangerZone({
     if (musicState === 'confirm') {
       setMusicState('in_progress');
       try {
-        const { downloads, removeDownload } = useDownloadStore.getState();
+        const { downloads } = useDownloadStore.getState();
 
-        // 1. Abort active streams
         for (const id in downloads) {
-          if (downloads[id].status === 'downloading' || downloads[id].status === 'queued') {
-            cancelActiveDownload(id);
-          }
-        }
-
-        // 2. Delete all disk files
-        for (const id in downloads) {
-          const item = downloads[id];
-          if (item.path) {
-            try {
-              if (item.type === 'album') {
-                await StorageManager.removeDirectory(item.path);
-              } else {
-                await StorageManager.removeTrack(item.path);
-              }
-            } catch (e) {
-              console.warn(`Failed to delete item at ${item.path}:`, e);
-            }
-          }
-          removeDownload(id);
+          await deleteDownloadedItem(downloads[id]);
         }
 
         // 3. Clean up root folders

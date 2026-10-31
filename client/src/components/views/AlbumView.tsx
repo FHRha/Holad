@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Play, Pause, Heart, Star, MoreHorizontal, Clock, Radio, Music, ListPlus, ArrowLeft, Download, Ban } from 'lucide-react';
+import { Play, Pause, Heart, MoreHorizontal, Clock, Radio, Music, ListPlus, ArrowLeft, Download, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { formatDurationVerbose } from '../../utils/timeFormat';
@@ -8,6 +8,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useAlbumData } from '../../hooks/useAlbumData';
 import ArtistLinks from '../common/ArtistLinks';
+import RatingStars from '../common/RatingStars';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { useUIStore } from '../../store/uiStore';
@@ -119,17 +120,13 @@ export default function AlbumView() {
               
               {!isGuest && (
                 <>
-                  <div className="flex gap-1 text-yellow-400">
-                    {[1, 2, 3, 4, 5].map(v => (
-                      <Star 
-                        key={v} 
-                        size={24} 
-                        fill={v <= (album.userRating || 0) ? 'currentColor' : 'transparent'} 
-                        className={`cursor-pointer md:w-5 md:h-5 hover:scale-125 transition-transform ${v > (album.userRating || 0) ? 'text-foreground/30' : ''}`}
-                        onClick={() => handleRate(v)}
-                      />
-                    ))}
-                  </div>
+                  <RatingStars
+                    rating={album.userRating || 0}
+                    size={24}
+                    className="gap-1"
+                    starClassName="md:w-5 md:h-5"
+                    onRate={handleRate}
+                  />
                   
                   <button 
                     onClick={handleLike} 

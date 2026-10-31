@@ -15,8 +15,7 @@ import {
 } from 'lucide-react';
 import { useDownloadStore, getOfflineTracks } from '../../store/downloadStore';
 import type { DownloadItem } from '../../store/downloadStore';
-import { StorageManager } from '../../utils/StorageManager';
-import { downloadEntireLibrary } from '../../utils/downloadHelper';
+import { downloadEntireLibrary, deleteDownloadedItem } from '../../utils/downloadHelper';
 import { getAlbum, getCoverArtUrl } from '../../api/subsonic';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { formatBytes } from '../../utils/storageStatsHelper';
@@ -41,7 +40,6 @@ export default function DownloadedMusicGrid({
 }: DownloadedMusicGridProps) {
   const { t } = useTranslation();
   const downloads = useDownloadStore(state => state.downloads);
-  const removeDownload = useDownloadStore(state => state.removeDownload);
   const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
   const playNext = usePlayerStore(state => state.playNext);
   const clickAction = useSettingsStore(state => state.clickAction);
@@ -220,28 +218,7 @@ export default function DownloadedMusicGrid({
     setDeletingId(item.id);
 
     try {
-      if (item.path && item.path !== 'album_completed' && item.path !== 'album_empty') {
-        if (item.type === 'album') {
-          await StorageManager.removeDirectory(item.path);
-        } else {
-          await StorageManager.removeTrack(item.path);
-        }
-      }
-
-      // If album, also remove indexed child tracks from downloadStore and storage
-      if (item.type === 'album') {
-        const curDownloads = useDownloadStore.getState().downloads;
-        for (const childId in curDownloads) {
-          if (curDownloads[childId].albumId === item.id) {
-            if (curDownloads[childId].path && curDownloads[childId].path !== item.path) {
-              try { await StorageManager.removeTrack(curDownloads[childId].path); } catch {}
-            }
-            removeDownload(childId);
-          }
-        }
-      }
-
-      removeDownload(item.id);
+      await deleteDownloadedItem(item);
       onRefreshRequested?.();
     } catch (err) {
       console.error(`Failed to delete downloaded item ${item.id}:`, err);

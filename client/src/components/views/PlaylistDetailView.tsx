@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Play, Heart, Clock, ArrowLeft, Ban, Pencil, Check, X } from 'lucide-react';
 import { getPlaylist, updatePlaylist } from '../../api/subsonic/playlists';
-import { getCoverArtUrl } from '../../api/subsonic';
 import { formatDurationVerbose } from '../../utils/timeFormat';
 import { usePlayerStore } from '../../store/playerStore';
 import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../store/downloadStore';
@@ -14,6 +13,7 @@ import { isJamPath as checkIsJamPath } from '../../utils/basePath';
 import TrackRow from '../common/TrackRow';
 import PlaylistCover from '../common/PlaylistCover';
 import { Virtuoso } from 'react-virtuoso';
+import { mapSubsonicTracks } from '../../utils/trackMapper';
 import { matchTrackConfidence } from '../../utils/trackFingerprint';
 import { useAuthStore } from '../../store/authStore';
 
@@ -283,23 +283,7 @@ export default function PlaylistDetailView() {
     const playableEntries = playlist.entry.filter((t: any) => !t.isUnavailable);
     if (playableEntries.length === 0) return;
     setIsProcessing(true);
-    setQueueAndPlay(playableEntries.map((t: any) => ({
-      id: t.id,
-      title: t.title || t.name,
-      artist: t.artist,
-      album: t.album,
-      albumId: t.albumId,
-      artistId: t.artistId,
-      coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
-      duration: t.duration,
-      bitRate: t.bitRate,
-      suffix: t.suffix,
-      track: t.track,
-      fileName: t.fileName,
-      path: t.path,
-      fingerprint: t.fingerprint,
-      isUnavailable: t.isUnavailable
-    })), 0);
+    setQueueAndPlay(mapSubsonicTracks(playableEntries), 0);
     setIsProcessing(false);
   }, [playlist, setIsProcessing, setQueueAndPlay]);
 
@@ -307,23 +291,7 @@ export default function PlaylistDetailView() {
     if (!playlist || !playlist.entry) return;
     if (playlist.entry[index]?.isUnavailable) return;
     setIsProcessing(true);
-    setQueueAndPlay(playlist.entry.map((t: any) => ({
-      id: t.id,
-      title: t.title || t.name,
-      artist: t.artist,
-      album: t.album,
-      albumId: t.albumId,
-      artistId: t.artistId,
-      coverArt: getCoverArtUrl(t.coverArt || t.albumId || t.id, 300),
-      duration: t.duration,
-      bitRate: t.bitRate,
-      suffix: t.suffix,
-      track: t.track,
-      fileName: t.fileName,
-      path: t.path,
-      fingerprint: t.fingerprint,
-      isUnavailable: t.isUnavailable
-    })), index);
+    setQueueAndPlay(mapSubsonicTracks(playlist.entry), index);
     setIsProcessing(false);
   }, [playlist, setIsProcessing, setQueueAndPlay]);
 

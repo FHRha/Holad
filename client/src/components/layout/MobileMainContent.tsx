@@ -18,6 +18,7 @@ import { useSocialStore } from '../../store/socialStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { formatGenre } from '../../utils/formatters';
+import FilterChip from '../common/FilterChip';
 
 function ScrollableSection({ title, children, onRefresh }: { title: string, children: React.ReactNode, onRefresh?: () => void }) {
   const { t } = useTranslation();
@@ -447,23 +448,6 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
         defaultTab={roomId ? 'jam' : 'friends'}
       />
     </div>
-  );
-}
-
-function FilterChip({ icon, label, isActive, onClick, testId }: { icon: React.ReactNode, label: string, isActive?: boolean, onClick?: () => void, testId?: string }) {
-  return (
-    <button 
-      onClick={onClick}
-      data-testid={testId}
-      className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border ${
-        isActive 
-          ? 'bg-primary text-black border-transparent shadow-md' 
-          : 'bg-card border-border text-secondary hover:text-foreground hover:bg-muted'
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
   );
 }
 
