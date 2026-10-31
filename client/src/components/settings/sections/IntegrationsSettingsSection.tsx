@@ -4,6 +4,7 @@ import { RefreshCw, Eye, EyeOff, Gamepad2, Globe, Radio } from 'lucide-react';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { pushIntegrations } from '../../../api/integrations';
 import SettingSection from '../SettingSection';
+import { SettingToggle } from '../controls';
 
 export interface IntegrationsSettingsSectionProps {
   isMobile?: boolean;
@@ -33,17 +34,11 @@ export default function IntegrationsSettingsSection({
         isMobile={isMobile}
       >
         <div className="space-y-3">
-          <label className="flex items-center justify-between cursor-pointer group">
-            <span className="text-sm font-medium group-hover:text-primary transition-colors text-foreground">
-              {t('settings.enable_discord_rpc', 'Транслировать статус в Discord')}
-            </span>
-            <input
-              type="checkbox"
-              checked={settings.enableDiscordRpc}
-              onChange={(e) => settings.setEnableDiscordRpc(e.target.checked)}
-              className="accent-primary w-4 h-4 rounded cursor-pointer"
-            />
-          </label>
+          <SettingToggle
+            title={t('settings.enable_discord_rpc', 'Транслировать статус в Discord')}
+            checked={settings.enableDiscordRpc}
+            onChange={(checked) => settings.setEnableDiscordRpc(checked)}
+          />
 
           {settings.enableDiscordRpc && (
             <div className="pt-2 border-t border-border flex flex-col gap-1.5 animate-in fade-in duration-150">
@@ -112,23 +107,16 @@ export default function IntegrationsSettingsSection({
 
           {/* Last.fm Scrobbling */}
           <div className="flex flex-col gap-2">
-            <label className="flex items-center justify-between cursor-pointer group">
-              <span className="text-sm font-medium group-hover:text-primary transition-colors">
-                {t('settings.lastfm', 'Last.fm скробблинг')}
-              </span>
-              <input
-                type="checkbox"
-                checked={settings.useLastFm}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  settings.setUseLastFm(checked);
-                  pushIntegrations([
-                    { integration_name: 'lastfm', token: settings.lastFmKey, enabled: checked },
-                  ]);
-                }}
-                className="accent-primary w-4 h-4 rounded cursor-pointer"
-              />
-            </label>
+            <SettingToggle
+              title={t('settings.lastfm', 'Last.fm скробблинг')}
+              checked={settings.useLastFm}
+              onChange={(checked) => {
+                settings.setUseLastFm(checked);
+                pushIntegrations([
+                  { integration_name: 'lastfm', token: settings.lastFmKey, enabled: checked },
+                ]);
+              }}
+            />
 
             {settings.useLastFm && (
               <div className="pt-2 space-y-2 animate-in fade-in">

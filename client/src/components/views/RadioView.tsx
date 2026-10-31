@@ -10,6 +10,7 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useUIStore } from '../../store/uiStore';
 import { formatGenre } from '../../utils/formatters';
 import { getSpotifyGenreColor } from '../../constants/genreColors';
+import LoadingSpinner from '../common/LoadingSpinner';
 
 const StationCard = ({ id, title, icon: Icon, description, onClick, colorClass, loadingStation }: any) => {
   const isThisLoading = loadingStation === id;
@@ -201,7 +202,7 @@ export default function RadioView() {
   });
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center text-secondary"><Loader2 className="animate-spin w-8 h-8" /></div>;
+    return <LoadingSpinner fullScreen />;
   }
 
   return (

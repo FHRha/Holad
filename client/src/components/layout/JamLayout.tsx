@@ -20,6 +20,7 @@ import MainContent from './MainContent';
 import { useTranslation } from 'react-i18next';
 import ThemeSelector from '../common/ThemeSelector';
 import LanguageSelector from '../common/LanguageSelector';
+import LoadingSpinner from '../common/LoadingSpinner';
 import { useDemoStore } from '../../store/demoStore';
 import { mapSubsonicTrack, mapSubsonicTracks } from '../../utils/trackMapper';
 
@@ -348,7 +349,7 @@ export default function JamLayout() {
   if (isCheckingDemo && (roomToJoin || isStandalone)) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-foreground">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+        <LoadingSpinner size="md" className="mb-4" />
         <p className="text-secondary">{t('jam.connecting_jam', 'Подключение к Jam...')}</p>
       </div>
     );

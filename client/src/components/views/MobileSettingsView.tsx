@@ -22,6 +22,7 @@ import Dropdown from '../common/Dropdown';
 import FlagIcon from '../common/FlagIcon';
 import SettingSection from '../settings/SettingSection';
 import SettingsProfilesSection from '../settings/SettingsProfilesSection';
+import FilterChip from '../common/FilterChip';
 import {
   AppearanceSettingsSection,
   PlaybackSettingsSection,
@@ -226,31 +227,19 @@ export default function MobileSettingsView() {
 
         {/* Quick Action Chips (matching Favorites & Library FilterChip design) */}
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar mb-2">
-          <button
-            type="button"
+          <FilterChip
+            icon={<Sliders size={16} />}
+            label={t('settings.advanced', 'Расширенные настройки')}
+            isActive={settings.showAdvancedSettings}
             onClick={() => settings.setShowAdvancedSettings(!settings.showAdvancedSettings)}
-            className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border select-none ${
-              settings.showAdvancedSettings
-                ? 'bg-primary text-primary-foreground border-transparent shadow-sm shadow-primary/25'
-                : 'bg-card text-secondary hover:bg-foreground/[0.06] hover:text-foreground border-border'
-            }`}
-          >
-            <Sliders size={16} />
-            <span>{t('settings.advanced', 'Расширенные настройки')}</span>
-          </button>
-
-          <button
-            type="button"
+          />
+          <FilterChip
+            icon={<CloudOff size={16} />}
+            label={t('views.filter_offline', 'Офлайн')}
+            isActive={isOffline}
             onClick={handleOfflineToggle}
-            className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-bold transition-all border select-none ${
-              isOffline
-                ? 'bg-amber-500 text-white border-transparent shadow-sm shadow-amber-500/25'
-                : 'bg-card text-secondary hover:bg-foreground/[0.06] hover:text-foreground border-border'
-            }`}
-          >
-            <CloudOff size={16} />
-            <span>{t('views.filter_offline', 'Офлайн')}</span>
-          </button>
+            testId="mobile-settings-offline-chip"
+          />
         </div>
       </div>
 

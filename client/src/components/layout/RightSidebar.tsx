@@ -17,6 +17,7 @@ import { fetchPlaybackState } from '../../api/playbackState';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import AddToPlaylistModal from '../common/AddToPlaylistModal';
+import LoadingSpinner from '../common/LoadingSpinner';
 import { SocialPanel, AudioModeToggle, useSocialState } from '../social';
 
 export default function RightSidebar() {
@@ -322,7 +323,7 @@ export default function RightSidebar() {
           <div className={`flex-1 overflow-y-auto overflow-x-hidden ${isSmall ? 'p-1' : 'p-2'} space-y-1 relative`} onScroll={handleScroll}>
             {isProcessing && (
               <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center">
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <LoadingSpinner size="md" />
               </div>
             )}
             <SortableContext 

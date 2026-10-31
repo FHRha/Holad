@@ -11,6 +11,7 @@ import TrackImage from '../common/TrackImage';
 import ArtistLinks from '../common/ArtistLinks';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
+import LoadingSpinner from '../common/LoadingSpinner';
 
 export default function MobileSearchOverlay() {
   const { t } = useTranslation();
@@ -88,7 +89,7 @@ export default function MobileSearchOverlay() {
         )}
         {loading && (
           <div className="flex justify-center items-center py-12">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <LoadingSpinner size="md" />
           </div>
         )}
 

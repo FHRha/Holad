@@ -7,6 +7,7 @@ import { usePlaylistStore } from '../../store/playlistStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import PlaylistCover from '../common/PlaylistCover';
+import EmptyState from '../common/EmptyState';
 import { isJamPath } from '../../utils/basePath';
 
 let cachedPlaylistsData: any[] | null = null;
@@ -100,10 +101,11 @@ export default function PlaylistsView() {
       </div>
 
       {playlists.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 text-secondary">
-          <p className="text-lg font-bold mb-2">{t('views.no_playlists')}</p>
-          <p className="text-sm">{t('views.no_playlists_desc')}</p>
-        </div>
+        <EmptyState
+          className="h-64"
+          title={t('views.no_playlists')}
+          description={t('views.no_playlists_desc')}
+        />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
           {playlists.map(playlist => (

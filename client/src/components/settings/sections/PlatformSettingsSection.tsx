@@ -8,6 +8,7 @@ import { openExternalLink } from '../../../utils/linkHelper';
 import { clearAppCache } from '../../../utils/storage';
 import { isTauri } from '../../../utils/StorageManager';
 import SettingSection from '../SettingSection';
+import { SettingToggle } from '../controls';
 
 export interface PlatformSettingsSectionProps {
   variant?: 'desktop' | 'mobile' | 'auto';
@@ -131,66 +132,45 @@ export default function PlatformSettingsSection({
           icon={<Monitor size={16} />}
         >
           <div className="flex flex-col gap-3.5">
-            <label className="flex items-center justify-between cursor-pointer group">
-              <span className="group-hover:text-primary transition-colors text-sm font-medium">
-                {t('settings.run_on_startup', 'Автозапуск при старте системы')}
-              </span>
-              <input
-                type="checkbox"
-                checked={settings.runOnStartup}
-                onChange={async (e) => {
-                  const checked = e.target.checked;
-                  settings.setRunOnStartup(checked);
-                  try {
-                    const { enable, disable } = await import('@tauri-apps/plugin-autostart');
-                    if (checked) await enable();
-                    else await disable();
-                  } catch (err) {
-                    console.error('Failed to toggle autostart', err);
-                    settings.setRunOnStartup(!checked);
-                  }
-                }}
-                className="accent-primary w-4 h-4 rounded cursor-pointer"
-              />
-            </label>
+            <SettingToggle
+              title={t('settings.run_on_startup', 'Автозапуск при старте системы')}
+              checked={settings.runOnStartup}
+              onChange={async (checked) => {
+                settings.setRunOnStartup(checked);
+                try {
+                  const { enable, disable } = await import('@tauri-apps/plugin-autostart');
+                  if (checked) await enable();
+                  else await disable();
+                } catch (err) {
+                  console.error('Failed to toggle autostart', err);
+                  settings.setRunOnStartup(!checked);
+                }
+              }}
+            />
 
-            <label
-              className={`flex items-center justify-between cursor-pointer group pl-4 border-l-2 border-border ${
+            <SettingToggle
+              className={`pl-4 border-l-2 border-border ${
                 !settings.runOnStartup ? 'opacity-40 pointer-events-none' : ''
               }`}
-            >
-              <span className="group-hover:text-primary transition-colors text-sm">
-                {t('settings.start_minimized', 'Запускать свёрнутым в трей')}
-              </span>
-              <input
-                type="checkbox"
-                checked={settings.startMinimized}
-                onChange={(e) => settings.setStartMinimized(e.target.checked)}
-                disabled={!settings.runOnStartup}
-                className="accent-primary w-4 h-4 rounded cursor-pointer disabled:cursor-not-allowed"
-              />
-            </label>
+              title={t('settings.start_minimized', 'Запускать свёрнутым в трей')}
+              checked={settings.startMinimized}
+              disabled={!settings.runOnStartup}
+              onChange={(checked) => settings.setStartMinimized(checked)}
+            />
 
-            <label className="flex items-center justify-between cursor-pointer group">
-              <span className="group-hover:text-primary transition-colors text-sm font-medium">
-                {t('settings.close_to_tray', 'Сворачивать в трей при закрытии')}
-              </span>
-              <input
-                type="checkbox"
-                checked={settings.closeToTray}
-                onChange={async (e) => {
-                  const checked = e.target.checked;
-                  settings.setCloseToTray(checked);
-                  try {
-                    const { invoke } = await import('@tauri-apps/api/core');
-                    await invoke('set_close_to_tray', { enabled: checked });
-                  } catch (err) {
-                    console.error('Failed to update close_to_tray state', err);
-                  }
-                }}
-                className="accent-primary w-4 h-4 rounded cursor-pointer"
-              />
-            </label>
+            <SettingToggle
+              title={t('settings.close_to_tray', 'Сворачивать в трей при закрытии')}
+              checked={settings.closeToTray}
+              onChange={async (checked) => {
+                settings.setCloseToTray(checked);
+                try {
+                  const { invoke } = await import('@tauri-apps/api/core');
+                  await invoke('set_close_to_tray', { enabled: checked });
+                } catch (err) {
+                  console.error('Failed to update close_to_tray state', err);
+                }
+              }}
+            />
           </div>
         </SettingSection>
       )}
@@ -222,22 +202,12 @@ export default function PlatformSettingsSection({
           </div>
 
           <div className="border-t border-border pt-3">
-            <label className="flex items-center justify-between cursor-pointer group">
-              <div className="flex flex-col pr-4">
-                <span className="group-hover:text-primary transition-colors text-sm font-medium text-foreground">
-                  {t('settings.include_prereleases', 'Получать предварительные сборки (бета-версии)')}
-                </span>
-                <span className="text-xs text-secondary">
-                  {t('settings.include_prereleases_desc', 'Проверять и предлагать к установке тестовые pre-release версии')}
-                </span>
-              </div>
-              <input
-                type="checkbox"
-                checked={settings.includePrereleases}
-                onChange={(e) => settings.setIncludePrereleases(e.target.checked)}
-                className="accent-primary w-4 h-4 rounded cursor-pointer shrink-0"
-              />
-            </label>
+            <SettingToggle
+              title={t('settings.include_prereleases', 'Получать предварительные сборки (бета-версии)')}
+              description={t('settings.include_prereleases_desc', 'Проверять и предлагать к установке тестовые pre-release версии')}
+              checked={settings.includePrereleases}
+              onChange={(checked) => settings.setIncludePrereleases(checked)}
+            />
           </div>
         </div>
       </SettingSection>
