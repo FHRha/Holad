@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { 
-  ChevronDown, Shuffle, SkipBack, 
-  Play, Pause, SkipForward, Repeat, Repeat1, Moon, 
-  Music, RotateCcw, RotateCw, Users, MessageSquareQuote
+  ChevronDown, 
+  Music, Users, MessageSquareQuote
 } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
@@ -16,8 +15,13 @@ import { useTranslation } from 'react-i18next';
 import MobileQueueTab from './MobileQueueTab';
 import MobileLyricsTab from './MobileLyricsTab';
 import JamSessionControl from '../jam/JamSessionControl';
-import { getAudioEngine } from '../../audio/AudioEngine';
-import { jamSocket } from '../../api/socket';
+import { 
+  SeekControls, 
+  PlaybackRateButton, 
+  SleepTimerMenu, 
+  SleepTimerButton, 
+  PlayerTransportBar 
+} from './controls';
 
 export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -25,7 +29,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
     queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, 
     role, isShuffle, toggleShuffle, 
     repeatMode, cycleRepeatMode, playbackRate, cyclePlaybackRate, 
-    sleepTimer, setSleepTimer, roomId
+    sleepTimer, roomId
   } = usePlayerStore();
   const { progress, buffered, duration, isSeeking, handleSeekChange, handleSeekEnd } = useAudioStore();
   
@@ -46,35 +50,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
                            window.location.pathname.startsWith('/jam/playlist/');
   const isStandalone = isJamRoute && (isStandaloneQuery || isStandalonePath) && !roomId;
 
-  const handleRewind = () => {
-    if (currentTrack) {
-      const engine = getAudioEngine();
-      const newTime = Math.max(0, engine.getCurrentTime() - 15);
-      engine.seek(newTime);
-      const pState = usePlayerStore.getState();
-      if (pState.roomId && (pState.role === 'host' || pState.role === 'cohost')) {
-        jamSocket.syncSeek(newTime);
-      }
-    }
-  };
 
-  const handleFastForward = () => {
-    if (currentTrack) {
-      const engine = getAudioEngine();
-      const dur = engine.getDuration() || currentTrack.duration || 0;
-      const newTime = Math.min(dur, engine.getCurrentTime() + 30);
-      engine.seek(newTime);
-      const pState = usePlayerStore.getState();
-      if (pState.roomId && (pState.role === 'host' || pState.role === 'cohost')) {
-        jamSocket.syncSeek(newTime);
-      }
-    }
-  };
-
-  const handleSetSleepTimer = (val: number | 'track_end' | null) => {
-    setSleepTimer(val);
-    setShowSleepTimerMenu(false);
-  };
 
   // oxlint-disable-next-line
   const coverArtHighRes = useMemo(() => {
@@ -179,64 +155,30 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
             <span className="min-w-[40px] text-left font-medium text-secondary">{formatTime(duration || 0)}</span>
           </div>
 
-          <div className="flex items-center justify-between w-full px-2">
-            <button 
-              onClick={toggleShuffle} 
-              disabled={role === 'listener'}
-              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${isShuffle ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-secondary hover:bg-foreground/10'}`}
-            >
-              <Shuffle size={20} />
-            </button>
-            <button 
-              onClick={prevTrack} 
-              disabled={role === 'listener'} 
-              className="text-secondary hover:text-foreground active:scale-95 transition-colors disabled:opacity-50 p-2"
-            >
-              <SkipBack size={32} fill="currentColor" />
-            </button>
-            <button 
-              onClick={handlePlayPause} 
-              disabled={role === 'listener'}
-              className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-50 shadow-lg"
-            >
-              {isPlaying ? (
-                <Pause fill="currentColor" size={28} className="stroke-none" />
-              ) : (
-                <Play fill="currentColor" size={28} className="stroke-none translate-x-[2px]" />
-              )}
-            </button>
-            <button 
-              onClick={nextTrack} 
-              disabled={role === 'listener'} 
-              className="text-secondary hover:text-foreground active:scale-95 transition-colors disabled:opacity-50 p-2"
-            >
-              <SkipForward size={32} fill="currentColor" />
-            </button>
-            <button 
-              onClick={cycleRepeatMode} 
-              disabled={role === 'listener'}
-              className={`transition-colors active:scale-95 disabled:opacity-50 p-2.5 rounded-full flex items-center justify-center ${repeatMode !== 'none' ? 'text-primary bg-primary/20 shadow-sm shadow-primary/10' : 'text-secondary hover:bg-foreground/10'}`}
-            >
-              {repeatMode === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
-            </button>
-          </div>
+          <PlayerTransportBar
+            isPlaying={isPlaying}
+            onPlayPause={handlePlayPause}
+            onNext={nextTrack}
+            onPrev={prevTrack}
+            isShuffle={isShuffle}
+            onToggleShuffle={toggleShuffle}
+            repeatMode={repeatMode}
+            onCycleRepeat={cycleRepeatMode}
+            isListener={role === 'listener'}
+          />
 
           {role !== 'listener' && (
             <div className="flex items-center justify-between w-full px-4 pt-2 text-secondary">
-              <button onClick={() => setShowSleepTimerMenu(true)} className={`hover:text-foreground transition-colors active:scale-95 ${sleepTimer.type ? 'text-primary' : ''}`}>
-                <Moon size={20} />
-              </button>
-              <button onClick={handleRewind} className="hover:text-foreground transition-colors active:scale-95 relative flex items-center justify-center">
-                <RotateCcw size={20} />
-                <span className="absolute text-[8px] font-bold mt-0.5">15</span>
-              </button>
-              <button onClick={cyclePlaybackRate} className={`hover:text-foreground transition-colors active:scale-95 font-bold text-sm tracking-wider ${playbackRate !== 1 ? 'text-primary' : ''}`}>
-                {playbackRate}x
-              </button>
-              <button onClick={handleFastForward} className="hover:text-foreground transition-colors active:scale-95 relative flex items-center justify-center">
-                <RotateCw size={20} />
-                <span className="absolute text-[8px] font-bold mt-0.5">30</span>
-              </button>
+              <SleepTimerButton 
+                onClick={() => setShowSleepTimerMenu(true)} 
+                isActive={!!sleepTimer.type} 
+              />
+              <SeekControls currentTrack={currentTrack} role={role}>
+                <PlaybackRateButton 
+                  playbackRate={playbackRate} 
+                  onCycle={cyclePlaybackRate}  
+                />
+              </SeekControls>
             </div>
           )}
         </div>
@@ -259,46 +201,10 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
         </button>
       </div>
 
-      {showSleepTimerMenu && (
-        <div className="absolute inset-0 z-[200] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div 
-            className="w-full sm:w-[400px] bg-background/90 backdrop-blur-xl transform-gpu border border-border rounded-t-3xl sm:rounded-3xl p-6 flex flex-col gap-2 animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-                <Moon size={24} className="text-primary" />
-                {t('player.sleepTimer')}
-              </h3>
-              <button onClick={() => setShowSleepTimerMenu(false)} className="p-2 text-secondary hover:text-foreground transition-colors rounded-full active:scale-95">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              </button>
-            </div>
-            
-            <button onClick={() => handleSetSleepTimer(15)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-foreground">
-              <span>{t('player.timer.15m')}</span>
-              {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) <= 15 && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 0 && <span className="w-2 h-2 rounded-full bg-primary" />}
-            </button>
-            <button onClick={() => handleSetSleepTimer(30)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-foreground">
-              <span>{t('player.timer.30m')}</span>
-              {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 15 && Math.round((sleepTimer.endTime - Date.now()) / 60000) <= 30 && <span className="w-2 h-2 rounded-full bg-primary" />}
-            </button>
-            <button onClick={() => handleSetSleepTimer(60)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-foreground">
-              <span>{t('player.timer.60m')}</span>
-              {sleepTimer.type === 'time' && sleepTimer.endTime && Math.round((sleepTimer.endTime - Date.now()) / 60000) > 30 && <span className="w-2 h-2 rounded-full bg-primary" />}
-            </button>
-            <button onClick={() => handleSetSleepTimer('track_end')} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-foreground">
-              <span>{t('player.timer.trackEnd')}</span>
-              {sleepTimer.type === 'track_end' && <span className="w-2 h-2 rounded-full bg-primary" />}
-            </button>
-            <div className="w-full h-px bg-foreground/10 my-2" />
-            <button onClick={() => handleSetSleepTimer(null)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-foreground/10 transition-colors flex justify-between items-center text-red-400">
-              <span>{t('player.timer.off')}</span>
-            </button>
-          </div>
-          <div className="absolute inset-0 z-[-1]" onClick={() => setShowSleepTimerMenu(false)} />
-        </div>
-      )}
+      <SleepTimerMenu 
+        isOpen={showSleepTimerMenu} 
+        onClose={() => setShowSleepTimerMenu(false)} 
+      />
 
       {showSessionMenu && (
         <div className="absolute inset-0 z-[200] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">

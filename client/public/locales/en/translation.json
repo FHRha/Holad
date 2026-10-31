@@ -328,8 +328,11 @@
     "queue_is_empty": "Queue is empty",
     "sleepTimer": "Sleep Timer",
     "timer": {
+      "5m": "5 Minutes",
+      "10m": "10 Minutes",
       "15m": "15 Minutes",
       "30m": "30 Minutes",
+      "45m": "45 Minutes",
       "60m": "1 Hour",
       "trackEnd": "End of Track",
       "off": "Turn Off"
