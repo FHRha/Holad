@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Play, Pause, Heart, MoreHorizontal, Clock, Radio, Music, ListPlus, ArrowLeft, Download, Ban } from 'lucide-react';
+import { Play, Pause, Heart, MoreHorizontal, Radio, Music, ListPlus, ArrowLeft, Download, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getCoverArtUrl, starItem, unstarItem } from '../../api/subsonic';
 import { formatDurationVerbose } from '../../utils/timeFormat';
@@ -10,6 +10,8 @@ import { useAlbumData } from '../../hooks/useAlbumData';
 import ArtistLinks from '../common/ArtistLinks';
 import RatingStars from '../common/RatingStars';
 import LongPressWrapper from '../common/LongPressWrapper';
+import LoadingSpinner from '../common/LoadingSpinner';
+import TrackTableHeader from '../common/TrackTableHeader';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { useUIStore } from '../../store/uiStore';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
@@ -42,7 +44,7 @@ export default function AlbumView() {
     handleAlbumRadio
   } = useAlbumData(id, observerTarget);
 
-  if (!album) return <div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
+  if (!album) return <LoadingSpinner fullScreen />;
 
   const coverUrl = getCoverArtUrl(album.coverArt || album.id, 600);
   const formatDuration = (seconds: number) => formatDurationVerbose(seconds, t);
@@ -161,12 +163,7 @@ export default function AlbumView() {
 
         <div className="flex flex-col lg:flex-row gap-10 mt-6">
           <div className="flex-1 flex flex-col">
-            <div className="hidden md:flex px-4 py-2 text-xs font-semibold tracking-widest text-secondary border-b border-white/10 uppercase mb-2">
-              <div className="w-12 text-center">#</div>
-              <div className="flex-1">{t('views.title')}</div>
-              {!isGuest && <div className="w-24 flex justify-center gap-4"><Heart size={14} /><Ban size={14} /></div>}
-              <div className="w-16 text-right"><Clock size={14} className="inline-block" /></div>
-            </div>
+            <TrackTableHeader showActions={!isGuest} />
             
             {album.song?.slice(0, visibleCount).map((track: any, index: number) => {
               const currentPlaying = queue[currentIndex]?.id === track.id;

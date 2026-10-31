@@ -19,6 +19,7 @@ import VolumeSlider from '../../common/VolumeSlider';
 import Dropdown from '../../common/Dropdown';
 import SettingSection from '../SettingSection';
 import CrossfadeCurveVisualizer from '../CrossfadeCurveVisualizer';
+import { SettingToggle, SettingRadioGroup } from '../controls';
 
 export interface PlaybackSettingsSectionProps {
   mode?: 'all' | 'player' | 'audio';
@@ -111,17 +112,11 @@ export default function PlaybackSettingsSection({
             icon={<Sparkles size={16} />}
             isMobile={isMobile}
           >
-            <label className="flex items-center justify-between cursor-pointer group gap-3">
-              <span className="group-hover:text-primary transition-colors text-sm font-medium leading-snug min-w-0 flex-1">
-                {t('settings.auto_dj_desc', 'Автоматически подбирать похожие треки в конец очереди')}
-              </span>
-              <input
-                type="checkbox"
-                checked={isAutoDjEnabled}
-                onChange={() => toggleAutoDj()}
-                className="accent-primary w-4 h-4 rounded cursor-pointer shrink-0"
-              />
-            </label>
+            <SettingToggle
+              title={t('settings.auto_dj_desc', 'Автоматически подбирать похожие треки в конец очереди')}
+              checked={isAutoDjEnabled}
+              onChange={toggleAutoDj}
+            />
 
             {/* Auto DJ Repeat Strategy: rendered in Advanced Mode */}
             {isAdvanced && isAutoDjEnabled && (
@@ -132,40 +127,27 @@ export default function PlaybackSettingsSection({
                     'При включённом повторе альбома/плейлиста'
                   )}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="radio"
-                      name={isMobile ? 'm_autoDjRepeatBehavior' : 'autoDjRepeatBehavior'}
-                      value="pause_on_repeat"
-                      checked={settings.autoDjRepeatBehavior === 'pause_on_repeat'}
-                      onChange={() => settings.setAutoDjRepeatBehavior('pause_on_repeat')}
-                      className="accent-primary w-4 h-4 cursor-pointer"
-                    />
-                    <span className="group-hover:text-primary transition-colors text-sm">
-                      {t(
+                <SettingRadioGroup
+                  name={isMobile ? 'm_autoDjRepeatBehavior' : 'autoDjRepeatBehavior'}
+                  value={settings.autoDjRepeatBehavior}
+                  onChange={(val) => settings.setAutoDjRepeatBehavior(val as any)}
+                  options={[
+                    {
+                      value: 'pause_on_repeat',
+                      label: t(
                         'settings.autodj_pause_on_repeat',
                         'Приоритет повтора (приостанавливать Авто DJ, альбом играет по кругу)'
-                      )}
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="radio"
-                      name={isMobile ? 'm_autoDjRepeatBehavior' : 'autoDjRepeatBehavior'}
-                      value="infinite_stream"
-                      checked={settings.autoDjRepeatBehavior === 'infinite_stream'}
-                      onChange={() => settings.setAutoDjRepeatBehavior('infinite_stream')}
-                      className="accent-primary w-4 h-4 cursor-pointer"
-                    />
-                    <span className="group-hover:text-primary transition-colors text-sm">
-                      {t(
+                      )
+                    },
+                    {
+                      value: 'infinite_stream',
+                      label: t(
                         'settings.autodj_infinite_stream',
                         'Бесконечный поток (игнорировать повтор и добавлять похожие треки)'
-                      )}
-                    </span>
-                  </label>
-                </div>
+                      )
+                    }
+                  ]}
+                />
               </div>
             )}
           </SettingSection>
@@ -324,17 +306,11 @@ export default function PlaybackSettingsSection({
             isMobile={isMobile}
           >
             <div className="flex flex-col gap-3">
-              <label className="flex items-center justify-between cursor-pointer group gap-3">
-                <span className="text-sm font-medium group-hover:text-primary transition-colors leading-snug min-w-0 flex-1">
-                  {t('settings.data_saver_enable', 'Режим экономии трафика')}
-                </span>
-                <input
-                  type="checkbox"
-                  checked={settings.dataSaver}
-                  onChange={(e) => settings.setDataSaver(e.target.checked)}
-                  className="accent-primary w-4 h-4 rounded cursor-pointer shrink-0"
-                />
-              </label>
+              <SettingToggle
+                title={t('settings.data_saver_enable', 'Режим экономии трафика')}
+                checked={settings.dataSaver}
+                onChange={(checked) => settings.setDataSaver(checked)}
+              />
 
               {settings.dataSaver && (
                 <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs leading-relaxed">
@@ -357,23 +333,12 @@ export default function PlaybackSettingsSection({
             isMobile={isMobile}
           >
             <div className="flex flex-col gap-4">
-              <label className="flex items-center justify-between cursor-pointer group gap-3">
-                <div className="flex flex-col pr-2 min-w-0 flex-1">
-                  <span className="group-hover:text-primary transition-colors text-sm font-medium leading-snug">
-                    {t('settings.crossfade_enable', 'Включить плавный переход')}
-                  </span>
-                  <span className="text-xs text-secondary leading-normal mt-0.5 break-words">
-                    {t('settings.crossfade_desc') ||
-                      'Плавное перетекание одного трека в другой'}
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.isCrossfadeEnabled}
-                  onChange={(e) => settings.setIsCrossfadeEnabled(e.target.checked)}
-                  className="accent-primary w-4 h-4 rounded cursor-pointer shrink-0"
-                />
-              </label>
+              <SettingToggle
+                title={t('settings.crossfade_enable', 'Включить плавный переход')}
+                description={t('settings.crossfade_desc') || 'Плавное перетекание одного трека в другой'}
+                checked={settings.isCrossfadeEnabled}
+                onChange={(checked) => settings.setIsCrossfadeEnabled(checked)}
+              />
 
               <div className={`pt-2 pb-1 space-y-3 transition-opacity ${settings.isCrossfadeEnabled ? 'opacity-100' : 'opacity-40'}`}>
                 <div className="flex justify-between text-xs text-secondary font-medium">
@@ -419,23 +384,12 @@ export default function PlaybackSettingsSection({
             icon={<FastForward size={16} />}
             isMobile={isMobile}
           >
-            <label className="flex items-center justify-between cursor-pointer group">
-              <div className="flex flex-col pr-4">
-                <span className="group-hover:text-primary transition-colors text-sm font-medium">
-                  {t('settings.gapless_enable', 'Воспроизведение без пауз')}
-                </span>
-                <span className="text-xs text-secondary">
-                  {t('settings.gapless_desc') ||
-                    'Убирать тишину между треками (отключает кроссфейд)'}
-                </span>
-              </div>
-              <input
-                type="checkbox"
-                checked={settings.isGaplessEnabled}
-                onChange={(e) => settings.setIsGaplessEnabled(e.target.checked)}
-                className="accent-primary w-4 h-4 rounded cursor-pointer flex-shrink-0"
-              />
-            </label>
+            <SettingToggle
+              title={t('settings.gapless_enable', 'Воспроизведение без пауз')}
+              description={t('settings.gapless_desc') || 'Убирать тишину между треками (отключает кроссфейд)'}
+              checked={settings.isGaplessEnabled}
+              onChange={(checked) => settings.setIsGaplessEnabled(checked)}
+            />
           </SettingSection>
 
           {/* Normalization / Compressor */}
@@ -445,23 +399,12 @@ export default function PlaybackSettingsSection({
             isMobile={isMobile}
           >
             <div className="flex flex-col gap-4">
-              <label className="flex items-center justify-between cursor-pointer group gap-3">
-                <div className="flex flex-col pr-2 min-w-0 flex-1">
-                  <span className="group-hover:text-primary transition-colors text-sm font-medium leading-snug">
-                    {t('settings.normalization_enable', 'Выравнивать громкость треков')}
-                  </span>
-                  <span className="text-xs text-secondary leading-normal mt-0.5 break-words">
-                    {t('settings.normalization_desc') ||
-                      'Автоматически выравнивать громкость треков (DSP компрессор)'}
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.isLoudnessNormalizationEnabled}
-                  onChange={(e) => settings.setIsLoudnessNormalizationEnabled(e.target.checked)}
-                  className="accent-primary w-4 h-4 rounded cursor-pointer shrink-0"
-                />
-              </label>
+              <SettingToggle
+                title={t('settings.normalization_enable', 'Выравнивать громкость треков')}
+                description={t('settings.normalization_desc') || 'Автоматически выравнивать громкость треков (DSP компрессор)'}
+                checked={settings.isLoudnessNormalizationEnabled}
+                onChange={(checked) => settings.setIsLoudnessNormalizationEnabled(checked)}
+              />
 
               {/* 4 WebAudio DSP compressor sliders: rendered in Advanced Mode */}
               {isAdvanced && settings.isLoudnessNormalizationEnabled && (

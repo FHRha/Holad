@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Play, Heart, Clock, ArrowLeft, Ban, Pencil, Check, X } from 'lucide-react';
+import { Play, ArrowLeft, Pencil, Check, X } from 'lucide-react';
 import { getPlaylist, updatePlaylist } from '../../api/subsonic/playlists';
 import { formatDurationVerbose } from '../../utils/timeFormat';
 import { usePlayerStore } from '../../store/playerStore';
@@ -12,6 +12,8 @@ import { getHoladServerUrl } from '../../utils/serverConfig';
 import { isJamPath as checkIsJamPath } from '../../utils/basePath';
 import TrackRow from '../common/TrackRow';
 import PlaylistCover from '../common/PlaylistCover';
+import LoadingSpinner from '../common/LoadingSpinner';
+import TrackTableHeader from '../common/TrackTableHeader';
 import { Virtuoso } from 'react-virtuoso';
 import { mapSubsonicTracks } from '../../utils/trackMapper';
 import { matchTrackConfidence } from '../../utils/trackFingerprint';
@@ -296,11 +298,7 @@ export default function PlaylistDetailView() {
   }, [playlist, setIsProcessing, setQueueAndPlay]);
 
   if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   if (!playlist) {
@@ -387,12 +385,7 @@ export default function PlaylistDetailView() {
         </div>
 
         <div className="flex flex-col gap-4 mt-6">
-          <div className="hidden md:flex px-4 py-2 text-xs font-semibold tracking-widest text-secondary border-b border-white/10 uppercase mb-2">
-            <div className="w-12 text-center">#</div>
-            <div className="flex-1">{t('views.title', 'Title')}</div>
-            <div className="w-24 flex justify-center gap-4"><Heart size={14} /><Ban size={14} /></div>
-            <div className="w-16 text-right"><Clock size={14} className="inline-block" /></div>
-          </div>
+          <TrackTableHeader />
           
           {tracks.length === 0 ? (
             <div className="text-center text-secondary py-10">{t('views.playlist_empty', 'Playlist is empty')}</div>
