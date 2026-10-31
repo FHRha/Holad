@@ -54,7 +54,7 @@ export default function IntegrationsSettingsSection({
                 type="text"
                 value={settings.discordClientId || ''}
                 onChange={(e) => settings.setDiscordClientId(e.target.value)}
-                placeholder="1165957668758900787 (По умолчанию / Feishin)"
+                placeholder="1565974937347301436 (По умолчанию / Holad)"
                 className="w-full px-3 py-1.5 text-xs bg-foreground/[0.04] border border-border rounded-lg text-foreground focus:outline-none focus:border-primary transition-colors font-mono"
               />
               <p className="text-[11px] text-secondary leading-normal">

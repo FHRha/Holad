@@ -228,7 +228,7 @@
     "discord_rpc_desc": "Display current track in Discord profile status",
     "enable_discord_rpc": "Broadcast status to Discord",
     "discord_client_id_label": "Application ID (Client ID)",
-    "discord_client_id_hint": "A shared Client ID is used by default. To display 'Listening to Holad' in Discord, create a 'Holad' application on discord.com/developers/applications and paste its Application ID here.",
+    "discord_client_id_hint": "Official Holad Client ID is used by default. If needed, you can provide your custom Application ID from discord.com/developers/applications.",
     "quick_cleanup": "Quick Storage Cleanup",
     "quick_cleanup_desc": "Free up disk space and memory in 1 click without losing downloaded tracks",
     "clear_cover_cache": "Clear cover cache",

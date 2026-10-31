@@ -228,7 +228,7 @@
     "discord_rpc_desc": "Отображение текущего трека в статусе профиля Discord",
     "enable_discord_rpc": "Транслировать статус в Discord",
     "discord_client_id_label": "Application ID (Client ID)",
-    "discord_client_id_hint": "По умолчанию используется общий Client ID. Чтобы в Discord отображалось «Слушает Holad», создайте приложение «Holad» на discord.com/developers/applications и вставьте его Application ID.",
+    "discord_client_id_hint": "По умолчанию используется официальный Client ID Holad. При необходимости вы можете указать собственный Application ID из discord.com/developers/applications.",
     "quick_cleanup": "Быстрая очистка хранилища",
     "quick_cleanup_desc": "Освободите дисковое пространство и оперативную память в один клик без потери скачанных треков",
     "clear_cover_cache": "Очистить кэш обложек",

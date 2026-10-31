@@ -3,7 +3,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-pub const DEFAULT_DISCORD_CLIENT_ID: &str = "1165957668758900787";
+pub const DEFAULT_DISCORD_CLIENT_ID: &str = "1565974937347301436";
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct DiscordActivity {
