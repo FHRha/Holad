@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useDiscordRpc } from '../../hooks/useDiscordRpc';
+import { useDiscordRpc, isPublicWebUrl } from '../../hooks/useDiscordRpc';
 import { usePlayerStore } from '../../store/playerStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useAudioStore } from '../../store/audioStore';
@@ -156,5 +156,21 @@ describe('useDiscordRpc Hook and Presence Behavior', () => {
     rerender();
 
     expect(mockInvoke).toHaveBeenCalledWith('update_discord_activity', { activity: null });
+  });
+
+  it('correctly detects public vs local/private URLs to prevent Discord grey broken image bars', () => {
+    // Local / private IP addresses that Discord fails on:
+    expect(isPublicWebUrl('http://localhost:4000/api/cover/al-123')).toBe(false);
+    expect(isPublicWebUrl('http://127.0.0.1:4533/rest/getCoverArt')).toBe(false);
+    expect(isPublicWebUrl('http://192.168.1.50:4533/rest/getCoverArt')).toBe(false);
+    expect(isPublicWebUrl('http://10.0.0.5:4533/rest/getCoverArt')).toBe(false);
+    expect(isPublicWebUrl('http://server.local/cover.jpg')).toBe(false);
+    expect(isPublicWebUrl(null)).toBe(false);
+    expect(isPublicWebUrl('')).toBe(false);
+
+    // Public URLs that Discord CDN proxy can cleanly fetch:
+    expect(isPublicWebUrl('https://is1-ssl.mzstatic.com/image/thumb/Music116/cover.jpg/600x600bb.jpg')).toBe(true);
+    expect(isPublicWebUrl('https://cdn-images.dzcdn.net/images/cover/badf8c9f757e30ddf810b407b6709436/500x500-000000-80-0-0.jpg')).toBe(true);
+    expect(isPublicWebUrl('https://my-navidrome.example.com/rest/getCoverArt?id=123')).toBe(true);
   });
 });

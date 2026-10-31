@@ -193,6 +193,20 @@ fn connect_ipc() -> std::io::Result<IpcStream> {
     ))
 }
 
+fn is_public_http_url(url: &str) -> bool {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return false;
+    }
+    let lower = url.to_lowercase();
+    !(lower.contains("localhost")
+        || lower.contains("127.0.0.1")
+        || lower.contains("::1")
+        || lower.contains("192.168.")
+        || lower.contains("10.")
+        || lower.contains(".local")
+        || lower.contains(".lan"))
+}
+
 fn send_frame<W: Write>(writer: &mut W, opcode: u32, payload: &str) -> std::io::Result<()> {
     let bytes = payload.as_bytes();
     let len = bytes.len() as u32;
@@ -355,7 +369,11 @@ fn worker_loop(rx: Receiver<RpcCommand>) {
                             activity_type: 2, // Listening
                             timestamps: Some(TimestampsPayload { start, end }),
                             assets: Some(AssetsPayload {
-                                large_image: act.cover_url.as_deref().filter(|u| u.starts_with("http")).or(Some("logo")),
+                                large_image: act
+                                    .cover_url
+                                    .as_deref()
+                                    .filter(|u| is_public_http_url(u))
+                                    .or(Some("logo")),
                                 large_text: Some(album_ref),
                                 small_image: Some("play"),
                                 small_text: Some("Holad"),
