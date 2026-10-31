@@ -120,6 +120,8 @@ export interface SettingsState {
   setDataSaver: (enabled: boolean) => void;
   enableDiscordRpc: boolean;
   setEnableDiscordRpc: (enabled: boolean) => void;
+  discordClientId: string;
+  setDiscordClientId: (id: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -276,6 +278,15 @@ export const useSettingsStore = create<SettingsState>()(
           }).catch(() => {});
         }
       },
+      discordClientId: '',
+      setDiscordClientId: (discordClientId) => {
+        set({ discordClientId });
+        if (isTauri()) {
+          import('@tauri-apps/api/core').then(({ invoke }) => {
+            invoke('set_discord_client_id', { clientId: discordClientId.trim() }).catch(() => {});
+          }).catch(() => {});
+        }
+      },
     }),
     {
       name: 'holad-settings',
@@ -294,10 +305,16 @@ export const useSettingsStore = create<SettingsState>()(
           if (persistedState.enableDiscordRpc === undefined) {
             persistedState.enableDiscordRpc = true;
           }
+          if (persistedState.discordClientId === undefined) {
+            persistedState.discordClientId = '';
+          }
         }
         if (persistedState) {
           if (!persistedState.crossfadeTension) {
             persistedState.crossfadeTension = { x: 0.5, y: 0.707 };
+          }
+          if (persistedState.discordClientId === undefined) {
+            persistedState.discordClientId = '';
           }
         }
         return persistedState;

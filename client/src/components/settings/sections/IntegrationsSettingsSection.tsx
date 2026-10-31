@@ -32,17 +32,40 @@ export default function IntegrationsSettingsSection({
         )}
         isMobile={isMobile}
       >
-        <label className="flex items-center justify-between cursor-pointer group">
-          <span className="text-sm font-medium group-hover:text-primary transition-colors text-foreground">
-            {t('settings.enable_discord_rpc', 'Транслировать статус в Discord')}
-          </span>
-          <input
-            type="checkbox"
-            checked={settings.enableDiscordRpc}
-            onChange={(e) => settings.setEnableDiscordRpc(e.target.checked)}
-            className="accent-primary w-4 h-4 rounded cursor-pointer"
-          />
-        </label>
+        <div className="space-y-3">
+          <label className="flex items-center justify-between cursor-pointer group">
+            <span className="text-sm font-medium group-hover:text-primary transition-colors text-foreground">
+              {t('settings.enable_discord_rpc', 'Транслировать статус в Discord')}
+            </span>
+            <input
+              type="checkbox"
+              checked={settings.enableDiscordRpc}
+              onChange={(e) => settings.setEnableDiscordRpc(e.target.checked)}
+              className="accent-primary w-4 h-4 rounded cursor-pointer"
+            />
+          </label>
+
+          {settings.enableDiscordRpc && (
+            <div className="pt-2 border-t border-border flex flex-col gap-1.5 animate-in fade-in duration-150">
+              <label className="text-xs font-medium text-foreground">
+                {t('settings.discord_client_id_label', 'Application ID (Client ID)')}
+              </label>
+              <input
+                type="text"
+                value={settings.discordClientId || ''}
+                onChange={(e) => settings.setDiscordClientId(e.target.value)}
+                placeholder="1165957668758900787 (По умолчанию / Feishin)"
+                className="w-full px-3 py-1.5 text-xs bg-foreground/[0.04] border border-border rounded-lg text-foreground focus:outline-none focus:border-primary transition-colors font-mono"
+              />
+              <p className="text-[11px] text-secondary leading-normal">
+                {t(
+                  'settings.discord_client_id_hint',
+                  'По умолчанию используется общий Client ID. Чтобы в Discord отображалось «Слушает Holad», создайте приложение «Holad» на discord.com/developers/applications и вставьте его Application ID.'
+                )}
+              </p>
+            </div>
+          )}
+        </div>
       </SettingSection>
 
       {/* 2. Data Sources & Music Providers */}

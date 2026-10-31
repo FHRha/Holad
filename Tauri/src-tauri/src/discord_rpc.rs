@@ -70,6 +70,7 @@ struct AssetsPayload<'a> {
 
 enum RpcCommand {
     SetEnabled(bool),
+    SetClientId(String),
     UpdateActivity(Option<DiscordActivity>),
 }
 
@@ -117,6 +118,13 @@ static RPC_TX: OnceLock<Sender<RpcCommand>> = OnceLock::new();
 pub fn set_discord_rpc_enabled(enabled: bool) {
     if let Some(tx) = RPC_TX.get() {
         let _ = tx.send(RpcCommand::SetEnabled(enabled));
+    }
+}
+
+#[tauri::command]
+pub fn set_discord_client_id(client_id: String) {
+    if let Some(tx) = RPC_TX.get() {
+        let _ = tx.send(RpcCommand::SetClientId(client_id));
     }
 }
 
@@ -209,6 +217,7 @@ fn read_frame<R: Read>(reader: &mut R) -> std::io::Result<(u32, String)> {
 
 fn worker_loop(rx: Receiver<RpcCommand>) {
     let mut enabled = true;
+    let mut client_id = DEFAULT_DISCORD_CLIENT_ID.to_string();
     let mut current_activity: Option<DiscordActivity> = None;
     let mut stream: Option<IpcStream> = None;
     let mut nonce = 0u64;
@@ -222,11 +231,45 @@ fn worker_loop(rx: Receiver<RpcCommand>) {
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
         };
 
+        let mut should_update_activity = false;
+
         if let Some(cmd) = cmd {
             match cmd {
                 RpcCommand::SetEnabled(e) => {
-                    enabled = e;
-                    if !enabled {
+                    if enabled != e {
+                        enabled = e;
+                        if !enabled {
+                            if let Some(mut s) = stream.take() {
+                                nonce += 1;
+                                let clear_payload = SetActivityPayload {
+                                    cmd: "SET_ACTIVITY",
+                                    args: ActivityArgs {
+                                        pid: my_pid,
+                                        activity: None,
+                                    },
+                                    nonce: nonce.to_string(),
+                                };
+                                if let Ok(json) = serde_json::to_string(&clear_payload) {
+                                    let _ = send_frame(&mut s, 1, &json);
+                                }
+                            }
+                            log::info!("[DiscordRPC] Discord Rich Presence disabled");
+                            continue;
+                        } else {
+                            log::info!("[DiscordRPC] Discord Rich Presence enabled");
+                            should_update_activity = true;
+                        }
+                    }
+                }
+                RpcCommand::SetClientId(new_id) => {
+                    let target_id = if new_id.trim().is_empty() {
+                        DEFAULT_DISCORD_CLIENT_ID.to_string()
+                    } else {
+                        new_id.trim().to_string()
+                    };
+                    if client_id != target_id {
+                        client_id = target_id;
+                        log::info!("[DiscordRPC] Client ID updated to: {}", client_id);
                         if let Some(mut s) = stream.take() {
                             nonce += 1;
                             let clear_payload = SetActivityPayload {
@@ -241,14 +284,12 @@ fn worker_loop(rx: Receiver<RpcCommand>) {
                                 let _ = send_frame(&mut s, 1, &json);
                             }
                         }
-                        log::info!("[DiscordRPC] Discord Rich Presence disabled");
-                        continue;
-                    } else {
-                        log::info!("[DiscordRPC] Discord Rich Presence enabled");
+                        should_update_activity = true;
                     }
                 }
                 RpcCommand::UpdateActivity(act) => {
                     current_activity = act;
+                    should_update_activity = true;
                 }
             }
         }
@@ -257,20 +298,23 @@ fn worker_loop(rx: Receiver<RpcCommand>) {
             continue;
         }
 
-        // If we don't have an active stream, but have an activity, try to connect:
-        if stream.is_none() && current_activity.is_some() {
+        let has_active_playback = current_activity.as_ref().map_or(false, |a| a.is_playing);
+
+        // If disconnected and user is playing, attempt connection
+        if stream.is_none() && has_active_playback {
             match connect_ipc() {
                 Ok(mut s) => {
                     let hs = HandshakePayload {
                         v: 1,
-                        client_id: DEFAULT_DISCORD_CLIENT_ID,
+                        client_id: &client_id,
                     };
                     if let Ok(hs_json) = serde_json::to_string(&hs) {
                         if send_frame(&mut s, 0, &hs_json).is_ok() {
                             if let Ok((op, _)) = read_frame(&mut s) {
                                 if op == 1 {
-                                    log::info!("[DiscordRPC] Connected and handshaked with Discord");
+                                    log::info!("[DiscordRPC] Connected to Discord with client_id {}", client_id);
                                     stream = Some(s);
+                                    should_update_activity = true;
                                 } else {
                                     log::warn!(
                                         "[DiscordRPC] Unexpected handshake response opcode: {}",
@@ -287,71 +331,60 @@ fn worker_loop(rx: Receiver<RpcCommand>) {
             }
         }
 
-        // Send current activity if connected
-        if let Some(ref mut s) = stream {
-            nonce += 1;
-            let now_secs = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
+        // Send activity update when changed/commanded
+        if should_update_activity {
+            if let Some(ref mut s) = stream {
+                nonce += 1;
+                let now_secs = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
 
-            let activity_payload = current_activity.as_ref().map(|act| {
-                let (timestamps, state_str, small_icon, small_txt) = if act.is_playing {
-                    let pos_sec = act.position.unwrap_or(0.0).max(0.0) as u64;
-                    let start = now_secs.saturating_sub(pos_sec);
-                    let end = act.duration.filter(|d| *d > 0.0).map(|d| start + (d as u64));
-                    (
-                        Some(TimestampsPayload { start, end }),
-                        act.artist.clone(),
-                        Some("play"),
-                        Some("Holad"),
-                    )
-                } else {
-                    (
-                        None,
-                        format!("{} (Пауза)", act.artist),
-                        Some("pause"),
-                        Some("Пауза"),
-                    )
+                // If activity exists AND is playing, construct listening presence.
+                // If stopped/paused (or None), activity_payload is None, which clears Discord presence!
+                let activity_payload = match current_activity.as_ref() {
+                    Some(act) if act.is_playing => {
+                        let pos_sec = act.position.unwrap_or(0.0).max(0.0) as u64;
+                        let start = now_secs.saturating_sub(pos_sec);
+                        let end = act.duration.filter(|d| *d > 0.0).map(|d| start + (d as u64));
+                        let album_ref = act.album.as_deref().unwrap_or("Holad");
+
+                        Some(ActivityPayload {
+                            details: Some(&act.title),
+                            state: Some(act.artist.clone()),
+                            activity_type: 2, // Listening
+                            timestamps: Some(TimestampsPayload { start, end }),
+                            assets: Some(AssetsPayload {
+                                large_image: act.cover_url.as_deref().filter(|u| u.starts_with("http")).or(Some("logo")),
+                                large_text: Some(album_ref),
+                                small_image: Some("play"),
+                                small_text: Some("Holad"),
+                            }),
+                        })
+                    }
+                    _ => None,
                 };
 
-                let album_ref = act.album.as_deref().unwrap_or("Holad");
+                let payload = SetActivityPayload {
+                    cmd: "SET_ACTIVITY",
+                    args: ActivityArgs {
+                        pid: my_pid,
+                        activity: activity_payload,
+                    },
+                    nonce: nonce.to_string(),
+                };
 
-                ActivityPayload {
-                    details: Some(&act.title),
-                    state: Some(state_str),
-                    activity_type: 2, // Listening
-                    timestamps,
-                    assets: Some(AssetsPayload {
-                        large_image: act.cover_url.as_deref().filter(|u| u.starts_with("http")),
-                        large_text: Some(album_ref),
-                        small_image: small_icon,
-                        small_text: small_txt,
-                    }),
-                }
-            });
+                let send_res = serde_json::to_string(&payload)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+                    .and_then(|json| send_frame(s, 1, &json));
 
-            let payload = SetActivityPayload {
-                cmd: "SET_ACTIVITY",
-                args: ActivityArgs {
-                    pid: my_pid,
-                    activity: activity_payload,
-                },
-                nonce: nonce.to_string(),
-            };
-
-            let send_res = serde_json::to_string(&payload)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-                .and_then(|json| send_frame(s, 1, &json));
-
-            if let Err(e) = send_res {
-                log::warn!(
-                    "[DiscordRPC] Failed to send activity to Discord: {:?}, disconnecting",
-                    e
-                );
-                stream = None;
-            } else {
-                if let Err(e) = read_frame(s) {
+                if let Err(e) = send_res {
+                    log::warn!(
+                        "[DiscordRPC] Failed to send activity to Discord: {:?}, disconnecting",
+                        e
+                    );
+                    stream = None;
+                } else if let Err(e) = read_frame(s) {
                     log::warn!(
                         "[DiscordRPC] Failed to read activity response: {:?}, disconnecting",
                         e

@@ -21,8 +21,10 @@ export function useDiscordRpc() {
   const currentTrack = usePlayerStore((state) => state.queue[state.currentIndex]);
   const isPlaying = usePlayerStore((state) => state.isPlaying);
   const enableDiscordRpc = useSettingsStore((state) => state.enableDiscordRpc);
+  const discordClientId = useSettingsStore((state) => state.discordClientId);
   const isActiveDevice = useIsActiveDevice();
   const duration = useAudioStore((state) => state.duration);
+  const isSeeking = useAudioStore((state) => state.isSeeking);
 
   const lastKeyRef = useRef<string>('');
 
@@ -32,11 +34,17 @@ export function useDiscordRpc() {
     invoke('set_discord_rpc_enabled', { enabled: enableDiscordRpc }).catch(() => {});
   }, [enableDiscordRpc]);
 
-  // 2. Broadcast track and playback changes to Discord
+  // 2. Sync discordClientId with backend
+  useEffect(() => {
+    if (!isTauri()) return;
+    invoke('set_discord_client_id', { clientId: discordClientId?.trim() || '' }).catch(() => {});
+  }, [discordClientId]);
+
+  // 3. Broadcast track and playback changes to Discord
   useEffect(() => {
     if (!isTauri()) return;
 
-    if (!enableDiscordRpc || !currentTrack || !isActiveDevice) {
+    if (!enableDiscordRpc || !currentTrack || !isActiveDevice || !isPlaying || isSeeking) {
       if (lastKeyRef.current !== 'cleared') {
         lastKeyRef.current = 'cleared';
         invoke('update_discord_activity', { activity: null }).catch(() => {});
@@ -57,7 +65,7 @@ export function useDiscordRpc() {
       }
     }
 
-    const key = `${currentTrack.id}_${isPlaying}_${Math.round(audioDuration)}`;
+    const key = `${currentTrack.id}_${isPlaying}_${Math.round(audioDuration)}_${Math.round(currentPosition)}`;
     if (lastKeyRef.current === key) {
       return;
     }
@@ -80,6 +88,7 @@ export function useDiscordRpc() {
     currentTrack?.artist,
     currentTrack?.album,
     isPlaying,
+    isSeeking,
     enableDiscordRpc,
     isActiveDevice,
     duration,

@@ -50,6 +50,7 @@ export function resetAllStores(): void {
     showAdvancedSettings: false,
     dataSaver: false,
     enableDiscordRpc: true,
+    discordClientId: '',
   });
 
   useAudioStore.setState({

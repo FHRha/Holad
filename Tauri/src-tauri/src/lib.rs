@@ -412,6 +412,7 @@ pub fn run() {
         set_music_download_dir,
         updater::download_and_install_update,
         discord_rpc::set_discord_rpc_enabled,
+        discord_rpc::set_discord_client_id,
         discord_rpc::update_discord_activity
     ])
     .setup(|app| {
