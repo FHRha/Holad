@@ -1,14 +1,47 @@
 import { useState, useEffect } from 'react';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
+import { useAuthStore } from '../store/authStore';
+import { useHoladStore } from '../store/holadStore';
+import { usePlayerStore } from '../store/playerStore';
+import { jamSocket } from '../api/socket';
 
 let globalIsWindowVisible = true;
 const visibilityListeners = new Set<(visible: boolean) => void>();
+
+export function checkAndRestoreSockets(): void {
+  try {
+    const authState = useAuthStore.getState();
+    if (authState.isAuthenticated) {
+      const holadState = useHoladStore.getState();
+      const isSocketDisconnected =
+        holadState.connectionStatus === 'disconnected' ||
+        holadState.connectionStatus === 'error' ||
+        !holadState.socket?.connected;
+
+      if (isSocketDisconnected) {
+        holadState.refreshDevices();
+      }
+    }
+
+    const playerState = usePlayerStore.getState();
+    if (playerState.roomId) {
+      if (!jamSocket.isConnected()) {
+        jamSocket.connect();
+      }
+    }
+  } catch (err) {
+    console.warn('[WindowVisibility] Error restoring sockets on visibility restore:', err);
+  }
+}
 
 export function getIsWindowVisible(): boolean {
   return globalIsWindowVisible;
 }
 
 export function setGlobalWindowVisible(visible: boolean): void {
+  if (visible) {
+    checkAndRestoreSockets();
+  }
   if (globalIsWindowVisible !== visible) {
     globalIsWindowVisible = visible;
     visibilityListeners.forEach((listener) => listener(visible));
@@ -37,11 +70,16 @@ export function useWindowVisibility(): boolean {
 
     // 1. Web Page Visibility API
     const handleVisibilityChange = () => {
-      setGlobalWindowVisible(!document.hidden);
+      const visible = !document.hidden;
+      setGlobalWindowVisible(visible);
+      if (visible) {
+        checkAndRestoreSockets();
+      }
     };
 
     const handleFocus = () => {
       setGlobalWindowVisible(true);
+      checkAndRestoreSockets();
     };
 
     const handleBlur = () => {
@@ -56,6 +94,7 @@ export function useWindowVisibility(): boolean {
 
     const handleResume = () => {
       setGlobalWindowVisible(true);
+      checkAndRestoreSockets();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -69,7 +108,11 @@ export function useWindowVisibility(): boolean {
     if (isCapacitor()) {
       import('@capacitor/app').then(({ App }) => {
         App.addListener('appStateChange', ({ isActive }) => {
-          setGlobalWindowVisible(Boolean(isActive));
+          const visible = Boolean(isActive);
+          setGlobalWindowVisible(visible);
+          if (visible) {
+            checkAndRestoreSockets();
+          }
         }).then((handle) => {
           unlistenCapacitor = () => {
             if (handle && typeof handle.remove === 'function') {
@@ -85,6 +128,9 @@ export function useWindowVisibility(): boolean {
     if (isTauri()) {
       import('@tauri-apps/api/event').then(({ listen }) => {
         listen<boolean>('window-visibility-change', (event) => {
+          if (event.payload) {
+            checkAndRestoreSockets();
+          }
           setGlobalWindowVisible(event.payload);
         }).then((unlisten) => {
           unlistenTauri = unlisten;

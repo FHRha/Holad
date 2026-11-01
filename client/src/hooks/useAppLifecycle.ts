@@ -2,12 +2,22 @@ import { useEffect } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 import { useHoladStore } from '../store/holadStore';
+import { useSettingsStore } from '../store/settingsStore';
 import { getAudioEngine } from '../audio/AudioEngine';
 import { App } from '@capacitor/app';
 import { isCapacitor, isTauri } from '../utils/StorageManager';
 
 export function useAppLifecycle() {
   useEffect(() => {
+    const disconnect = (isTerminating = false) => {
+      // Helper method: do not destroy connection if app is just minimized/closed to tray
+      if (!isTerminating) return;
+      const holadState = useHoladStore.getState();
+      if (typeof holadState.disconnect === 'function') {
+        holadState.disconnect();
+      }
+    };
+
     const handleExit = (isTerminating = false) => {
       const playerStore = usePlayerStore.getState();
       const audioStore = useAudioStore.getState();
@@ -67,6 +77,10 @@ export function useAppLifecycle() {
             });
          }
       }
+
+      if (isTerminating) {
+        disconnect(true);
+      }
     };
 
     const handleBeforeUnload = () => {
@@ -89,7 +103,8 @@ export function useAppLifecycle() {
     if (isTauri()) {
       import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
         getCurrentWindow().onCloseRequested(() => {
-          handleExit(true);
+          const closeToTray = useSettingsStore.getState().closeToTray;
+          handleExit(!closeToTray);
         }).then(unlisten => {
           unlistenTauri = unlisten;
         });

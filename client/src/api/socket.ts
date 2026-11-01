@@ -25,9 +25,26 @@ class JamSocketService {
   private latestStateVersion: number = 0;
   private lastTrackEndedId: string | null = null;
   private lastTrackEndedTime: number = 0;
+  private softSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private clearSoftSyncTimer() {
+    if (this.softSyncTimer) {
+      clearTimeout(this.softSyncTimer);
+      this.softSyncTimer = null;
+    }
+  }
+
+  isConnected(): boolean {
+    return Boolean(this.socket?.connected);
+  }
 
   connect() {
-    if (this.socket) return;
+    if (this.socket) {
+      if (!this.socket.connected) {
+        this.socket.connect();
+      }
+      return;
+    }
     
     this.socket = io(getSocketUrl(), {
       path: getSocketPath(),
@@ -449,6 +466,7 @@ class JamSocketService {
   }
 
   leaveRoom() {
+    this.clearSoftSyncTimer();
     const { roomId } = usePlayerStore.getState();
     if (roomId) {
       this.socket?.emit('leaveRoom', roomId); // Optional implement on server
@@ -570,6 +588,7 @@ class JamSocketService {
   }
 
   private stopHostSync() {
+    this.clearSoftSyncTimer();
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
@@ -624,8 +643,16 @@ class JamSocketService {
         usePlayerStore.setState({ currentIndex });
       }
 
-      if (actualTrackChanged && currentTime > 0) {
-        usePlayerStore.getState().setInitialPosition(currentTime * 1000);
+      if (actualTrackChanged) {
+        this.clearSoftSyncTimer();
+        if (store.role !== 'host') {
+          const TARGET_LAG = 0.25;
+          if (currentTime > 0) {
+            usePlayerStore.getState().setInitialPosition(Math.max(0, currentTime - TARGET_LAG) * 1000);
+          } else {
+            usePlayerStore.getState().setInitialPosition(0);
+          }
+        }
       }
 
       if (isAutoDjEnabled !== undefined && isAutoDjEnabled !== store.isAutoDjEnabled) {
@@ -658,6 +685,7 @@ class JamSocketService {
             engine.pause();
             engine.setPlaybackRate(1.0); // Reset rate on pause
           }
+          this.clearSoftSyncTimer();
           usePlayerStore.setState({ isPlaying: false });
         }
 
@@ -668,36 +696,50 @@ class JamSocketService {
             return;
           }
 
-          // Compensate for network latency (~150ms) if playing, no compensation if paused
-          const targetTime = isPlaying ? (currentTime + 0.15) : currentTime;
-          const drift = targetTime - engine.getCurrentTime();
-          
-          // Dynamic hard sync threshold: be aggressive at the start of a track or on explicit seek
-          const isEarlyInTrack = engine.getCurrentTime() < 5;
-          const hardSyncThreshold = (isSeek || isEarlyInTrack) ? 0.3 : 2.0;
+          if (store.role === 'host') {
+            engine.setPlaybackRate(1.0);
+            this.clearSoftSyncTimer();
+            return;
+          }
 
-          if (isSeek || Math.abs(drift) > hardSyncThreshold) {
-            console.log(`Seek or large drift detected (${Math.abs(drift).toFixed(2)}s), hard seeking to match`);
-            engine.seek(targetTime);
+          const TARGET_LAG = 0.25;
+          const hostEstimatedTime = isPlaying ? (currentTime + 0.10) : currentTime;
+          const lag = hostEstimatedTime - engine.getCurrentTime();
+
+          if (isSeek || lag > 1.50 || lag < -1.0) {
+            this.clearSoftSyncTimer();
+            const targetSeek = Math.max(0, hostEstimatedTime - TARGET_LAG);
+            console.log(`Seek or large lag detected (lag: ${lag.toFixed(2)}s), hard seeking to ${targetSeek.toFixed(2)}s`);
+            engine.seek(targetSeek);
             engine.setPlaybackRate(1.0);
             if (!isPlaying) {
               const dur = engine.getDuration() || (newQueue && newQueue[newIndex]?.duration) || 0;
               if (dur > 0) {
-                useAudioStore.getState().setProgress((targetTime / dur) * 100);
+                useAudioStore.getState().setProgress((targetSeek / dur) * 100);
               }
             }
-          } else if (isPlaying && drift > 0.15) {
-            // We are behind the host, speed up
-            engine.setPlaybackRate(1.05);
-            console.log(`Soft sync: Catching up (+${drift.toFixed(2)}s)`);
-          } else if (isPlaying && drift < -0.15) {
-            // We are ahead of the host, slow down
-            engine.setPlaybackRate(0.95);
-            console.log(`Soft sync: Waiting (-${Math.abs(drift).toFixed(2)}s)`);
-          } else if (isPlaying) {
-            // Perfect sync
+          } else if (0.0 <= lag && lag <= 0.50) {
+            // Deadband Zone: listener is 0 to 500ms behind host
+            this.clearSoftSyncTimer();
             engine.setPlaybackRate(1.0);
-            console.log("Soft sync: Perfectly in sync");
+          } else if (0.50 < lag && lag <= 1.50) {
+            // Soft catch-up
+            this.clearSoftSyncTimer();
+            engine.setPlaybackRate(1.025);
+            const timeToSyncSec = (lag - TARGET_LAG) / 0.025;
+            this.softSyncTimer = setTimeout(() => {
+              engine.setPlaybackRate(1.0);
+              this.softSyncTimer = null;
+            }, Math.min(timeToSyncSec * 1000, 8000));
+          } else if (-1.0 <= lag && lag < 0.0) {
+            // Soft wait
+            this.clearSoftSyncTimer();
+            engine.setPlaybackRate(0.975);
+            const timeToSyncSec = (TARGET_LAG - lag) / 0.025;
+            this.softSyncTimer = setTimeout(() => {
+              engine.setPlaybackRate(1.0);
+              this.softSyncTimer = null;
+            }, Math.min(timeToSyncSec * 1000, 8000));
           }
         }
       }
@@ -707,6 +749,7 @@ class JamSocketService {
   }
 
   disconnect() {
+    this.clearSoftSyncTimer();
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
