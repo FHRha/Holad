@@ -91,6 +91,42 @@ describe('Security Hardening & Vulnerability Remediation Tests', () => {
       expect(res.body).toHaveProperty('tracks');
     });
 
+    it('rejects unauthenticated requests (without Subsonic tokens) with 401 Unauthorized', async () => {
+      const plId = 'pl-unauth-' + Date.now();
+
+      // GET /api/custom-playlists without credentials
+      const getRes = await request(app).get('/api/custom-playlists?userId=some_user');
+      expect(getRes.status).toBe(401);
+      expect(getRes.body.error).toMatch(/Authentication required/i);
+
+      // POST /api/custom-playlists without credentials
+      const postRes = await request(app)
+        .post('/api/custom-playlists')
+        .send({
+          id: plId,
+          name: 'Unauth Playlist',
+          trackIds: ['trk_1'],
+          userId: 'some_user'
+        });
+      expect(postRes.status).toBe(401);
+      expect(postRes.body.error).toMatch(/Authentication required/i);
+
+      // DELETE /api/custom-playlists/:id without credentials
+      const delRes = await request(app)
+        .delete(`/api/custom-playlists/${plId}?userId=some_user`);
+      expect(delRes.status).toBe(401);
+      expect(delRes.body.error).toMatch(/Authentication required/i);
+
+      // POST /api/custom-playlists/:id/reconcile without credentials
+      const reconRes = await request(app)
+        .post(`/api/custom-playlists/${plId}/reconcile`)
+        .send({
+          replacements: [{ oldId: 'trk_1', newId: 'trk_2' }]
+        });
+      expect(reconRes.status).toBe(401);
+      expect(reconRes.body.error).toMatch(/Authentication required/i);
+    });
+
     it('POST /api/custom-playlists prevents BOLA / IDOR when userId does not match authenticated user', async () => {
       const plId = 'pl-bola-test-' + Date.now();
       const res = await request(app)
@@ -121,6 +157,61 @@ describe('Security Hardening & Vulnerability Remediation Tests', () => {
 
       expect(res.status).toBe(403);
       expect(res.body.error).toMatch(/Permission denied|mismatch/i);
+    });
+
+    it('allows authorized requests with valid Subsonic tokens to create, retrieve, and delete playlists', async () => {
+      const plId = 'pl-legit-auth-' + Date.now();
+      const legitAuthHeaders = {
+        'x-user': 'legit_user',
+        'x-token': 'mock_token',
+        'x-salt': 'mock_salt',
+        'x-url': 'http://mock-navidrome.local'
+      };
+
+      // 1. Create playlist as legit_user
+      const createRes = await request(app)
+        .post('/api/custom-playlists')
+        .set(legitAuthHeaders)
+        .send({
+          id: plId,
+          name: 'Legit User Playlist',
+          trackIds: ['trk_auth_1'],
+          userId: 'legit_user'
+        });
+      expect(createRes.status).toBe(200);
+      expect(createRes.body.success).toBe(true);
+
+      // 2. Fetch playlists as legit_user
+      const listRes = await request(app)
+        .get('/api/custom-playlists')
+        .set(legitAuthHeaders);
+      expect(listRes.status).toBe(200);
+      expect(listRes.body.playlists).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: plId,
+            name: 'Legit User Playlist',
+            userId: 'legit_user'
+          })
+        ])
+      );
+
+      // 3. Reconcile playlist as legit_user
+      const reconRes = await request(app)
+        .post(`/api/custom-playlists/${plId}/reconcile`)
+        .set(legitAuthHeaders)
+        .send({
+          replacements: [{ oldId: 'trk_auth_1', newId: 'trk_auth_2' }]
+        });
+      expect(reconRes.status).toBe(200);
+      expect(reconRes.body.ok).toBe(true);
+
+      // 4. Delete playlist as legit_user
+      const deleteRes = await request(app)
+        .delete(`/api/custom-playlists/${plId}`)
+        .set(legitAuthHeaders);
+      expect(deleteRes.status).toBe(200);
+      expect(deleteRes.body.success).toBe(true);
     });
   });
 });

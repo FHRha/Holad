@@ -1,4 +1,5 @@
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use tauri::{AppHandle, Emitter};
 
@@ -15,8 +16,24 @@ fn download_and_install_sync(
     app: AppHandle,
     url: String,
     file_name: String,
+    expected_sha256: Option<String>,
     _silent: Option<bool>,
 ) -> Result<(), String> {
+    // 1. URL Source Validation: strictly HTTPS and only official GitHub releases
+    if !url.starts_with("https://github.com/FHRha/Holad/releases/download/")
+        && !url.starts_with("https://objects.githubusercontent.com/")
+    {
+        let err_msg = "Disallowed update URL: download is only permitted from official GitHub releases over HTTPS".to_string();
+        let _ = app.emit("update-download-progress", UpdateProgressPayload {
+            stage: "error".into(),
+            percent: 0.0,
+            downloaded: 0,
+            total: 0,
+            error: Some(err_msg.clone()),
+        });
+        return Err(err_msg);
+    }
+
     let temp_dir = std::env::temp_dir().join("Holad").join("updates");
     if let Err(e) = std::fs::create_dir_all(&temp_dir) {
         let err_msg = format!("Failed to create updates temp directory: {}", e);
@@ -30,7 +47,21 @@ fn download_and_install_sync(
         return Err(err_msg);
     }
 
-    let dest_file = temp_dir.join(&file_name);
+    // 2. Path Traversal Protection (CWE-22)
+    let clean_name = std::path::Path::new(&file_name)
+        .file_name()
+        .ok_or_else(|| {
+            let err = "Invalid file name".to_string();
+            let _ = app.emit("update-download-progress", UpdateProgressPayload {
+                stage: "error".into(),
+                percent: 0.0,
+                downloaded: 0,
+                total: 0,
+                error: Some(err.clone()),
+            });
+            err
+        })?;
+    let dest_file = temp_dir.join(clean_name);
 
     let _ = app.emit("update-download-progress", UpdateProgressPayload {
         stage: "downloading".into(),
@@ -59,6 +90,22 @@ fn download_and_install_sync(
         }
     };
 
+    // Validate destination after redirects
+    let final_url = response.get_url();
+    if !final_url.starts_with("https://github.com/FHRha/Holad/releases/download/")
+        && !final_url.starts_with("https://objects.githubusercontent.com/")
+    {
+        let err_msg = "Disallowed redirect URL: download is only permitted from official GitHub releases over HTTPS".to_string();
+        let _ = app.emit("update-download-progress", UpdateProgressPayload {
+            stage: "error".into(),
+            percent: 0.0,
+            downloaded: 0,
+            total: 0,
+            error: Some(err_msg.clone()),
+        });
+        return Err(err_msg);
+    }
+
     let total: u64 = response
         .header("Content-Length")
         .and_then(|s| s.parse::<u64>().ok())
@@ -84,11 +131,13 @@ fn download_and_install_sync(
     let mut downloaded: u64 = 0;
     let mut last_emitted_percent: f64 = -1.0;
     let mut last_emit_time = std::time::Instant::now();
+    let mut hasher = Sha256::new();
 
     loop {
         match reader.read(&mut buffer) {
             Ok(0) => break, // EOF
             Ok(bytes_read) => {
+                hasher.update(&buffer[..bytes_read]);
                 if let Err(e) = file.write_all(&buffer[..bytes_read]) {
                     let err_msg = format!("Failed to write to file: {}", e);
                     let _ = app.emit("update-download-progress", UpdateProgressPayload {
@@ -149,6 +198,34 @@ fn download_and_install_sync(
     }
     drop(file);
 
+    // 3. Cryptographic integrity verification (CWE-494)
+    let calculated_hash = format!("{:x}", hasher.finalize());
+    let clean_expected = expected_sha256
+        .as_deref()
+        .map(|h| h.trim().to_lowercase())
+        .filter(|h| !h.is_empty());
+
+    let is_valid = match clean_expected {
+        Some(ref exp) => exp == &calculated_hash,
+        None => {
+            // In production release builds, checksum is strictly required
+            cfg!(debug_assertions)
+        }
+    };
+
+    if !is_valid {
+        let _ = std::fs::remove_file(&dest_file);
+        let err_msg = "Checksum verification failed".to_string();
+        let _ = app.emit("update-download-progress", UpdateProgressPayload {
+            stage: "error".into(),
+            percent: 100.0,
+            downloaded,
+            total,
+            error: Some(err_msg.clone()),
+        });
+        return Err(err_msg);
+    }
+
     // Download finished, emit installing state
     let _ = app.emit("update-download-progress", UpdateProgressPayload {
         stage: "installing".into(),
@@ -194,7 +271,8 @@ fn download_and_install_sync(
     #[cfg(target_os = "linux")]
     {
         use std::process::Command;
-        if file_name.ends_with(".AppImage") {
+        let clean_name_str = clean_name.to_string_lossy();
+        if clean_name_str.ends_with(".AppImage") {
             use std::os::unix::fs::PermissionsExt;
             if let Ok(metadata) = std::fs::metadata(&dest_file) {
                 let mut perms = metadata.permissions();
@@ -221,7 +299,7 @@ fn download_and_install_sync(
                     Err(err_msg)
                 }
             }
-        } else if file_name.ends_with(".deb") {
+        } else if clean_name_str.ends_with(".deb") {
             log::info!("Opening Debian package: {:?}", dest_file);
             let _ = Command::new("xdg-open").arg(&dest_file).spawn();
             Ok(())
@@ -257,10 +335,11 @@ pub async fn download_and_install_update(
     app: AppHandle,
     url: String,
     file_name: String,
+    expected_sha256: Option<String>,
     silent: Option<bool>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        download_and_install_sync(app, url, file_name, silent)
+        download_and_install_sync(app, url, file_name, expected_sha256, silent)
     })
     .await
     .map_err(|e| format!("Task execution error: {}", e))?

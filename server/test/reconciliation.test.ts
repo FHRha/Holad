@@ -86,6 +86,10 @@ describe('Library Reconciliation & Resilient Entities', () => {
 
     const res = await request(app)
       .post(`/api/custom-playlists/${plId}/reconcile`)
+      .set('x-user', testUser)
+      .set('x-token', 'mock_token')
+      .set('x-salt', 'mock_salt')
+      .set('x-url', 'http://localhost:4533')
       .send({
         replacements: [{ oldId: 'old-subsonic-10', newId: 'new-subsonic-20' }]
       });

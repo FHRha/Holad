@@ -26,13 +26,26 @@ import { useAuthStore } from './authStore';
 
 const playlistSaveAbortControllers = new Map<string, AbortController>();
 
+function getAuthHeaders(): Record<string, string> {
+  const { user, token, salt, url } = useAuthStore.getState();
+  const headers: Record<string, string> = {};
+  if (user) {
+    headers['x-user'] = user;
+    headers['x-user-id'] = user;
+  }
+  if (token) headers['x-token'] = token;
+  if (salt) headers['x-salt'] = salt;
+  if (url) headers['x-url'] = url;
+  return headers;
+}
+
 export async function fetchUserCustomPlaylists(): Promise<CustomPlaylist[]> {
   try {
     const baseUrl = getHoladServerUrl();
     const user = useAuthStore.getState().user;
     if (!user) return [];
     const headers: Record<string, string> = {
-      'x-user-id': encodeURIComponent(user)
+      ...getAuthHeaders(),
     };
     const res = await fetch(`${baseUrl}/api/custom-playlists`, {
       method: 'GET',
@@ -54,10 +67,8 @@ export async function syncCustomPlaylistToServer(playlist: CustomPlaylist): Prom
   const safeTracks = Array.isArray(playlist.tracks) ? playlist.tracks.slice(0, 200) : undefined;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...getAuthHeaders(),
   };
-  if (user) {
-    headers['x-user-id'] = encodeURIComponent(user);
-  }
   const existingController = playlistSaveAbortControllers.get(playlist.id);
   if (existingController) {
     existingController.abort();
@@ -97,11 +108,10 @@ export async function deleteCustomPlaylistFromServer(id: string): Promise<void> 
   try {
     const baseUrl = getHoladServerUrl();
     const user = useAuthStore.getState().user;
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+      ...getAuthHeaders(),
+    };
     const query = user ? `?userId=${encodeURIComponent(user)}` : '';
-    if (user) {
-      headers['x-user-id'] = encodeURIComponent(user);
-    }
     const res = await fetch(`${baseUrl}/api/custom-playlists/${encodeURIComponent(id)}${query}`, {
       method: 'DELETE',
       headers,

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
-import { UpdateService, compareVersions } from '../services/UpdateService';
+import { UpdateService, compareVersions, parseSha256Sums } from '../services/UpdateService';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn().mockResolvedValue(null),
@@ -187,6 +187,7 @@ describe('UpdateService performUpdate and silent flag', () => {
     expect(invoke).toHaveBeenCalledWith('download_and_install_update', {
       url: 'https://example.com/Holad_2.1.0_x64-setup.exe',
       fileName: 'Holad_2.1.0_x64-setup.exe',
+      expectedSha256: null,
       silent: true
     });
   });
@@ -208,8 +209,44 @@ describe('UpdateService performUpdate and silent flag', () => {
     expect(invoke).toHaveBeenCalledWith('download_and_install_update', {
       url: 'https://example.com/Holad_2.1.0_x64-setup.exe',
       fileName: 'Holad_2.1.0_x64-setup.exe',
+      expectedSha256: null,
       silent: false
     });
+  });
+
+  it('should pass expectedSha256 to download_and_install_update when present', async () => {
+    const { useUIStore } = await import('../store/uiStore');
+    useUIStore.getState().setUpdateInfo({
+      version: '2.1.0',
+      notes: 'New release',
+      downloadUrl: 'https://example.com/Holad_2.1.0_x64-setup.exe',
+      fileName: 'Holad_2.1.0_x64-setup.exe',
+      size: 50000000,
+      expectedSha256: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+      progress: null,
+      isPrerelease: false
+    });
+
+    await UpdateService.performUpdate('silent');
+
+    expect(invoke).toHaveBeenCalledWith('download_and_install_update', {
+      url: 'https://example.com/Holad_2.1.0_x64-setup.exe',
+      fileName: 'Holad_2.1.0_x64-setup.exe',
+      expectedSha256: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+      silent: true
+    });
+  });
+
+  it('parseSha256Sums correctly parses sha256 checksums file formats', () => {
+    const sums = `
+# Release checksums
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  Holad-setup.exe
+01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b *Holad_amd64.AppImage
+`;
+    expect(parseSha256Sums(sums, 'Holad-setup.exe')).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+    expect(parseSha256Sums(sums, 'Holad_amd64.AppImage')).toBe('01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b');
+    expect(parseSha256Sums(sums, 'nonexistent.exe')).toBeUndefined();
+    expect(parseSha256Sums('', 'Holad-setup.exe')).toBeUndefined();
   });
 });
 

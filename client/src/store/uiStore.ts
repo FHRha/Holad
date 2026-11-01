@@ -19,6 +19,7 @@ export interface UpdateInfo {
   downloadUrl?: string;
   fileName?: string;
   size?: number;
+  expectedSha256?: string;
   progress?: UpdateProgress | null;
   isPrerelease?: boolean;
 }

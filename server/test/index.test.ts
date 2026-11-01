@@ -56,39 +56,51 @@ describe('API Endpoints', () => {
 
   it('should save, validate, retrieve, and delete custom playlists via /api/custom-playlists and /Holad/api/custom-playlists', async () => {
     const customId = 'test_api_pl_' + Date.now();
+    const authHeaders = {
+      'x-user': 'testuser',
+      'x-token': 'mocktoken',
+      'x-salt': 'mocksalt',
+      'x-url': 'http://localhost:4533'
+    };
 
     // 1. Validation error on missing id or name
     const failRes = await request(app)
       .post('/api/custom-playlists')
+      .set(authHeaders)
       .send({ name: 'No ID', trackIds: [] });
     expect(failRes.status).toBe(400);
 
     // 2. Validation: invalid ID regex
     const badIdRes = await request(app)
       .post('/api/custom-playlists')
+      .set(authHeaders)
       .send({ id: 'invalid id with spaces!', name: 'Valid Name', trackIds: [] });
     expect(badIdRes.status).toBe(400);
 
     // 3. Validation: name empty or > 256
     const emptyNameRes = await request(app)
       .post('/api/custom-playlists')
+      .set(authHeaders)
       .send({ id: customId, name: '   ', trackIds: [] });
     expect(emptyNameRes.status).toBe(400);
 
     const longNameRes = await request(app)
       .post('/api/custom-playlists')
+      .set(authHeaders)
       .send({ id: customId, name: 'a'.repeat(257), trackIds: [] });
     expect(longNameRes.status).toBe(400);
 
     // 4. Validation: description > 2000
     const longDescRes = await request(app)
       .post('/api/custom-playlists')
+      .set(authHeaders)
       .send({ id: customId, name: 'Valid Name', description: 'a'.repeat(2001), trackIds: [] });
     expect(longDescRes.status).toBe(400);
 
     // 5. Validation: trackIds must be an array
     const notArrayRes = await request(app)
       .post('/api/custom-playlists')
+      .set(authHeaders)
       .send({ id: customId, name: 'Valid Name', trackIds: 'not-an-array' });
     expect(notArrayRes.status).toBe(400);
 
@@ -96,18 +108,21 @@ describe('API Endpoints', () => {
     const tooManyTracks = Array.from({ length: 201 }, (_, i) => `track_${i}`);
     const limitRes = await request(app)
       .post('/api/custom-playlists')
+      .set(authHeaders)
       .send({ id: customId, name: 'Valid Name', trackIds: tooManyTracks });
     expect(limitRes.status).toBe(400);
 
     // 7. Validation: invalid track ID regex in trackIds
     const badTrackIdRes = await request(app)
       .post('/api/custom-playlists')
+      .set(authHeaders)
       .send({ id: customId, name: 'Valid Name', trackIds: ['valid_1', 'bad id with spaces!'] });
     expect(badTrackIdRes.status).toBe(400);
 
     // 8. Successful creation via /api/custom-playlists
     const postRes = await request(app)
       .post('/api/custom-playlists')
+      .set(authHeaders)
       .send({
         id: customId,
         name: 'Shared Vibes',
@@ -137,8 +152,15 @@ describe('API Endpoints', () => {
 
     // 10b. User Playlists list via GET /api/custom-playlists
     const userPlId = 'pl-sync-test-123';
+    const syncAuthHeaders = {
+      'x-user': 'sync_user_1',
+      'x-token': 'mocktoken',
+      'x-salt': 'mocksalt',
+      'x-url': 'http://localhost:4533'
+    };
     await request(app)
       .post('/api/custom-playlists')
+      .set(syncAuthHeaders)
       .send({
         id: userPlId,
         name: 'User Sync Mix',
@@ -149,7 +171,7 @@ describe('API Endpoints', () => {
 
     const userListRes = await request(app)
       .get('/api/custom-playlists')
-      .set('x-user-id', 'sync_user_1');
+      .set(syncAuthHeaders);
     expect(userListRes.status).toBe(200);
     expect(userListRes.body.playlists).toEqual(
       expect.arrayContaining([
@@ -175,7 +197,9 @@ describe('API Endpoints', () => {
     expect(badDeleteIdRes.status).toBe(400);
 
     // 14. Delete via /Holad/api/custom-playlists/:id
-    const deleteRes = await request(app).delete(`/Holad/api/custom-playlists/${customId}`);
+    const deleteRes = await request(app)
+      .delete(`/Holad/api/custom-playlists/${customId}`)
+      .set(authHeaders);
     expect(deleteRes.status).toBe(200);
     expect(deleteRes.body).toEqual({ success: true, id: customId });
 
@@ -184,7 +208,9 @@ describe('API Endpoints', () => {
     expect(afterDeleteGet.status).toBe(404);
 
     // 16. Deleting already deleted returns 404
-    const deleteAgain = await request(app).delete(`/api/custom-playlists/${customId}`);
+    const deleteAgain = await request(app)
+      .delete(`/api/custom-playlists/${customId}`)
+      .set(authHeaders);
     expect(deleteAgain.status).toBe(404);
   });
 

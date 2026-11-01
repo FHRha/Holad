@@ -7,6 +7,25 @@ import { getHoladServerUrl } from '../utils/serverConfig';
 import { useSettingsStore } from '../store/settingsStore';
 import i18n from '../i18n';
 
+export function parseSha256Sums(content: string, targetFileName: string): string | undefined {
+    if (!content || !targetFileName) return undefined;
+    const lines = content.split('\n');
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        // Format: <hash>  <filename> or <hash> *<filename>
+        const match = trimmed.match(/^([a-fA-F0-9]{64})\s+[*.]?\/?(.*)$/);
+        if (match) {
+            const hash = match[1].toLowerCase();
+            const fn = match[2].trim().replace(/^.*[\\\/]/, ''); // clean basename
+            if (fn.toLowerCase() === targetFileName.toLowerCase()) {
+                return hash;
+            }
+        }
+    }
+    return undefined;
+}
+
 export function compareVersions(v1: string, v2: string): number {
     const parse = (v: string) => {
         const clean = (v || '').replace(/^v/i, '').trim();
@@ -163,6 +182,7 @@ export class UpdateService {
         downloadUrl?: string; 
         fileName?: string; 
         size?: number;
+        expectedSha256?: string;
         isPrerelease?: boolean;
     }> {
         if (!manualCheck && this.isSnoozed()) {
@@ -263,12 +283,33 @@ export class UpdateService {
                 const fileName = targetAsset?.name;
                 const size = targetAsset?.size;
 
+                let expectedSha256: string | undefined;
+                if (fileName) {
+                    const sumsAsset = assets.find((a: any) => 
+                        a.name === 'SHA256SUMS' || 
+                        a.name?.toLowerCase() === 'sha256sums.txt' || 
+                        a.name?.toLowerCase() === 'sha256sums'
+                    );
+                    if (sumsAsset?.browser_download_url) {
+                        try {
+                            const sumsRes = await fetch(sumsAsset.browser_download_url);
+                            if (sumsRes.ok) {
+                                const sumsContent = await sumsRes.text();
+                                expectedSha256 = parseSha256Sums(sumsContent, fileName);
+                            }
+                        } catch (e) {
+                            console.warn('[UpdateService] Failed to fetch or parse SHA256SUMS:', e);
+                        }
+                    }
+                }
+
                 useUIStore.getState().setUpdateInfo({ 
                     version: latestVersion, 
                     notes, 
                     downloadUrl,
                     fileName,
                     size,
+                    expectedSha256,
                     progress: null,
                     isPrerelease
                 });
@@ -281,6 +322,7 @@ export class UpdateService {
                     downloadUrl,
                     fileName,
                     size,
+                    expectedSha256,
                     isPrerelease
                 };
             } else if (manualCheck) {
@@ -328,6 +370,7 @@ export class UpdateService {
                 await invoke('download_and_install_update', {
                     url: info.downloadUrl,
                     fileName: info.fileName,
+                    expectedSha256: info.expectedSha256 || null,
                     silent: mode === 'silent'
                 });
 
