@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { fetchAlbums } from '../../api/subsonic';
+import { fetchLibraryAlbums } from '../../api/library';
 import { useTranslation } from 'react-i18next';
 import AlbumCard from '../common/AlbumCard';
 import AlbumRow from '../common/AlbumRow';
@@ -37,8 +38,20 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
         setLoading(true);
       }
       try {
-        const data = await fetchAlbums(0, 50);
-        const incoming = data || [];
+        let incoming: any[] = [];
+        try {
+          const libRes = await fetchLibraryAlbums({ limit: 50, offset: 0 });
+          if (libRes && Array.isArray(libRes.albums) && libRes.albums.length > 0) {
+            incoming = libRes.albums;
+          }
+        } catch (libErr) {
+          console.warn('[AlbumsView] Library cache unavailable, falling back to Subsonic API:', libErr);
+        }
+
+        if (incoming.length === 0) {
+          const data = await fetchAlbums(0, 50);
+          incoming = data || [];
+        }
         setAlbums(incoming);
         const more = incoming.length >= 50;
         setHasMore(more);
@@ -69,15 +82,28 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
     if (loadingMore || !hasMore || loading) return;
     setLoadingMore(true);
     try {
-      const data = await fetchAlbums(albums.length, 50);
-      if (data.length < 50) setHasMore(false);
+      let incomingData: any[] = [];
+      try {
+        const libRes = await fetchLibraryAlbums({ limit: 50, offset: albums.length });
+        if (libRes && Array.isArray(libRes.albums) && libRes.albums.length > 0) {
+          incomingData = libRes.albums;
+        }
+      } catch {
+        // Fallback
+      }
+
+      if (incomingData.length === 0) {
+        incomingData = (await fetchAlbums(albums.length, 50)) || [];
+      }
+
+      if (incomingData.length < 50) setHasMore(false);
       setAlbums(prev => {
         const existingIds = new Set(prev.map(a => a.id));
-        const incoming = (data || []).filter((a: any) => !existingIds.has(a.id));
+        const incoming = incomingData.filter((a: any) => !existingIds.has(a.id));
         const combined = [...prev, ...incoming];
         if (cachedAlbumsData) {
           cachedAlbumsData.albums = combined;
-          cachedAlbumsData.hasMore = (data || []).length >= 50;
+          cachedAlbumsData.hasMore = incomingData.length >= 50;
         }
         return combined;
       });

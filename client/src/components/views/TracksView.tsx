@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Play, Heart, Clock, Search, FilterX, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { searchTracks, getArtists } from '../../api/subsonic';
+import { fetchLibraryTracks } from '../../api/library';
 import { mapSubsonicTracks } from '../../utils/trackMapper';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
@@ -89,12 +90,23 @@ export default function TracksView() {
         setLoading(true);
       }
       try {
-        const [tracksData, artistsData] = await Promise.all([
-          searchTracks('', 100, 0),
+        let tracksData: any[] = [];
+        try {
+          const libRes = await fetchLibraryTracks({ limit: 100, offset: 0 });
+          if (libRes && Array.isArray(libRes.tracks) && libRes.tracks.length > 0) {
+            tracksData = libRes.tracks;
+          }
+        } catch (libErr) {
+          console.warn('[TracksView] Library cache unavailable, falling back to Subsonic API:', libErr);
+        }
+
+        const [fallbackTracks, artistsData] = await Promise.all([
+          tracksData.length === 0 ? searchTracks('', 100, 0) : Promise.resolve(tracksData),
           getArtists()
         ]);
-        const sorted = tracksData.sort((a: any, b: any) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
-        const more = tracksData.length >= 100;
+        const finalInitialTracks = tracksData.length > 0 ? tracksData : fallbackTracks;
+        const sorted = finalInitialTracks.sort((a: any, b: any) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
+        const more = finalInitialTracks.length >= 100;
         setTracks(sorted);
         setGlobalArtists(artistsData);
         setHasMore(more);
@@ -121,7 +133,20 @@ export default function TracksView() {
     if (loadingMore || !hasMore || loading) return;
     setLoadingMore(true);
     try {
-      const newTracks = await searchTracks('', 100, tracks.length);
+      let newTracks: any[] = [];
+      try {
+        const libRes = await fetchLibraryTracks({ limit: 100, offset: tracks.length });
+        if (libRes && Array.isArray(libRes.tracks) && libRes.tracks.length > 0) {
+          newTracks = libRes.tracks;
+        }
+      } catch {
+        // Fallback to Subsonic
+      }
+
+      if (newTracks.length === 0) {
+        newTracks = await searchTracks('', 100, tracks.length);
+      }
+
       if (newTracks.length < 100) {
         setHasMore(false);
       }

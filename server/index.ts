@@ -13,6 +13,8 @@ import path from 'path';
 import { Agent, setGlobalDispatcher } from 'undici';
 import * as database from './src/database.js';
 import { demoManager } from './src/demoManager.js';
+import { librarySyncService } from './src/library/LibrarySyncService.js';
+
 import {
   ConnectRoomManager,
   registerConnectSocketHandlers,
@@ -1114,6 +1116,130 @@ app.post(playbackStatePaths, express.json({ limit: '10mb' }), async (req, res) =
     return res.status(500).json({ error: 'Internal server error saving playback state' });
   }
 });
+
+// --- Holad Media Engine Fast Library Endpoints ---
+const libraryPaths = (endpoint: string) => {
+  const paths = [`/api/library/${endpoint}`, `/Holad/api/library/${endpoint}`];
+  if (normalizedBase && normalizedBase !== '/Holad' && !paths.includes(`${normalizedBase}/api/library/${endpoint}`)) {
+    paths.push(`${normalizedBase}/api/library/${endpoint}`);
+  }
+  return paths;
+};
+
+app.get(libraryPaths('tracks'), async (req, res) => {
+  try {
+    const { offset, limit, sort, order, search, artistId, albumId, genre, userId } = req.query;
+    const resolvedUser = (typeof userId === 'string' && userId) ? userId : (await resolveAuthUserId(req) || undefined);
+    const parsedOffset = offset !== undefined ? parseInt(String(offset), 10) : 0;
+    const parsedLimit = limit !== undefined ? parseInt(String(limit), 10) : 100;
+
+    const result = database.queryTracks({
+      offset: parsedOffset,
+      limit: parsedLimit,
+      sort: typeof sort === 'string' ? sort : undefined,
+      order: typeof order === 'string' && (order.toLowerCase() === 'desc' || order.toLowerCase() === 'asc') ? order as any : undefined,
+      search: typeof search === 'string' ? search : undefined,
+      artistId: typeof artistId === 'string' ? artistId : undefined,
+      albumId: typeof albumId === 'string' ? albumId : undefined,
+      genre: typeof genre === 'string' ? genre : undefined,
+      userId: resolvedUser
+    });
+
+    return res.json({
+      tracks: result.tracks,
+      total: result.total,
+      offset: parsedOffset,
+      limit: parsedLimit
+    });
+  } catch (err) {
+    console.error('[LibraryAPI] Failed to query tracks:', err);
+    return res.status(500).json({ error: 'Failed to query library tracks' });
+  }
+});
+
+app.get(libraryPaths('albums'), async (req, res) => {
+  try {
+    const { offset, limit, sort, order, search, artistId, genre, userId } = req.query;
+    const resolvedUser = (typeof userId === 'string' && userId) ? userId : (await resolveAuthUserId(req) || undefined);
+    const parsedOffset = offset !== undefined ? parseInt(String(offset), 10) : 0;
+    const parsedLimit = limit !== undefined ? parseInt(String(limit), 10) : 50;
+
+    const result = database.queryAlbums({
+      offset: parsedOffset,
+      limit: parsedLimit,
+      sort: typeof sort === 'string' ? sort : undefined,
+      order: typeof order === 'string' && (order.toLowerCase() === 'desc' || order.toLowerCase() === 'asc') ? order as any : undefined,
+      search: typeof search === 'string' ? search : undefined,
+      artistId: typeof artistId === 'string' ? artistId : undefined,
+      genre: typeof genre === 'string' ? genre : undefined,
+      userId: resolvedUser
+    });
+
+    return res.json({
+      albums: result.albums,
+      total: result.total,
+      offset: parsedOffset,
+      limit: parsedLimit
+    });
+  } catch (err) {
+    console.error('[LibraryAPI] Failed to query albums:', err);
+    return res.status(500).json({ error: 'Failed to query library albums' });
+  }
+});
+
+app.get(libraryPaths('artists'), async (req, res) => {
+  try {
+    const { offset, limit, sort, order, search, userId } = req.query;
+    const resolvedUser = (typeof userId === 'string' && userId) ? userId : (await resolveAuthUserId(req) || undefined);
+    const parsedOffset = offset !== undefined ? parseInt(String(offset), 10) : 0;
+    const parsedLimit = limit !== undefined ? parseInt(String(limit), 10) : 100;
+
+    const result = database.queryArtists({
+      offset: parsedOffset,
+      limit: parsedLimit,
+      sort: typeof sort === 'string' ? sort : undefined,
+      order: typeof order === 'string' && (order.toLowerCase() === 'desc' || order.toLowerCase() === 'asc') ? order as any : undefined,
+      search: typeof search === 'string' ? search : undefined,
+      userId: resolvedUser
+    });
+
+    return res.json({
+      artists: result.artists,
+      total: result.total,
+      offset: parsedOffset,
+      limit: parsedLimit
+    });
+  } catch (err) {
+    console.error('[LibraryAPI] Failed to query artists:', err);
+    return res.status(500).json({ error: 'Failed to query library artists' });
+  }
+});
+
+app.get(libraryPaths('status'), async (req, res) => {
+  try {
+    const userId = (req.query.userId as string) || (await resolveAuthUserId(req)) || undefined;
+    const status = librarySyncService.getStatus(userId);
+    return res.json(status);
+  } catch (err) {
+    console.error('[LibraryAPI] Failed to get sync status:', err);
+    return res.status(500).json({ error: 'Failed to get library sync status' });
+  }
+});
+
+app.post(libraryPaths('sync'), async (req, res) => {
+  try {
+    const userId = (req.query.userId as string) || (await resolveAuthUserId(req)) || undefined;
+    const result = await librarySyncService.triggerManualSync(userId);
+    if (!result.success) {
+      return res.status(result.status).json(result);
+    }
+    return res.status(202).json(result);
+  } catch (err) {
+    console.error('[LibraryAPI] Failed to trigger sync:', err);
+    return res.status(500).json({ error: 'Failed to trigger library sync' });
+  }
+});
+
 
 app.get(['/api/holad/playback/:roomId', '/Holad/api/holad/playback/:roomId'], validateRestAuth, (req, res) => {
   const roomId = req.params.roomId as string;
@@ -2733,4 +2859,4 @@ httpServer.listen(PORT, () => {
   console.log(`▶ Access Holad at: http://localhost:${PORT}/`);
 });
 
-export { app, httpServer, io, navidromeAccounts };
+export { app, httpServer, io, navidromeAccounts, librarySyncService };

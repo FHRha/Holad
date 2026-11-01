@@ -22,6 +22,8 @@ import StorageDangerZone from '../StorageDangerZone';
 import DownloadedMusicGrid from '../DownloadedMusicGrid';
 import DeleteDownloadsModal from '../../modals/DeleteDownloadsModal';
 import SettingSection from '../SettingSection';
+import LibrarySyncControl from '../controls/LibrarySyncControl';
+
 
 export interface StorageSettingsSectionProps {
   isMobile?: boolean;
@@ -171,7 +173,10 @@ export default function StorageSettingsSection({
       {/* 1. Storage Overview Bar */}
       <StorageStatsBar isMobile={isMobile} key={statsKey} onRefreshRequested={refreshStats} />
 
-      {/* 2. Fast 1-Click Cleanups (Substreamer style) */}
+      {/* 2. Media Engine Library Cache & Background Sync */}
+      <LibrarySyncControl isMobile={isMobile} />
+
+      {/* 3. Fast 1-Click Cleanups (Substreamer style) */}
       <SettingSection
         title={t('settings.quick_cleanup', 'Быстрая очистка хранилища')}
         icon={<Trash2 size={16} />}

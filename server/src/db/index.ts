@@ -29,3 +29,5 @@ export * from './tables/socialTable.js';
 export * from './tables/accountsTable.js';
 export * from './tables/historyTable.js';
 export * from './tables/userDataTable.js';
+export * from './tables/libraryTable.js';
+

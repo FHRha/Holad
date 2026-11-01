@@ -119,6 +119,93 @@ export function initSchema(database: SqliteDatabase = db): void {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(url, user)
     );
+
+    CREATE TABLE IF NOT EXISTS cached_tracks (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      title TEXT NOT NULL,
+      artist TEXT,
+      artist_id TEXT,
+      album TEXT,
+      album_id TEXT,
+      duration INTEGER DEFAULT 0,
+      track_number INTEGER,
+      disc_number INTEGER DEFAULT 1,
+      year INTEGER,
+      genre TEXT,
+      cover_art TEXT,
+      bit_rate INTEGER,
+      suffix TEXT,
+      created_at INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tracks_title ON cached_tracks(title);
+    CREATE INDEX IF NOT EXISTS idx_tracks_artist ON cached_tracks(artist);
+    CREATE INDEX IF NOT EXISTS idx_tracks_album ON cached_tracks(album);
+    CREATE INDEX IF NOT EXISTS idx_tracks_user ON cached_tracks(user_id);
+
+    CREATE VIRTUAL TABLE IF NOT EXISTS tracks_fts USING fts5(
+      title,
+      artist,
+      album,
+      content='cached_tracks',
+      content_rowid='rowid'
+    );
+
+    CREATE TRIGGER IF NOT EXISTS tracks_ai AFTER INSERT ON cached_tracks BEGIN
+      INSERT INTO tracks_fts(rowid, title, artist, album) VALUES (new.rowid, new.title, new.artist, new.album);
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS tracks_ad AFTER DELETE ON cached_tracks BEGIN
+      INSERT INTO tracks_fts(tracks_fts, rowid, title, artist, album) VALUES ('delete', old.rowid, old.title, old.artist, old.album);
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS tracks_au AFTER UPDATE ON cached_tracks BEGIN
+      INSERT INTO tracks_fts(tracks_fts, rowid, title, artist, album) VALUES ('delete', old.rowid, old.title, old.artist, old.album);
+      INSERT INTO tracks_fts(rowid, title, artist, album) VALUES (new.rowid, new.title, new.artist, new.album);
+    END;
+
+    CREATE TABLE IF NOT EXISTS cached_albums (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      name TEXT NOT NULL,
+      artist TEXT,
+      artist_id TEXT,
+      cover_art TEXT,
+      song_count INTEGER DEFAULT 0,
+      duration INTEGER DEFAULT 0,
+      year INTEGER,
+      genre TEXT,
+      created_at INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_albums_name ON cached_albums(name);
+    CREATE INDEX IF NOT EXISTS idx_albums_user ON cached_albums(user_id);
+
+    CREATE TABLE IF NOT EXISTS cached_artists (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      name TEXT NOT NULL,
+      album_count INTEGER DEFAULT 0,
+      cover_art TEXT,
+      starred INTEGER DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_artists_name ON cached_artists(name);
+    CREATE INDEX IF NOT EXISTS idx_artists_user ON cached_artists(user_id);
+
+    CREATE TABLE IF NOT EXISTS library_sync_state (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      status TEXT,
+      progress INTEGER,
+      total_tracks INTEGER,
+      total_albums INTEGER,
+      total_artists INTEGER,
+      last_sync_time INTEGER,
+      error TEXT
+    );
+
   `);
 
   // Safely migrate existing users table if columns are missing

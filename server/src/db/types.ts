@@ -111,3 +111,70 @@ export interface HistoryRecord {
   cover_art?: string;
   played_at: number; // Unix timestamp in ms
 }
+
+export interface CachedTrack {
+  id: string;
+  user_id?: string | null;
+  title: string;
+  artist?: string | null;
+  artist_id?: string | null;
+  album?: string | null;
+  album_id?: string | null;
+  duration?: number;
+  track_number?: number | null;
+  disc_number?: number;
+  year?: number | null;
+  genre?: string | null;
+  cover_art?: string | null;
+  bit_rate?: number | null;
+  suffix?: string | null;
+  created_at?: number | null;
+}
+
+export interface CachedAlbum {
+  id: string;
+  user_id?: string | null;
+  name: string;
+  artist?: string | null;
+  artist_id?: string | null;
+  cover_art?: string | null;
+  song_count?: number;
+  duration?: number;
+  year?: number | null;
+  genre?: string | null;
+  created_at?: number | null;
+}
+
+export interface CachedArtist {
+  id: string;
+  user_id?: string | null;
+  name: string;
+  album_count?: number;
+  cover_art?: string | null;
+  starred?: number;
+}
+
+export interface LibrarySyncState {
+  id: string;
+  user_id?: string | null;
+  status: 'idle' | 'syncing' | 'completed' | 'error' | string;
+  progress?: number;
+  total_tracks?: number;
+  total_albums?: number;
+  total_artists?: number;
+  last_sync_time?: number;
+  error?: string | null;
+}
+
+export interface LibraryQueryOptions {
+  offset?: number;
+  limit?: number;
+  sort?: string;
+  order?: 'asc' | 'desc' | 'ASC' | 'DESC';
+  search?: string;
+  artistId?: string;
+  albumId?: string;
+  genre?: string;
+  userId?: string;
+}
+
