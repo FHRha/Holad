@@ -128,12 +128,13 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       expect(setActiveSpy).toHaveBeenCalledWith(myId);
     });
 
-    it('sends remoteCommand "play" and does not claim activeDeviceId when setIsPlaying(true) is called and activeDeviceId is null', () => {
+    it('plays locally and does not claim activeDeviceId when setIsPlaying(true) is called and activeDeviceId is null', () => {
       const myId = useHoladStore.getState().deviceId;
       usePlayerStore.setState({ isPlaying: false });
       useHoladStore.setState({
         roomId: 'test-room-null',
         activeDeviceId: null,
+        connectionStatus: 'connected',
         devices: [{ id: myId, name: 'My Device' }, { id: 'other-dev', name: 'Other' }]
       });
 
@@ -143,8 +144,8 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       usePlayerStore.getState().setIsPlaying(true);
 
       expect(setActiveSpy).not.toHaveBeenCalled();
-      expect(sendRemoteCommandSpy).toHaveBeenCalledWith('play');
-      expect(usePlayerStore.getState().isPlaying).toBe(false);
+      expect(sendRemoteCommandSpy).not.toHaveBeenCalled();
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
     });
 
     it('does NOT steal activeDeviceId when window visibility changes to visible', () => {

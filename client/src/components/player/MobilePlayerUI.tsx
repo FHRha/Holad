@@ -62,7 +62,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                            window.location.pathname.startsWith('/jam/album/') ||
                            window.location.pathname.startsWith('/jam/playlist/');
   const isStandalone = isJamRoute && (isStandaloneQuery || isStandalonePath);
-  const isListenerPage = isStandalone || (isJamRoute && role !== 'host');
+  const isListenerPage = isStandalone || (isJamRoute && role === 'listener');
   
   const currentTrack = queue[currentIndex];
   

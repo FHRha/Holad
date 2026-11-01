@@ -158,6 +158,7 @@ describe('Holad Connect v2 Client Architecture', () => {
       useHoladStore.setState({
         roomId: 'active-room',
         activeDeviceId: 'other-device-id',
+        connectionStatus: 'connected',
       });
       usePlayerStore.setState({ isPlaying: false });
 
@@ -167,11 +168,42 @@ describe('Holad Connect v2 Client Architecture', () => {
       expect(usePlayerStore.getState().isPlaying).toBe(false);
     });
 
+    it('allows setIsPlaying locally when connectionStatus is not connected even if roomId and remote activeDeviceId exist', () => {
+      const sendRemoteCommandSpy = vi.spyOn(useHoladStore.getState(), 'sendRemoteCommand');
+      useHoladStore.setState({
+        roomId: 'active-room',
+        activeDeviceId: 'other-device-id',
+        connectionStatus: 'disconnected',
+      });
+      usePlayerStore.setState({ isPlaying: false });
+
+      usePlayerStore.getState().setIsPlaying(true);
+
+      expect(sendRemoteCommandSpy).not.toHaveBeenCalled();
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
+    });
+
+    it('allows setIsPlaying locally when activeDeviceId is null', () => {
+      const sendRemoteCommandSpy = vi.spyOn(useHoladStore.getState(), 'sendRemoteCommand');
+      useHoladStore.setState({
+        roomId: 'active-room',
+        activeDeviceId: null,
+        connectionStatus: 'connected',
+      });
+      usePlayerStore.setState({ isPlaying: false });
+
+      usePlayerStore.getState().setIsPlaying(true);
+
+      expect(sendRemoteCommandSpy).not.toHaveBeenCalled();
+      expect(usePlayerStore.getState().isPlaying).toBe(true);
+    });
+
     it('allows setIsPlaying on active master device directly', () => {
       const myId = useHoladStore.getState().deviceId;
       useHoladStore.setState({
         roomId: 'active-room',
         activeDeviceId: myId,
+        connectionStatus: 'connected',
       });
       usePlayerStore.setState({ isPlaying: false });
 
@@ -713,6 +745,64 @@ describe('Holad Connect v2 Client Architecture', () => {
       expect(emitSpy).toHaveBeenCalledWith('holad_joinRoom', expect.objectContaining({
         roomId: 'test-room'
       }));
+    });
+
+    it('schedules auto-reconnect on connect_error with exponential backoff and limits to MAX_RECONNECT_ATTEMPTS', () => {
+      vi.useFakeTimers();
+      try {
+        useHoladStore.getState().connect('room-retry');
+        expect(useHoladStore.getState().reconnectAttempts).toBe(0);
+        expect(useHoladStore.getState().connectionStatus).toBe('connecting');
+
+        // 1st error: attempt 1, delay 1s
+        socketEventHandlers['connect_error']?.(new Error('Network drop 1'));
+        expect(useHoladStore.getState().reconnectAttempts).toBe(1);
+        expect(useHoladStore.getState().connectionStatus).toBe('connecting');
+
+        // Advance 1s
+        vi.advanceTimersByTime(1000);
+
+        // 2nd error: attempt 2, delay 2s
+        socketEventHandlers['connect_error']?.(new Error('Network drop 2'));
+        expect(useHoladStore.getState().reconnectAttempts).toBe(2);
+
+        // Advance 2s
+        vi.advanceTimersByTime(2000);
+
+        // 3rd error
+        socketEventHandlers['connect_error']?.(new Error('Network drop 3'));
+        expect(useHoladStore.getState().reconnectAttempts).toBe(3);
+        vi.advanceTimersByTime(4000);
+
+        // 4th error
+        socketEventHandlers['connect_error']?.(new Error('Network drop 4'));
+        expect(useHoladStore.getState().reconnectAttempts).toBe(4);
+        vi.advanceTimersByTime(8000);
+
+        // 5th error
+        socketEventHandlers['connect_error']?.(new Error('Network drop 5'));
+        expect(useHoladStore.getState().reconnectAttempts).toBe(5);
+        vi.advanceTimersByTime(16000);
+
+        // 6th error: attempts exhausted!
+        socketEventHandlers['connect_error']?.(new Error('Network drop 6'));
+        const state = useHoladStore.getState();
+        expect(state.connectionStatus).toBe('error');
+        expect(state.connectError).toContain('Connection failed after 5 attempts');
+        expect(state.roomId).toBeNull();
+        expect(state.socket).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('resets reconnectAttempts on successful connection', () => {
+      useHoladStore.setState({ reconnectAttempts: 3, connectionStatus: 'connecting' });
+      useHoladStore.getState().connect('room-reset');
+      
+      socketEventHandlers['connect']?.();
+      expect(useHoladStore.getState().reconnectAttempts).toBe(0);
+      expect(useHoladStore.getState().connectionStatus).toBe('connected');
     });
   });
 });

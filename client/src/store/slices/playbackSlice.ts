@@ -44,7 +44,13 @@ export const createPlaybackSlice: StateCreator<
   sleepTimer: { type: null, endTime: null },
   setIsPlaying: (isPlaying) => {
     const store = useHoladStore.getState();
-    if (store.roomId !== null && store.activeDeviceId !== store.deviceId) {
+    const isRemote = (
+      store.connectionStatus === 'connected' &&
+      store.roomId !== null &&
+      store.activeDeviceId !== null &&
+      store.activeDeviceId !== store.deviceId
+    );
+    if (isRemote) {
       store.sendRemoteCommand(isPlaying ? 'play' : 'pause');
       return;
     }

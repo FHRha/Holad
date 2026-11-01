@@ -265,11 +265,17 @@ export default function BottomPlayer() {
           </div>
 
           <div className="flex items-center gap-1 justify-end h-7">
-            {!(isJamRoute && role !== 'host') && (
+            {!(isJamRoute && role === 'listener') && (
               <>
-                <HoladConnectMenu />
+                {(!isJamRoute || role === 'host') && <HoladConnectMenu />}
                 <button 
-                  onClick={toggleNowPlaying}
+                  onClick={() => {
+                    if (isJamRoute) {
+                      setIsMinimized(false);
+                    } else {
+                      toggleNowPlaying();
+                    }
+                  }}
                   className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-foreground/5 ${isNowPlayingOpen ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
                   aria-label={isNowPlayingOpen ? t('player.tooltip_fullscreen_exit') : t('player.tooltip_fullscreen')}
                   title={isNowPlayingOpen ? t('player.tooltip_fullscreen_exit') : t('player.tooltip_fullscreen')}

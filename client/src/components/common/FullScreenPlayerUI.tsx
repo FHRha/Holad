@@ -64,7 +64,7 @@ export default function FullScreenPlayerUI({
                            normPath.startsWith('/jam/album/') ||
                            normPath.startsWith('/jam/playlist/');
   const isStandalone = isJamRoute && (isStandaloneQuery || isStandalonePath);
-  const isListenerPage = isStandalone || (isJamRoute && role !== 'host');
+  const isListenerPage = isStandalone || (isJamRoute && role === 'listener');
   const readOnlyControls = isJamRoute && role === 'listener';
   
   const queueContainerRef = useRef<HTMLDivElement>(null);
@@ -190,6 +190,7 @@ export default function FullScreenPlayerUI({
               onClick={onClose}
               className="p-2 bg-black/20 hover:bg-black/40 rounded-full backdrop-blur-md transition-colors border border-white/10 shadow-lg"
               title={t('player.close')}
+              aria-label={t('player.close')}
             >
               <ChevronDown size={28} className="text-secondary" />
             </button>

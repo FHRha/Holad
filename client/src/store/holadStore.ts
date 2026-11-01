@@ -18,6 +18,8 @@ import type { PlaybackSnapshot, HoladDevice, HoladAuthErrorPayload } from '../co
 
 export type { HoladDevice };
 
+export const MAX_RECONNECT_ATTEMPTS = 5;
+
 export interface HoladState {
   socket: Socket | null;
   devices: HoladDevice[];
@@ -27,11 +29,12 @@ export interface HoladState {
   roomId: string | null;
   connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
   connectError: string | null;
+  reconnectAttempts: number;
   snapshot: PlaybackSnapshot | null;
   clientOffset: number;
   isRemotePlaying: boolean;
   lastPausedAt: number | null;
-  connect: (roomId: string) => void;
+  connect: (roomId: string, isAutoRetry?: boolean) => void;
   refreshDevices: () => void;
   disconnect: (keepError?: boolean) => void;
   transferPlayback: (targetDeviceId: string) => void;
@@ -126,6 +129,8 @@ function ensureVisibilityListener() {
 export const useHoladStore = create<HoladState>((set, get) => {
   let socket: Socket | null = null;
   let hasRequestedHistory = false;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastAttemptedRoomId: string | null = null;
 
   const deviceId = generateDeviceId();
   const deviceName = getDeviceName();
@@ -139,6 +144,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
     roomId: null,
     connectionStatus: 'disconnected',
     connectError: null,
+    reconnectAttempts: 0,
     snapshot: null,
     clientOffset: 0,
     isRemotePlaying: false,
@@ -150,9 +156,58 @@ export const useHoladStore = create<HoladState>((set, get) => {
       set({ isApplyingRemoteState: val });
     },
 
-    connect: (roomId: string) => {
+    connect: (roomId: string, isAutoRetry = false) => {
       const normalizedRoom = (roomId || '').trim().toLowerCase();
       if (!normalizedRoom) return;
+
+      lastAttemptedRoomId = normalizedRoom;
+
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+
+      const scheduleReconnect = (reason: string) => {
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+
+        const currentAttempts = get().reconnectAttempts;
+        if (currentAttempts < MAX_RECONNECT_ATTEMPTS) {
+          const nextAttempt = currentAttempts + 1;
+          const delay = Math.min(1000 * Math.pow(2, currentAttempts), 16000);
+          console.warn(`[Holad] Connection dropped (${reason}). Reconnecting in ${delay}ms (attempt ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})...`);
+
+          set({
+            reconnectAttempts: nextAttempt,
+            connectionStatus: 'connecting',
+            connectError: null,
+          });
+
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            const targetRoom = get().roomId || lastAttemptedRoomId;
+            if (targetRoom) {
+              get().connect(targetRoom, true);
+            }
+          }, delay);
+        } else {
+          console.error(`[Holad] Connection failed after ${MAX_RECONNECT_ATTEMPTS} attempts: ${reason}`);
+          if (socket) {
+            socket.disconnect();
+            socket = null;
+          }
+          set({
+            connectionStatus: 'error',
+            connectError: `Connection failed after ${MAX_RECONNECT_ATTEMPTS} attempts (${reason})`,
+            roomId: null,
+            socket: null,
+            devices: [],
+            activeDeviceId: null,
+          });
+        }
+      };
 
       const emitJoinRoom = (targetSocket: Socket, targetRoom: string) => {
         const { user, salt, token, url } = useAuthStore.getState();
@@ -169,6 +224,10 @@ export const useHoladStore = create<HoladState>((set, get) => {
         });
       };
 
+      if (!isAutoRetry) {
+        set({ reconnectAttempts: 0 });
+      }
+
       if (get().connectionStatus === 'disconnected' || (!socket && !get().socket)) {
         set({ connectError: null, roomId: normalizedRoom });
       }
@@ -179,7 +238,10 @@ export const useHoladStore = create<HoladState>((set, get) => {
           emitJoinRoom(existingSocket, normalizedRoom);
           return;
         }
-        get().disconnect();
+        if (socket) {
+          socket.disconnect();
+          socket = null;
+        }
       }
 
       set({ connectionStatus: 'connecting', connectError: null, roomId: normalizedRoom });
@@ -187,17 +249,18 @@ export const useHoladStore = create<HoladState>((set, get) => {
       socket = io(getSocketUrl(), {
         path: getSocketPath(),
         transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
+        reconnection: false,
         timeout: 10000,
       });
 
       set({ socket, roomId: normalizedRoom });
 
       socket.on('connect', () => {
-        set({ connectionStatus: 'connected', connectError: null });
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+        set({ connectionStatus: 'connected', connectError: null, reconnectAttempts: 0 });
 
         // NTP-light ping immediately upon connection
         socket!.emit('holad_ping', { t0: performance.now() });
@@ -215,15 +278,17 @@ export const useHoladStore = create<HoladState>((set, get) => {
       });
 
       socket.on('connect_error', (err: any) => {
-        console.warn('[Holad] Socket connect_error:', err?.message || err);
-        set({ connectionStatus: 'error', connectError: err?.message || 'Connection error' });
+        const errorMsg = err?.message || 'Connection error';
+        console.warn('[Holad] Socket connect_error:', errorMsg);
+        scheduleReconnect(errorMsg);
       });
 
       socket.on('disconnect', (reason: string) => {
         console.warn('[Holad] Socket disconnected:', reason);
-        if (get().connectionStatus !== 'error') {
-          set({ connectionStatus: 'disconnected' });
+        if (reason === 'io client disconnect') {
+          return;
         }
+        scheduleReconnect(reason);
       });
 
       socket.on('holad_authError', (payload: HoladAuthErrorPayload | string) => {
@@ -231,7 +296,11 @@ export const useHoladStore = create<HoladState>((set, get) => {
           ? payload
           : payload?.message || 'Authentication failed';
         console.error('[Holad] Auth Error:', message);
-        set({ connectionStatus: 'error', connectError: message });
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+        set({ connectionStatus: 'error', connectError: message, reconnectAttempts: MAX_RECONNECT_ATTEMPTS });
         get().disconnect(true);
       });
 
@@ -444,8 +513,14 @@ export const useHoladStore = create<HoladState>((set, get) => {
     },
 
     refreshDevices: () => {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      set({ reconnectAttempts: 0 });
+
       const currentSocket = socket || get().socket;
-      const currentRoom = get().roomId;
+      const currentRoom = get().roomId || lastAttemptedRoomId;
       if (currentSocket && currentSocket.connected && currentRoom) {
         const { user, salt, token, url } = useAuthStore.getState();
         const demoSessionId = typeof window !== 'undefined'
@@ -459,12 +534,20 @@ export const useHoladStore = create<HoladState>((set, get) => {
           auth: { user, salt, token, url },
           demoSessionId,
         });
-      } else if (currentRoom) {
-        get().connect(currentRoom);
+      } else {
+        const { user } = useAuthStore.getState();
+        const targetRoom = currentRoom || user;
+        if (targetRoom) {
+          get().connect(targetRoom);
+        }
       }
     },
 
     disconnect: (keepError = false) => {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
       hasRequestedHistory = false;
       setSyncApplyingRemoteState(false);
       stopPassiveTicker();
@@ -487,6 +570,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
         roomId: null,
         connectionStatus: preserveError ? 'error' : 'disconnected',
         connectError: preserveError ? currentError : null,
+        reconnectAttempts: 0,
         snapshot: null,
         isRemotePlaying: false,
         lastPausedAt: null,

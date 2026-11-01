@@ -499,7 +499,7 @@ class JamSocketService {
             roomId: state.roomId,
             trackId: currentTrack.id,
             currentTime,
-            isPlaying: state.isPlaying,
+            isPlaying: !state.isPlaying ? false : Boolean(state.isPlaying),
             currentIndex: state.currentIndex,
             isAutoDjEnabled: state.isAutoDjEnabled,
             version: this.latestStateVersion,
@@ -556,6 +556,7 @@ class JamSocketService {
               isPlaying: newState.isPlaying,
               currentIndex: newState.currentIndex,
               isAutoDjEnabled: newState.isAutoDjEnabled,
+              version: this.latestStateVersion,
               isCrossfadeEnabled: settings.isCrossfadeEnabled,
               crossfadeDuration: settings.crossfadeDuration,
               crossfadeCurve: settings.crossfadeCurve,
@@ -637,7 +638,7 @@ class JamSocketService {
       if (engine) {
         if (isSpeakerDj) {
           engine.pause();
-          store.setIsPlaying(isPlaying);
+          usePlayerStore.setState({ isPlaying });
           if (!useAudioStore.getState().isSeeking) {
             const trackDur = (newQueue && newQueue[newIndex]?.duration) || 0;
             if (trackDur > 0) {
@@ -647,13 +648,17 @@ class JamSocketService {
           return;
         }
 
-        if (isPlaying && engine.getState() !== 'playing') {
-          engine.resume().catch((e: any) => console.error("Playback prevented", e));
-          store.setIsPlaying(true);
-        } else if (!isPlaying && engine.getState() === 'playing') {
-          engine.pause();
-          store.setIsPlaying(false);
-          engine.setPlaybackRate(1.0); // Reset rate on pause
+        if (isPlaying) {
+          if (engine.getState() !== 'playing') {
+            engine.resume().catch((e: any) => console.error("Playback prevented", e));
+          }
+          usePlayerStore.setState({ isPlaying: true });
+        } else {
+          if (engine.getState() === 'playing') {
+            engine.pause();
+            engine.setPlaybackRate(1.0); // Reset rate on pause
+          }
+          usePlayerStore.setState({ isPlaying: false });
         }
 
         if (isPlaying || isSeek) {
