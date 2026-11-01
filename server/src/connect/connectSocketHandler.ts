@@ -112,7 +112,12 @@ export function registerConnectSocketHandlers(
         }
       }
 
-      const dbAccount = accounts.find((a: any) => a.user.toLowerCase() === authUserClean);
+      const dbAccount = accounts.find((a: any) => 
+        a.user.toLowerCase() === authUserClean && (
+          (a.token && safeTimingCompare(a.token, auth.token)) ||
+          (a.url && a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''))
+        )
+      ) || accounts.find((a: any) => a.user.toLowerCase() === authUserClean);
       const isEnvUser = !!process.env.NAVIDROME_USER && process.env.NAVIDROME_USER.toLowerCase() === authUserClean;
       const isKnownUser = !!dbAccount || isEnvUser || isDemoMatch;
 
@@ -147,13 +152,23 @@ export function registerConnectSocketHandlers(
 
       const hasValidAuth = Boolean(auth.user && auth.salt && auth.token && auth.url);
       const isRoomAuthorized = hasValidAuth && (authUserClean === normalizedRoom || isDemoMatch);
-      const isTokenMatched = Boolean(dbAccount && dbAccount.token && safeTimingCompare(dbAccount.token, auth.token));
+      const isTokenMatched = Boolean(
+        accounts.some((a: any) => 
+          a.user.toLowerCase() === authUserClean && 
+          a.token && 
+          safeTimingCompare(a.token, auth.token)
+        )
+      );
 
       if (dbAccount) {
         if (!isPingSuccessful && !isTokenMatched) {
-          socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Invalid Subsonic credentials' });
-          socket.disconnect();
-          return;
+          if (isRoomAuthorized) {
+            console.warn(`[Holad] Subsonic ping unreachable for ${auth.url}, but user '${auth.user}' provided valid credentials for room '${normalizedRoom}'. Allowing device connection in fallback mode.`);
+          } else {
+            socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Invalid Subsonic credentials' });
+            socket.disconnect();
+            return;
+          }
         }
       } else if (!isPingSuccessful && !isKnownUser) {
         if (isRoomAuthorized) {

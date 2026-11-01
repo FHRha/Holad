@@ -93,6 +93,9 @@ export function useAppLifecycle() {
       App.addListener('appStateChange', ({ isActive }: any) => {
         if (!isActive) {
           handleExit(false);
+        } else {
+          import('../utils/networkStatus').then(m => m.networkManager.checkConnection()).catch(() => {});
+          import('./useWindowVisibility').then(m => m.checkAndRestoreSockets()).catch(() => {});
         }
       }).then((listener: any) => {
         capacitorListener = listener;

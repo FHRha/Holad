@@ -8,6 +8,7 @@ class NetworkStatusManager {
   private listeners: Set<NetworkListener> = new Set();
   private isTesting: boolean = false;
   private pingFailures: number = 0;
+  private healthCheckTimer: any = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -87,6 +88,9 @@ class NetworkStatusManager {
   }
 
   public setForcedOffline(forced: boolean): void {
+    if (forced) {
+      this.stopHealthCheck();
+    }
     if (this.forcedOffline !== forced) {
       this.forcedOffline = forced;
       this.notifyListeners();
@@ -104,7 +108,34 @@ class NetworkStatusManager {
     }
   }
 
+  private startHealthCheck(): void {
+    if (this.healthCheckTimer || this.isTesting || this.forcedOffline) return;
+    this.healthCheckTimer = setInterval(async () => {
+      if (this.forcedOffline || this.isTesting) {
+        this.stopHealthCheck();
+        return;
+      }
+      const isAlive = await this.checkConnection();
+      if (isAlive) {
+        this.stopHealthCheck();
+        import('../hooks/useWindowVisibility').then(m => m.checkAndRestoreSockets()).catch(() => {});
+      }
+    }, 10000);
+  }
+
+  private stopHealthCheck(): void {
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = null;
+    }
+  }
+
   public setOnline(status: boolean): void {
+    if (status) {
+      this.stopHealthCheck();
+    } else if (!this.forcedOffline && !this.isTesting) {
+      this.startHealthCheck();
+    }
     if (this.online !== status) {
       this.online = status;
       this.notifyListeners();
@@ -112,6 +143,7 @@ class NetworkStatusManager {
   }
 
   public setTestingStatus(status: boolean): void {
+    this.stopHealthCheck();
     this.isTesting = true;
     this.forcedOffline = false;
     this.online = status;
@@ -119,6 +151,7 @@ class NetworkStatusManager {
   }
 
   public resetTestingStatus(): void {
+    this.stopHealthCheck();
     this.isTesting = false;
     this.forcedOffline = false;
     this.online = typeof navigator !== 'undefined' ? navigator.onLine : true;

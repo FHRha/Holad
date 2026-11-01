@@ -110,15 +110,26 @@ export default function PlatformSettingsSection({
           {appVersion && <span className="text-xs text-secondary font-mono ml-1">v{appVersion}</span>}
         </button>
 
-        {/* Check for updates */}
-        <button
-          type="button"
-          onClick={() => UpdateService.checkForUpdates(true)}
-          className="flex items-center justify-center gap-2 w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold py-3 px-4 rounded-xl border border-primary/20 transition-colors text-sm shadow-sm"
-        >
-          <DownloadCloud size={18} />
-          <span>{t('settings.check_updates') || 'Проверить обновления'}</span>
-        </button>
+        {/* Check for updates and pre-release toggle */}
+        <div className="flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => UpdateService.checkForUpdates(true)}
+            className="flex items-center justify-center gap-2 w-full bg-primary/10 hover:bg-primary/20 text-primary font-bold py-3 px-4 rounded-xl border border-primary/20 transition-colors text-sm shadow-sm"
+          >
+            <DownloadCloud size={18} />
+            <span>{t('settings.check_updates') || 'Проверить обновления'}</span>
+          </button>
+
+          <div className="bg-card p-3 rounded-xl border border-border">
+            <SettingToggle
+              title={t('settings.include_prereleases', 'Получать предварительные сборки (бета-версии)')}
+              description={t('settings.include_prereleases_desc', 'Проверять и предлагать к установке тестовые pre-release версии')}
+              checked={settings.includePrereleases}
+              onChange={(checked) => settings.setIncludePrereleases(checked)}
+            />
+          </div>
+        </div>
       </div>
     );
   }
