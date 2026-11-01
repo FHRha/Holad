@@ -12,6 +12,25 @@ pub struct UpdateProgressPayload {
     pub error: Option<String>,
 }
 
+fn is_allowed_download_url(u: &str) -> bool {
+    if !u.starts_with("https://") {
+        return false;
+    }
+    let rest = &u["https://".len()..];
+    // 1. Direct official GitHub release asset download URL for Holad
+    if rest.starts_with("github.com/FHRha/Holad/releases/download/") {
+        return true;
+    }
+    // 2. Official GitHub release asset storage CDNs (*.githubusercontent.com)
+    if let Some(slash_idx) = rest.find('/') {
+        let domain = &rest[..slash_idx];
+        if domain == "githubusercontent.com" || domain.ends_with(".githubusercontent.com") {
+            return true;
+        }
+    }
+    false
+}
+
 fn download_and_install_sync(
     app: AppHandle,
     url: String,
@@ -20,9 +39,7 @@ fn download_and_install_sync(
     _silent: Option<bool>,
 ) -> Result<(), String> {
     // 1. URL Source Validation: strictly HTTPS and only official GitHub releases
-    if !url.starts_with("https://github.com/FHRha/Holad/releases/download/")
-        && !url.starts_with("https://objects.githubusercontent.com/")
-    {
+    if !is_allowed_download_url(&url) {
         let err_msg = "Disallowed update URL: download is only permitted from official GitHub releases over HTTPS".to_string();
         let _ = app.emit("update-download-progress", UpdateProgressPayload {
             stage: "error".into(),
@@ -92,9 +109,7 @@ fn download_and_install_sync(
 
     // Validate destination after redirects
     let final_url = response.get_url();
-    if !final_url.starts_with("https://github.com/FHRha/Holad/releases/download/")
-        && !final_url.starts_with("https://objects.githubusercontent.com/")
-    {
+    if !is_allowed_download_url(final_url) {
         let err_msg = "Disallowed redirect URL: download is only permitted from official GitHub releases over HTTPS".to_string();
         let _ = app.emit("update-download-progress", UpdateProgressPayload {
             stage: "error".into(),
@@ -343,4 +358,29 @@ pub async fn download_and_install_update(
     })
     .await
     .map_err(|e| format!("Task execution error: {}", e))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_allowed_download_url() {
+        // Official GitHub Releases URL
+        assert!(is_allowed_download_url("https://github.com/FHRha/Holad/releases/download/v2.2.1-test.32/Holad_2.2.1-test.32_x64-setup.exe"));
+        
+        // Official GitHub CDN redirect URLs
+        assert!(is_allowed_download_url("https://release-assets.githubusercontent.com/github-production-release-asset/1300078606/test.exe?param=1"));
+        assert!(is_allowed_download_url("https://objects.githubusercontent.com/github-production-release-asset-2e65be/123/file.exe"));
+        assert!(is_allowed_download_url("https://github-releases.githubusercontent.com/123/file.exe"));
+
+        // Insecure protocol
+        assert!(!is_allowed_download_url("http://github.com/FHRha/Holad/releases/download/v1.0.0/setup.exe"));
+        assert!(!is_allowed_download_url("http://release-assets.githubusercontent.com/asset.exe"));
+
+        // Malicious / untrusted domains
+        assert!(!is_allowed_download_url("https://malicious-site.com/Holad_setup.exe"));
+        assert!(!is_allowed_download_url("https://fakegithubusercontent.com/asset.exe"));
+        assert!(!is_allowed_download_url("https://github.com/OtherUser/OtherRepo/releases/download/v1.0.0/setup.exe"));
+    }
 }
