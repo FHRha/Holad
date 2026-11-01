@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Play, Heart, Star, MoreHorizontal, SkipForward, ListPlus, Download, Ban } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
 import { getCachedImageUrl } from '../../utils/imageCache';
@@ -13,6 +14,7 @@ import { useDownloadStore } from '../../store/downloadStore';
 import { isJamPath } from '../../utils/basePath';
 
 const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
   const playNext = usePlayerStore(state => state.playNext);
@@ -258,7 +260,7 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
           <div className="flex items-center justify-center gap-2 lg:gap-4 mt-2">
             <button 
               onClick={handlePlayNext}
-              aria-label="Играть следующим"
+              aria-label={t('album.play_next', 'Играть следующим')}
               className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-background/40 hover:bg-black/60 text-foreground flex items-center justify-center transition-colors"
             >
               <ListPlus size={20} strokeWidth={1.5} />
@@ -266,7 +268,7 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
 
             <button 
               onClick={handlePlayNow}
-              aria-label="Слушать альбом"
+              aria-label={t('album.listen', 'Слушать альбом')}
               className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform shadow-xl"
             >
               <Play fill="currentColor" size={24} className="ml-1" />
@@ -274,7 +276,7 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
 
             <button 
               onClick={handleAddToQueue}
-              aria-label="Добавить в очередь"
+              aria-label={t('album.add_to_queue', 'Добавить в очередь')}
               className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-background/40 hover:bg-black/60 text-foreground flex items-center justify-center transition-colors"
             >
               <SkipForward size={20} strokeWidth={1.5} />

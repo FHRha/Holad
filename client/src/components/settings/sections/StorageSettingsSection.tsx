@@ -181,7 +181,7 @@ export default function StorageSettingsSection({
         title={t('settings.quick_cleanup', 'Быстрая очистка хранилища')}
         icon={<Trash2 size={16} />}
         description={t(
-          'settings.quick_cleanup_desc',
+          'settings.clear_cache_desc',
           'Освободите дисковое пространство и оперативную память в один клик без потери скачанных треков'
         )}
         isMobile={isMobile}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Play, Heart, MoreHorizontal, SkipForward, ListPlus, Download, Ban } from 'lucide-react';
 import { getCoverArtUrl, getAlbum, starItem, unstarItem, setItemRating } from '../../api/subsonic';
 import { getCachedImageUrl } from '../../utils/imageCache';
@@ -52,6 +53,7 @@ const isLightColor = (color: string | null): boolean => {
 };
 
 export default function HeroAlbumCard({ album }: { album: any }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
   const playNext = usePlayerStore(state => state.playNext);
@@ -312,7 +314,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
           <div className="flex items-center justify-center gap-3 lg:gap-5">
             <button 
               onClick={handlePlayNext}
-              aria-label="Играть следующим"
+              aria-label={t('album.play_next', 'Играть следующим')}
               className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
             >
               <ListPlus size={20} strokeWidth={1.5} />
@@ -320,7 +322,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
             <button 
               onClick={handlePlayNow}
-              aria-label="Слушать альбом"
+              aria-label={t('album.listen', 'Слушать альбом')}
               className="w-14 h-14 lg:w-16 lg:h-16 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform shadow-xl"
             >
               <Play fill="currentColor" size={24} className="ml-1" />
@@ -328,7 +330,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
 
             <button 
               onClick={handleAddToQueue}
-              aria-label="Добавить в очередь"
+              aria-label={t('album.add_to_queue', 'Добавить в очередь')}
               className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
             >
               <SkipForward size={20} strokeWidth={1.5} />

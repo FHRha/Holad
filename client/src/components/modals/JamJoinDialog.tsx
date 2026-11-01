@@ -70,7 +70,7 @@ export default function JamJoinDialog() {
 
         {roomId && (
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/5 border border-border text-xs font-mono text-secondary mb-6">
-            <span>Room:</span>
+            <span>{t('jam.room_label', 'Комната:')}</span>
             <span className="font-semibold text-foreground">{roomId}</span>
           </div>
         )}

@@ -117,7 +117,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
         <div className="flex gap-2">
           <button 
             onClick={() => scroll('left')} 
-            aria-label="Прокрутить назад"
+            aria-label={t('carousel.scroll_back', 'Прокрутить назад')}
             className={`w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 hover:bg-foreground/10 transition-colors ${!canScrollLeft ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollLeft}
           >
@@ -125,7 +125,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
           </button>
           <button 
             onClick={() => scroll('right')} 
-            aria-label="Прокрутить вперёд"
+            aria-label={t('carousel.scroll_forward', 'Прокрутить вперёд')}
             className={`w-8 h-8 flex items-center justify-center rounded-full bg-foreground/5 hover:bg-foreground/10 transition-colors ${!canScrollRight ? 'opacity-30 cursor-not-allowed' : ''}`}
             disabled={!canScrollRight}
           >

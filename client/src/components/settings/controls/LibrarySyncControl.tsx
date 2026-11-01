@@ -151,7 +151,7 @@ export default function LibrarySyncControl({
             </span>
             <span className="text-xs text-secondary leading-relaxed break-words">
               {t(
-                'settings.media_engine_cache_desc',
+                'settings.library_cache_fts5_desc',
                 'Быстрый серверный SQLite-кэш с полнотекстовым поиском FTS5'
               )}
             </span>

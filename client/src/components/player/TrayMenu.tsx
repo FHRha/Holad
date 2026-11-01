@@ -227,7 +227,7 @@ export default function TrayMenu() {
             className="flex items-center gap-2.5 px-2 py-2 rounded-md transition-colors text-xs font-medium w-full text-left hover:bg-red-500/10 text-red-400 hover:text-red-300 disabled:opacity-50 disabled:hover:bg-transparent"
           >
             <Ban className="w-4 h-4" />
-            {t('common.ignore') || 'Игнорировать'}
+            {t('common.ignore', 'Игнорировать')}
           </button>
 
           <div className="h-px bg-white/5 my-1.5 mx-1"></div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -11,6 +12,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   fullScreen = false,
   className = ''
 }) => {
+  const { t } = useTranslation();
   const sizeClasses = {
     sm: 'w-5 h-5 border-2',
     md: 'w-8 h-8 border-4',
@@ -21,7 +23,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     <div
       className={`rounded-full border-primary border-t-transparent animate-spin ${sizeClasses} ${className}`}
       role="status"
-      aria-label="Loading"
+      aria-label={t('common.loading', 'Загрузка...')}
     />
   );
 

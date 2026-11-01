@@ -28,7 +28,7 @@ export default function IntegrationsSettingsSection({
         title="Discord Rich Presence"
         icon={<Gamepad2 size={16} />}
         description={t(
-          'settings.discord_rpc_desc',
+          'settings.discord_status_desc',
           'Отображение текущего трека в статусе профиля Discord'
         )}
         isMobile={isMobile}
@@ -49,12 +49,12 @@ export default function IntegrationsSettingsSection({
                 type="text"
                 value={settings.discordClientId || ''}
                 onChange={(e) => settings.setDiscordClientId(e.target.value)}
-                placeholder="1565974937347301436 (По умолчанию / Holad)"
+                placeholder={t('settings.discord_client_id_placeholder', '1565974937347301436 (По умолчанию / Holad)')}
                 className="w-full px-3 py-1.5 text-xs bg-foreground/[0.04] border border-border rounded-lg text-foreground focus:outline-none focus:border-primary transition-colors font-mono"
               />
               <p className="text-[11px] text-secondary leading-normal">
                 {t(
-                  'settings.discord_client_id_hint',
+                  'settings.discord_client_id_help',
                   'По умолчанию используется общий Client ID. Чтобы в Discord отображалось «Слушает Holad», создайте приложение «Holad» на discord.com/developers/applications и вставьте его Application ID.'
                 )}
               </p>

@@ -72,7 +72,7 @@ export default function PlaybackSettingsSection({
         <>
           {/* Click Action */}
           <SettingSection
-            title={t('settings.clickAction') || 'Поведение при клике на трек'}
+            title={t('settings.clickAction', 'Поведение при клике на трек')}
             icon={<MousePointerClick size={16} />}
             isMobile={isMobile}
           >
@@ -108,7 +108,7 @@ export default function PlaybackSettingsSection({
 
           {/* Auto DJ */}
           <SettingSection
-            title={t('settings.autoDj') || 'АВТО DJ по умолчанию'}
+            title={t('settings.autoDj', 'АВТО DJ по умолчанию')}
             icon={<Sparkles size={16} />}
             isMobile={isMobile}
           >
@@ -123,7 +123,7 @@ export default function PlaybackSettingsSection({
               <div className="mt-4 pt-3 border-t border-border space-y-2">
                 <div className="text-xs font-semibold text-secondary uppercase tracking-wider">
                   {t(
-                    'settings.autodj_repeat_collision',
+                    'settings.auto_dj_repeat_header',
                     'При включённом повторе альбома/плейлиста'
                   )}
                 </div>
@@ -135,14 +135,14 @@ export default function PlaybackSettingsSection({
                     {
                       value: 'pause_on_repeat',
                       label: t(
-                        'settings.autodj_pause_on_repeat',
+                        'settings.auto_dj_repeat_priority',
                         'Приоритет повтора (приостанавливать Авто DJ, альбом играет по кругу)'
                       )
                     },
                     {
                       value: 'infinite_stream',
                       label: t(
-                        'settings.autodj_infinite_stream',
+                        'settings.auto_dj_repeat_infinite',
                         'Бесконечный поток (игнорировать повтор и добавлять похожие треки)'
                       )
                     }
@@ -154,7 +154,7 @@ export default function PlaybackSettingsSection({
 
           {/* Default Volume */}
           <SettingSection
-            title={t('settings.defaultVolume') || 'Громкость по умолчанию'}
+            title={t('settings.defaultVolume', 'Громкость по умолчанию')}
             icon={<Volume2 size={16} />}
             isMobile={isMobile}
           >
@@ -212,7 +212,7 @@ export default function PlaybackSettingsSection({
         <>
           {/* Streaming Quality */}
           <SettingSection
-            title={t('settings.streaming_quality') || 'Качество потока (стриминга)'}
+            title={t('settings.streaming_quality', 'Качество потока (стриминга)')}
             icon={<Radio size={16} />}
             description={t(
               'settings.streaming_quality_desc',
@@ -229,7 +229,7 @@ export default function PlaybackSettingsSection({
                     className="w-full bg-foreground/[0.03] border border-border rounded-xl py-2.5 px-3 text-sm text-foreground outline-none focus:border-primary appearance-none cursor-pointer pr-10"
                   >
                     <option value="raw" className="bg-card text-foreground">
-                      {t('settings.quality_raw', 'Исходное (Без сжатия / FLAC)')}
+                      {t('settings.quality_original', 'Исходное (Без сжатия / FLAC)')}
                     </option>
                     <option value="opus-256" className="bg-card text-foreground">
                       {t(
@@ -262,7 +262,7 @@ export default function PlaybackSettingsSection({
                   options={[
                     {
                       label: t(
-                        'settings.quality_raw',
+                        'settings.quality_original',
                         'Исходное (Без сжатия / FLAC)'
                       ),
                       value: 'raw',
@@ -300,7 +300,7 @@ export default function PlaybackSettingsSection({
             title={t('settings.data_saver', 'Экономия трафика')}
             icon={<Zap size={16} />}
             description={t(
-              'settings.data_saver_desc',
+              'settings.wifi_only_desc',
               'Оптимизирует сетевой трафик, ограничивая фоновую предзагрузку только сетями Wi-Fi'
             )}
             isMobile={isMobile}
@@ -317,7 +317,7 @@ export default function PlaybackSettingsSection({
                   <ShieldAlert size={16} className="text-amber-400 shrink-0 mt-0.5" />
                   <span>
                     {t(
-                      'settings.data_saver_warning',
+                      'settings.mobile_network_warning',
                       'Предупреждение: при слабой или нестабильной мобильной сети возможны задержки буферизации и паузы при переключении треков.'
                     )}
                   </span>
@@ -328,14 +328,14 @@ export default function PlaybackSettingsSection({
 
           {/* Crossfade */}
           <SettingSection
-            title={t('settings.crossfade') || 'Плавный переход (Кроссфейд)'}
+            title={t('settings.crossfade', 'Плавный переход (Кроссфейд)')}
             icon={<Waves size={16} />}
             isMobile={isMobile}
           >
             <div className="flex flex-col gap-4">
               <SettingToggle
                 title={t('settings.crossfade_enable', 'Включить плавный переход')}
-                description={t('settings.crossfade_desc') || 'Плавное перетекание одного трека в другой'}
+                description={t('settings.crossfade_desc', 'Плавное перетекание одного трека в другой')}
                 checked={settings.isCrossfadeEnabled}
                 onChange={(checked) => settings.setIsCrossfadeEnabled(checked)}
               />
@@ -343,7 +343,7 @@ export default function PlaybackSettingsSection({
               <div className={`pt-2 pb-1 space-y-3 transition-opacity ${settings.isCrossfadeEnabled ? 'opacity-100' : 'opacity-40'}`}>
                 <div className="flex justify-between text-xs text-secondary font-medium">
                   <span>
-                    {t('settings.crossfade_duration') || 'Длительность кроссфейда'}
+                    {t('settings.crossfade_duration', 'Длительность кроссфейда')}
                   </span>
                   <span className="font-mono text-foreground font-semibold">
                     {settings.isCrossfadeEnabled ? `${settings.crossfadeDuration} ${t('common.seconds_short', 'сек')}` : `0 ${t('common.seconds_short', 'сек')}`}
@@ -380,13 +380,13 @@ export default function PlaybackSettingsSection({
 
           {/* Gapless */}
           <SettingSection
-            title={t('settings.gapless') || 'Без пауз (Gapless)'}
+            title={t('settings.gapless', 'Без пауз (Gapless)')}
             icon={<FastForward size={16} />}
             isMobile={isMobile}
           >
             <SettingToggle
               title={t('settings.gapless_enable', 'Воспроизведение без пауз')}
-              description={t('settings.gapless_desc') || 'Убирать тишину между треками (отключает кроссфейд)'}
+              description={t('settings.gapless_desc', 'Убирать тишину между треками (отключает кроссфейд)')}
               checked={settings.isGaplessEnabled}
               onChange={(checked) => settings.setIsGaplessEnabled(checked)}
             />
@@ -394,14 +394,14 @@ export default function PlaybackSettingsSection({
 
           {/* Normalization / Compressor */}
           <SettingSection
-            title={t('settings.normalization') || 'Нормализация громкости'}
+            title={t('settings.normalization', 'Нормализация громкости')}
             icon={<Activity size={16} />}
             isMobile={isMobile}
           >
             <div className="flex flex-col gap-4">
               <SettingToggle
                 title={t('settings.normalization_enable', 'Выравнивать громкость треков')}
-                description={t('settings.normalization_desc') || 'Автоматически выравнивать громкость треков (DSP компрессор)'}
+                description={t('settings.normalization_desc', 'Автоматически выравнивать громкость треков (DSP компрессор)')}
                 checked={settings.isLoudnessNormalizationEnabled}
                 onChange={(checked) => settings.setIsLoudnessNormalizationEnabled(checked)}
               />
@@ -413,7 +413,7 @@ export default function PlaybackSettingsSection({
                     <div className="flex justify-between text-xs text-secondary mb-2">
                       <span>
                         {t(
-                          'settings.audio_compressor_threshold',
+                          'settings.normalization_threshold',
                           'Порог срабатывания (Threshold)'
                         )}
                       </span>
@@ -514,7 +514,7 @@ export default function PlaybackSettingsSection({
           {/* Prebuffering / Preload: rendered in Advanced Mode */}
           {isAdvanced && (
             <SettingSection
-              title={t('settings.prebuffering') || 'Предварительная буферизация'}
+              title={t('settings.prebuffering', 'Предварительная буферизация')}
               icon={<DownloadCloud size={16} />}
               isMobile={isMobile}
             >
@@ -526,7 +526,7 @@ export default function PlaybackSettingsSection({
                     </span>
                     <span className="text-xs text-secondary leading-normal mt-0.5 break-words">
                       {t(
-                        'settings.preload_subdesc',
+                        'settings.prebuffering_desc',
                         'Заранее загружает следующий аудиопоток для непрерывного воспроизведения'
                       )}
                     </span>
@@ -556,7 +556,7 @@ export default function PlaybackSettingsSection({
                               {t('settings.preload_wifi_only', 'Только по Wi-Fi')}
                             </option>
                             <option value="always" className="bg-card text-foreground">
-                              {t('settings.preload_always', 'Всегда (Wi-Fi и сотовая сеть)')}
+                              {t('settings.prebuffer_always', 'Всегда (Wi-Fi и сотовая сеть)')}
                             </option>
                             <option value="disabled" className="bg-card text-foreground">
                               {t('settings.preload_disabled', 'Отключено')}
@@ -578,7 +578,7 @@ export default function PlaybackSettingsSection({
                             },
                             {
                               label: t(
-                                'settings.preload_always',
+                                'settings.prebuffer_always',
                                 'Всегда (Wi-Fi и сотовая сеть)'
                               ),
                               value: 'always',
@@ -592,7 +592,7 @@ export default function PlaybackSettingsSection({
                       )}
                       <span className="text-xs text-secondary">
                         {t(
-                          'settings.preload_mode_desc',
+                          'settings.prebuffer_when',
                           'Когда автоматически загружать следующий трек в память'
                         )}
                       </span>
@@ -615,7 +615,7 @@ export default function PlaybackSettingsSection({
                               {t('settings.preload_lookahead_5s', '5 секунд')}
                             </option>
                             <option value={15} className="bg-card text-foreground">
-                              {t('settings.preload_lookahead_15s', '15 секунд (По умолчанию)')}
+                              {t('settings.prebuffer_15s', '15 секунд (По умолчанию)')}
                             </option>
                             <option value={30} className="bg-card text-foreground">
                               {t('settings.preload_lookahead_30s', '30 секунд')}
@@ -637,7 +637,7 @@ export default function PlaybackSettingsSection({
                             },
                             {
                               label: t(
-                                'settings.preload_lookahead_15s',
+                                'settings.prebuffer_15s',
                                 '15 секунд (По умолчанию)'
                               ),
                               value: 15,
@@ -651,7 +651,7 @@ export default function PlaybackSettingsSection({
                       )}
                       <span className="text-xs text-secondary">
                         {t(
-                          'settings.preload_lookahead_desc',
+                          'settings.prebuffer_offset_desc',
                           'За сколько секунд до окончания трека начинать предзагрузку'
                         )}
                       </span>

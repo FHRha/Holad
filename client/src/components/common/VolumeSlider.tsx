@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface VolumeSliderProps {
   value: number; // 0.0 to 1.0
@@ -17,6 +18,7 @@ export default function VolumeSlider({
   onPercentageChange,
   className = '',
 }: VolumeSliderProps) {
+  const { t } = useTranslation();
   const trackRef = useRef<HTMLDivElement>(null);
   const fillRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
@@ -132,7 +134,7 @@ export default function VolumeSlider({
       onPointerDown={handlePointerDown}
       onWheel={handleWheel}
       role="slider"
-      aria-label="Громкость"
+      aria-label={t('player.volume', 'Громкость')}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(clampedVal * 100)}
