@@ -156,6 +156,7 @@ export default function ArtistsView() {
           <div className="flex-1 overflow-hidden">
             <VirtuosoGrid
               data={filteredArtists}
+              computeItemKey={(index) => filteredArtists[index]?.id || index}
               className="h-full custom-scrollbar"
               listClassName="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 md:gap-6 pr-6 md:pr-0 pb-32 md:pb-8"
               itemContent={(_index: number, artist: any) => (

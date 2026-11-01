@@ -120,6 +120,7 @@ export default function FavoritesView() {
             <Virtuoso
               customScrollParent={desktopScrollParent || undefined}
               data={tracks}
+              computeItemKey={(index) => tracks[index]?.id || index}
               overscan={300}
               itemContent={(index: number, track: any) => (
                 <TrackRow
@@ -196,6 +197,7 @@ export default function FavoritesView() {
                 <Virtuoso
                   customScrollParent={mobileScrollParent || undefined}
                   data={searchedTracks}
+                  computeItemKey={(index) => searchedTracks[index]?.id || index}
                   overscan={300}
                   itemContent={(index: number, track: any) => (
                     <TrackRow

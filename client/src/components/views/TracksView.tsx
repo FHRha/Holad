@@ -90,11 +90,11 @@ export default function TracksView() {
       }
       try {
         const [tracksData, artistsData] = await Promise.all([
-          searchTracks('', 50, 0),
+          searchTracks('', 100, 0),
           getArtists()
         ]);
         const sorted = tracksData.sort((a: any, b: any) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
-        const more = tracksData.length >= 50;
+        const more = tracksData.length >= 100;
         setTracks(sorted);
         setGlobalArtists(artistsData);
         setHasMore(more);
@@ -121,20 +121,19 @@ export default function TracksView() {
     if (loadingMore || !hasMore || loading) return;
     setLoadingMore(true);
     try {
-      const newTracks = await searchTracks('', 50, tracks.length);
-      if (newTracks.length < 50) {
+      const newTracks = await searchTracks('', 100, tracks.length);
+      if (newTracks.length < 100) {
         setHasMore(false);
       }
       setTracks(prev => {
-        const combined = [...prev, ...newTracks];
-        // optional: deduplicate by id if search3 gives weird results
-        const unique = Array.from(new Map(combined.map(t => [t.id, t])).values());
-        const sorted = unique.sort((a: any, b: any) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
+        const existingIds = new Set(prev.map(t => t.id));
+        const incoming = (newTracks || []).filter((t: any) => !existingIds.has(t.id));
+        const combined = [...prev, ...incoming];
         if (cachedTracksData) {
-          cachedTracksData.tracks = sorted;
-          cachedTracksData.hasMore = newTracks.length >= 50;
+          cachedTracksData.tracks = combined;
+          cachedTracksData.hasMore = (newTracks || []).length >= 100;
         }
-        return sorted;
+        return combined;
       });
     } catch (e) {
       console.error('Failed to load more tracks:', e);
@@ -284,6 +283,7 @@ export default function TracksView() {
             ) : (
               <Virtuoso
                 data={finalTracks}
+                computeItemKey={(index) => finalTracks[index]?.id || index}
                 endReached={loadMoreTracks}
                 overscan={300}
                 className="h-full custom-scrollbar hide-scrollbar-mobile"

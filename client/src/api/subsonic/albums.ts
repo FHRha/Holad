@@ -3,8 +3,8 @@ import { getHoladServerUrl } from '../../utils/serverConfig';
 import { useAuthStore } from '../../store/authStore';
 import { isCapacitor } from '../../utils/StorageManager';
 
-export const fetchAlbums = async (offset = 0, size = 50) => {
-  const url = buildUrl('getAlbumList2', { type: 'newest', size: size.toString(), offset: offset.toString() });
+export const fetchAlbums = async (offset = 0, size = 50, type: string = 'alphabeticalByName') => {
+  const url = buildUrl('getAlbumList2', { type, size: size.toString(), offset: offset.toString() });
   const res = await fetchWithRetry(url);
   const data = await res.json();
   return data['subsonic-response']?.albumList2?.album || [];

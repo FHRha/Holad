@@ -393,6 +393,7 @@ export default function PlaylistDetailView() {
             <Virtuoso
               customScrollParent={scrollParent || undefined}
               data={tracks}
+              computeItemKey={(index) => tracks[index]?.id || index}
               overscan={300}
               itemContent={(index: number, track: any) => (
                 <TrackRow

@@ -38,12 +38,12 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
       }
       try {
         const data = await fetchAlbums(0, 50);
-        const sorted = [...(data || [])].sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
-        setAlbums(sorted);
-        const more = (data || []).length >= 50;
+        const incoming = data || [];
+        setAlbums(incoming);
+        const more = incoming.length >= 50;
         setHasMore(more);
         cachedAlbumsData = {
-          albums: sorted,
+          albums: incoming,
           hasMore: more,
         };
       } catch (err) {
@@ -72,14 +72,14 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
       const data = await fetchAlbums(albums.length, 50);
       if (data.length < 50) setHasMore(false);
       setAlbums(prev => {
-        const combined = [...prev, ...data];
-        const unique = Array.from(new Map(combined.map(a => [a.id, a])).values());
-        const sorted = unique.sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
+        const existingIds = new Set(prev.map(a => a.id));
+        const incoming = (data || []).filter((a: any) => !existingIds.has(a.id));
+        const combined = [...prev, ...incoming];
         if (cachedAlbumsData) {
-          cachedAlbumsData.albums = sorted;
-          cachedAlbumsData.hasMore = data.length >= 50;
+          cachedAlbumsData.albums = combined;
+          cachedAlbumsData.hasMore = (data || []).length >= 50;
         }
-        return sorted;
+        return combined;
       });
     } catch (err) {
       console.error('Failed to load more albums:', err);
@@ -131,6 +131,7 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
         <VirtuosoGrid
           ref={virtuosoRef}
           data={finalAlbums}
+          computeItemKey={(index) => finalAlbums[index]?.id || index}
           endReached={loadMoreAlbums}
           className="h-full custom-scrollbar"
           listClassName={
