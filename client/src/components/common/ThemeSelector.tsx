@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Moon, Sun, Monitor, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore, type AppTheme } from '../../store/settingsStore';
+import { pushPreferences } from '../../api/preferences';
 
 export default function ThemeSelector({ align = 'right' }: { align?: 'left' | 'right' } = {}) {
   const { t } = useTranslation();
@@ -28,6 +29,14 @@ export default function ThemeSelector({ align = 'right' }: { align?: 'left' | 'r
 
   const changeTheme = (newTheme: AppTheme) => {
     setTheme(newTheme);
+    const settings = useSettingsStore.getState();
+    if (settings.syncTheme) {
+      pushPreferences({
+        theme: newTheme,
+        accent_color: settings.accentColor,
+        custom_colors: JSON.stringify(settings.customColors),
+      }).catch(() => {});
+    }
     setIsOpen(false);
   };
 

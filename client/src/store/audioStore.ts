@@ -4,6 +4,8 @@ import { useHoladStore } from './holadStore';
 import { usePlayerStore } from './playerStore';
 import { getAudioEngine } from '../audio/AudioEngine';
 import { jamSocket } from '../api/socket';
+import { savePlaybackState } from '../api/playbackState';
+import { isJamPath } from '../utils/basePath';
 
 interface AudioStore {
   audioElement: HTMLAudioElement | null;
@@ -135,7 +137,28 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
         useHoladStore.getState().sendRemoteCommand('seek', targetTime * 1000);
       }
 
+      try {
+        localStorage.setItem('holad_time', targetTime.toString());
+        localStorage.setItem('holad_time_updated', Date.now().toString());
+        if (currentTrack?.id) {
+          localStorage.setItem('holad_track', currentTrack.id);
+        }
+      } catch {
+        // ignore storage errors
+      }
+
       const playerState = usePlayerStore.getState();
+      if (playerState.role !== 'listener' && !isJamPath() && isDeviceActive) {
+        const now = Date.now();
+        usePlayerStore.setState({ playbackUpdatedAt: now });
+        savePlaybackState({
+          position: Math.round(targetTime),
+          currentIndex: playerState.currentIndex,
+          songId: currentTrack?.id,
+          isPlaying: playerState.isPlaying,
+          updatedAt: now,
+        }).catch(() => {});
+      }
       if (playerState.roomId && (playerState.role === 'host' || playerState.role === 'cohost')) {
         jamSocket.syncSeek(targetTime);
       }

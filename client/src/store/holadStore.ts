@@ -32,6 +32,7 @@ export interface HoladState {
   isRemotePlaying: boolean;
   lastPausedAt: number | null;
   connect: (roomId: string) => void;
+  refreshDevices: () => void;
   disconnect: (keepError?: boolean) => void;
   transferPlayback: (targetDeviceId: string) => void;
   setActiveDevice: (deviceId: string) => void;
@@ -153,12 +154,31 @@ export const useHoladStore = create<HoladState>((set, get) => {
       const normalizedRoom = (roomId || '').trim().toLowerCase();
       if (!normalizedRoom) return;
 
-      if (get().connectionStatus === 'disconnected' || !socket) {
+      const emitJoinRoom = (targetSocket: Socket, targetRoom: string) => {
+        const { user, salt, token, url } = useAuthStore.getState();
+        const demoSessionId = typeof window !== 'undefined'
+          ? (sessionStorage.getItem('holad_demo_session_id') || undefined)
+          : undefined;
+
+        targetSocket.emit('holad_joinRoom', {
+          roomId: targetRoom,
+          deviceId,
+          deviceName,
+          auth: { user, salt, token, url },
+          demoSessionId,
+        });
+      };
+
+      if (get().connectionStatus === 'disconnected' || (!socket && !get().socket)) {
         set({ connectError: null, roomId: normalizedRoom });
       }
 
-      if (socket) {
-        if (get().roomId === normalizedRoom && socket.connected) return;
+      const existingSocket = socket || get().socket;
+      if (existingSocket) {
+        if (get().roomId === normalizedRoom && existingSocket.connected) {
+          emitJoinRoom(existingSocket, normalizedRoom);
+          return;
+        }
         get().disconnect();
       }
 
@@ -182,18 +202,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
         // NTP-light ping immediately upon connection
         socket!.emit('holad_ping', { t0: performance.now() });
 
-        const { user, salt, token, url } = useAuthStore.getState();
-        const demoSessionId = typeof window !== 'undefined'
-          ? (sessionStorage.getItem('holad_demo_session_id') || undefined)
-          : undefined;
-
-        socket!.emit('holad_joinRoom', {
-          roomId: normalizedRoom,
-          deviceId,
-          deviceName,
-          auth: { user, salt, token, url },
-          demoSessionId,
-        });
+        emitJoinRoom(socket!, normalizedRoom);
       });
 
       // NTP-light pong handler
@@ -432,6 +441,27 @@ export const useHoladStore = create<HoladState>((set, get) => {
 
     setupStoreSubscriptions: () => {
       setupPlaybackSubscriptions();
+    },
+
+    refreshDevices: () => {
+      const currentSocket = socket || get().socket;
+      const currentRoom = get().roomId;
+      if (currentSocket && currentSocket.connected && currentRoom) {
+        const { user, salt, token, url } = useAuthStore.getState();
+        const demoSessionId = typeof window !== 'undefined'
+          ? (sessionStorage.getItem('holad_demo_session_id') || undefined)
+          : undefined;
+
+        currentSocket.emit('holad_joinRoom', {
+          roomId: currentRoom,
+          deviceId,
+          deviceName,
+          auth: { user, salt, token, url },
+          demoSessionId,
+        });
+      } else if (currentRoom) {
+        get().connect(currentRoom);
+      }
     },
 
     disconnect: (keepError = false) => {

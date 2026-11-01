@@ -32,6 +32,20 @@ export const getSocketUrl = (): string => {
     }
   }
 
+  const holadUrl = getHoladServerUrl();
+  if (holadUrl && (holadUrl.startsWith('http://') || holadUrl.startsWith('https://') || holadUrl.includes('://'))) {
+    try {
+      const parsed = new URL(holadUrl);
+      return parsed.origin;
+    } catch {
+      return holadUrl.replace(/\/$/, '');
+    }
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin && !isTauri() && !isCapacitor()) {
+    return window.location.origin;
+  }
+
   if (isTauri() || isCapacitor()) {
     try {
       const authUrl = useAuthStore.getState().url;
@@ -48,10 +62,11 @@ export const getSocketUrl = (): string => {
 };
 
 export const getSocketPath = (): string => {
-  const customUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('holadServerUrl') : null;
-  if (customUrl) {
+  const holadUrl = getHoladServerUrl();
+  if (holadUrl) {
     try {
-      const parsed = new URL(customUrl);
+      const fullUrl = holadUrl.includes('://') ? holadUrl : `http://localhost${holadUrl.startsWith('/') ? '' : '/'}${holadUrl}`;
+      const parsed = new URL(fullUrl);
       const pathname = parsed.pathname.replace(/\/$/, '');
       if (pathname) {
         return `${pathname}/socket.io`;

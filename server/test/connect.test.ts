@@ -485,4 +485,40 @@ describe('Holad Connect v2 Socket Integration Tests', () => {
     phone.disconnect();
     desktop.disconnect();
   });
+
+  it('should connect successfully using lowercase /holad/socket.io path via normalizeSocketUrl', async () => {
+    const client = Client(`http://localhost:${port}`, { path: '/holad/socket.io' });
+    await new Promise<void>((r) => client.on('connect', r));
+    expect(client.connected).toBe(true);
+    client.disconnect();
+  });
+
+  it('should allow device connection when subsonic ping is unreachable but auth credentials match room', async () => {
+    const unreachableUser = 'unreachable_user';
+    const client = Client(`http://localhost:${port}`, { path: '/holad/socket.io' });
+    await new Promise<void>((r) => client.on('connect', r));
+
+    const devicesPromise = new Promise<any>((resolve) => {
+      client.once('holad_devices', (payload) => resolve(payload));
+    });
+
+    client.emit('holad_joinRoom', {
+      roomId: unreachableUser,
+      deviceId: 'phone-fallback-1',
+      deviceName: 'Phone Fallback',
+      auth: {
+        user: unreachableUser,
+        token: 'token-fallback',
+        salt: 'salt-fallback',
+        url: 'http://unreachable-nas.local:4533'
+      }
+    });
+
+    const devices = await devicesPromise;
+    expect(devices).toBeDefined();
+    expect(Array.isArray(devices.devices)).toBe(true);
+    expect(devices.devices.some((d: any) => d.id === 'phone-fallback-1')).toBe(true);
+
+    client.disconnect();
+  });
 });

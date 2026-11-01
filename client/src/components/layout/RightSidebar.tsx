@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Clock, Download, Share, Shuffle, Trash2, Play, RefreshCw, ListPlus, UsersRound, Radio, LogOut, Check, ListMusic } from 'lucide-react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from '../common/dnd/SortableItem';
@@ -25,7 +25,8 @@ export default function RightSidebar() {
   const { queue, currentIndex, playTrack, toggleShuffle, clearQueue, isProcessing, setQueue, setCurrentIndex, roomId, participants } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const { rightSidebarWidth, setRightSidebarWidth } = useUIStore();
-  const [visibleCount, setVisibleCount] = useState(50);
+  const isSmall = rightSidebarWidth <= 100;
+  const [visibleCount, setVisibleCount] = useState(() => Math.max(50, currentIndex >= 0 ? currentIndex + 25 : 50));
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const shareRef = useRef<HTMLDivElement>(null);
@@ -33,6 +34,22 @@ export default function RightSidebar() {
 
   const [activeTab, setActiveTab] = useState<'queue' | 'social'>('queue');
   const { currentNick, audioMode, setAudioMode, hasNotifications } = useSocialState();
+
+  const visibleCountRef = useRef(visibleCount);
+  visibleCountRef.current = visibleCount;
+  const currentIndexRef = useRef(currentIndex);
+  currentIndexRef.current = currentIndex;
+  const queueRef = useRef(queue);
+  queueRef.current = queue;
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const isSmallRef = useRef(isSmall);
+  isSmallRef.current = isSmall;
+
+  const prevWidthRef = useRef(0);
+  const prevIsSmallRef = useRef(isSmall);
+  const prevTabRef = useRef(activeTab);
+  const scrollTimerRef = useRef<any>(null);
 
   const handleRestoreQueue = async () => {
     try {
@@ -102,6 +119,43 @@ export default function RightSidebar() {
     }, 2000);
   };
 
+  const scrollToActiveTrack = useCallback((behavior: 'auto' | 'smooth' = 'smooth', retries = 0) => {
+    const currentIdx = currentIndexRef.current;
+    if (currentIdx < 0 || currentIdx >= queueRef.current.length) return;
+    if (activeTabRef.current === 'social' && !isSmallRef.current) return;
+
+    const element = document.getElementById(`queue-item-${currentIdx}`);
+    if (element) {
+      element.scrollIntoView({ behavior, block: 'center' });
+      return;
+    }
+
+    if (currentIdx >= visibleCountRef.current) {
+      setVisibleCount(prev => {
+        const next = Math.max(prev, currentIdx + 25);
+        visibleCountRef.current = next;
+        return next;
+      });
+    }
+
+    if (retries < 20) {
+      requestAnimationFrame(() => {
+        scrollToActiveTrack(behavior, retries + 1);
+      });
+    }
+  }, []);
+
+  const scheduleScrollToActive = useCallback((behavior: 'auto' | 'smooth' = 'smooth', delay = 50) => {
+    if (scrollTimerRef.current) {
+      clearTimeout(scrollTimerRef.current);
+    }
+    scrollTimerRef.current = setTimeout(() => {
+      requestAnimationFrame(() => {
+        scrollToActiveTrack(behavior);
+      });
+    }, delay);
+  }, [scrollToActiveTrack]);
+
   const isResizing = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
@@ -136,6 +190,9 @@ export default function RightSidebar() {
         isResizing.current = false;
         document.body.style.cursor = 'default';
         document.body.style.userSelect = '';
+        if (activeTabRef.current === 'queue' || isSmallRef.current) {
+          scheduleScrollToActive('smooth', 50);
+        }
       }
     };
 
@@ -145,7 +202,7 @@ export default function RightSidebar() {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [rightSidebarWidth, setRightSidebarWidth]);
+  }, [rightSidebarWidth, setRightSidebarWidth, scheduleScrollToActive]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 200;
@@ -155,11 +212,55 @@ export default function RightSidebar() {
   };
 
   useEffect(() => {
-    const activeEl = document.getElementById(`queue-item-${currentIndex}`);
-    if (activeEl) {
-      activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (rightSidebarWidth > 0 && currentIndex >= 0 && queue.length > 0 && (activeTab === 'queue' || isSmall)) {
+      scheduleScrollToActive('smooth', 50);
     }
-  }, [currentIndex]);
+  }, [currentIndex, queue.length, rightSidebarWidth, activeTab, isSmall, scheduleScrollToActive]);
+
+  useEffect(() => {
+    const wasClosed = prevWidthRef.current <= 0;
+    const isOpen = rightSidebarWidth > 0;
+    const wasSmall = prevIsSmallRef.current;
+    const justExpanded = wasSmall && !isSmall;
+    const tabChangedToQueue = prevTabRef.current !== 'queue' && activeTab === 'queue';
+
+    prevWidthRef.current = rightSidebarWidth;
+    prevIsSmallRef.current = isSmall;
+    prevTabRef.current = activeTab;
+
+    if (!isOpen) return;
+
+    if ((wasClosed && isOpen) || justExpanded || tabChangedToQueue) {
+      if (activeTab === 'queue' || isSmall) {
+        scheduleScrollToActive('smooth', 50);
+      }
+    }
+  }, [rightSidebarWidth, isSmall, activeTab, scheduleScrollToActive]);
+
+  useEffect(() => {
+    let resizeTimer: any;
+    const handleWindowResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (rightSidebarWidth > 0 && (activeTabRef.current === 'queue' || isSmallRef.current)) {
+          scheduleScrollToActive('auto', 50);
+        }
+      }, 150);
+    };
+    window.addEventListener('resize', handleWindowResize);
+    return () => {
+      clearTimeout(resizeTimer);
+      window.removeEventListener('resize', handleWindowResize);
+    };
+  }, [rightSidebarWidth, scheduleScrollToActive]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimerRef.current) {
+        clearTimeout(scrollTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleContextMenu = (e: React.MouseEvent, track: any, idx: number) => {
     e.preventDefault();
@@ -169,8 +270,6 @@ export default function RightSidebar() {
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
 
   if (rightSidebarWidth === 0) return null;
-
-  const isSmall = rightSidebarWidth <= 100;
 
   return (
     <>

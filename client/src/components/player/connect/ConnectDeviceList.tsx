@@ -1,4 +1,4 @@
-import { Loader2, WifiOff } from 'lucide-react';
+import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useHoladStore, type HoladDevice } from '../../../store/holadStore';
 import ConnectDeviceItem from './ConnectDeviceItem';
@@ -34,6 +34,7 @@ export default function ConnectDeviceList({
   const storeConnectError = useHoladStore(s => s.connectError);
   const storeRoomId = useHoladStore(s => s.roomId);
   const storeConnect = useHoladStore(s => s.connect);
+  const storeRefreshDevices = useHoladStore(s => s.refreshDevices);
 
   const devices = propDevices ?? storeDevices;
   const activeDeviceId = propActiveDeviceId !== undefined ? propActiveDeviceId : storeActiveDeviceId;
@@ -43,7 +44,11 @@ export default function ConnectDeviceList({
   const roomId = propRoomId !== undefined ? propRoomId : storeRoomId;
 
   const handleRetry = onRetry ?? (() => {
-    if (roomId) storeConnect(roomId);
+    if (storeRefreshDevices) {
+      storeRefreshDevices();
+    } else if (roomId) {
+      storeConnect(roomId);
+    }
   });
 
   return (
@@ -109,8 +114,17 @@ export default function ConnectDeviceList({
         )}
 
         {connectionStatus === 'connected' && devices.length === 0 && (
-          <div className="px-3 py-4 flex items-center justify-center gap-2 text-center text-sm text-secondary animate-pulse">
-            <span>{t('player.devices_not_found')}</span>
+          <div className="px-3 py-4 flex flex-col items-center justify-center gap-2 text-center text-sm text-secondary">
+            <span className="animate-pulse">{t('player.devices_not_found')}</span>
+            <button
+              type="button"
+              onClick={handleRetry}
+              aria-label={t('player.retry_search', 'Повторить поиск')}
+              className="px-3 py-1 flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/20 text-foreground rounded-lg transition-colors text-xs font-semibold min-h-[28px]"
+            >
+              <RefreshCw size={13} className="shrink-0" />
+              <span>{t('player.retry_search', 'Повторить поиск')}</span>
+            </button>
           </div>
         )}
       </div>

@@ -11,7 +11,7 @@ export function savePreferences(userId: string, prefs: Partial<UserPreferences>)
   ensureUserExists(userId);
   const now = Date.now();
   const existing = getPreferences(userId);
-  const theme = prefs.theme !== undefined ? prefs.theme : (existing?.theme ?? null);
+  const theme = prefs.theme !== undefined ? prefs.theme : (existing?.theme ?? 'dark');
   const accent_color = prefs.accent_color !== undefined ? prefs.accent_color : (existing?.accent_color ?? null);
   const custom_colors = prefs.custom_colors !== undefined 
     ? (typeof prefs.custom_colors === 'object' ? JSON.stringify(prefs.custom_colors) : prefs.custom_colors) 

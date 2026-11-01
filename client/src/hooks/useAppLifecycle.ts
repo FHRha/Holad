@@ -15,11 +15,30 @@ export function useAppLifecycle() {
       
       let currentTime = 0;
       if (engine) {
-          currentTime = engine.getCurrentTime();
-      } else {
-          const track = playerStore.queue[playerStore.currentIndex];
-          const duration = audioStore.duration || track?.duration || 1;
+        const engTime = engine.getCurrentTime();
+        if (typeof engTime === 'number' && !isNaN(engTime) && engTime > 0) {
+          currentTime = engTime;
+        }
+      }
+
+      if (currentTime <= 0) {
+        const track = playerStore.queue[playerStore.currentIndex];
+        const duration = audioStore.duration || track?.duration || 0;
+        if (duration > 0 && audioStore.progress > 0) {
           currentTime = (audioStore.progress / 100) * duration;
+        }
+      }
+
+      if (currentTime <= 0) {
+        const savedTime = localStorage.getItem('holad_time');
+        const savedTrack = localStorage.getItem('holad_track');
+        const currentTrack = playerStore.queue[playerStore.currentIndex];
+        if (savedTime && (!savedTrack || !currentTrack || savedTrack === currentTrack.id)) {
+          const parsed = parseFloat(savedTime);
+          if (!isNaN(parsed) && parsed > 0) {
+            currentTime = parsed;
+          }
+        }
       }
 
       if (playerStore.queue.length > 0 && playerStore.currentIndex >= 0) {

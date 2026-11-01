@@ -58,15 +58,57 @@ const httpServer = createServer(app);
 
 const socketPath = normalizedBase ? `${normalizedBase}/socket.io` : '/socket.io';
 
-// Normalizing incoming socket.io connections from root, legacy /Holad, or custom base path
+// Normalizing incoming socket.io connections from root, legacy /Holad (case-insensitive), or custom base path
 function normalizeSocketUrl(req: any) {
   if (!req.url) return;
-  if (socketPath !== '/socket.io' && req.url.startsWith('/socket.io')) {
-    req.url = req.url.replace('/socket.io', socketPath);
-  } else if (socketPath !== '/Holad/socket.io' && req.url.startsWith('/Holad/socket.io')) {
-    req.url = req.url.replace('/Holad/socket.io', socketPath);
-  } else if (normalizedBase && socketPath !== `${normalizedBase}/socket.io` && req.url.startsWith(`${normalizedBase}/socket.io`)) {
-    req.url = req.url.replace(`${normalizedBase}/socket.io`, socketPath);
+
+  // If already exactly matching socketPath, no normalization needed
+  if (req.url.startsWith(socketPath)) return;
+
+  const urlLower = req.url.toLowerCase();
+  const socketPathLower = socketPath.toLowerCase();
+
+  // 1. Client connects to /socket.io, but server is listening on a custom socketPath
+  if (urlLower.startsWith('/socket.io')) {
+    req.url = socketPath + req.url.slice('/socket.io'.length);
+    return;
+  }
+
+  // 2. Client connects to /holad/socket.io (case-insensitive e.g. /Holad or /holad)
+  if (urlLower.startsWith('/holad/socket.io')) {
+    req.url = socketPath + req.url.slice('/holad/socket.io'.length);
+    return;
+  }
+
+  // 3. Client connects via normalizedBase/socket.io with differing casing
+  if (normalizedBase) {
+    const baseSocketLower = `${normalizedBase}/socket.io`.toLowerCase();
+    if (urlLower.startsWith(baseSocketLower)) {
+      req.url = socketPath + req.url.slice(baseSocketLower.length);
+      return;
+    }
+  }
+
+  // 4. Reverse proxy header x-forwarded-prefix
+  const forwardedPrefix = typeof req.headers?.['x-forwarded-prefix'] === 'string'
+    ? req.headers['x-forwarded-prefix'].trim().replace(/\/$/, '')
+    : '';
+  if (forwardedPrefix) {
+    const prefixSocketLower = `${forwardedPrefix}/socket.io`.toLowerCase();
+    if (urlLower.startsWith(prefixSocketLower)) {
+      req.url = socketPath + req.url.slice(prefixSocketLower.length);
+      return;
+    }
+  }
+
+  // 5. Dynamic fallback for arbitrary single-segment base path (e.g. /my-music/socket.io)
+  const socketMatch = req.url.match(/^(\/[^/]+)(\/socket\.io(?:\/.*|\?.*)?)$/i);
+  if (socketMatch) {
+    const prefix = socketMatch[1];
+    const rest = socketMatch[2].slice('/socket.io'.length);
+    if (prefix.toLowerCase() !== socketPathLower) {
+      req.url = socketPath + rest;
+    }
   }
 }
 

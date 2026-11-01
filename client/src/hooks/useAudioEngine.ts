@@ -72,13 +72,37 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const prevIsPlayingRef = useRef<boolean>(isPlaying);
 
   const lastLocalStorageWriteRef = useRef<number>(0);
-  const latestPositionRef = useRef<number>(0);
-  const latestTrackIdRef = useRef<string | null>(null);
+  const latestPositionRef = useRef<number>(initialPosition > 0 ? Math.round(initialPosition / 1000) : 0);
+  const latestTrackIdRef = useRef<string | null>(currentTrack?.id || null);
 
   const flushPositionToLocalStorage = useCallback(() => {
     if (latestTrackIdRef.current) {
       try {
-        localStorage.setItem('holad_time', latestPositionRef.current.toString());
+        let posToSave = latestPositionRef.current;
+        if (posToSave <= 0) {
+          const engTime = engineRef.current.getCurrentTime();
+          if (engTime > 0) {
+            posToSave = engTime;
+          } else {
+            const aStore = useAudioStore.getState();
+            const dur = aStore.duration || 0;
+            if (dur > 0 && aStore.progress > 0) {
+              posToSave = (aStore.progress / 100) * dur;
+            }
+          }
+        }
+        if (posToSave <= 0) {
+          const savedTime = localStorage.getItem('holad_time');
+          const savedTrack = localStorage.getItem('holad_track');
+          if (savedTime && savedTrack === latestTrackIdRef.current) {
+            const parsed = parseFloat(savedTime);
+            if (!isNaN(parsed) && parsed > 0) {
+              posToSave = parsed;
+            }
+          }
+        }
+        latestPositionRef.current = posToSave;
+        localStorage.setItem('holad_time', posToSave.toString());
         localStorage.setItem('holad_track', latestTrackIdRef.current);
         localStorage.setItem('holad_time_updated', Date.now().toString());
         lastLocalStorageWriteRef.current = performance.now();
@@ -97,7 +121,23 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         if (holadState.roomId && holadState.activeDeviceId && holadState.activeDeviceId !== holadState.deviceId) {
           return;
         }
-        const posSec = Math.round(latestPositionRef.current || engineRef.current.getCurrentTime() || 0);
+        let posSec = Math.round(latestPositionRef.current || engineRef.current.getCurrentTime() || 0);
+        if (posSec <= 0) {
+          const aStore = useAudioStore.getState();
+          const dur = aStore.duration || trk.duration || 0;
+          if (dur > 0 && aStore.progress > 0) {
+            posSec = Math.round((aStore.progress / 100) * dur);
+          } else {
+            const savedTime = localStorage.getItem('holad_time');
+            const savedTrack = localStorage.getItem('holad_track');
+            if (savedTime && savedTrack === trk.id) {
+              const parsed = parseFloat(savedTime);
+              if (!isNaN(parsed) && parsed > 0) {
+                posSec = Math.round(parsed);
+              }
+            }
+          }
+        }
         const now = Date.now();
         usePlayerStore.setState({ playbackUpdatedAt: now });
         savePlaybackState({
@@ -152,9 +192,32 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       };
     }, [flushPositionToLocalStorage, flushPlaybackProgressToServer]);
 
+  // Sync latestPositionRef when initialPosition is set/updated
   useEffect(() => {
-    prevIsPlayingRef.current = isPlaying;
-  }, [isPlaying]);
+    if (initialPosition > 0) {
+      latestPositionRef.current = Math.round(initialPosition / 1000);
+      if (currentTrack?.id) {
+        latestTrackIdRef.current = currentTrack.id;
+      }
+    }
+  }, [initialPosition, currentTrack?.id]);
+
+  // Sync latestPositionRef when seeking completes in audioStore
+  useEffect(() => {
+    const unsub = useAudioStore.subscribe((state, prevState) => {
+      if (prevState.isSeeking && !state.isSeeking) {
+        const curDur = state.duration || currentTrackRef.current?.duration || 0;
+        if (curDur > 0) {
+          const targetPos = (state.progress / 100) * curDur;
+          latestPositionRef.current = targetPos;
+          if (currentTrackRef.current?.id) {
+            latestTrackIdRef.current = currentTrackRef.current.id;
+          }
+        }
+      }
+    });
+    return unsub;
+  }, []);
 
   // Initialize AudioEngine with dual elements
   useEffect(() => {
@@ -170,6 +233,18 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       el0.addEventListener('playing', onPlay);
       el1.addEventListener('play', onPlay);
       el1.addEventListener('playing', onPlay);
+
+      const onSeeked = () => {
+        const curTime = engineRef.current.getCurrentTime();
+        if (typeof curTime === 'number' && !isNaN(curTime) && curTime >= 0) {
+          latestPositionRef.current = curTime;
+          if (currentTrackRef.current?.id) {
+            latestTrackIdRef.current = currentTrackRef.current.id;
+          }
+        }
+      };
+      el0.addEventListener('seeked', onSeeked);
+      el1.addEventListener('seeked', onSeeked);
     }
   }, [audioRefs, setAudioElement]);
 
@@ -405,6 +480,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   useEffect(() => {
     if (initialPosition > 0 && currentTrack && audioSrc && !srcLoading) {
       const posSec = initialPosition / 1000;
+      latestPositionRef.current = Math.round(posSec);
+      if (currentTrack?.id) {
+        latestTrackIdRef.current = currentTrack.id;
+      }
       const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
       if (!isPlaying) {
         if (isActiveDevice) {
@@ -447,12 +526,15 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         }).catch((e) => {
           console.error('Playback resume error:', e);
         });
-      } else {
+      } else if (!isPlaying && prevIsPlayingRef.current) {
         flushPositionToLocalStorage();
         flushPlaybackProgressToServer(false);
         engineRef.current.pause();
+      } else if (isPlaying && (!isActiveDevice || isSpeakerDj)) {
+        engineRef.current.pause();
       }
-    }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, flushPlaybackProgressToServer, volume]);
+      prevIsPlayingRef.current = isPlaying;
+    }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, flushPlaybackProgressToServer]);
 
   
 
@@ -819,6 +901,18 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     };
   }, [isActiveDevice, currentTrack, isHoladConnected, duration, setDuration, setProgress]);
 
+  const handleCustomSeekEnd = useCallback((val: number) => {
+    const dur = duration || currentTrack?.duration || 0;
+    if (dur > 0 && typeof val === 'number' && isFinite(val)) {
+      const safeVal = Math.max(0, Math.min(1, val));
+      latestPositionRef.current = safeVal * dur;
+      if (currentTrack?.id) {
+        latestTrackIdRef.current = currentTrack.id;
+      }
+    }
+    handleSeekEnd(val);
+  }, [duration, currentTrack?.id, currentTrack?.duration, handleSeekEnd]);
+
   return {
     get progress() {
       return useAudioStore.getState().progress;
@@ -829,7 +923,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     isSeeking,
     setIsSeeking,
     handleSeekChange,
-    handleSeekEnd,
+    handleSeekEnd: handleCustomSeekEnd,
     activeIndex,
   };
 }

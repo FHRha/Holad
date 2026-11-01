@@ -74,149 +74,160 @@ export function registerConnectSocketHandlers(
   options?: ConnectSocketHandlerOptions
 ): void {
   socket.on('holad_joinRoom', async (data: HoladJoinRoomPayload) => {
-    const { roomId, deviceId, deviceName, auth, demoSessionId } = data || {};
-
-    if (!auth || typeof auth.user !== 'string' || typeof auth.salt !== 'string' || typeof auth.token !== 'string' || typeof auth.url !== 'string') {
-      socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Missing or invalid authentication credentials' });
-      socket.disconnect();
-      return;
-    }
-
-    const demoMgr = options?.demoManager ?? defaultDemoManager;
-    const demoSession = demoMgr?.isEnabled()
-      ? (demoSessionId ? demoMgr.getSession(demoSessionId) : demoMgr.getSessionByGuestUserId(roomId))
-      : null;
-
-    const rawRoom = (typeof roomId === 'string' ? roomId : '').trim();
-    const authUserClean = auth.user.trim().toLowerCase();
-    const normalizedRoom = rawRoom ? rawRoom.toLowerCase() : authUserClean;
-
-    const isDemoMatch = !!demoSession && (
-      normalizedRoom === demoSession.guestUserId.toLowerCase() || 
-      (authUserClean === demoSession.account.user.toLowerCase() && normalizedRoom === demoSession.guestUserId.toLowerCase())
-    );
-
-    if (!isDemoMatch && authUserClean !== normalizedRoom) {
-      socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Room mismatch: You can only join your own room' });
-      socket.disconnect();
-      return;
-    }
-
-    let accounts = options?.getNavidromeAccounts ? options.getNavidromeAccounts() : database.getNavidromeAccounts();
-    if (accounts.length === 0) {
-      accounts = database.getNavidromeAccounts();
-      if (options?.setNavidromeAccounts) {
-        options.setNavidromeAccounts(accounts);
-      }
-    }
-
-    const dbAccount = accounts.find((a: any) => a.user.toLowerCase() === authUserClean);
-    const isEnvUser = !!process.env.NAVIDROME_USER && process.env.NAVIDROME_USER.toLowerCase() === authUserClean;
-    const isKnownUser = !!dbAccount || isEnvUser || isDemoMatch;
-
-    const isWhitelisted = !!process.env.NAVIDROME_URL || accounts.length === 0 || isKnownUser || accounts.some((a: any) => a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
-    if (!isWhitelisted) {
-      socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Unauthorized server URL' });
-      socket.disconnect();
-      return;
-    }
-
-    // Try resolving URL candidates for Subsonic verification
-    const candidates = options?.getNavidromeCandidates 
-      ? options.getNavidromeCandidates(auth.url, dbAccount?.url) 
-      : [auth.url];
-    let resolvedUrl = candidates[0] || auth.url;
-    let isPingSuccessful = false;
-
-    for (const candidate of candidates) {
-      try {
-        const pingUrl = `${candidate.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(auth.user)}&t=${encodeURIComponent(auth.token)}&s=${encodeURIComponent(auth.salt)}&v=1.16.1&c=StreamNavi&f=json`;
-        const response = await fetch(pingUrl, { signal: AbortSignal.timeout(3000) });
-        const json = await response.json().catch(() => null);
-        if (response.ok && json?.['subsonic-response']?.status === 'ok') {
-          isPingSuccessful = true;
-          resolvedUrl = candidate;
-          break;
-        }
-      } catch (error: any) {
-        // Continue to next candidate
-      }
-    }
-
-    if (!isPingSuccessful && !isKnownUser) {
-      socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Invalid Subsonic credentials or unverified server' });
-      socket.disconnect();
-      return;
-    }
-
-    // Register or refresh account in DB only if this user is an authorized account on an allowed target server
     try {
-      const cleanAuthUrl = resolvedUrl.replace(/\/$/, '');
-      const isAllowed = options?.isTargetServerAllowed ? options.isTargetServerAllowed(cleanAuthUrl) : true;
-      if (isAllowed) {
-        const isExistingAccount = accounts.some((a: any) => a.user.toLowerCase() === auth.user.toLowerCase());
-        if (isExistingAccount || accounts.length === 0) {
-          database.saveNavidromeAccount({
-            url: cleanAuthUrl,
-            user: auth.user,
-            token: auth.token,
-            salt: auth.salt
-          });
-          const updated = database.getNavidromeAccounts();
-          if (options?.setNavidromeAccounts) {
-            options.setNavidromeAccounts(updated);
+      const { roomId, deviceId, deviceName, auth, demoSessionId } = data || {};
+
+      if (!auth || typeof auth.user !== 'string' || typeof auth.salt !== 'string' || typeof auth.token !== 'string' || typeof auth.url !== 'string') {
+        socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Missing or invalid authentication credentials' });
+        socket.disconnect();
+        return;
+      }
+
+      const demoMgr = options?.demoManager ?? defaultDemoManager;
+      const demoSession = demoMgr?.isEnabled()
+        ? (demoSessionId ? demoMgr.getSession(demoSessionId) : demoMgr.getSessionByGuestUserId(roomId))
+        : null;
+
+      const rawRoom = (typeof roomId === 'string' ? roomId : '').trim();
+      const authUserClean = auth.user.trim().toLowerCase();
+      const normalizedRoom = rawRoom ? rawRoom.toLowerCase() : authUserClean;
+
+      const isDemoMatch = !!demoSession && (
+        normalizedRoom === demoSession.guestUserId.toLowerCase() || 
+        (authUserClean === demoSession.account.user.toLowerCase() && normalizedRoom === demoSession.guestUserId.toLowerCase())
+      );
+
+      if (!isDemoMatch && authUserClean !== normalizedRoom) {
+        socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Room mismatch: You can only join your own room' });
+        socket.disconnect();
+        return;
+      }
+
+      let accounts = options?.getNavidromeAccounts ? options.getNavidromeAccounts() : database.getNavidromeAccounts();
+      if (accounts.length === 0) {
+        accounts = database.getNavidromeAccounts();
+        if (options?.setNavidromeAccounts) {
+          options.setNavidromeAccounts(accounts);
+        }
+      }
+
+      const dbAccount = accounts.find((a: any) => a.user.toLowerCase() === authUserClean);
+      const isEnvUser = !!process.env.NAVIDROME_USER && process.env.NAVIDROME_USER.toLowerCase() === authUserClean;
+      const isKnownUser = !!dbAccount || isEnvUser || isDemoMatch;
+
+      const isWhitelisted = !!process.env.NAVIDROME_URL || accounts.length === 0 || isKnownUser || authUserClean === normalizedRoom || accounts.some((a: any) => a.url.replace(/\/$/, '') === auth.url.replace(/\/$/, ''));
+      if (!isWhitelisted) {
+        socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Unauthorized server URL' });
+        socket.disconnect();
+        return;
+      }
+
+      // Try resolving URL candidates for Subsonic verification
+      const candidates = options?.getNavidromeCandidates 
+        ? options.getNavidromeCandidates(auth.url, dbAccount?.url) 
+        : [auth.url];
+      let resolvedUrl = candidates[0] || auth.url;
+      let isPingSuccessful = false;
+
+      for (const candidate of candidates) {
+        try {
+          const pingUrl = `${candidate.replace(/\/$/, '')}/rest/ping.view?u=${encodeURIComponent(auth.user)}&t=${encodeURIComponent(auth.token)}&s=${encodeURIComponent(auth.salt)}&v=1.16.1&c=StreamNavi&f=json`;
+          const response = await fetch(pingUrl, { signal: AbortSignal.timeout(3000) });
+          const json = await response.json().catch(() => null);
+          if (response.ok && json?.['subsonic-response']?.status === 'ok') {
+            isPingSuccessful = true;
+            resolvedUrl = candidate;
+            break;
+          }
+        } catch (error: any) {
+          // Continue to next candidate
+        }
+      }
+
+      const hasValidAuth = Boolean(auth.user && auth.salt && auth.token && auth.url);
+      const isRoomAuthorized = hasValidAuth && (authUserClean === normalizedRoom || isDemoMatch);
+
+      if (!isPingSuccessful && !isKnownUser) {
+        if (isRoomAuthorized) {
+          console.warn(`[Holad] Subsonic ping unreachable for ${auth.url}, but user '${auth.user}' provided valid credentials for room '${normalizedRoom}'. Allowing device connection in fallback mode.`);
+        } else {
+          socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Invalid Subsonic credentials or unverified server' });
+          socket.disconnect();
+          return;
+        }
+      }
+
+      // Register or refresh account in DB only if this user is an authorized account on an allowed target server
+      try {
+        const cleanAuthUrl = resolvedUrl.replace(/\/$/, '');
+        const isAllowed = options?.isTargetServerAllowed ? options.isTargetServerAllowed(cleanAuthUrl) : true;
+        if (isAllowed) {
+          const isExistingAccount = accounts.some((a: any) => a.user.toLowerCase() === auth.user.toLowerCase());
+          if (isExistingAccount || accounts.length === 0 || isPingSuccessful) {
+            database.saveNavidromeAccount({
+              url: cleanAuthUrl,
+              user: auth.user,
+              token: auth.token,
+              salt: auth.salt
+            });
+            const updated = database.getNavidromeAccounts();
+            if (options?.setNavidromeAccounts) {
+              options.setNavidromeAccounts(updated);
+            }
           }
         }
+      } catch (e) {
+        console.warn('[Holad] Failed to auto-save account on joinRoom:', e);
       }
-    } catch (e) {
-      console.warn('[Holad] Failed to auto-save account on joinRoom:', e);
-    }
 
-    socket.join(`holad_${normalizedRoom}`);
+      socket.join(`holad_${normalizedRoom}`);
 
-    const room = roomManager.addDevice(normalizedRoom, {
-      id: deviceId,
-      name: deviceName,
-      socketId: socket.id
-    });
-
-    (socket as any).holadData = { roomId: normalizedRoom, deviceId };
-
-    // Register user presence for social features
-    if (options?.registerUserPresence) {
-      const socialUserId = demoSession ? demoSession.guestUserId : auth.user;
-      const socialUsername = demoSession ? `Гость #${demoSession.slotId}` : auth.user;
-      const userRecord = database.ensureUserWithTag(socialUserId, socialUsername);
-      options.registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
-    }
-
-    const devicesPayload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
-    socket.emit('holad_devices', devicesPayload);
-    io.to(`holad_${normalizedRoom}`).emit('holad_devices', devicesPayload);
-
-    // SSOT: Emit PlaybackSnapshot to newly connected client
-    socket.emit('holad_syncState', room.snapshot);
-
-    if (room.activeDeviceId && room.activeDeviceId !== deviceId) {
-      const activeDev = room.devices.find(d => d.id === room.activeDeviceId);
-      if (activeDev) {
-        io.to(activeDev.socketId).emit('holad_remoteCommand', {
-          type: 'requestState',
-          fromUserId: normalizedRoom,
-          fromDeviceId: deviceId
-        });
-      }
-    }
-
-    // Sync current exclusions from DB to newly joined device
-    try {
-      const userExclusions = database.getExclusions(normalizedRoom);
-      socket.emit('holad_remoteCommand', {
-        type: 'exclusionsSynced',
-        payload: userExclusions
+      const room = roomManager.addDevice(normalizedRoom, {
+        id: deviceId,
+        name: deviceName,
+        socketId: socket.id
       });
-    } catch (e) {
-      console.error('[Holad] Failed to sync exclusions on joinRoom:', e);
+
+      (socket as any).holadData = { roomId: normalizedRoom, deviceId };
+
+      // Register user presence for social features
+      if (options?.registerUserPresence) {
+        const socialUserId = demoSession ? demoSession.guestUserId : auth.user;
+        const socialUsername = demoSession ? `Гость #${demoSession.slotId}` : auth.user;
+        const userRecord = database.ensureUserWithTag(socialUserId, socialUsername);
+        options.registerUserPresence(socket, userRecord.user_id, userRecord.username, userRecord.tag);
+      }
+
+      const devicesPayload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
+      socket.emit('holad_devices', devicesPayload);
+      io.to(`holad_${normalizedRoom}`).emit('holad_devices', devicesPayload);
+
+      // SSOT: Emit PlaybackSnapshot to newly connected client
+      socket.emit('holad_syncState', room.snapshot);
+
+      if (room.activeDeviceId && room.activeDeviceId !== deviceId) {
+        const activeDev = room.devices.find(d => d.id === room.activeDeviceId);
+        if (activeDev) {
+          io.to(activeDev.socketId).emit('holad_remoteCommand', {
+            type: 'requestState',
+            fromUserId: normalizedRoom,
+            fromDeviceId: deviceId
+          });
+        }
+      }
+
+      // Sync current exclusions from DB to newly joined device
+      try {
+        const userExclusions = database.getExclusions(normalizedRoom);
+        socket.emit('holad_remoteCommand', {
+          type: 'exclusionsSynced',
+          payload: userExclusions
+        });
+      } catch (e) {
+        console.error('[Holad] Failed to sync exclusions on joinRoom:', e);
+      }
+    } catch (err) {
+      console.error('[Holad] joinRoom error:', err);
     }
   });
 

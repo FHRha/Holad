@@ -555,6 +555,12 @@ describe('Holad Connect v2 Client Architecture', () => {
       expect(getSocketUrl()).toBe('http://custom-socket.local:9000');
       expect(getSocketPath()).toBe('/custom/socket.io');
     });
+
+    it('uses getHoladServerUrl origin and subpath for socket url and path', () => {
+      localStorage.setItem('holadServerUrl', 'https://vps.example.org:3000/music/api');
+      expect(getSocketUrl()).toBe('https://vps.example.org:3000');
+      expect(getSocketPath()).toBe('/music/api/socket.io');
+    });
   });
 
   describe('15. ConnectDeviceList UI Connection States', () => {
@@ -622,6 +628,24 @@ describe('Holad Connect v2 Client Architecture', () => {
       expect(container.textContent).toMatch(/Устройства не найдены|devices_not_found/i);
     });
 
+    it('renders retry button in devices_not_found state when connected and devices is empty', () => {
+      const onRetryMock = vi.fn();
+      const { container } = render(
+        React.createElement(ConnectDeviceList, {
+          connectionStatus: 'connected',
+          devices: [],
+          onSelectDevice: vi.fn(),
+          onRetry: onRetryMock,
+        })
+      );
+
+      expect(container.textContent).toMatch(/Устройства не найдены|devices_not_found/i);
+      const retryBtn = screen.getByRole('button', { name: /Повторить поиск|retry_search/i });
+      expect(retryBtn).toBeDefined();
+      fireEvent.click(retryBtn);
+      expect(onRetryMock).toHaveBeenCalledTimes(1);
+    });
+
     it('renders device items when devices are present', () => {
       const onSelectMock = vi.fn();
       const testDevices = [
@@ -641,6 +665,54 @@ describe('Holad Connect v2 Client Architecture', () => {
 
       expect(container.textContent).toContain('Living Room TV');
       expect(container.textContent).not.toContain('Устройства не найдены');
+    });
+  });
+
+  describe('16. HoladStore refreshDevices and Reconnect Resilience', () => {
+    it('re-emits holad_joinRoom when connect(roomId) is called while socket is already connected', () => {
+      const emitSpy = vi.fn();
+      const mockSocket = {
+        connected: true,
+        emit: emitSpy,
+        on: vi.fn(),
+        off: vi.fn(),
+        disconnect: vi.fn(),
+      } as any;
+
+      useHoladStore.setState({
+        socket: mockSocket,
+        roomId: 'test-room',
+        connectionStatus: 'connected'
+      });
+
+      useHoladStore.getState().connect('test-room');
+
+      expect(emitSpy).toHaveBeenCalledWith('holad_joinRoom', expect.objectContaining({
+        roomId: 'test-room'
+      }));
+    });
+
+    it('emits holad_joinRoom on refreshDevices when socket is connected', () => {
+      const emitSpy = vi.fn();
+      const mockSocket = {
+        connected: true,
+        emit: emitSpy,
+        on: vi.fn(),
+        off: vi.fn(),
+        disconnect: vi.fn(),
+      } as any;
+
+      useHoladStore.setState({
+        socket: mockSocket,
+        roomId: 'test-room',
+        connectionStatus: 'connected'
+      });
+
+      useHoladStore.getState().refreshDevices();
+
+      expect(emitSpy).toHaveBeenCalledWith('holad_joinRoom', expect.objectContaining({
+        roomId: 'test-room'
+      }));
     });
   });
 });
