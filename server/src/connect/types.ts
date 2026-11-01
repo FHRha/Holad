@@ -103,9 +103,9 @@ export interface HoladAuthErrorPayload {
 export interface NavidromeAccountLike {
   url: string;
   user: string;
-  pass?: string;
-  token?: string;
-  salt?: string;
+  pass?: string | undefined;
+  token?: string | undefined;
+  salt?: string | undefined;
 }
 
 export interface ConnectSocketHandlerOptions {

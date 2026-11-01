@@ -94,87 +94,87 @@ export interface PendingRequest {
 export interface NavidromeAccountRecord {
   url: string;
   user: string;
-  pass?: string;
-  token?: string;
-  salt?: string;
+  pass?: string | undefined;
+  token?: string | undefined;
+  salt?: string | undefined;
 }
 
 export interface HistoryRecord {
-  id?: number;
+  id?: number | undefined;
   song_id: string;
   title: string;
-  artist?: string;
-  album?: string;
-  album_id?: string;
-  artist_id?: string;
-  duration?: number;
-  cover_art?: string;
+  artist?: string | undefined;
+  album?: string | undefined;
+  album_id?: string | undefined;
+  artist_id?: string | undefined;
+  duration?: number | undefined;
+  cover_art?: string | undefined;
   played_at: number; // Unix timestamp in ms
 }
 
 export interface CachedTrack {
   id: string;
-  user_id?: string | null;
+  user_id?: string | null | undefined;
   title: string;
-  artist?: string | null;
-  artist_id?: string | null;
-  album?: string | null;
-  album_id?: string | null;
-  duration?: number;
-  track_number?: number | null;
-  disc_number?: number;
-  year?: number | null;
-  genre?: string | null;
-  cover_art?: string | null;
-  bit_rate?: number | null;
-  suffix?: string | null;
-  created_at?: number | null;
+  artist?: string | null | undefined;
+  artist_id?: string | null | undefined;
+  album?: string | null | undefined;
+  album_id?: string | null | undefined;
+  duration?: number | undefined;
+  track_number?: number | null | undefined;
+  disc_number?: number | undefined;
+  year?: number | null | undefined;
+  genre?: string | null | undefined;
+  cover_art?: string | null | undefined;
+  bit_rate?: number | null | undefined;
+  suffix?: string | null | undefined;
+  created_at?: number | null | undefined;
 }
 
 export interface CachedAlbum {
   id: string;
-  user_id?: string | null;
+  user_id?: string | null | undefined;
   name: string;
-  artist?: string | null;
-  artist_id?: string | null;
-  cover_art?: string | null;
-  song_count?: number;
-  duration?: number;
-  year?: number | null;
-  genre?: string | null;
-  created_at?: number | null;
+  artist?: string | null | undefined;
+  artist_id?: string | null | undefined;
+  cover_art?: string | null | undefined;
+  song_count?: number | undefined;
+  duration?: number | undefined;
+  year?: number | null | undefined;
+  genre?: string | null | undefined;
+  created_at?: number | null | undefined;
 }
 
 export interface CachedArtist {
   id: string;
-  user_id?: string | null;
+  user_id?: string | null | undefined;
   name: string;
-  album_count?: number;
-  cover_art?: string | null;
-  starred?: number;
+  album_count?: number | undefined;
+  cover_art?: string | null | undefined;
+  starred?: number | undefined;
 }
 
 export interface LibrarySyncState {
   id: string;
-  user_id?: string | null;
+  user_id?: string | null | undefined;
   status: 'idle' | 'syncing' | 'completed' | 'error' | string;
-  progress?: number;
-  total_tracks?: number;
-  total_albums?: number;
-  total_artists?: number;
-  last_sync_time?: number;
-  error?: string | null;
+  progress?: number | undefined;
+  total_tracks?: number | undefined;
+  total_albums?: number | undefined;
+  total_artists?: number | undefined;
+  last_sync_time?: number | undefined;
+  error?: string | null | undefined;
 }
 
 export interface LibraryQueryOptions {
-  offset?: number;
-  limit?: number;
-  sort?: string;
-  order?: 'asc' | 'desc' | 'ASC' | 'DESC';
-  search?: string;
-  artistId?: string;
-  albumId?: string;
-  genre?: string;
-  userId?: string;
+  offset?: number | undefined;
+  limit?: number | undefined;
+  sort?: string | undefined;
+  order?: 'asc' | 'desc' | 'ASC' | 'DESC' | undefined;
+  search?: string | undefined;
+  artistId?: string | undefined;
+  albumId?: string | undefined;
+  genre?: string | undefined;
+  userId?: string | undefined;
 }
 

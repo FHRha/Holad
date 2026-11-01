@@ -178,9 +178,9 @@ const PORT = process.env.PORT || 4000;
 interface NavidromeAccount {
   url: string;
   user: string;
-  pass?: string;
-  token?: string;
-  salt?: string;
+  pass?: string | undefined;
+  token?: string | undefined;
+  salt?: string | undefined;
 }
 
 // Initialize Navidrome accounts from SQLite DB (auto-migrating any env accounts)

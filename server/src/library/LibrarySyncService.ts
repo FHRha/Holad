@@ -113,7 +113,7 @@ export class LibrarySyncService {
     };
   }
 
-  public async runSync(options: { isManual?: boolean; userId?: string } = {}): Promise<void> {
+  public async runSync(options: { isManual?: boolean | undefined; userId?: string | undefined } = {}): Promise<void> {
     if (this.isSyncing) {
       console.warn('[MediaEngine] Skipping sync: already in progress');
       return;
@@ -407,13 +407,13 @@ export class LibrarySyncService {
             user_id: account.user,
             title: s.title || s.name || 'Unknown Track',
             artist: s.artist || album.artist || null,
-            artist_id: s.artistId ? String(s.artistId) : album.artist_id,
+            artist_id: s.artistId ? String(s.artistId) : (album.artist_id ?? null),
             album: s.album || album.name || null,
             album_id: album.id,
             duration: typeof s.duration === 'number' ? Math.round(s.duration) : 0,
             track_number: typeof s.track === 'number' ? s.track : null,
             disc_number: typeof s.discNumber === 'number' ? s.discNumber : 1,
-            year: typeof s.year === 'number' ? s.year : album.year,
+            year: typeof s.year === 'number' ? s.year : (album.year ?? null),
             genre: s.genre || album.genre || null,
             cover_art: s.coverArt || album.cover_art || s.id || null,
             bit_rate: typeof s.bitRate === 'number' ? s.bitRate : null,
