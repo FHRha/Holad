@@ -1128,7 +1128,7 @@ const libraryPaths = (endpoint: string) => {
 
 app.get(libraryPaths('tracks'), async (req, res) => {
   try {
-    const { offset, limit, sort, order, search, artistId, albumId, genre, userId } = req.query;
+    const { offset, limit, sort, order, search, artistId, artist, albumId, album, genre, userId } = req.query;
     const resolvedUser = (typeof userId === 'string' && userId) ? userId : (await resolveAuthUserId(req) || undefined);
     const parsedOffset = offset !== undefined ? parseInt(String(offset), 10) : 0;
     const parsedLimit = limit !== undefined ? parseInt(String(limit), 10) : 100;
@@ -1140,7 +1140,9 @@ app.get(libraryPaths('tracks'), async (req, res) => {
       order: typeof order === 'string' && (order.toLowerCase() === 'desc' || order.toLowerCase() === 'asc') ? order as any : undefined,
       search: typeof search === 'string' ? search : undefined,
       artistId: typeof artistId === 'string' ? artistId : undefined,
+      artist: typeof artist === 'string' ? artist : undefined,
       albumId: typeof albumId === 'string' ? albumId : undefined,
+      album: typeof album === 'string' ? album : undefined,
       genre: typeof genre === 'string' ? genre : undefined,
       userId: resolvedUser
     });

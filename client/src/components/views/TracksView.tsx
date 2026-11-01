@@ -1,8 +1,8 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Play, Heart, Clock, Search, FilterX, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { searchTracks, getArtists } from '../../api/subsonic';
-import { fetchLibraryTracks } from '../../api/library';
+import { searchTracks, getArtists, fetchAlbums } from '../../api/subsonic';
+import { fetchLibraryTracks, fetchLibraryArtists, fetchLibraryAlbums } from '../../api/library';
 import { mapSubsonicTracks } from '../../utils/trackMapper';
 import { usePlayerStore } from '../../store/playerStore';
 import type { Track } from '../../store/playerStore';
@@ -18,6 +18,7 @@ import { Virtuoso } from 'react-virtuoso';
 interface TracksViewCache {
   tracks: any[];
   globalArtists: any[];
+  globalAlbums: any[];
   hasMore: boolean;
 }
 
@@ -28,11 +29,16 @@ export default function TracksView() {
   const { isOffline } = useNetworkStatus();
   const [tracks, setTracks] = useState<any[]>(() => cachedTracksData?.tracks || []);
   const [globalArtists, setGlobalArtists] = useState<any[]>(() => cachedTracksData?.globalArtists || []);
+  const [globalAlbums, setGlobalAlbums] = useState<any[]>(() => cachedTracksData?.globalAlbums || []);
   const [loading, setLoading] = useState(() => !cachedTracksData);
 
   const activeFilter = useUIStore(s => s.activeFilter);
   const downloads = useDownloadStore(state => state.downloads);
   const isGuest = usePlayerStore(state => !!state.roomId && state.role !== 'host');
+
+  const regularTracksRef = useRef<any[]>(cachedTracksData?.tracks || []);
+  const regularHasMoreRef = useRef<boolean>(cachedTracksData?.hasMore ?? true);
+  const isFilterModeRef = useRef<boolean>(false);
 
   const baseTracks = useMemo(() => {
     let result = tracks;
@@ -62,6 +68,27 @@ export default function TracksView() {
     return result;
   }, [globalArtists, activeFilter, isOffline, downloads]);
 
+  const baseAlbums = useMemo(() => {
+    let result = globalAlbums;
+    if (activeFilter === 'Downloaded' || activeFilter === 'Offline' || isOffline) {
+      const downloadedAlbums = new Set<string>();
+      Object.values(downloads).forEach(d => {
+        if (d.status === 'completed' && d.album) {
+          downloadedAlbums.add(d.album.toLowerCase());
+        }
+      });
+      const offlineTracks = getOfflineTracks();
+      offlineTracks.forEach(t => {
+        if (t.album) downloadedAlbums.add(t.album.toLowerCase());
+      });
+      result = result.filter(a => {
+        const name = typeof a === 'string' ? a : (a.name || a.title || '');
+        return downloadedAlbums.has(name.toLowerCase());
+      });
+    }
+    return result;
+  }, [globalAlbums, activeFilter, isOffline, downloads]);
+
   const {
     filterLiked,
     setFilterLiked,
@@ -74,12 +101,14 @@ export default function TracksView() {
     selectedArtists,
     setSelectedArtists,
     selectedAlbums,
+    setSelectedAlbums,
+    allArtists,
     filteredArtists,
     filteredAlbums,
     filteredTracks,
     toggleArtist,
     toggleAlbum
-  } = useTrackFilters(baseTracks, baseArtists);
+  } = useTrackFilters(baseTracks, baseArtists, baseAlbums);
 
   const [hasMore, setHasMore] = useState(() => cachedTracksData ? cachedTracksData.hasMore : true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -100,19 +129,49 @@ export default function TracksView() {
           console.warn('[TracksView] Library cache unavailable, falling back to Subsonic API:', libErr);
         }
 
-        const [fallbackTracks, artistsData] = await Promise.all([
+        const artistsPromise = (async () => {
+          try {
+            const res = await fetchLibraryArtists({ limit: 10000 });
+            if (res && Array.isArray(res.artists) && res.artists.length > 0) {
+              return res.artists;
+            }
+          } catch (e) {
+            console.warn('[TracksView] fetchLibraryArtists failed, falling back to getArtists:', e);
+          }
+          return await getArtists();
+        })();
+
+        const albumsPromise = (async () => {
+          try {
+            const res = await fetchLibraryAlbums({ limit: 10000 });
+            if (res && Array.isArray(res.albums) && res.albums.length > 0) {
+              return res.albums;
+            }
+          } catch (e) {
+            console.warn('[TracksView] fetchLibraryAlbums failed, falling back to fetchAlbums:', e);
+          }
+          const fallbackAlbumsRes = await fetchAlbums(0, 1000);
+          return Array.isArray(fallbackAlbumsRes) ? fallbackAlbumsRes : [];
+        })();
+
+        const [fallbackTracks, artistsData, albumsData] = await Promise.all([
           tracksData.length === 0 ? searchTracks('', 100, 0) : Promise.resolve(tracksData),
-          getArtists()
+          artistsPromise,
+          albumsPromise
         ]);
         const finalInitialTracks = tracksData.length > 0 ? tracksData : fallbackTracks;
         const sorted = finalInitialTracks.sort((a: any, b: any) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
         const more = finalInitialTracks.length >= 100;
         setTracks(sorted);
-        setGlobalArtists(artistsData);
+        setGlobalArtists(artistsData || []);
+        setGlobalAlbums(albumsData || []);
         setHasMore(more);
+        regularTracksRef.current = sorted;
+        regularHasMoreRef.current = more;
         cachedTracksData = {
           tracks: sorted,
-          globalArtists: artistsData,
+          globalArtists: artistsData || [],
+          globalAlbums: albumsData || [],
           hasMore: more,
         };
       } catch (e) {
@@ -120,6 +179,7 @@ export default function TracksView() {
         const offlineList = getOfflineTracks();
         if (offlineList.length > 0) {
           setTracks(offlineList);
+          regularTracksRef.current = offlineList;
         }
         setHasMore(false);
       } finally {
@@ -129,10 +189,153 @@ export default function TracksView() {
     loadInitial();
   }, []);
 
+  // Server-side filter fetch on artist or album filter selection
+  useEffect(() => {
+    if (selectedArtists.size === 0 && selectedAlbums.size === 0) {
+      if (isFilterModeRef.current) {
+        isFilterModeRef.current = false;
+        setTracks(regularTracksRef.current);
+        setHasMore(regularHasMoreRef.current);
+      }
+      return;
+    }
+
+    if (!isFilterModeRef.current) {
+      regularTracksRef.current = tracks;
+      regularHasMoreRef.current = hasMore;
+      isFilterModeRef.current = true;
+    }
+
+    let cancelled = false;
+
+    const fetchFiltered = async () => {
+      try {
+        const artistsList = Array.from(selectedArtists);
+        const albumsList = Array.from(selectedAlbums);
+
+        let artistId: string | undefined;
+        let artistSearchTerm: string | undefined;
+        if (artistsList.length > 0) {
+          const matchArtist = allArtists.find(a => a.name.toLowerCase() === artistsList[0].toLowerCase());
+          if (matchArtist?.id && !matchArtist.id.startsWith('artist_')) {
+            artistId = matchArtist.id;
+          } else {
+            artistSearchTerm = artistsList[0];
+          }
+        }
+
+        let albumId: string | undefined;
+        let albumSearchTerm: string | undefined;
+        if (albumsList.length > 0) {
+          const matchAlbum = globalAlbums.find(a => {
+            const name = typeof a === 'string' ? a : (a.name || a.title);
+            return name && name.toLowerCase() === albumsList[0].toLowerCase();
+          });
+          if (matchAlbum && typeof matchAlbum !== 'string' && matchAlbum.id) {
+            albumId = matchAlbum.id;
+          } else {
+            albumSearchTerm = albumsList[0];
+          }
+        }
+
+        const searchTerm = artistSearchTerm || albumSearchTerm;
+
+        let serverTracks: any[] = [];
+        try {
+          const res = await fetchLibraryTracks({
+            artistId,
+            albumId,
+            search: searchTerm,
+            limit: 100,
+            offset: 0,
+          });
+          if (res && Array.isArray(res.tracks)) {
+            serverTracks = res.tracks;
+          }
+        } catch (e) {
+          console.warn('[TracksView] Server filter fetch failed, falling back:', e);
+        }
+
+        if (serverTracks.length === 0) {
+          const fallbackTerm = artistsList[0] || albumsList[0] || '';
+          if (fallbackTerm) {
+            try {
+              serverTracks = await searchTracks(fallbackTerm, 100, 0);
+            } catch (err) {
+              console.warn('[TracksView] Fallback searchTracks failed:', err);
+            }
+          }
+        }
+
+        if (cancelled) return;
+
+        // Merge with any matching tracks from regularTracksRef
+        const existingMatching = regularTracksRef.current.filter((t: any) => {
+          if (artistsList.length > 0) {
+            const match = artistsList.some(a => t.artist?.toLowerCase().includes(a.toLowerCase()));
+            if (!match) return false;
+          }
+          if (albumsList.length > 0) {
+            const match = albumsList.some(a => t.album?.toLowerCase().includes(a.toLowerCase()));
+            if (!match) return false;
+          }
+          return true;
+        });
+
+        const seenIds = new Set(serverTracks.map((t: any) => t.id));
+        const combined = [...serverTracks];
+        for (const t of existingMatching) {
+          if (!seenIds.has(t.id)) {
+            combined.push(t);
+            seenIds.add(t.id);
+          }
+        }
+
+        setTracks(combined);
+        setHasMore(serverTracks.length >= 100);
+      } catch (err) {
+        console.error('[TracksView] Error fetching filtered tracks:', err);
+      }
+    };
+
+    fetchFiltered();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedArtists, selectedAlbums, allArtists, globalAlbums]);
+
   const loadMoreTracks = async () => {
     if (loadingMore || !hasMore || loading) return;
     setLoadingMore(true);
     try {
+      if (isFilterModeRef.current) {
+        const artistsList = Array.from(selectedArtists);
+        const albumsList = Array.from(selectedAlbums);
+        let moreFiltered: any[] = [];
+        try {
+          const res = await fetchLibraryTracks({
+            search: artistsList[0] || albumsList[0],
+            limit: 100,
+            offset: tracks.length,
+          });
+          if (res && Array.isArray(res.tracks)) {
+            moreFiltered = res.tracks;
+          }
+        } catch {
+          // ignore
+        }
+        if (moreFiltered.length < 100) {
+          setHasMore(false);
+        }
+        setTracks(prev => {
+          const ids = new Set(prev.map(t => t.id));
+          const inc = moreFiltered.filter(t => !ids.has(t.id));
+          return [...prev, ...inc];
+        });
+        return;
+      }
+
       let newTracks: any[] = [];
       try {
         const libRes = await fetchLibraryTracks({ limit: 100, offset: tracks.length });
@@ -154,6 +357,8 @@ export default function TracksView() {
         const existingIds = new Set(prev.map(t => t.id));
         const incoming = (newTracks || []).filter((t: any) => !existingIds.has(t.id));
         const combined = [...prev, ...incoming];
+        regularTracksRef.current = combined;
+        regularHasMoreRef.current = (newTracks || []).length >= 100;
         if (cachedTracksData) {
           cachedTracksData.tracks = combined;
           cachedTracksData.hasMore = (newTracks || []).length >= 100;
@@ -191,7 +396,9 @@ export default function TracksView() {
               setFilterLiked('all');
               setFilterRated('all');
               setSelectedArtists(new Set());
+              setSelectedAlbums(new Set());
               setArtistSearch('');
+              setAlbumSearch('');
             }}
             className="text-xs text-secondary hover:text-foreground flex items-center gap-1"
           >

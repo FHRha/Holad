@@ -2,7 +2,13 @@ import { useState, useMemo } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { useDebounce } from './useDebounce';
 
-export function useTrackFilters(tracks: any[], globalArtists: any[]) {
+const ARTIST_SPLIT_REGEX = /\s*[;\\/,•]\s*|\s+feat\.?\s+|\s+ft\.?\s+|\s*&\s*|\s+x\s+/i;
+
+export function useTrackFilters(
+  tracks: any[],
+  globalArtists: any[] = [],
+  globalAlbums: any[] = []
+) {
   const [filterLiked, setFilterLiked] = useState<'all' | 'yes' | 'no'>('all');
   const [filterRated, setFilterRated] = useState<'all' | 'yes' | 'no'>('all');
   const [artistSearch, setArtistSearch] = useState('');
@@ -13,17 +19,19 @@ export function useTrackFilters(tracks: any[], globalArtists: any[]) {
   const [selectedAlbums, setSelectedAlbums] = useState<Set<string>>(new Set());
 
   const allArtists = useMemo(() => {
-    const artistMap = new Map<string, { id: string, name: string }>();
+    const artistMap = new Map<string, { id: string; name: string }>();
     
-    globalArtists.forEach(a => {
-      if (a.name && a.id) {
-        artistMap.set(a.name.toLowerCase(), { id: a.id, name: a.name });
+    globalArtists.forEach((a: any) => {
+      const name = typeof a === 'string' ? a : a?.name;
+      if (name) {
+        const id = typeof a === 'string' ? '' : (a.id || '');
+        artistMap.set(name.toLowerCase(), { id, name });
       }
     });
 
-    tracks.forEach(t => {
+    tracks.forEach((t: any) => {
       if (t.artist) {
-        const parts = t.artist.split(/\s*[;\\/,•]\s*|\s+feat\.?\s+|\s+ft\.?\s+/i);
+        const parts = t.artist.split(ARTIST_SPLIT_REGEX);
         parts.forEach((p: string) => {
           const name = p.trim();
           if (name) {
@@ -31,10 +39,10 @@ export function useTrackFilters(tracks: any[], globalArtists: any[]) {
             if (!artistMap.has(lower)) {
               artistMap.set(lower, { id: t.artistId || '', name });
             } else {
-               const existing = artistMap.get(lower)!;
-               if (!existing.id && t.artistId) {
-                 existing.id = t.artistId;
-               }
+              const existing = artistMap.get(lower)!;
+              if (!existing.id && t.artistId) {
+                existing.id = t.artistId;
+              }
             }
           }
         });
@@ -47,13 +55,22 @@ export function useTrackFilters(tracks: any[], globalArtists: any[]) {
 
   const allAlbums = useMemo(() => {
     const albumSet = new Set<string>();
-    tracks.forEach(t => {
-      if (t.album) {
-        albumSet.add(t.album);
+
+    globalAlbums.forEach((a: any) => {
+      const name = typeof a === 'string' ? a : (a?.name || a?.title);
+      if (name && typeof name === 'string') {
+        albumSet.add(name.trim());
       }
     });
+
+    tracks.forEach((t: any) => {
+      if (t.album && typeof t.album === 'string') {
+        albumSet.add(t.album.trim());
+      }
+    });
+
     return Array.from(albumSet).sort((a, b) => a.localeCompare(b));
-  }, [tracks]);
+  }, [tracks, globalAlbums]);
 
   const debouncedArtistSearch = useDebounce(artistSearch, 300);
   const debouncedAlbumSearch = useDebounce(albumSearch, 300);
@@ -62,7 +79,7 @@ export function useTrackFilters(tracks: any[], globalArtists: any[]) {
   const filteredAlbums = useMemo(() => allAlbums.filter(a => a.toLowerCase().includes(debouncedAlbumSearch.toLowerCase())), [allAlbums, debouncedAlbumSearch]);
 
   const filteredTracks = useMemo(() => {
-    return tracks.filter(t => {
+    return tracks.filter((t: any) => {
       const isLiked = likedTrackIds.includes(t.id);
       if (filterLiked === 'yes' && !isLiked) return false;
       if (filterLiked === 'no' && isLiked) return false;
@@ -73,14 +90,23 @@ export function useTrackFilters(tracks: any[], globalArtists: any[]) {
 
       if (selectedArtists.size > 0) {
         if (!t.artist) return false;
-        const parts = t.artist.split(/\s*[;\\/,•]\s*|\s+feat\.?\s+|\s+ft\.?\s+/i).map((p: string) => p.trim().toLowerCase());
+        const parts = t.artist.split(ARTIST_SPLIT_REGEX).map((p: string) => p.trim().toLowerCase());
         const selectedLower = Array.from(selectedArtists).map(s => s.toLowerCase());
         const hasSelected = parts.some((p: string) => selectedLower.includes(p));
         if (!hasSelected) return false;
       }
 
       if (selectedAlbums.size > 0) {
-        if (!t.album || !selectedAlbums.has(t.album)) return false;
+        if (!t.album) return false;
+        const albumNameTrimmed = t.album.trim();
+        const selectedAlbumsLower = Array.from(selectedAlbums).map(s => s.toLowerCase());
+        if (
+          !selectedAlbums.has(t.album) &&
+          !selectedAlbums.has(albumNameTrimmed) &&
+          !selectedAlbumsLower.includes(albumNameTrimmed.toLowerCase())
+        ) {
+          return false;
+        }
       }
 
       return true;

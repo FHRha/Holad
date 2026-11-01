@@ -173,7 +173,9 @@ export interface LibraryQueryOptions {
   order?: 'asc' | 'desc' | 'ASC' | 'DESC' | undefined;
   search?: string | undefined;
   artistId?: string | undefined;
+  artist?: string | undefined;
   albumId?: string | undefined;
+  album?: string | undefined;
   genre?: string | undefined;
   userId?: string | undefined;
 }

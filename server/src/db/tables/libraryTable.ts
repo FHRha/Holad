@@ -205,13 +205,36 @@ export function queryTracks(options: LibraryQueryOptions = {}): {
   }
 
   if (options.artistId) {
-    conditions.push('artist_id = ?');
-    params.push(options.artistId);
+    if (options.artistId.startsWith('artist_')) {
+      const art = db
+        .prepare('SELECT name FROM cached_artists WHERE id = ?')
+        .get(options.artistId) as { name: string } | undefined;
+      if (art?.name) {
+        conditions.push('(artist_id = ? OR artist LIKE ?)');
+        params.push(options.artistId, `%${art.name}%`);
+      } else {
+        conditions.push('artist_id = ?');
+        params.push(options.artistId);
+      }
+    } else {
+      conditions.push('artist_id = ?');
+      params.push(options.artistId);
+    }
+  }
+
+  if (options.artist) {
+    conditions.push('artist LIKE ?');
+    params.push(`%${options.artist}%`);
   }
 
   if (options.albumId) {
     conditions.push('album_id = ?');
     params.push(options.albumId);
+  }
+
+  if (options.album) {
+    conditions.push('album LIKE ?');
+    params.push(`%${options.album}%`);
   }
 
   if (options.genre) {
@@ -262,7 +285,7 @@ export function queryAlbums(options: LibraryQueryOptions = {}): {
   albums: CachedAlbum[];
   total: number;
 } {
-  const limit = Math.min(Math.max(1, Number(options.limit) || 50), 1000);
+  const limit = Math.min(Math.max(1, Number(options.limit) || 50), 50000);
   const offset = Math.max(0, Number(options.offset) || 0);
   const sortCol =
     options.sort && ALLOWED_ALBUM_SORTS[options.sort]
@@ -319,7 +342,7 @@ export function queryArtists(options: LibraryQueryOptions = {}): {
   artists: CachedArtist[];
   total: number;
 } {
-  const limit = Math.min(Math.max(1, Number(options.limit) || 100), 2000);
+  const limit = Math.min(Math.max(1, Number(options.limit) || 100), 50000);
   const offset = Math.max(0, Number(options.offset) || 0);
   const sortCol =
     options.sort && ALLOWED_ARTIST_SORTS[options.sort]

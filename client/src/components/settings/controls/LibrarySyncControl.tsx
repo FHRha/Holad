@@ -146,10 +146,10 @@ export default function LibrarySyncControl({
             <Database size={18} />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold text-foreground truncate">
+            <span className="text-sm font-semibold text-foreground leading-relaxed break-words">
               {t('settings.media_engine_cache', 'Кэш медиатеки (Holad Media Engine)')}
             </span>
-            <span className="text-xs text-secondary truncate">
+            <span className="text-xs text-secondary leading-relaxed break-words">
               {t(
                 'settings.media_engine_cache_desc',
                 'Быстрый серверный SQLite-кэш с полнотекстовым поиском FTS5'
@@ -161,7 +161,7 @@ export default function LibrarySyncControl({
         {/* Status Badge */}
         <div className="flex-shrink-0">
           {isSyncing ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/15 text-blue-400 border border-blue-500/30 animate-pulse">
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border border-blue-500/30 text-blue-500 dark:text-blue-400 bg-blue-500/10 animate-pulse">
               <Loader2 size={12} className="animate-spin" />
               <span>
                 {t('settings.syncing', 'Синхронизация...')}
@@ -171,17 +171,17 @@ export default function LibrarySyncControl({
               </span>
             </span>
           ) : status?.status === 'error' ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/30">
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border border-red-500/30 text-red-500 dark:text-red-400 bg-red-500/10">
               <AlertCircle size={12} />
               <span>{t('settings.sync_error', 'Ошибка')}</span>
             </span>
           ) : status?.status === 'completed' || (status?.total_tracks || 0) > 0 ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
               <CheckCircle2 size={12} />
               <span>{t('settings.synced', 'Синхронизировано')}</span>
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-foreground/10 text-secondary border border-border">
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border border-border bg-card text-secondary">
               <span>{t('settings.ready', 'Готово')}</span>
             </span>
           )}
@@ -190,7 +190,7 @@ export default function LibrarySyncControl({
 
       {/* Stats Counter Cards */}
       <div className="grid grid-cols-3 gap-2.5">
-        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-foreground/[0.02] border border-border/60">
+        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-foreground/[0.02] border border-border">
           <div className="flex items-center gap-1.5 text-secondary text-xs mb-1">
             <Music size={13} className="text-primary/80" />
             <span>{t('sidebar.tracks', 'Треки')}</span>
@@ -200,7 +200,7 @@ export default function LibrarySyncControl({
           </span>
         </div>
 
-        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-foreground/[0.02] border border-border/60">
+        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-foreground/[0.02] border border-border">
           <div className="flex items-center gap-1.5 text-secondary text-xs mb-1">
             <Disc size={13} className="text-primary/80" />
             <span>{t('sidebar.albums', 'Альбомы')}</span>
@@ -210,7 +210,7 @@ export default function LibrarySyncControl({
           </span>
         </div>
 
-        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-foreground/[0.02] border border-border/60">
+        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-foreground/[0.02] border border-border">
           <div className="flex items-center gap-1.5 text-secondary text-xs mb-1">
             <Users size={13} className="text-primary/80" />
             <span>{t('sidebar.artists', 'Артисты')}</span>
@@ -222,7 +222,7 @@ export default function LibrarySyncControl({
       </div>
 
       {/* Footer with Last Sync Timestamp & Trigger Button */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-border/40">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-border">
         <div className="text-xs text-secondary flex items-center gap-1">
           <span>{t('settings.last_sync', 'Последняя синхронизация:')}</span>
           <span className="font-medium text-foreground">

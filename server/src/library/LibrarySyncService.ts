@@ -201,7 +201,7 @@ export class LibrarySyncService {
       });
 
       // 3. Fetch & cache Tracks (progress 50% -> 95%)
-      const tracks = await this.syncTracks(account, albums, syncId, artists.length);
+      const { tracks, totalArtists } = await this.syncTracks(account, albums, syncId, artists);
 
       // 4. Finalize completed state
       setSyncState({
@@ -209,7 +209,7 @@ export class LibrarySyncService {
         user_id: options.userId || account.user,
         status: 'completed',
         progress: 100,
-        total_artists: artists.length,
+        total_artists: totalArtists,
         total_albums: albums.length,
         total_tracks: tracks.length,
         last_sync_time: Date.now(),
@@ -218,7 +218,7 @@ export class LibrarySyncService {
 
       this.lastSyncCompletedTime = Date.now();
       console.log(
-        `[MediaEngine] Library sync finished successfully. Cached ${artists.length} artists, ${albums.length} albums, ${tracks.length} tracks.`
+        `[MediaEngine] Library sync finished successfully. Cached ${totalArtists} artists, ${albums.length} albums, ${tracks.length} tracks.`
       );
     } catch (err: any) {
       console.error('[MediaEngine] Library sync failed:', err);
@@ -320,12 +320,50 @@ export class LibrarySyncService {
     account: NavidromeAccountRecord,
     albums: CachedAlbum[],
     syncId: string,
-    artistCount: number
-  ): Promise<CachedTrack[]> {
+    initialArtists: CachedArtist[]
+  ): Promise<{ tracks: CachedTrack[]; totalArtists: number }> {
     const allTracks: CachedTrack[] = [];
     let offset = 0;
     const batchSize = 500;
     let hasMore = true;
+
+    const artistSplitRegex = /\s*[;\\/,•]\s*|\s+feat\.?\s+|\s+ft\.?\s+|\s*&\s*|\s+x\s+/i;
+    const knownArtists = new Set<string>(
+      initialArtists.map((a) => a.name.trim().toLowerCase()).filter(Boolean)
+    );
+    const newArtistsBatch: CachedArtist[] = [];
+
+    const processArtistsFromTracks = (tracksBatch: CachedTrack[]) => {
+      for (const t of tracksBatch) {
+        if (!t.artist) continue;
+        const parts = t.artist.split(artistSplitRegex);
+        for (const rawPart of parts) {
+          const artistName = rawPart.trim();
+          if (!artistName) continue;
+          const lower = artistName.toLowerCase();
+          if (!knownArtists.has(lower)) {
+            knownArtists.add(lower);
+            const isOnlyArtist = parts.length === 1 || t.artist.trim().toLowerCase() === lower;
+            const artistId = (isOnlyArtist && t.artist_id)
+              ? t.artist_id
+              : `artist_${md5(lower)}`;
+
+            newArtistsBatch.push({
+              id: artistId,
+              name: artistName,
+              user_id: account.user,
+              album_count: 0,
+              cover_art: t.cover_art || null,
+              starred: 0,
+            });
+          }
+        }
+      }
+
+      if (newArtistsBatch.length >= 200) {
+        upsertArtistsBatch(newArtistsBatch.splice(0, newArtistsBatch.length));
+      }
+    };
 
     while (hasMore) {
       try {
@@ -362,6 +400,7 @@ export class LibrarySyncService {
         }));
 
         upsertTracksBatch(mapped);
+        processArtistsFromTracks(mapped);
         allTracks.push(...mapped);
         offset += batch.length;
 
@@ -374,7 +413,7 @@ export class LibrarySyncService {
           user_id: account.user,
           status: 'syncing',
           progress: dynamicProgress,
-          total_artists: artistCount,
+          total_artists: knownArtists.size,
           total_albums: albums.length,
           total_tracks: allTracks.length,
           last_sync_time: Date.now(),
@@ -423,6 +462,7 @@ export class LibrarySyncService {
 
           if (mapped.length > 0) {
             upsertTracksBatch(mapped);
+            processArtistsFromTracks(mapped);
             allTracks.push(...mapped);
           }
 
@@ -433,7 +473,7 @@ export class LibrarySyncService {
               user_id: account.user,
               status: 'syncing',
               progress: prog,
-              total_artists: artistCount,
+              total_artists: knownArtists.size,
               total_albums: albums.length,
               total_tracks: allTracks.length,
               last_sync_time: Date.now(),
@@ -446,7 +486,11 @@ export class LibrarySyncService {
       }
     }
 
-    return allTracks;
+    if (newArtistsBatch.length > 0) {
+      upsertArtistsBatch(newArtistsBatch.splice(0, newArtistsBatch.length));
+    }
+
+    return { tracks: allTracks, totalArtists: knownArtists.size };
   }
 
   private async fetchSubsonic(
