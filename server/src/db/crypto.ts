@@ -7,6 +7,8 @@ export function generateUserId(login: string, passwordHash: string): string {
   return crypto.createHash('sha256').update(`${login}:${passwordHash}`).digest('hex');
 }
 
+let inMemoryFallbackKey: Buffer | null = null;
+
 // Secure Encryption helpers for integration tokens
 export function getMasterEncryptionKey(): Buffer {
   if (process.env.ENCRYPTION_KEY) {
@@ -24,8 +26,20 @@ export function getMasterEncryptionKey(): Buffer {
     fs.writeFileSync(keyFilePath, newKey.toString('hex'), { mode: 0o600 });
     return newKey;
   } catch (err) {
-    return crypto.createHash('sha256').update('holad_persistent_machine_key_' + (process.env.COMPUTERNAME || process.env.HOSTNAME || 'default')).digest();
+    if (!inMemoryFallbackKey) {
+      console.warn('[CRYPTO] Warning: Could not persist encryption key to disk, using ephemeral in-memory key.');
+      inMemoryFallbackKey = crypto.randomBytes(32);
+    }
+    return inMemoryFallbackKey;
   }
+}
+
+export function safeTimingCompare(a: string | undefined, b: string | undefined): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
 }
 
 export const GCM_IV_LENGTH = 12;
@@ -71,11 +85,7 @@ export function decrypt(text: string): string | null {
       decrypted = Buffer.concat([decrypted, decipher.final()]);
       return decrypted.toString('utf8');
     } catch {
-      const legacyKey = Buffer.from('default_secret_key_needs_change_');
-      const decipher = crypto.createDecipheriv('aes-256-cbc', legacyKey, iv);
-      let decrypted = decipher.update(encryptedText);
-      decrypted = Buffer.concat([decrypted, decipher.final()]);
-      return decrypted.toString('utf8');
+      return null;
     }
   } catch (e) {
     return null;

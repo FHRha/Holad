@@ -278,9 +278,8 @@ describe('Custom Playlists Functions', () => {
 });
 
 describe('Database Legacy Security Data Migration', () => {
-  const legacyKey = Buffer.from('default_secret_key_needs_change_');
-
   function createLegacyCbc(text: string): string {
+    const legacyKey = database.getMasterEncryptionKey().subarray(0, 32);
     const iv = Buffer.from('0123456789abcdef0123456789abcdef', 'hex');
     const cipher = nodeCrypto.createCipheriv('aes-256-cbc', legacyKey, iv);
     let enc = cipher.update(text, 'utf8', 'hex');

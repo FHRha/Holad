@@ -54,14 +54,14 @@ public class ApkUpdaterPlugin extends Plugin {
     @PluginMethod
     public void installApk(PluginCall call) {
         String filePath = call.getString("filePath");
-        if (filePath == null || filePath.isEmpty()) {
+        if (filePath == null || filePath.trim().isEmpty()) {
             call.reject("filePath parameter must be provided");
             return;
         }
 
         try {
             Context context = getContext();
-            String cleanPath = filePath;
+            String cleanPath = filePath.trim();
             if (cleanPath.startsWith("file://")) {
                 cleanPath = cleanPath.substring(7);
             }
@@ -69,6 +69,16 @@ public class ApkUpdaterPlugin extends Plugin {
             File file = new File(cleanPath);
             if (!file.exists()) {
                 call.reject("APK file does not exist at: " + cleanPath);
+                return;
+            }
+
+            if (!isPathWithinAllowedDirectories(file, context)) {
+                call.reject("Access denied: file must be located within application directories.");
+                return;
+            }
+
+            if (!file.getName().toLowerCase().endsWith(".apk")) {
+                call.reject("Invalid file type: only .apk files can be installed.");
                 return;
             }
 
@@ -84,12 +94,29 @@ public class ApkUpdaterPlugin extends Plugin {
     @PluginMethod
     public void downloadAndInstall(PluginCall call) {
         String urlString = call.getString("url");
-        String fileName = call.getString("fileName", "Holad-Update.apk");
-
-        if (urlString == null || urlString.isEmpty()) {
+        if (urlString == null || urlString.trim().isEmpty()) {
             call.reject("URL parameter must be provided");
             return;
         }
+
+        if (!urlString.startsWith("http://") && !urlString.startsWith("https://")) {
+            call.reject("Invalid URL protocol. Only HTTP and HTTPS are allowed.");
+            return;
+        }
+
+        String rawFileName = call.getString("fileName", "Holad-Update.apk");
+        String fileName = "Holad-Update.apk";
+        if (rawFileName != null && !rawFileName.trim().isEmpty()) {
+            String safe = new File(rawFileName).getName().trim();
+            if (!safe.isEmpty() && !safe.equals(".") && !safe.equals("..")) {
+                fileName = safe;
+            }
+        }
+        if (!fileName.endsWith(".apk")) {
+            fileName += ".apk";
+        }
+
+        final String finalFileName = fileName;
 
         new Thread(() -> {
             File destFile = null;
@@ -100,7 +127,11 @@ public class ApkUpdaterPlugin extends Plugin {
                     updatesDir.mkdirs();
                 }
 
-                destFile = new File(updatesDir, fileName);
+                destFile = new File(updatesDir, finalFileName);
+                if (!isPathWithinAllowedDirectories(destFile, context)) {
+                    throw new SecurityException("Destination file path is outside allowed application directories");
+                }
+
                 if (destFile.exists()) {
                     destFile.delete();
                 }
@@ -200,10 +231,37 @@ public class ApkUpdaterPlugin extends Plugin {
         notifyListeners("update-download-progress", data);
     }
 
+    private boolean isPathWithinAllowedDirectories(File file, Context context) {
+        try {
+            String canonicalPath = file.getCanonicalPath();
+            File[] allowedDirs = new File[] {
+                context.getCacheDir(),
+                context.getFilesDir(),
+                context.getExternalCacheDir(),
+                context.getExternalFilesDir(null)
+            };
+
+            for (File dir : allowedDirs) {
+                if (dir != null) {
+                    String canonicalDir = dir.getCanonicalPath();
+                    if (canonicalPath.equals(canonicalDir) || canonicalPath.startsWith(canonicalDir + File.separator)) {
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            return false;
+        }
+        return false;
+    }
+
     private HttpURLConnection openConnectionWithRedirects(String urlString) throws Exception {
         String currentUrl = urlString;
         int redirects = 0;
         while (redirects < 8) {
+            if (!currentUrl.startsWith("http://") && !currentUrl.startsWith("https://")) {
+                throw new SecurityException("Invalid URL protocol in redirect. Only HTTP and HTTPS are allowed.");
+            }
             URL url = new URL(currentUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestProperty("User-Agent", "Holad-Android-Updater");

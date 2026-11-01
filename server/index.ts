@@ -203,42 +203,75 @@ function safeTimingCompare(a: string | undefined, b: string | undefined): boolea
 function isTargetServerAllowed(urlString: string): boolean {
   try {
     const parsed = new URL(urlString);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
     const host = parsed.hostname.toLowerCase();
-    
-    // Security: Strictly block cloud metadata endpoints (AWS, GCP, Azure, etc.)
+    const cleanHost = host.replace(/^\[|\]$/g, '').toLowerCase();
+
+    // Security: Block dangerous system ports
+    const targetPort = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
+    const numericPort = parseInt(targetPort, 10);
+    const BLOCKED_PORTS = new Set([22, 25, 2375, 2376, 6379, 11211]);
+    if (BLOCKED_PORTS.has(numericPort)) {
+      return false;
+    }
+
+    // Security: Strictly block cloud metadata endpoints (AWS, GCP, Azure, OpenStack IMDS)
     if (
-      host === '169.254.169.254' || 
-      host.startsWith('169.254.') || 
-      host === 'metadata.google.internal' ||
-      host === 'instance-data'
+      cleanHost === '169.254.169.254' ||
+      cleanHost.startsWith('169.254.') ||
+      cleanHost === 'metadata.google.internal' ||
+      cleanHost === 'instance-data' ||
+      cleanHost === 'fd00:ec2::254' ||
+      cleanHost === '::ffff:169.254.169.254' ||
+      cleanHost === '::ffff:a9fe:a9fe' ||
+      cleanHost.startsWith('::ffff:a9fe:') ||
+      cleanHost.includes('a9fe:a9fe') ||
+      cleanHost.endsWith('169.254.169.254') ||
+      cleanHost === '2852039166' ||
+      cleanHost === '0xa9fea9fe' ||
+      cleanHost.startsWith('0xa9fea9fe') ||
+      cleanHost === '0xa9.0xfe.0xa9.0xfe'
     ) {
       return false;
     }
+
+    // Check decimal or hex representations of link-local 169.254.0.0/16
+    const numHost = cleanHost.startsWith('0x')
+      ? parseInt(cleanHost, 16)
+      : (/^\d+$/.test(cleanHost) ? parseInt(cleanHost, 10) : NaN);
+    if (!isNaN(numHost) && numHost >= 2852038912 && numHost <= 2852104447) {
+      return false;
+    }
+
+    const isLocalOrInternal = (h: string) =>
+      h === 'localhost' ||
+      h === '127.0.0.1' ||
+      h === '::1' ||
+      h === 'navidrome' ||
+      h === 'host.docker.internal' ||
+      /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(h);
 
     // If no accounts yet, allow localhost and private network for first-time setup
     if (navidromeAccounts.length === 0) {
       return true;
     }
 
-    const isLoopback = (h: string) => h === 'localhost' || h === '127.0.0.1' || h === '::1';
-    const isPrivateIp = (h: string) => /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(h);
-    const targetPort = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
-
     // Check against authorized Navidrome account hosts and matching ports
     return navidromeAccounts.some(account => {
       try {
         const accountUrl = new URL(account.url);
-        const accountHost = accountUrl.hostname.toLowerCase();
+        const accountHost = accountUrl.hostname.toLowerCase().replace(/^\[|\]$/g, '');
         const accountPort = accountUrl.port || (accountUrl.protocol === 'https:' ? '443' : '80');
 
-        if (accountHost === host && accountPort === targetPort) {
+        if (accountHost === cleanHost && accountPort === targetPort) {
           return true;
         }
 
-        // Allow localhost <-> LAN IP (private network) interoperability for local servers on matching port
+        // Allow localhost <-> LAN IP <-> Docker hosts interoperability on matching port
         if (accountPort === targetPort) {
-          if ((isLoopback(accountHost) && (isLoopback(host) || isPrivateIp(host))) ||
-              (isPrivateIp(accountHost) && (isLoopback(host) || isPrivateIp(host)))) {
+          if (isLocalOrInternal(accountHost) && isLocalOrInternal(cleanHost)) {
             return true;
           }
         }
@@ -431,7 +464,7 @@ app.get(['/api/artist-image/:name', '/Holad/api/artist-image/:name'], async (req
 
 const PLAYLIST_ID_REGEX = /^[a-zA-Z0-9_\-\:]{1,128}$/;
 
-app.post(['/api/custom-playlists', '/Holad/api/custom-playlists'], express.json(), (req, res) => {
+app.post(['/api/custom-playlists', '/Holad/api/custom-playlists'], express.json(), async (req, res) => {
   try {
     const { id, name, description, trackIds, userId, tracks } = req.body || {};
 
@@ -474,6 +507,10 @@ app.post(['/api/custom-playlists', '/Holad/api/custom-playlists'], express.json(
     if (userId !== undefined && userId !== null) {
       if (typeof userId !== 'string' || !PLAYLIST_ID_REGEX.test(userId)) {
         return res.status(400).json({ error: 'Invalid userId format' });
+      }
+      const authUser = await resolveAuthUserId(req);
+      if (authUser && authUser !== userId) {
+        return res.status(403).json({ error: 'Permission denied: userId does not match authenticated user' });
       }
     }
 
@@ -536,12 +573,18 @@ app.get(['/api/custom-playlists/:id', '/Holad/api/custom-playlists/:id'], (req, 
   }
 });
 
-app.delete(['/api/custom-playlists/:id', '/Holad/api/custom-playlists/:id'], (req, res) => {
+app.delete(['/api/custom-playlists/:id', '/Holad/api/custom-playlists/:id'], async (req, res) => {
   const id = req.params.id as string;
   if (!id || typeof id !== 'string' || !PLAYLIST_ID_REGEX.test(id)) {
     return res.status(400).json({ error: 'Invalid ID format' });
   }
   const userId = (req.query.userId as string) || (req.headers['x-user-id'] as string) || (req.headers['x-user'] as string) || undefined;
+  if (userId) {
+    const authUser = await resolveAuthUserId(req);
+    if (authUser && authUser !== userId) {
+      return res.status(403).json({ error: 'Permission denied: userId does not match authenticated user' });
+    }
+  }
   try {
     const deleted = database.deleteCustomPlaylist(id, userId);
     if (deleted) {
@@ -744,11 +787,7 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
       const response = await fetch(url, { headers, signal: req.signal });
       
       if (response.status === 401 || response.status === 403) {
-        console.warn(`Account ${account.user} failed auth.`);
-        if (navidromeAccounts.length > 1 && account.user !== process.env.NAVIDROME_USER) {
-          database.deleteNavidromeAccount(account.user, account.url);
-          navidromeAccounts = database.getNavidromeAccounts();
-        }
+        console.warn(`Account ${account.user} failed auth (HTTP ${response.status}).`);
         continue;
       }
       
@@ -759,10 +798,6 @@ async function executeWithFailover(req: express.Request, res: express.Response, 
             const data = await clonedResponse.json();
             if (data['subsonic-response']?.status === 'failed' && data['subsonic-response']?.error?.code === 40) {
                console.warn(`Account ${account.user} failed auth (code 40).`);
-                if (navidromeAccounts.length > 1 && account.user !== process.env.NAVIDROME_USER) {
-                  database.deleteNavidromeAccount(account.user, account.url);
-                  navidromeAccounts = database.getNavidromeAccounts();
-                }
                continue;
             }
          }
@@ -1026,22 +1061,24 @@ async function resolveAuthUserId(req: express.Request): Promise<string | null> {
     }
   }
 
-  // 3. If Subsonic credentials are provided, verify them
-  let token = (req.headers['x-token'] as string) || (req.query.token as string);
-  let salt = (req.headers['x-salt'] as string) || (req.query.salt as string);
-  let url = (req.headers['x-url'] as string) || (req.query.url as string);
+  // 3. For standard requests: require token && salt && url
+  let token = (req.headers['x-token'] as string) || (req.query.token as string) || (req.body && (req.body.token as string));
+  let salt = (req.headers['x-salt'] as string) || (req.query.salt as string) || (req.body && (req.body.salt as string));
+  let url = (req.headers['x-url'] as string) || (req.query.url as string) || (req.body && (req.body.url as string));
 
-  if (token && salt && url) {
-    try {
-      token = decodeURIComponent(token);
-      salt = decodeURIComponent(salt);
-      url = decodeURIComponent(url);
-    } catch {}
+  if (!token || !salt || !url || typeof token !== 'string' || typeof salt !== 'string' || typeof url !== 'string') {
+    return null;
+  }
 
-    const isValid = await verifySubsonicCredentials(rawUser, token, salt, url);
-    if (!isValid) {
-      return null;
-    }
+  try {
+    token = decodeURIComponent(token);
+    salt = decodeURIComponent(salt);
+    url = decodeURIComponent(url);
+  } catch {}
+
+  const isValid = await verifySubsonicCredentials(rawUser, token, salt, url);
+  if (!isValid) {
+    return null;
   }
 
   return rawUser;
@@ -1128,8 +1165,8 @@ const libraryPaths = (endpoint: string) => {
 
 app.get(libraryPaths('tracks'), async (req, res) => {
   try {
-    const { offset, limit, sort, order, search, artistId, artist, albumId, album, genre, userId } = req.query;
-    const resolvedUser = (typeof userId === 'string' && userId) ? userId : (await resolveAuthUserId(req) || undefined);
+    const { offset, limit, sort, order, search, artistId, artist, albumId, album, genre } = req.query;
+    const resolvedUser = (await resolveAuthUserId(req)) || undefined;
     const parsedOffset = offset !== undefined ? parseInt(String(offset), 10) : 0;
     const parsedLimit = limit !== undefined ? parseInt(String(limit), 10) : 100;
 
@@ -1161,8 +1198,8 @@ app.get(libraryPaths('tracks'), async (req, res) => {
 
 app.get(libraryPaths('albums'), async (req, res) => {
   try {
-    const { offset, limit, sort, order, search, artistId, genre, userId } = req.query;
-    const resolvedUser = (typeof userId === 'string' && userId) ? userId : (await resolveAuthUserId(req) || undefined);
+    const { offset, limit, sort, order, search, artistId, genre } = req.query;
+    const resolvedUser = (await resolveAuthUserId(req)) || undefined;
     const parsedOffset = offset !== undefined ? parseInt(String(offset), 10) : 0;
     const parsedLimit = limit !== undefined ? parseInt(String(limit), 10) : 50;
 
@@ -1191,8 +1228,8 @@ app.get(libraryPaths('albums'), async (req, res) => {
 
 app.get(libraryPaths('artists'), async (req, res) => {
   try {
-    const { offset, limit, sort, order, search, userId } = req.query;
-    const resolvedUser = (typeof userId === 'string' && userId) ? userId : (await resolveAuthUserId(req) || undefined);
+    const { offset, limit, sort, order, search } = req.query;
+    const resolvedUser = (await resolveAuthUserId(req)) || undefined;
     const parsedOffset = offset !== undefined ? parseInt(String(offset), 10) : 0;
     const parsedLimit = limit !== undefined ? parseInt(String(limit), 10) : 100;
 
@@ -1832,7 +1869,7 @@ app.get(streamRoutes, async (req, res) => {
       const streamFormat = format ? `&format=${encodeURIComponent(format as string)}` : '&format=opus';
       const streamBitRate = maxBitRate ? `&maxBitRate=${encodeURIComponent(maxBitRate as string)}` : (format === 'opus' || !format ? '&maxBitRate=256' : '');
       const streamEstLen = estimateContentLength !== undefined ? `&estimateContentLength=${encodeURIComponent(estimateContentLength as string)}` : '&estimateContentLength=true';
-      const authParams = `u=${u}&t=${t}&s=${s}&v=${v||'1.16.1'}&c=${c||'StreamNavi'}&f=${f||'json'}${streamFormat}${streamBitRate}${streamEstLen}`;
+      const authParams = `u=${encodeURIComponent(u as string)}&t=${encodeURIComponent(t as string)}&s=${encodeURIComponent(s as string)}&v=${encodeURIComponent((v as string) || '1.16.1')}&c=${encodeURIComponent((c as string) || 'StreamNavi')}&f=${encodeURIComponent((f as string) || 'json')}${streamFormat}${streamBitRate}${streamEstLen}`;
       let targetServer = navidromeAccounts[0]?.url || '';
       if (serverUrl) {
         const decodedUrl = decodeURIComponent(serverUrl as string);

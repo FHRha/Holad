@@ -1,5 +1,6 @@
 import type { Server, Socket } from 'socket.io';
 import { ConnectRoomManager } from './ConnectRoomManager.js';
+import { safeTimingCompare } from '../db/crypto.js';
 import type {
   HoladJoinRoomPayload,
   HoladLeavePayload,
@@ -146,8 +147,15 @@ export function registerConnectSocketHandlers(
 
       const hasValidAuth = Boolean(auth.user && auth.salt && auth.token && auth.url);
       const isRoomAuthorized = hasValidAuth && (authUserClean === normalizedRoom || isDemoMatch);
+      const isTokenMatched = Boolean(dbAccount && dbAccount.token && safeTimingCompare(dbAccount.token, auth.token));
 
-      if (!isPingSuccessful && !isKnownUser) {
+      if (dbAccount) {
+        if (!isPingSuccessful && !isTokenMatched) {
+          socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Invalid Subsonic credentials' });
+          socket.disconnect();
+          return;
+        }
+      } else if (!isPingSuccessful && !isKnownUser) {
         if (isRoomAuthorized) {
           console.warn(`[Holad] Subsonic ping unreachable for ${auth.url}, but user '${auth.user}' provided valid credentials for room '${normalizedRoom}'. Allowing device connection in fallback mode.`);
         } else {
@@ -161,19 +169,17 @@ export function registerConnectSocketHandlers(
       try {
         const cleanAuthUrl = resolvedUrl.replace(/\/$/, '');
         const isAllowed = options?.isTargetServerAllowed ? options.isTargetServerAllowed(cleanAuthUrl) : true;
-        if (isAllowed) {
-          const isExistingAccount = accounts.some((a: any) => a.user.toLowerCase() === auth.user.toLowerCase());
-          if (isExistingAccount || accounts.length === 0 || isPingSuccessful) {
-            database.saveNavidromeAccount({
-              url: cleanAuthUrl,
-              user: auth.user,
-              token: auth.token,
-              salt: auth.salt
-            });
-            const updated = database.getNavidromeAccounts();
-            if (options?.setNavidromeAccounts) {
-              options.setNavidromeAccounts(updated);
-            }
+        const shouldSaveAccount = isPingSuccessful || (Boolean(dbAccount) && isTokenMatched);
+        if (isAllowed && shouldSaveAccount) {
+          database.saveNavidromeAccount({
+            url: cleanAuthUrl,
+            user: auth.user,
+            token: auth.token,
+            salt: auth.salt
+          });
+          const updated = database.getNavidromeAccounts();
+          if (options?.setNavidromeAccounts) {
+            options.setNavidromeAccounts(updated);
           }
         }
       } catch (e) {

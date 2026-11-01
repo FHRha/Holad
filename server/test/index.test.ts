@@ -713,11 +713,18 @@ describe('Playback State SSOT REST API', () => {
       .post('/api/playback-state')
       .send({ songId: 'trk1', position: 10 });
     expect(postRes.status).toBe(401);
+
+    // Unauthenticated request with raw x-user-id without token credentials must also be rejected
+    const rawUserRes = await request(app)
+      .get('/api/playback-state')
+      .set('x-user-id', 'unauthenticated_user');
+    expect(rawUserRes.status).toBe(401);
   });
 
   it('should return null for user with no existing playback state', async () => {
     const res = await request(app)
       .get('/api/playback-state')
+      .set(authHeaders)
       .set('x-user-id', 'fresh_user_' + Date.now());
 
     expect(res.status).toBe(200);
@@ -733,6 +740,7 @@ describe('Playback State SSOT REST API', () => {
 
     const postRes = await request(app)
       .post('/api/playback-state')
+      .set(authHeaders)
       .set('x-user-id', testUserId)
       .send({
         songId: 'trk_1',
@@ -751,6 +759,7 @@ describe('Playback State SSOT REST API', () => {
 
     const getRes = await request(app)
       .get('/api/playback-state')
+      .set(authHeaders)
       .set('x-user-id', testUserId);
 
     expect(getRes.status).toBe(200);
@@ -770,6 +779,7 @@ describe('Playback State SSOT REST API', () => {
 
     const postRes = await request(app)
       .post('/Holad/api/playback-state')
+      .set(authHeaders)
       .set('x-user-id', testUserId)
       .send({
         songId: 'trk_prefix',
@@ -783,6 +793,7 @@ describe('Playback State SSOT REST API', () => {
 
     const getRes = await request(app)
       .get('/Holad/api/playback-state')
+      .set(authHeaders)
       .set('x-user-id', testUserId);
 
     expect(getRes.status).toBe(200);
@@ -800,6 +811,7 @@ describe('Playback State SSOT REST API', () => {
     // 1. Initial save with full queue
     await request(app)
       .post('/api/playback-state')
+      .set(authHeaders)
       .set('x-user-id', testUserId)
       .send({
         songId: 'song_a',
@@ -815,6 +827,7 @@ describe('Playback State SSOT REST API', () => {
     // 2. Fast progress update (no queue sent)
     const progressRes = await request(app)
       .post('/api/playback-state')
+      .set(authHeaders)
       .set('x-user-id', testUserId)
       .send({
         songId: 'song_b',
@@ -829,6 +842,7 @@ describe('Playback State SSOT REST API', () => {
     // 3. Verify progress updated and queue untouched
     const getRes = await request(app)
       .get('/api/playback-state')
+      .set(authHeaders)
       .set('x-user-id', testUserId);
 
     expect(getRes.status).toBe(200);
