@@ -47,6 +47,7 @@ export default function FullScreenPlayerUI({
   const openMenu = useContextMenuStore(state => state.openMenu);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [activeTab, setActiveTab] = useState<'queue' | 'similar' | 'lyrics' | 'visualizer'>('lyrics');
+  const [hasEntered, setHasEntered] = useState(false);
   const [showJamMenu, setShowJamMenu] = useState(false);
   const jamMenuRef = useRef<HTMLDivElement>(null);
 
@@ -176,8 +177,9 @@ export default function FullScreenPlayerUI({
       initial={{ y: '100%' }}
       animate={{ y: 0 }}
       exit={{ y: '100%' }}
-      transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed inset-0 bg-background flex text-foreground overflow-hidden z-[100] transform-gpu will-change-transform"
+      transition={{ duration: 0.46, ease: [0.32, 0.72, 0, 1] }}
+      onAnimationComplete={() => setHasEntered(true)}
+      className="absolute inset-0 bg-background flex text-foreground overflow-hidden z-[100] transform-gpu will-change-transform"
     >
       
       {/* Blurred Background with Smooth Dual-Layer Crossfade */}
@@ -203,7 +205,7 @@ export default function FullScreenPlayerUI({
           {onClose && !isListenerPage && (
             <button 
               onClick={onClose}
-              className="p-2 bg-black/20 hover:bg-black/40 rounded-full backdrop-blur-md transition-colors border border-white/10 shadow-lg"
+              className="p-2 bg-black/40 hover:bg-black/60 rounded-full transition-colors border border-white/10 shadow-lg"
               title={t('player.close')}
               aria-label={t('player.close')}
             >
@@ -216,7 +218,7 @@ export default function FullScreenPlayerUI({
             <div className="relative" ref={jamMenuRef}>
               <button 
                 onClick={() => setShowJamMenu(!showJamMenu)} 
-                className={`flex items-center gap-2 px-3.5 h-10 rounded-full transition-all backdrop-blur-md border shadow-lg ${
+                className={`flex items-center gap-2 px-3.5 h-10 rounded-full transition-all border shadow-lg ${
                   showJamMenu 
                     ? 'bg-primary text-background border-primary' 
                     : roomId 
@@ -242,7 +244,7 @@ export default function FullScreenPlayerUI({
         </div>
       </div>
 
-      <div className="relative z-10 flex w-full h-full p-10 gap-16 pt-24 pb-20 items-stretch justify-center max-w-[1600px] mx-auto">
+      <div className="relative z-10 flex w-full h-full p-8 md:p-10 gap-8 lg:gap-16 pt-20 md:pt-24 pb-12 md:pb-16 items-stretch justify-center max-w-[1600px] mx-auto">
         
         <div className="flex-1 flex flex-col items-center justify-center max-w-[600px]">
           <div 
@@ -265,10 +267,10 @@ export default function FullScreenPlayerUI({
           <p className="text-base text-white/40 mb-8 text-center [text-shadow:0_1px_4px_rgba(0,0,0,0.4)]">{displayTrack.album || 'Unknown Album'}</p>
           
           <div className="flex gap-4">
-            <span className="px-4 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest border border-primary/30 backdrop-blur-md shadow-lg">
+            <span className="px-4 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest border border-primary/30 shadow-md">
               {(displayTrack.suffix || 'MP3').toUpperCase()}
             </span>
-            <span className="px-4 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest border border-primary/30 backdrop-blur-md shadow-lg">
+            <span className="px-4 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest border border-primary/30 shadow-md">
               {displayTrack.bitRate 
                 ? `${displayTrack.bitRate}kbps` 
                 : 'UNKNOWN'}
@@ -276,7 +278,7 @@ export default function FullScreenPlayerUI({
           </div>
         </div>
 
-        <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-foreground/10 rounded-3xl border border-white/20 overflow-hidden shadow-2xl relative">
+        <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-foreground/10 rounded-3xl border border-white/20 overflow-hidden shadow-xl relative">
           
           {activeTab === 'lyrics' && isUserScrolled && lrcLines.length > 0 && (
             <button 
@@ -367,14 +369,14 @@ export default function FullScreenPlayerUI({
                         return (
                           <div 
                             key={idx} 
-                            className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight transition-all duration-500 cursor-pointer px-4 animate-cascade-item ${
+                            className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight transition-all duration-500 cursor-pointer px-4 ${hasEntered ? 'animate-cascade-item' : ''} ${
                               isActive 
                                 ? 'text-primary scale-110 [text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
                                 : isPast 
                                   ? 'text-white/40' 
                                   : 'text-white/30 hover:text-foreground/50'
                             }`}
-                            style={{ animationDelay: `${Math.min(idx * 20, 300)}ms` }}
+                            style={hasEntered ? { animationDelay: `${Math.min(idx * 20, 300)}ms` } : undefined}
                             onClick={() => {
                               if (role === 'listener') return;
                               if (getAudioEngine()) {
@@ -415,8 +417,8 @@ export default function FullScreenPlayerUI({
                               isSectionHeader 
                                 ? 'text-sm md:text-base font-bold text-primary tracking-[0.2em] uppercase mt-8 mb-2 opacity-80 drop-shadow-md' 
                                 : 'text-2xl md:text-3xl font-bold tracking-tight text-white/70 hover:text-foreground transition-colors cursor-default'
-                            } animate-cascade-item`}
-                            style={{ animationDelay: `${Math.min(idx * 20, 260)}ms` }}
+                            } ${hasEntered ? 'animate-cascade-item' : ''}`}
+                            style={hasEntered ? { animationDelay: `${Math.min(idx * 20, 260)}ms` } : undefined}
                           >
                             {text}
                           </div>
@@ -457,7 +459,7 @@ export default function FullScreenPlayerUI({
                         const isPlayingQueue = idx === currentIndex;
                         const sortableId = `${track.id}-${idx}`;
                         return (
-                          <div key={sortableId} className="pb-2 animate-cascade-item" style={{ animationDelay: `${Math.min(idx * 30, 240)}ms` }}>
+                          <div key={sortableId} className={`pb-2 ${hasEntered ? 'animate-cascade-item' : ''}`} style={hasEntered ? { animationDelay: `${Math.min(idx * 30, 240)}ms` } : undefined}>
                             <SortableItem id={sortableId}>
                               {({ setNodeRef, attributes, listeners, style, isDragging }) => (
                                 <div 
@@ -509,8 +511,8 @@ export default function FullScreenPlayerUI({
                   {similarTracks.length > 0 ? similarTracks.map((track, idx) => (
                     <div 
                       key={idx} 
-                      className="flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-foreground/10 cursor-pointer animate-cascade-item"
-                      style={{ animationDelay: `${Math.min(idx * 30, 240)}ms` }}
+                      className={`flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-foreground/10 cursor-pointer ${hasEntered ? 'animate-cascade-item' : ''}`}
+                      style={hasEntered ? { animationDelay: `${Math.min(idx * 30, 240)}ms` } : undefined}
                       onClick={() => !readOnlyControls && setQueueAndPlay(similarTracks, idx)}
                       onContextMenu={(e) => {
                         e.preventDefault();
