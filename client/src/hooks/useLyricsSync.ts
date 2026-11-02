@@ -79,8 +79,10 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
         isAutoScrolling.current = false;
       }, 200) as unknown as number;
     } else {
-      setIsUserScrolled(true);
-      isUserScrolledRef.current = true;
+      if (!isUserScrolledRef.current) {
+        isUserScrolledRef.current = true;
+        setIsUserScrolled(true);
+      }
       
       if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current);
       
@@ -121,13 +123,11 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     
     autoScrollTimeoutRef.current = setTimeout(() => {
       isAutoScrolling.current = false;
-    }, behavior === 'smooth' ? 600 : 150) as unknown as number;
+    }, behavior === 'smooth' ? 500 : 100) as unknown as number;
   };
 
-  // Re-center active line and ignore scroll layout events on window or container resize
+  // Re-center active line on window resize
   useEffect(() => {
-    let resizeObserver: ResizeObserver | null = null;
-
     const handleResize = () => {
       isResizingRef.current = true;
       if (resizeDebounceTimeoutRef.current) clearTimeout(resizeDebounceTimeoutRef.current);
@@ -145,30 +145,8 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
 
     window.addEventListener('resize', handleResize);
 
-    const scrollContainer = lyricsContainerRef.current?.closest('.overflow-y-auto') as HTMLElement | null;
-    let lastWidth = scrollContainer?.clientWidth || 0;
-    let lastHeight = scrollContainer?.clientHeight || 0;
-
-    if (typeof ResizeObserver !== 'undefined' && scrollContainer) {
-      resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          const { width, height } = entry.contentRect;
-          if (width > 0 && height > 0) {
-            if (Math.abs(width - lastWidth) < 2 && Math.abs(height - lastHeight) < 2) {
-              continue;
-            }
-            lastWidth = width;
-            lastHeight = height;
-            handleResize();
-          }
-        }
-      });
-      resizeObserver.observe(scrollContainer);
-    }
-
     return () => {
       window.removeEventListener('resize', handleResize);
-      if (resizeObserver) resizeObserver.disconnect();
       if (resizeDebounceTimeoutRef.current) clearTimeout(resizeDebounceTimeoutRef.current);
     };
   }, [lrcLines.length, isActive]);
@@ -234,19 +212,19 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
             const isSectionHeader = child.textContent?.trim().startsWith('[') || child.textContent?.trim().startsWith('(');
             
             if (idx === newIndex) {
-              child.classList.add('text-primary', 'scale-105', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
-              child.classList.remove('text-white/40', 'text-white/30', 'hover:text-white/50', 'text-primary/40', 'text-primary/70', 'scale-100');
+              child.classList.add('text-primary', 'opacity-100');
+              child.classList.remove('text-white/40', 'text-white/30', 'hover:text-white/50', 'text-primary/40', 'text-primary/70', 'opacity-40', 'opacity-30', 'scale-105', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
             } else if (idx < newIndex) {
-              child.classList.remove('text-primary', 'scale-105', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'text-white/30', 'hover:text-white/50', 'text-primary/70');
-              child.classList.add('scale-100');
+              child.classList.remove('text-primary', 'opacity-100', 'text-primary/70', 'scale-105', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
+              child.classList.add('opacity-40');
               if (isSectionHeader) {
                 child.classList.add('text-primary/40');
               } else {
                 child.classList.add('text-white/40');
               }
             } else {
-              child.classList.remove('text-primary', 'scale-105', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'text-white/40', 'text-primary/40');
-              child.classList.add('scale-100');
+              child.classList.remove('text-primary', 'opacity-100', 'text-white/40', 'text-primary/40', 'scale-105', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
+              child.classList.add('opacity-30');
               if (isSectionHeader) {
                 child.classList.add('text-primary/70');
               } else {

@@ -288,7 +288,7 @@ export default function FullScreenPlayerUI({
           </div>
         </div>
 
-        <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-foreground/10 rounded-3xl border border-white/20 backdrop-blur-2xl overflow-hidden shadow-2xl relative">
+        <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-black/40 rounded-3xl border border-white/15 overflow-hidden shadow-2xl relative">
           
           {activeTab === 'lyrics' && isUserScrolled && lrcLines.length > 0 && (
             <button 
@@ -347,8 +347,12 @@ export default function FullScreenPlayerUI({
               <div 
                 className="h-full overflow-y-auto custom-scrollbar p-6 relative"
                 onScroll={handleUserScroll}
-                onWheel={() => setIsUserScrolled(true)}
-                onTouchMove={() => setIsUserScrolled(true)}
+                onWheel={() => {
+                  if (!isUserScrolled) setIsUserScrolled(true);
+                }}
+                onTouchMove={() => {
+                  if (!isUserScrolled) setIsUserScrolled(true);
+                }}
               >
                 <div className="h-full flex flex-col items-center justify-start text-center max-w-[600px] mx-auto py-10 relative">
                   {loadingLyrics ? (
@@ -361,7 +365,7 @@ export default function FullScreenPlayerUI({
                         
                         if (line.isInterlude) {
                           return (
-                            <div key={idx} className={`flex justify-center items-center gap-4 transition-all duration-300 py-6 ${isActive ? 'scale-105' : 'opacity-40'}`}>
+                            <div key={idx} className={`flex justify-center items-center gap-4 py-6 transition-opacity duration-200 ${isActive ? 'opacity-100' : 'opacity-40'}`}>
                               {[0, 1, 2].map(i => (
                                 <div key={i} className="w-3 h-3 rounded-full bg-white/20 relative overflow-hidden shadow-inner">
                                   <div 
@@ -379,12 +383,12 @@ export default function FullScreenPlayerUI({
                         return (
                           <div 
                             key={idx} 
-                            className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight cursor-pointer px-4 transition-[color,transform,opacity] duration-300 ease-out transform-gpu origin-center ${
+                            className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight cursor-pointer px-4 transition-colors duration-200 ${
                               isActive 
-                                ? 'text-primary scale-105 [text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
+                                ? 'text-primary opacity-100' 
                                 : isPast 
-                                  ? 'text-white/40 scale-100' 
-                                  : 'text-white/30 hover:text-foreground/50 scale-100'
+                                  ? 'text-white/40 opacity-40' 
+                                  : 'text-white/30 opacity-30 hover:opacity-75'
                             }`}
                             onClick={() => {
                               if (role === 'listener') return;

@@ -1,4 +1,3 @@
-import { motion, type Variants } from 'framer-motion';
 import { useEffect, useState, useMemo } from 'react';
 import { fetchAlbums, getGenres, fetchFrequentAlbums, fetchRandomTracks } from '../../api/subsonic';
 import AlbumCarousel from './AlbumCarousel';
@@ -19,30 +18,6 @@ interface MainContentCache {
 }
 
 let cachedMainContent: MainContentCache | null = null;
-
-
-const mainContainerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.02
-    }
-  }
-};
-
-const sectionVariants: Variants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.28,
-      ease: 'easeOut'
-    }
-  }
-};
 
 export default function MainContent() {
   const { t } = useTranslation();
@@ -149,42 +124,37 @@ export default function MainContent() {
   }
 
   return (
-    <motion.div 
-      variants={mainContainerVariants}
-      initial="hidden"
-      animate="visible"
-      className="flex flex-1 flex-col bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar pt-10"
-    >
+    <div className="flex flex-1 flex-col bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar pt-10">
       {(displayAlbums.length === 0 && offlineTracks.length === 0) ? (
-        <motion.div variants={sectionVariants} className="flex flex-col items-center justify-center flex-1 h-full min-h-[50vh] text-center opacity-70">
+        <div className="animate-home-section flex flex-col items-center justify-center flex-1 h-full min-h-[50vh] text-center opacity-70">
           <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-secondary"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
           </div>
           <h2 className="text-xl font-bold text-white mb-2">{t('empty_state.title', 'Здесь пока пусто')}</h2>
           <p className="text-sm text-secondary">{t('empty_state.description', 'Добавьте музыку на сервер или загрузите для оффлайна')}</p>
-        </motion.div>
+        </div>
       ) : (
         <>
-          <motion.div variants={sectionVariants} className="transform-gpu will-change-transform">
+          <div className="animate-home-section" style={{ animationDelay: '0ms' }}>
             <AlbumCarousel 
               title={isOfflineMode ? t('views.downloaded_albums') : t('common.discover_new')} 
               albums={isOfflineMode ? displayAlbums : randomAlbums} 
               variant="hero" 
               baseDelay={0}
             />
-          </motion.div>
-          <motion.div variants={sectionVariants} className="transform-gpu will-change-transform">
+          </div>
+          <div className="animate-home-section" style={{ animationDelay: '70ms' }}>
             <GenreCarousel title={t('views.radio_genres')} genres={displayGenres} baseDelay={60} />
-          </motion.div>
-          <motion.div variants={sectionVariants} className="transform-gpu will-change-transform">
+          </div>
+          <div className="animate-home-section" style={{ animationDelay: '140ms' }}>
             {isOfflineMode ? (
               <TrackCarousel title={t('views.downloaded_tracks')} tracks={offlineTracks} baseDelay={120} />
             ) : (
               <AlbumCarousel title={t('common.most_played')} albums={displayAlbums} variant="standard" baseDelay={120} />
             )}
-          </motion.div>
+          </div>
         </>
       )}
-    </motion.div>
+    </div>
   );
 }
