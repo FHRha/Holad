@@ -49,14 +49,14 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
           {loadingLyrics ? (
             <p className="text-secondary animate-pulse text-base mt-20">{t('player.loading_lyrics')}</p>
           ) : lrcLines.length > 0 ? (
-            <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[30vh] pb-[30vh] w-full transition-all duration-300">
+            <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[30vh] pb-[30vh] w-full transform-gpu">
               {lrcLines.map((line, idx) => {
                 const isLyricActive = idx === activeLyricIndexRef.current;
                 const isPast = idx < activeLyricIndexRef.current;
                 
                 if (line.isInterlude) {
                   return (
-                    <div key={idx} className={`flex justify-center items-center gap-3 transition-all duration-500 py-4 ${isLyricActive ? 'scale-110' : 'opacity-40'}`}>
+                    <div key={idx} className={`flex justify-center items-center gap-3 transition-all duration-300 py-4 ${isLyricActive ? 'scale-110' : 'opacity-40'}`}>
                       {[0, 1, 2].map(i => (
                         <div key={i} className="w-2 h-2 rounded-full bg-secondary/40 relative overflow-hidden">
                           <div 
@@ -76,9 +76,9 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
                 return (
                   <div 
                     key={idx} 
-                    className={`text-xl md:text-2xl font-bold tracking-tight transition-all duration-500 px-2 ${
+                    className={`text-xl md:text-2xl font-bold tracking-tight px-2 transition-[color,transform,opacity] duration-300 ease-out transform-gpu origin-center ${
                       isLyricActive 
-                        ? 'text-primary scale-110 drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
+                        ? 'text-primary scale-105 [text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
                         : isPast 
                           ? (isSectionHeader ? 'text-primary/40' : 'text-secondary/70')
                           : (isSectionHeader ? 'text-primary/70' : 'text-secondary/50 hover:text-secondary')

@@ -110,7 +110,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
         const targetScroll = container.scrollTop + (elementRect.top - containerRect.top) - (containerRect.height / 2) + (elementRect.height / 2);
         
         container.scrollTo({
-          top: targetScroll,
+          top: Math.round(targetScroll),
           behavior: 'smooth'
         });
       }
@@ -118,7 +118,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     
     autoScrollTimeoutRef.current = setTimeout(() => {
       isAutoScrolling.current = false;
-    }, 1200) as unknown as number;
+    }, 600) as unknown as number;
   };
 
   // Karaoke Loop
@@ -180,17 +180,17 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
             const isSectionHeader = child.textContent?.trim().startsWith('[') || child.textContent?.trim().startsWith('(');
             
             if (idx === newIndex) {
-              child.classList.add('text-primary', 'scale-110', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
-              child.classList.remove('text-white/40', 'text-white/30', 'hover:text-white/50', 'text-primary/40', 'text-primary/70');
+              child.classList.add('text-primary', 'scale-105', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
+              child.classList.remove('text-white/40', 'text-white/30', 'hover:text-white/50', 'text-primary/40', 'text-primary/70', 'scale-110', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
             } else if (idx < newIndex) {
-              child.classList.remove('text-primary', 'scale-110', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'text-white/30', 'hover:text-white/50', 'text-primary/70');
+              child.classList.remove('text-primary', 'scale-105', 'scale-110', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'text-white/30', 'hover:text-white/50', 'text-primary/70');
               if (isSectionHeader) {
                 child.classList.add('text-primary/40');
               } else {
                 child.classList.add('text-white/40');
               }
             } else {
-              child.classList.remove('text-primary', 'scale-110', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'text-white/40', 'text-primary/40');
+              child.classList.remove('text-primary', 'scale-105', 'scale-110', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'text-white/40', 'text-primary/40');
               if (isSectionHeader) {
                 child.classList.add('text-primary/70');
               } else {
