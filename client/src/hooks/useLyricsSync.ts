@@ -7,6 +7,7 @@ import { usePlayerStore, type Track } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 import { getAudioEngine } from '../audio/AudioEngine';
 import { subscribeWindowVisibility, getIsWindowVisible } from './useWindowVisibility';
+import { useHoladStore } from '../store/holadStore';
 
 export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTMLAudioElement | null, isActive: boolean) {
   const [lyricsText, setLyricsText] = useState<string | null>(null);
@@ -68,9 +69,11 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
   const isUserScrolledRef = useRef(false);
   const userScrollTimeoutRef = useRef<number | null>(null);
   const activeLyricIndexRef = useRef(-1);
+  const isResizingRef = useRef(false);
+  const resizeDebounceTimeoutRef = useRef<number | null>(null);
 
   const handleUserScroll = () => {
-    if (isAutoScrolling.current) {
+    if (isAutoScrolling.current || isResizingRef.current) {
       if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
       autoScrollTimeoutRef.current = setTimeout(() => {
         isAutoScrolling.current = false;
@@ -81,7 +84,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       
       if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current);
       
-      if (audioElement && !audioElement.paused) {
+      if (usePlayerStore.getState().isPlaying) {
         userScrollTimeoutRef.current = setTimeout(() => {
           setIsUserScrolled(false);
           isUserScrolledRef.current = false;
@@ -98,7 +101,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     }
   };
 
-  const scrollToActiveElement = (activeElement: HTMLElement) => {
+  const scrollToActiveElement = (activeElement: HTMLElement, behavior: ScrollBehavior = 'smooth') => {
     isAutoScrolling.current = true;
     if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
     
@@ -111,15 +114,54 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
         
         container.scrollTo({
           top: targetScroll,
-          behavior: 'smooth'
+          behavior
         });
       }
     }
     
     autoScrollTimeoutRef.current = setTimeout(() => {
       isAutoScrolling.current = false;
-    }, 1200) as unknown as number;
+    }, behavior === 'smooth' ? 1200 : 150) as unknown as number;
   };
+
+  // Re-center active line and ignore scroll layout events on window or container resize
+  useEffect(() => {
+    let resizeObserver: ResizeObserver | null = null;
+
+    const handleResize = () => {
+      isResizingRef.current = true;
+      if (resizeDebounceTimeoutRef.current) clearTimeout(resizeDebounceTimeoutRef.current);
+      resizeDebounceTimeoutRef.current = setTimeout(() => {
+        isResizingRef.current = false;
+        if (lyricsContainerRef.current) {
+          const targetIndex = Math.max(0, activeLyricIndexRef.current);
+          const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
+          if (activeElement && !isUserScrolledRef.current) {
+            scrollToActiveElement(activeElement, 'auto');
+          }
+        }
+      }, 120) as unknown as number;
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    const scrollContainer = lyricsContainerRef.current?.closest('.overflow-y-auto') as HTMLElement | null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(handleResize);
+      if (scrollContainer) {
+        resizeObserver.observe(scrollContainer);
+      }
+      if (lyricsContainerRef.current) {
+        resizeObserver.observe(lyricsContainerRef.current);
+      }
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (resizeObserver) resizeObserver.disconnect();
+      if (resizeDebounceTimeoutRef.current) clearTimeout(resizeDebounceTimeoutRef.current);
+    };
+  }, [lrcLines.length, isActive]);
 
   // Karaoke Loop
   useEffect(() => {
@@ -137,7 +179,17 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
 
       const audioStore = useAudioStore.getState();
       const duration = currentTrack?.duration || 1;
-      const currentTime = (audioStore.progress / 100) * duration;
+      let currentTime = (audioStore.progress / 100) * duration;
+      const engine = getAudioEngine();
+      const engDur = engine.getDuration();
+      const holadState = useHoladStore.getState();
+      const isLocalActive = !holadState.roomId || holadState.activeDeviceId === holadState.deviceId;
+      if (isLocalActive && engDur > 0) {
+        const engTime = engine.getCurrentTime();
+        if (typeof engTime === 'number' && !isNaN(engTime) && engTime >= 0) {
+          currentTime = engTime;
+        }
+      }
 
       let newIndex = 0;
       for (let i = 0; i < lrcLines.length; i++) {
@@ -229,17 +281,17 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     };
   }, [audioElement, lrcLines, isActive]);
 
-  // Jump to current active line when switching back to lyrics tab
+  // Jump to current active line when switching back to lyrics tab or when lyrics finish loading
   useEffect(() => {
-    if (isActive && lyricsContainerRef.current) {
+    if (isActive && lyricsContainerRef.current && lrcLines.length > 0) {
       // oxlint-disable-next-line
       const targetIndex = Math.max(0, activeLyricIndexRef.current);
       const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
       if (activeElement && !isUserScrolledRef.current) {
-        scrollToActiveElement(activeElement);
+        scrollToActiveElement(activeElement, 'auto');
       }
     }
-  }, [isActive]);
+  }, [isActive, lrcLines.length]);
 
   const forceSync = () => {
     setIsUserScrolled(false);
