@@ -120,7 +120,7 @@ const mobileSectionVariants: Variants = {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.4,
+      duration: 0.28,
       ease: 'easeOut'
     }
   }
@@ -334,18 +334,27 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
             <ChevronRight size={24} className="text-secondary group-hover:text-foreground transition-colors" />
           </div>
           <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-            <StatCard icon={<Music size={18} className="text-primary" />} value={stats.totalPlays.toString()} label={t('views.tracks_count_label')} />
-            <StatCard icon={<Clock size={18} className="text-primary" />} value={Math.floor(stats.totalListeningSeconds / 3600) + t('views.time_h')} label={t('views.time_label')} />
-            <StatCard icon={<Users size={18} className="text-primary" />} value={stats.uniqueArtists.toString()} label={t('views.artists_short')} />
-            <StatCard icon={<Flame size={18} className="text-primary" />} value={stats.streak + t('views.days_short')} label={t('views.streak_label')} />
+            <div className="animate-cascade-item" style={{ animationDelay: '0ms' }}>
+              <StatCard icon={<Music size={18} className="text-primary" />} value={stats.totalPlays.toString()} label={t('views.tracks_count_label')} />
+            </div>
+            <div className="animate-cascade-item" style={{ animationDelay: '40ms' }}>
+              <StatCard icon={<Clock size={18} className="text-primary" />} value={Math.floor(stats.totalListeningSeconds / 3600) + t('views.time_h')} label={t('views.time_label')} />
+            </div>
+            <div className="animate-cascade-item" style={{ animationDelay: '80ms' }}>
+              <StatCard icon={<Users size={18} className="text-primary" />} value={stats.uniqueArtists.toString()} label={t('views.artists_short')} />
+            </div>
+            <div className="animate-cascade-item" style={{ animationDelay: '120ms' }}>
+              <StatCard icon={<Flame size={18} className="text-primary" />} value={stats.streak + t('views.days_short')} label={t('views.streak_label')} />
+            </div>
           </div>
         </motion.section>
 
-        <motion.div variants={mobileSectionVariants}><ScrollableSection title={t('views.on_the_wave')}>
+        <motion.div variants={mobileSectionVariants} className="transform-gpu will-change-transform"><ScrollableSection title={t('views.on_the_wave')}>
             <button 
               onClick={startRandomRadio}
               disabled={loadingStation === 'random'}
-              className="flex-shrink-0 flex items-center bg-primary text-black border border-transparent rounded-full pl-4 pr-3 py-2 font-bold text-[15px] transition-all hover:scale-105 active:scale-95 shadow-md disabled:opacity-50"
+              className="flex-shrink-0 flex items-center bg-primary text-black border border-transparent rounded-full pl-4 pr-3 py-2 font-bold text-[15px] transition-all hover:scale-105 active:scale-95 shadow-md disabled:opacity-50 animate-cascade-item"
+              style={{ animationDelay: '40ms' }}
             >
               {loadingStation === 'random' ? <Loader2 size={18} className="animate-spin mr-2" /> : <Shuffle size={18} className="mr-2" />}
               {t('common.shuffle')}
@@ -359,7 +368,8 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                   key={idx} 
                   onClick={() => startGenreRadio(g.value)}
                   disabled={loadingStation === g.value}
-                  className={`flex-shrink-0 flex items-center ${colorClass} text-white hover:brightness-110 border border-transparent rounded-full pl-4 pr-3 py-2 font-bold text-[15px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50`}
+                  className={`flex-shrink-0 flex items-center ${colorClass} text-white hover:brightness-110 border border-transparent rounded-full pl-4 pr-3 py-2 font-bold text-[15px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 animate-cascade-item`}
+                  style={{ animationDelay: `${60 + Math.min(idx * 40, 240)}ms` }}
                 >
                   {loadingStation === g.value && <Loader2 size={14} className="animate-spin mr-2" />}
                   {formatGenre(g.value, t)}
@@ -379,12 +389,14 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
           </div>
         ) : (
           <>
-            <ScrollableSection title={isOffline || activeFilter === 'Downloaded' ? t('views.downloaded_tracks') : t('views.recently_played')} onRefresh={() => setRefreshRecentKey(k => k + 1)}>
-                {actualRecent.map((track, idx) => (
-                  <LongPressWrapper 
-                    key={track.id} 
-                    className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start"
-                    onClick={() => playRecentTrack(track)}
+            <motion.div variants={mobileSectionVariants} className="transform-gpu will-change-transform">
+              <ScrollableSection title={isOffline || activeFilter === 'Downloaded' ? t('views.downloaded_tracks') : t('views.recently_played')} onRefresh={() => setRefreshRecentKey(k => k + 1)}>
+                  {actualRecent.map((track, idx) => (
+                    <LongPressWrapper 
+                      key={track.id} 
+                      className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start animate-cascade-item"
+                      style={{ animationDelay: `${80 + Math.min(idx * 45, 280)}ms` }}
+                      onClick={() => playRecentTrack(track)}
                     onLongPress={(e: any) => {
                       e.preventDefault?.();
                       openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
@@ -413,14 +425,17 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                     </div>
                   </LongPressWrapper>
                 ))}
-            </ScrollableSection>
+              </ScrollableSection>
+            </motion.div>
 
-            <ScrollableSection title={isOffline || activeFilter === 'Downloaded' ? t('views.downloaded_albums') : t('views.frequently_played')} onRefresh={() => setRefreshFrequentKey(k => k + 1)}>
-                {actualFrequent.map((album, idx) => (
-                  <LongPressWrapper 
-                    key={album.id} 
-                    className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start"
-                    onClick={() => {
+            <motion.div variants={mobileSectionVariants} className="transform-gpu will-change-transform">
+              <ScrollableSection title={isOffline || activeFilter === 'Downloaded' ? t('views.downloaded_albums') : t('views.frequently_played')} onRefresh={() => setRefreshFrequentKey(k => k + 1)}>
+                  {actualFrequent.map((album, idx) => (
+                    <LongPressWrapper 
+                      key={album.id} 
+                      className="flex flex-col gap-2 flex-shrink-0 w-36 lg:w-40 cursor-pointer snap-start animate-cascade-item"
+                      style={{ animationDelay: `${120 + Math.min(idx * 45, 280)}ms` }}
+                      onClick={() => {
                       usePlayerStore.getState().setIsProcessing(true);
                       subsonicApi.getAlbum(album.id).then(tracks => {
                             const mappedTracks = tracks.map((t: any) => ({
@@ -460,7 +475,8 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                     </div>
                   </LongPressWrapper>
                 ))}
-            </ScrollableSection>
+              </ScrollableSection>
+            </motion.div>
           </>
         )}
 

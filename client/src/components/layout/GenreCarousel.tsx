@@ -14,9 +14,10 @@ import { getSpotifyGenreColor } from '../../constants/genreColors';
 interface GenreCarouselProps {
   title: string;
   genres: any[];
+  baseDelay?: number;
 }
 
-export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
+export default function GenreCarousel({ title, genres, baseDelay = 0 }: GenreCarouselProps) {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -151,8 +152,13 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
           return (
             <div 
               key={genre.value} 
-              className="snap-start flex-shrink-0 h-[160px] transition-transform duration-300 transform-gpu" 
-              style={{ width: 'calc(20% - 13px)', minWidth: '160px', maxWidth: '240px' }}
+              className="snap-start flex-shrink-0 h-[160px] transition-transform duration-300 transform-gpu animate-cascade-item" 
+              style={{ 
+                width: 'calc(20% - 13px)', 
+                minWidth: '160px', 
+                maxWidth: '240px',
+                animationDelay: `${baseDelay + Math.min(idx * 45, 360)}ms`
+              }}
             >
               <div 
                 onClick={isThisLoading ? undefined : () => startGenreRadio(genre.value)}

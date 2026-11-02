@@ -170,16 +170,17 @@ export default function MainContent() {
               title={isOfflineMode ? t('views.downloaded_albums') : t('common.discover_new')} 
               albums={isOfflineMode ? displayAlbums : randomAlbums} 
               variant="hero" 
+              baseDelay={0}
             />
           </motion.div>
           <motion.div variants={sectionVariants} className="transform-gpu will-change-transform">
-            <GenreCarousel title={t('views.radio_genres')} genres={displayGenres} />
+            <GenreCarousel title={t('views.radio_genres')} genres={displayGenres} baseDelay={60} />
           </motion.div>
           <motion.div variants={sectionVariants} className="transform-gpu will-change-transform">
             {isOfflineMode ? (
-              <TrackCarousel title={t('views.downloaded_tracks')} tracks={offlineTracks} />
+              <TrackCarousel title={t('views.downloaded_tracks')} tracks={offlineTracks} baseDelay={120} />
             ) : (
-              <AlbumCarousel title={t('common.most_played')} albums={displayAlbums} variant="standard" />
+              <AlbumCarousel title={t('common.most_played')} albums={displayAlbums} variant="standard" baseDelay={120} />
             )}
           </motion.div>
         </>

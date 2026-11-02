@@ -8,9 +8,10 @@ interface AlbumCarouselProps {
   title: string;
   albums: any[];
   variant?: 'hero' | 'standard';
+  baseDelay?: number;
 }
 
-export default function AlbumCarousel({ title, albums, variant = 'standard' }: AlbumCarouselProps) {
+export default function AlbumCarousel({ title, albums, variant = 'standard', baseDelay = 0 }: AlbumCarouselProps) {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -69,14 +70,15 @@ export default function AlbumCarousel({ title, albums, variant = 'standard' }: A
         className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar py-4 -my-4"
         style={{ scrollSnapType: 'x mandatory' }}
       >
-        {albums.map((album) => (
+        {albums.map((album, idx) => (
           <div 
             key={album.id} 
-            className="snap-start flex-shrink-0 h-full transition-transform duration-300 transform-gpu" 
+            className="snap-start flex-shrink-0 h-full transition-transform duration-300 transform-gpu animate-cascade-item" 
             style={{ 
               width: variant === 'hero' ? 'calc(25% - 12px)' : 'calc(20% - 13px)', 
               minWidth: variant === 'hero' ? '220px' : '150px',
-              maxWidth: variant === 'hero' ? '320px' : '220px'
+              maxWidth: variant === 'hero' ? '320px' : '220px',
+              animationDelay: `${baseDelay + Math.min(idx * 45, 360)}ms`
             }}
           >
             {variant === 'hero' ? <HeroAlbumCard album={album} /> : <AlbumCard album={album} />}

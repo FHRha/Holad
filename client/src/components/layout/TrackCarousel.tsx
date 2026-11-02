@@ -11,9 +11,10 @@ import LongPressWrapper from '../common/LongPressWrapper';
 interface TrackCarouselProps {
   title: string;
   tracks: any[];
+  baseDelay?: number;
 }
 
-export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
+export default function TrackCarousel({ title, tracks, baseDelay = 0 }: TrackCarouselProps) {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -91,14 +92,15 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
         className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar py-4 -my-4"
         style={{ scrollSnapType: 'x mandatory' }}
       >
-        {tracks.map((track) => (
+        {tracks.map((track, idx) => (
           <div
             key={track.id}
-            className="snap-start flex flex-col gap-2 flex-shrink-0 cursor-pointer group transition-transform duration-300 transform-gpu"
+            className="snap-start flex flex-col gap-2 flex-shrink-0 cursor-pointer group transition-transform duration-300 transform-gpu animate-cascade-item"
             style={{ 
               width: 'calc(20% - 13px)', 
               minWidth: '150px',
-              maxWidth: '220px'
+              maxWidth: '220px',
+              animationDelay: `${baseDelay + Math.min(idx * 45, 360)}ms`
             }}
           >
             <LongPressWrapper 
