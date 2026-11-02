@@ -419,7 +419,14 @@
     "time": "Время",
     "provided_by_server": "Предоставлено сервером",
     "playback_speed": "Скорость воспроизведения {{speed}}x",
-    "volume": "Громкость"
+    "volume": "Громкость",
+    "open_full_lyrics": "Открыть весь",
+    "single": "Сингл",
+    "tap_for_lyrics": "Нажмите для просмотра текста",
+    "tap_for_full": "Открыть весь",
+    "up_next": "Далее в очереди",
+    "music": "Музыка",
+    "tab_info": "Инфо"
   },
   "views": {
     "loading_albums": "Загрузка альбомов...",

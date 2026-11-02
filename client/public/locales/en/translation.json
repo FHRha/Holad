@@ -419,7 +419,14 @@
     "time": "Time",
     "provided_by_server": "Provided by My Server",
     "playback_speed": "Playback speed {{speed}}x",
-    "volume": "Volume"
+    "volume": "Volume",
+    "open_full_lyrics": "Open full",
+    "single": "Single",
+    "tap_for_lyrics": "Tap to view lyrics",
+    "tap_for_full": "Open full",
+    "up_next": "Next up",
+    "music": "Music",
+    "tab_info": "Info"
   },
   "views": {
     "loading_albums": "Loading albums...",

@@ -42,15 +42,16 @@ export default function MobileQueueTab() {
   };
 
   useEffect(() => {
-    // Scroll to the active track when the tab opens or currentIndex changes
-    if (virtuosoRef.current && currentIndex >= 0 && currentIndex < queue.length) {
-      virtuosoRef.current.scrollToIndex({
+    if (currentIndex < 0 || currentIndex >= queue.length) return;
+    const timer = setTimeout(() => {
+      virtuosoRef.current?.scrollToIndex({
         index: currentIndex,
         align: 'center',
         behavior: 'smooth'
       });
-    }
-  }, [currentIndex, queue.length]);
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [currentIndex]);
 
   const readOnly = role === 'listener';
 
@@ -81,6 +82,7 @@ export default function MobileQueueTab() {
               ref={virtuosoRef}
               className="h-full custom-scrollbar hide-scrollbar"
               data={queue}
+              initialTopMostItemIndex={Math.max(0, currentIndex - 1)}
               overscan={300}
               components={{
                 Footer: () => <div className="h-10 flex-shrink-0" />
