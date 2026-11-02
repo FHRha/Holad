@@ -10,7 +10,7 @@ import { getBasePath, isJamPath } from '../../utils/basePath';
 const isMobileDevice = () => {
   if (typeof window === 'undefined') return false;
   if (isTauri()) return false;
-  return isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+  return isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 900;
 };
 
 export default function NowPlayingModal() {

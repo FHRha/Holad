@@ -35,6 +35,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { preloadAndDecodeImage } from '../../utils/assetPreloader';
 import { getCachedImageUrl } from '../../utils/imageCache';
 
+const TAB_ORDER = ['player', 'queue', 'info', 'lyrics'] as const;
+type TabType = typeof TAB_ORDER[number];
+
 export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const { 
@@ -65,14 +68,31 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const isListenerPage = isStandalone || (isJamRoute && role === 'listener');
   
   const currentTrack = queue[currentIndex];
+  const nextTrackItem = queue[currentIndex + 1];
   
-  const [activeTab, setActiveTab] = useState<'player' | 'queue' | 'info' | 'lyrics'>('player');
+  const [activeTab, setActiveTab] = useState<TabType>('player');
+  const [tabDirection, setTabDirection] = useState<number>(0);
   const [showSleepTimerMenu, setShowSleepTimerMenu] = useState(false);
+
+  const [isWide, setIsWide] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 600 : false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsWide(window.innerWidth >= 600);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleTabChange = (newTab: TabType) => {
+    if (newTab === activeTab) return;
+    const oldIdx = TAB_ORDER.indexOf(activeTab);
+    const newIdx = TAB_ORDER.indexOf(newTab);
+    setTabDirection(newIdx > oldIdx ? 1 : -1);
+    setActiveTab(newTab);
+  };
   
   const { isBookmarked, toggleBookmark: handleBookmark } = useBookmark(currentTrack?.id);
-
-
-
 
   // oxlint-disable-next-line
   const coverArtHighRes = useMemo(() => {
@@ -132,7 +152,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       }
 
       if (candidate && isMounted) {
-        // Preload and GPU decode before updating background cover
         await preloadAndDecodeImage(candidate);
         if (isMounted) {
           setDisplayedBgCover(candidate);
@@ -197,7 +216,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       }
       
       if (timeTextRef.current) {
-        // Only update text if not seeking, to avoid jumping text while user drags
         if (!useAudioStore.getState().isSeeking) {
           timeTextRef.current.textContent = formatTime(t);
         } else {
@@ -214,11 +232,61 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     };
     updateTime();
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isPlaying, progress, duration, activeTab]);
+  }, [isPlaying, progress, duration, activeTab, isWide]);
 
   if (!currentTrack) return null;
 
   const isLiked = likedTrackIds.includes(currentTrack.id);
+
+  // Common Seekbar and Controls block to eliminate repetition
+  const ControlsSection = (
+    <div className="w-full flex flex-col gap-5 mt-auto">
+      <div className="w-full flex flex-col gap-2">
+        <LiquidSeekBar 
+          ref={seekbarRef}
+          value={progress / 100} 
+          buffered={buffered / 100}
+          onChange={handleSeekChange} 
+          onDragEnd={handleSeekEnd} 
+          className={`w-full ${role === 'listener' ? 'pointer-events-none' : ''}`}
+          isAnimated={isPlaying && !isSeeking}
+        />
+        <div className="flex justify-between text-xs font-medium text-secondary px-1">
+          <span ref={timeTextRef}>{formatTime(isSeeking ? (progress / 100) * (duration || 0) : ((progress / 100) * (duration || 0)))}</span>
+          <span>{formatTime(duration)}</span>
+        </div>
+      </div>
+
+      <PlayerTransportBar
+        isPlaying={isPlaying}
+        onPlayPause={handlePlayPause}
+        onNext={nextTrack}
+        onPrev={prevTrack}
+        isShuffle={isShuffle}
+        onToggleShuffle={toggleShuffle}
+        repeatMode={repeatMode}
+        onCycleRepeat={cycleRepeatMode}
+        isListener={role === 'listener'}
+      />
+
+      <div className="flex items-center justify-between w-full px-4 pt-2 text-secondary">
+        <SleepTimerButton 
+          onClick={() => setShowSleepTimerMenu(true)} 
+          isActive={!!sleepTimer.type} 
+        />
+        <SeekControls currentTrack={currentTrack} role={role}>
+          <PlaybackRateButton 
+            playbackRate={playbackRate} 
+            onCycle={cyclePlaybackRate} 
+            disabled={role === 'listener'} 
+          />
+        </SeekControls>
+        <button onClick={handleBookmark} className={`hover:text-foreground transition-colors active:scale-95 ${isBookmarked ? 'text-primary' : ''}`}>
+          <Bookmark size={20} fill={isBookmarked ? 'currentColor' : 'none'} />
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <motion.div 
@@ -258,6 +326,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       </div>
       <div className="absolute inset-0 z-0 bg-black/40 pointer-events-none" />
 
+      {/* Top Header */}
       <div className="relative z-10 flex items-center justify-between px-4 py-3 w-full">
         {!isListenerPage ? (
           <button 
@@ -302,109 +371,206 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      <div className={`relative z-10 flex-1 flex flex-col items-center justify-between w-full max-w-md mx-auto min-h-0 ${activeTab === 'player' ? 'px-6 pb-6 overflow-y-auto hide-scrollbar' : 'px-0 pb-0 overflow-hidden'}`}>
-        
-        <div className={`w-full flex-1 flex flex-col justify-start min-h-0 overflow-hidden ${activeTab === 'player' ? 'mb-2 mt-2' : 'h-full'}`}>
-          {activeTab === 'player' && (
-            <div className="w-full h-full flex items-center justify-center transition-opacity duration-300">
-              <div className="h-full max-h-full max-w-full aspect-square transition-all duration-300">
-                <TrackImage 
-                  src={activeCoverSrc} 
-                  trackId={currentTrack.id}
-                  className="w-full h-full rounded-3xl shadow-2xl object-cover border border-border bg-card" 
-                  alt={currentTrack.title} 
-                  priority={true}
-                />
-              </div>
+      {/* Main Content Area */}
+      {isWide ? (
+        /* Dual-Column Foldable / Tablet Split-View Layout (Benchmark: Galaxy Z Fold unfolded >= 600px) */
+        <div className="relative z-10 flex-1 flex flex-row items-center justify-center w-full max-w-5xl mx-auto px-6 py-2 gap-8 min-h-0 overflow-hidden">
+          {/* Left Column: Fixed Cover & Title Area */}
+          <div className="w-[45%] max-w-[380px] h-full flex flex-col items-center justify-center shrink-0">
+            <div className="w-full aspect-square max-h-[46vh] flex items-center justify-center">
+              <TrackImage 
+                src={activeCoverSrc} 
+                trackId={currentTrack.id}
+                className="w-full h-full rounded-3xl shadow-2xl object-cover border border-border bg-card" 
+                alt={currentTrack.title} 
+                priority={true}
+              />
             </div>
-          )}
-          {activeTab === 'queue' && (
-            <MobileQueueTab />
-          )}
-          {activeTab === 'info' && (
-            <MobileInfoTab currentTrack={currentTrack} />
-          )}
-          {activeTab === 'lyrics' && (
-            <MobileLyricsTab currentTrack={currentTrack} isActive={activeTab === 'lyrics'} />
-          )}
-        </div>
 
-        {activeTab === 'player' && (
-          <div className="w-full flex flex-col gap-5 mt-auto">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col overflow-hidden mr-4">
-                <h1 className="text-2xl font-bold text-foreground truncate drop-shadow-md">{currentTrack.title}</h1>
-                <h2 className="text-base text-secondary truncate drop-shadow-md">{formatArtistName(currentTrack.artist)}</h2>
+            <div className="w-full flex items-center justify-between mt-4">
+              <div className="flex flex-col overflow-hidden mr-3">
+                <h1 className="text-xl md:text-2xl font-bold text-foreground truncate drop-shadow-md">{currentTrack.title}</h1>
+                <h2 className="text-sm md:text-base text-secondary truncate drop-shadow-md">{formatArtistName(currentTrack.artist)}</h2>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <button 
                   onClick={handleLike}
-                  className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${isLiked ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+                  className={`p-2 rounded-full transition-colors active:scale-95 ${isLiked ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
                 >
-                  <Heart size={24} fill={isLiked ? 'currentColor' : 'none'} />
+                  <Heart size={22} fill={isLiked ? 'currentColor' : 'none'} />
                 </button>
                 <button 
                   onClick={() => toggleTrackExclude(currentTrack.id, currentTrack)}
-                  className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${isTrackExcluded(currentTrack, excludedTrackIds, excludedAlbumIds, excludedFingerprints) ? 'text-red-500' : 'text-secondary'}`}
+                  className={`p-2 rounded-full transition-colors active:scale-95 ${isTrackExcluded(currentTrack, excludedTrackIds, excludedAlbumIds, excludedFingerprints) ? 'text-red-500' : 'text-secondary'}`}
                 >
-                  <Ban size={24} />
+                  <Ban size={22} />
                 </button>
               </div>
             </div>
-
-            <div className="w-full flex flex-col gap-2">
-              <LiquidSeekBar 
-                ref={seekbarRef}
-                value={progress / 100} 
-                buffered={buffered / 100}
-                onChange={handleSeekChange} 
-                onDragEnd={handleSeekEnd} 
-                className={`w-full ${role === 'listener' ? 'pointer-events-none' : ''}`}
-                isAnimated={isPlaying && !isSeeking}
-              />
-              <div className="flex justify-between text-xs font-medium text-secondary px-1">
-                <span ref={timeTextRef}>{formatTime(isSeeking ? (progress / 100) * (duration || 0) : ((progress / 100) * (duration || 0)))}</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-            </div>
-
-            <PlayerTransportBar
-              isPlaying={isPlaying}
-              onPlayPause={handlePlayPause}
-              onNext={nextTrack}
-              onPrev={prevTrack}
-              isShuffle={isShuffle}
-              onToggleShuffle={toggleShuffle}
-              repeatMode={repeatMode}
-              onCycleRepeat={cycleRepeatMode}
-              isListener={role === 'listener'}
-            />
-
-            <div className="flex items-center justify-between w-full px-4 pt-2 text-secondary">
-              <SleepTimerButton 
-                onClick={() => setShowSleepTimerMenu(true)} 
-                isActive={!!sleepTimer.type} 
-              />
-              <SeekControls currentTrack={currentTrack} role={role}>
-                <PlaybackRateButton 
-                  playbackRate={playbackRate} 
-                  onCycle={cyclePlaybackRate} 
-                  disabled={role === 'listener'} 
-                />
-              </SeekControls>
-              <button onClick={handleBookmark} className={`hover:text-foreground transition-colors active:scale-95 ${isBookmarked ? 'text-primary' : ''}`}>
-                <Bookmark size={20} fill={isBookmarked ? 'currentColor' : 'none'} />
-              </button>
-            </div>
           </div>
-        )}
-      </div>
 
+          {/* Right Column: Tab View Area with Smooth Transitions */}
+          <div className="flex-1 h-full min-h-0 flex flex-col justify-between overflow-hidden relative">
+            {activeTab === 'player' ? (
+              <motion.div
+                key="player-tab-right"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                className="w-full h-full flex flex-col justify-between py-2"
+              >
+                {/* Up Next / Lyrics Teaser Banner */}
+                {nextTrackItem ? (
+                  <div 
+                    onClick={() => handleTabChange('queue')}
+                    className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 backdrop-blur-md cursor-pointer transition-colors group mb-auto select-none"
+                  >
+                    <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-card border border-border">
+                      <TrackImage 
+                        src={nextTrackItem.coverArt ? getCoverArtUrl(nextTrackItem.coverArt, 120) : ''} 
+                        trackId={nextTrackItem.id} 
+                        className="w-full h-full object-cover" 
+                        alt={nextTrackItem.title} 
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                        {t('player.up_next', 'Далее в очереди')}
+                      </span>
+                      <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                        {nextTrackItem.title}
+                      </p>
+                      <p className="text-xs text-secondary truncate">
+                        {'• ' + formatArtistName(nextTrackItem.artist)}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div 
+                    onClick={() => handleTabChange('lyrics')}
+                    className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 backdrop-blur-md cursor-pointer transition-colors group mb-auto select-none"
+                  >
+                    <MessageSquareQuote size={20} className="text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                        {t('player.lyrics', 'Текст песни')}
+                      </span>
+                      <p className="text-xs text-secondary truncate">
+                        {t('player.tap_for_lyrics', 'Нажмите для просмотра синхронного текста')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {ControlsSection}
+              </motion.div>
+            ) : (
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: tabDirection > 0 ? 24 : -24 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                className="w-full h-full flex flex-col min-h-0 overflow-hidden"
+              >
+                {activeTab === 'queue' && <MobileQueueTab />}
+                {activeTab === 'info' && <MobileInfoTab currentTrack={currentTrack} />}
+                {activeTab === 'lyrics' && <MobileLyricsTab currentTrack={currentTrack} isActive={activeTab === 'lyrics'} />}
+              </motion.div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Single-Column Classical Mobile Layout (< 600px) */
+        <div className={`relative z-10 flex-1 flex flex-col items-center justify-between w-full max-w-md mx-auto min-h-0 ${activeTab === 'player' ? 'px-6 pb-6 overflow-y-auto hide-scrollbar' : 'px-0 pb-0 overflow-hidden'}`}>
+          {activeTab === 'player' ? (
+            <motion.div
+              key="player-tab-single"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              className="w-full flex-1 flex flex-col justify-between h-full"
+            >
+              <div className="w-full flex-1 flex items-center justify-center min-h-0 overflow-hidden mb-2 mt-2">
+                <div className="h-full max-h-[42vh] aspect-square flex items-center justify-center">
+                  <TrackImage 
+                    src={activeCoverSrc} 
+                    trackId={currentTrack.id}
+                    className="w-full h-full rounded-3xl shadow-2xl object-cover border border-border bg-card" 
+                    alt={currentTrack.title} 
+                    priority={true}
+                  />
+                </div>
+              </div>
+
+              <div className="w-full flex flex-col gap-5 mt-auto">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col overflow-hidden mr-4">
+                    <h1 className="text-2xl font-bold text-foreground truncate drop-shadow-md">{currentTrack.title}</h1>
+                    <h2 className="text-base text-secondary truncate drop-shadow-md">{formatArtistName(currentTrack.artist)}</h2>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={handleLike}
+                      className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${isLiked ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
+                    >
+                      <Heart size={24} fill={isLiked ? 'currentColor' : 'none'} />
+                    </button>
+                    <button 
+                      onClick={() => toggleTrackExclude(currentTrack.id, currentTrack)}
+                      className={`p-2 rounded-full transition-colors active:scale-95 flex-shrink-0 ${isTrackExcluded(currentTrack, excludedTrackIds, excludedAlbumIds, excludedFingerprints) ? 'text-red-500' : 'text-secondary'}`}
+                    >
+                      <Ban size={24} />
+                    </button>
+                  </div>
+                </div>
+
+                {ControlsSection}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, x: tabDirection > 0 ? 24 : -24 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              className="w-full h-full flex flex-col min-h-0 overflow-hidden"
+            >
+              {activeTab === 'queue' && <MobileQueueTab />}
+              {activeTab === 'info' && <MobileInfoTab currentTrack={currentTrack} />}
+              {activeTab === 'lyrics' && <MobileLyricsTab currentTrack={currentTrack} isActive={activeTab === 'lyrics'} />}
+            </motion.div>
+          )}
+        </div>
+      )}
+
+      {/* Bottom Navigation Bar with Spring Layout Pill */}
       <div className="relative z-10 w-full h-[72px] flex-shrink-0 bg-background/40 backdrop-blur-md transform-gpu will-change-transform border-t border-border flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
-        <button onClick={() => setActiveTab('player')} className={`p-3 rounded-full transition-colors ${activeTab === 'player' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
+        <button 
+          onClick={() => handleTabChange('player')} 
+          className={`relative p-3 rounded-full transition-colors z-10 ${activeTab === 'player' ? 'text-primary' : 'text-secondary hover:text-secondary'}`}
+          aria-label={t('player.music', 'Музыка')}
+        >
+          {activeTab === 'player' && (
+            <motion.div
+              layoutId="mobilePlayerActiveTab"
+              className="absolute inset-0 bg-primary/15 rounded-full -z-10"
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            />
+          )}
           <Music size={24} />
         </button>
-        <button onClick={() => setActiveTab('queue')} className={`p-3 rounded-full transition-colors ${activeTab === 'queue' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
+        <button 
+          onClick={() => handleTabChange('queue')} 
+          className={`relative p-3 rounded-full transition-colors z-10 ${activeTab === 'queue' ? 'text-primary' : 'text-secondary hover:text-secondary'}`}
+          aria-label={t('player.queue', 'Очередь')}
+        >
+          {activeTab === 'queue' && (
+            <motion.div
+              layoutId="mobilePlayerActiveTab"
+              className="absolute inset-0 bg-primary/15 rounded-full -z-10"
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            />
+          )}
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="6" x2="21" y2="6"></line>
             <line x1="12" y1="12" x2="21" y2="12"></line>
@@ -412,10 +578,32 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             <polygon points="3 5 9 8.5 3 12 3 5" fill="currentColor" stroke="none"></polygon>
           </svg>
         </button>
-        <button onClick={() => setActiveTab('info')} className={`p-3 rounded-full transition-colors ${activeTab === 'info' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
+        <button 
+          onClick={() => handleTabChange('info')} 
+          className={`relative p-3 rounded-full transition-colors z-10 ${activeTab === 'info' ? 'text-primary' : 'text-secondary hover:text-secondary'}`}
+          aria-label={t('player.info', 'Инфо')}
+        >
+          {activeTab === 'info' && (
+            <motion.div
+              layoutId="mobilePlayerActiveTab"
+              className="absolute inset-0 bg-primary/15 rounded-full -z-10"
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            />
+          )}
           <Info size={24} />
         </button>
-        <button onClick={() => setActiveTab('lyrics')} className={`p-3 rounded-full transition-colors ${activeTab === 'lyrics' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
+        <button 
+          onClick={() => handleTabChange('lyrics')} 
+          className={`relative p-3 rounded-full transition-colors z-10 ${activeTab === 'lyrics' ? 'text-primary' : 'text-secondary hover:text-secondary'}`}
+          aria-label={t('player.lyrics', 'Текст')}
+        >
+          {activeTab === 'lyrics' && (
+            <motion.div
+              layoutId="mobilePlayerActiveTab"
+              className="absolute inset-0 bg-primary/15 rounded-full -z-10"
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            />
+          )}
           <MessageSquareQuote size={24} />
         </button>
       </div>
