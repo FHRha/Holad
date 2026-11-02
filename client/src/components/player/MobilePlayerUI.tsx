@@ -602,9 +602,15 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                   On other tabs ('queue', 'lyrics', 'info') -> Main playback controls (seekbar + transport)! */}
               <div className="w-full min-h-[124px] h-[124px] shrink-0 flex flex-col justify-end overflow-visible relative z-20 pb-1">
                 {activeTab === 'player' ? (
-                  <div className="w-full h-full flex flex-col justify-center">
+                  <motion.div
+                    key="foldSecondaryControls"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.28, delay: 0.08, ease: 'easeOut' }}
+                    className="w-full h-full flex flex-col justify-center"
+                  >
                     {SecondaryControls}
-                  </div>
+                  </motion.div>
                 ) : (
                   <motion.div
                     layoutId="foldPlaybackControls"
@@ -618,7 +624,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             </div>
 
             {/* Right Column: Tab View Area with Smooth Transitions */}
-            <div className="flex-1 h-full min-h-0 flex flex-col justify-between overflow-visible relative py-2">
+            <div className="flex-1 min-w-0 h-full min-h-0 flex flex-col justify-between overflow-visible relative py-2">
               {activeTab === 'player' ? (
                 <>
                   <div className="w-full flex-1 min-h-0 overflow-hidden relative mb-8 md:mb-10">
@@ -679,13 +685,13 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                 </>
               ) : (
                 /* Full-height active tab content on right screen when activeTab !== 'player' */
-                <div className="w-full flex-1 h-full min-h-0 overflow-hidden relative">
+                <div className="w-full flex-1 min-w-0 h-full min-h-0 overflow-hidden relative">
                   <motion.div
                     key={activeTab}
                     initial={{ opacity: 0, x: tabDirection > 0 ? 24 : -24 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.18, ease: 'easeOut' }}
-                    className="w-full h-full flex flex-col min-h-0 overflow-hidden"
+                    className="w-full h-full flex flex-col min-h-0 min-w-0 overflow-hidden"
                   >
                     {activeTab === 'queue' && <MobileQueueTab />}
                     {activeTab === 'info' && <MobileInfoTab currentTrack={currentTrack} />}

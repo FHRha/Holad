@@ -46,8 +46,8 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
   if (!currentTrack) return null;
 
   return (
-    <div className="w-full h-full flex flex-col overflow-y-auto hide-scrollbar px-6 pt-4 pb-4">
-      <div className="flex items-center gap-4 mb-6">
+    <div className="w-full h-full flex flex-col min-w-0 overflow-y-auto hide-scrollbar px-4 md:px-6 pt-4 pb-4">
+      <div className="flex items-center gap-4 mb-6 min-w-0">
         <div className="w-24 h-24 rounded-lg overflow-hidden shadow-lg flex-shrink-0 bg-black/20">
           <TrackImage src={getCoverArtUrl(currentTrack.id, 300)} className="w-full h-full object-cover" alt={currentTrack.title} />
         </div>
@@ -58,24 +58,24 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-foreground/5 rounded-xl p-4 flex flex-col justify-center items-center">
-          <span className="text-xs text-secondary uppercase font-bold tracking-wider mb-1">{t('player.duration')}</span>
-          <span className="text-sm font-medium text-foreground">{formatTime(currentTrack.duration)}</span>
+      <div className="grid grid-cols-2 gap-3 mb-6 w-full min-w-0">
+        <div className="bg-foreground/5 rounded-2xl p-3 flex flex-col justify-center items-center text-center min-w-0">
+          <span className="text-[10px] md:text-xs text-secondary uppercase font-bold tracking-wider mb-1 truncate max-w-full">{t('player.duration')}</span>
+          <span className="text-sm font-medium text-foreground truncate max-w-full">{formatTime(currentTrack.duration)}</span>
         </div>
-        <div className="bg-foreground/5 rounded-2xl p-4 flex flex-col items-center justify-center">
-          <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.year')}</span>
-          <span className="font-bold text-sm text-foreground">{(currentTrack as any).year || '—'}</span>
-        </div>
-        
-        <div className="bg-foreground/5 rounded-2xl p-4 flex flex-col items-center justify-center">
-          <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.format')}</span>
-          <span className="font-bold text-sm text-foreground uppercase">{currentTrack.suffix || 'MP3'}</span>
+        <div className="bg-foreground/5 rounded-2xl p-3 flex flex-col items-center justify-center text-center min-w-0">
+          <span className="text-[10px] md:text-xs text-secondary font-medium uppercase tracking-wider mb-1 truncate max-w-full">{t('player.info.year')}</span>
+          <span className="font-bold text-sm text-foreground truncate max-w-full">{(currentTrack as any).year || '—'}</span>
         </div>
         
-        <div className="bg-foreground/5 rounded-2xl p-4 flex flex-col items-center justify-center">
-          <span className="text-[10px] text-secondary font-medium uppercase tracking-wider mb-1">{t('player.info.bitrate')}</span>
-          <span className="font-bold text-sm text-foreground">
+        <div className="bg-foreground/5 rounded-2xl p-3 flex flex-col items-center justify-center text-center min-w-0">
+          <span className="text-[10px] md:text-xs text-secondary font-medium uppercase tracking-wider mb-1 truncate max-w-full">{t('player.info.format')}</span>
+          <span className="font-bold text-sm text-foreground uppercase truncate max-w-full">{currentTrack.suffix || 'MP3'}</span>
+        </div>
+        
+        <div className="bg-foreground/5 rounded-2xl p-3 flex flex-col items-center justify-center text-center min-w-0">
+          <span className="text-[10px] md:text-xs text-secondary font-medium uppercase tracking-wider mb-1 truncate max-w-full">{t('player.info.bitrate')}</span>
+          <span className="font-bold text-sm text-foreground truncate max-w-full">
             {currentTrack.bitRate 
               ? `${currentTrack.bitRate} kbps` 
               : 'Unknown'}
@@ -83,7 +83,7 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
         </div>
       </div>
 
-      <div>
+      <div className="min-w-0">
         <h3 className="text-lg font-bold text-foreground mb-3">{t('player.about_artist')}</h3>
         {loading ? (
           <div className="animate-pulse space-y-2">
@@ -93,7 +93,7 @@ export default function MobileInfoTab({ currentTrack }: MobileInfoTabProps) {
           </div>
         ) : artistBio ? (
           <div 
-            className="text-sm text-foreground/70 leading-relaxed text-justify"
+            className="text-sm text-foreground/70 leading-relaxed text-justify break-words overflow-hidden"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(artistBio) }}
           />
         ) : (
