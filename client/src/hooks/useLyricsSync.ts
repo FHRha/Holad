@@ -13,7 +13,6 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
   const [lyricsText, setLyricsText] = useState<string | null>(null);
   const [lrcLines, setLrcLines] = useState<LyricLine[]>([]);
   const [loadingLyrics, setLoadingLyrics] = useState(false);
-  // unused activeLyricIndex state removed
   const [isUserScrolled, setIsUserScrolled] = useState(false);
   
   const isAutoScrolling = useRef(false);
@@ -69,24 +68,20 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
   const isUserScrolledRef = useRef(false);
   const userScrollTimeoutRef = useRef<number | null>(null);
   const activeLyricIndexRef = useRef(-1);
-  const isResizingRef = useRef(false);
-  const resizeDebounceTimeoutRef = useRef<number | null>(null);
 
   const handleUserScroll = () => {
-    if (isAutoScrolling.current || isResizingRef.current) {
+    if (isAutoScrolling.current) {
       if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
       autoScrollTimeoutRef.current = setTimeout(() => {
         isAutoScrolling.current = false;
       }, 200) as unknown as number;
     } else {
-      if (!isUserScrolledRef.current) {
-        isUserScrolledRef.current = true;
-        setIsUserScrolled(true);
-      }
+      setIsUserScrolled(true);
+      isUserScrolledRef.current = true;
       
       if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current);
       
-      if (usePlayerStore.getState().isPlaying) {
+      if (audioElement && !audioElement.paused) {
         userScrollTimeoutRef.current = setTimeout(() => {
           setIsUserScrolled(false);
           isUserScrolledRef.current = false;
@@ -103,7 +98,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     }
   };
 
-  const scrollToActiveElement = (activeElement: HTMLElement, behavior: ScrollBehavior = 'smooth') => {
+  const scrollToActiveElement = (activeElement: HTMLElement) => {
     isAutoScrolling.current = true;
     if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
     
@@ -115,41 +110,16 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
         const targetScroll = container.scrollTop + (elementRect.top - containerRect.top) - (containerRect.height / 2) + (elementRect.height / 2);
         
         container.scrollTo({
-          top: Math.round(targetScroll),
-          behavior
+          top: targetScroll,
+          behavior: 'smooth'
         });
       }
     }
     
     autoScrollTimeoutRef.current = setTimeout(() => {
       isAutoScrolling.current = false;
-    }, behavior === 'smooth' ? 500 : 100) as unknown as number;
+    }, 1200) as unknown as number;
   };
-
-  // Re-center active line on window resize
-  useEffect(() => {
-    const handleResize = () => {
-      isResizingRef.current = true;
-      if (resizeDebounceTimeoutRef.current) clearTimeout(resizeDebounceTimeoutRef.current);
-      resizeDebounceTimeoutRef.current = setTimeout(() => {
-        isResizingRef.current = false;
-        if (lyricsContainerRef.current) {
-          const targetIndex = Math.max(0, activeLyricIndexRef.current);
-          const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
-          if (activeElement && !isUserScrolledRef.current) {
-            scrollToActiveElement(activeElement, 'auto');
-          }
-        }
-      }, 120) as unknown as number;
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (resizeDebounceTimeoutRef.current) clearTimeout(resizeDebounceTimeoutRef.current);
-    };
-  }, [lrcLines.length, isActive]);
 
   // Karaoke Loop
   useEffect(() => {
@@ -199,8 +169,6 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
 
       if (newIndex !== lastActiveIndex) {
         lastActiveIndex = newIndex;
-        // Comment out setState to decouple rAF from React state
-        // setActiveLyricIndex(newIndex);
         activeLyricIndexRef.current = newIndex;
         
         if (lyricsContainerRef.current) {
@@ -212,19 +180,17 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
             const isSectionHeader = child.textContent?.trim().startsWith('[') || child.textContent?.trim().startsWith('(');
             
             if (idx === newIndex) {
-              child.classList.add('text-primary', 'opacity-100');
-              child.classList.remove('text-white/40', 'text-white/30', 'hover:text-white/50', 'text-primary/40', 'text-primary/70', 'opacity-40', 'opacity-30', 'scale-105', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
+              child.classList.add('text-primary', 'scale-110', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
+              child.classList.remove('text-white/40', 'text-white/30', 'hover:text-white/50', 'text-primary/40', 'text-primary/70');
             } else if (idx < newIndex) {
-              child.classList.remove('text-primary', 'opacity-100', 'text-primary/70', 'scale-105', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
-              child.classList.add('opacity-40');
+              child.classList.remove('text-primary', 'scale-110', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'text-white/30', 'hover:text-white/50', 'text-primary/70');
               if (isSectionHeader) {
                 child.classList.add('text-primary/40');
               } else {
                 child.classList.add('text-white/40');
               }
             } else {
-              child.classList.remove('text-primary', 'opacity-100', 'text-white/40', 'text-primary/40', 'scale-105', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
-              child.classList.add('opacity-30');
+              child.classList.remove('text-primary', 'scale-110', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'text-white/40', 'text-primary/40');
               if (isSectionHeader) {
                 child.classList.add('text-primary/70');
               } else {
@@ -271,14 +237,14 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     };
   }, [audioElement, lrcLines, isActive]);
 
-  // Jump to current active line when switching back to lyrics tab or when lyrics finish loading
+  // Jump to current active line when switching back to lyrics tab
   useEffect(() => {
     if (isActive && lyricsContainerRef.current && lrcLines.length > 0) {
       // oxlint-disable-next-line
       const targetIndex = Math.max(0, activeLyricIndexRef.current);
       const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
       if (activeElement && !isUserScrolledRef.current) {
-        scrollToActiveElement(activeElement, 'auto');
+        scrollToActiveElement(activeElement);
       }
     }
   }, [isActive, lrcLines.length]);
@@ -303,8 +269,6 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       setIsUserScrolled(false);
     }
   };
-
-
 
   return {
     lyricsText,

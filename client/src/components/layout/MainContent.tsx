@@ -12,6 +12,7 @@ import { isMobileDevice } from '../../App';
 
 interface MainContentCache {
   albums: any[];
+  randomAlbums: any[];
   recentTracks: any[];
   frequentAlbums: any[];
   genres: any[];
@@ -19,9 +20,19 @@ interface MainContentCache {
 
 let cachedMainContent: MainContentCache | null = null;
 
+function shuffleList<T>(arr: T[]): T[] {
+  const result = [...arr];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 export default function MainContent() {
   const { t } = useTranslation();
   const [albums, setAlbums] = useState<any[]>(() => cachedMainContent?.albums || []);
+  const [randomAlbums, setRandomAlbums] = useState<any[]>(() => cachedMainContent?.randomAlbums || []);
   const [recentTracks, setRecentTracks] = useState<any[]>(() => cachedMainContent?.recentTracks || []);
   const [frequentAlbums, setFrequentAlbums] = useState<any[]>(() => cachedMainContent?.frequentAlbums || []);
   const [genres, setGenres] = useState<any[]>(() => cachedMainContent?.genres || []);
@@ -46,20 +57,6 @@ export default function MainContent() {
     return albums;
   }, [albums, isOfflineMode]);
 
-  const randomAlbums = useMemo(() => {
-    if (displayAlbums.length === 0) return [];
-    // Stable pseudo-random shuffle based on album ID to eliminate mid-transition layout reordering
-    return [...displayAlbums].sort((a, b) => {
-      const idA = String(a.id || a.title || '');
-      const idB = String(b.id || b.title || '');
-      let hA = 0;
-      for (let i = 0; i < idA.length; i++) hA = ((hA << 5) - hA + idA.charCodeAt(i)) | 0;
-      let hB = 0;
-      for (let i = 0; i < idB.length; i++) hB = ((hB << 5) - hB + idB.charCodeAt(i)) | 0;
-      return hA - hB;
-    });
-  }, [displayAlbums]);
-
   const displayGenres = useMemo(() => {
     if (isOfflineMode) {
       const offline = getOfflineTracks();
@@ -77,10 +74,6 @@ export default function MainContent() {
     return [];
   }, [isOfflineMode]);
 
-  useEffect(() => {
-    loadContent();
-  }, []);
-
   const loadContent = async () => {
     try {
       if (!cachedMainContent) {
@@ -96,14 +89,17 @@ export default function MainContent() {
       const newRecent = recentData || [];
       const newFrequent = frequentData || [];
       const newGenres = (genreData || []).slice(0, 15); // top 15 genres for main page
+      const newRandom = cachedMainContent?.randomAlbums?.length ? cachedMainContent.randomAlbums : shuffleList(newAlbums);
 
       setAlbums(newAlbums);
+      setRandomAlbums(newRandom);
       setRecentTracks(newRecent);
       setFrequentAlbums(newFrequent);
       setGenres(newGenres);
 
       cachedMainContent = {
         albums: newAlbums,
+        randomAlbums: newRandom,
         recentTracks: newRecent,
         frequentAlbums: newFrequent,
         genres: newGenres,
@@ -114,6 +110,10 @@ export default function MainContent() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadContent();
+  }, []);
 
   if (loading) {
     return <div className="flex-1 flex items-center justify-center text-secondary">{t('common.loading_music')}</div>;
@@ -138,7 +138,7 @@ export default function MainContent() {
           <div className="animate-home-section" style={{ animationDelay: '0ms' }}>
             <AlbumCarousel 
               title={isOfflineMode ? t('views.downloaded_albums') : t('common.discover_new')} 
-              albums={isOfflineMode ? displayAlbums : randomAlbums} 
+              albums={isOfflineMode ? displayAlbums : (randomAlbums.length > 0 ? randomAlbums : displayAlbums)} 
               variant="hero" 
               baseDelay={0}
             />
