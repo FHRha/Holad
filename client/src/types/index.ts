@@ -17,6 +17,7 @@ export interface Track {
   lyrics?: string;
   lyricsHash?: string;
   fingerprint?: string;
+  year?: number | string;
   isUnavailable?: boolean;
 }
 

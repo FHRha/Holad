@@ -44,6 +44,8 @@ vi.mock('../../api/socket', () => ({
 describe('Mobile Theme & Player Controls Enhancement', () => {
   beforeEach(() => {
     cleanup();
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 375 });
+    window.dispatchEvent(new Event('resize'));
     usePlayerStore.setState({
       queue: [
         {
@@ -87,6 +89,7 @@ describe('Mobile Theme & Player Controls Enhancement', () => {
 
   afterEach(() => {
     cleanup();
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
   });
 
   describe('1. MobilePlayerUI: Controls visibility across tabs', () => {
@@ -190,7 +193,7 @@ describe('Mobile Theme & Player Controls Enhancement', () => {
 
   describe('2. MobileSettingsView: Dark-only theme indicator', () => {
     it('displays dark theme as locked with mobile dark-only indicator', () => {
-      const { container } = render(
+      render(
         <MemoryRouter>
           <MobileSettingsView />
         </MemoryRouter>
@@ -219,6 +222,53 @@ describe('Mobile Theme & Player Controls Enhancement', () => {
       } finally {
         Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: originalInnerWidth });
       }
+    });
+  });
+  describe('4. Fold Split-View (>= 600px) layout & transitions', () => {
+    beforeEach(() => {
+      Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 768 });
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    it('renders fold dual-column view with album badge, up-next teaser and playback controls', () => {
+      const { container } = render(
+        <MemoryRouter>
+          <MobilePlayerUI onClose={() => {}} />
+        </MemoryRouter>
+      );
+
+      // Context badge on left
+      expect(screen.getByText('Test Album')).toBeTruthy();
+      // Track title & artist
+      expect(screen.getByText('Test Song 1')).toBeTruthy();
+      expect(screen.getByText('Test Artist')).toBeTruthy();
+
+      // Next Up teaser card is rendered on right
+      expect(screen.getByText('Test Song 2')).toBeTruthy();
+      // Synced lyrics teaser header
+      expect(screen.getByText(/Слова|Текст песни/)).toBeTruthy();
+
+      // Seekbar canvas should be present
+      expect(container.querySelector('canvas')).not.toBeNull();
+      // Secondary controls on left
+      expect(screen.getByText('1x')).toBeTruthy();
+    });
+
+    it('moves playback controls to left column when switching to Queue tab in wide mode', () => {
+      const { container } = render(
+        <MemoryRouter>
+          <MobilePlayerUI onClose={() => {}} />
+        </MemoryRouter>
+      );
+
+      const tabButtons = container.querySelectorAll('.h-\\[72px\\] button');
+      // Switch to Queue tab
+      fireEvent.click(tabButtons[1]);
+
+      // Seekbar canvas remains active in left column
+      expect(container.querySelector('canvas')).not.toBeNull();
+      // Secondary controls replaced by playback controls
+      expect(screen.queryByText('1x')).toBeNull();
     });
   });
 });

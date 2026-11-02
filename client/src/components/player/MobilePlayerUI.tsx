@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   ChevronDown, MoreHorizontal, Heart, 
   Bookmark, Music, Info, MessageSquareQuote, Ban,
-  Headphones, Speaker
+  Headphones, Speaker, Disc3
 } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
@@ -34,9 +34,88 @@ import { StorageManager } from '../../utils/StorageManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import { preloadAndDecodeImage } from '../../utils/assetPreloader';
 import { getCachedImageUrl } from '../../utils/imageCache';
+import { useLyricsSync } from '../../hooks/useLyricsSync';
 
 const TAB_ORDER = ['player', 'queue', 'info', 'lyrics'] as const;
 type TabType = typeof TAB_ORDER[number];
+
+function FoldLyricsTeaser({ currentTrack, onOpenLyrics }: { currentTrack: any; onOpenLyrics: () => void }) {
+  const { t } = useTranslation();
+  const { audioElement } = useAudioStore();
+  const { lyricsText, lrcLines, loadingLyrics, activeLyricIndexRef } = useLyricsSync(currentTrack, audioElement, true);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    if (lrcLines.length === 0) return;
+    const interval = setInterval(() => {
+      if (usePlayerStore.getState().isPlaying) {
+        setTick(t => (t + 1) % 1000);
+      }
+    }, 400);
+    return () => clearInterval(interval);
+  }, [lrcLines.length]);
+
+  const activeIdx = activeLyricIndexRef.current >= 0 ? activeLyricIndexRef.current : 0;
+  const currentLine = lrcLines[activeIdx]?.text || '';
+  const nextLine = lrcLines[activeIdx + 1]?.text || '';
+  const nextNextLine = lrcLines[activeIdx + 2]?.text || '';
+
+  const plainLines = useMemo(() => {
+    if (!lyricsText) return [];
+    return lyricsText.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3);
+  }, [lyricsText]);
+
+  return (
+    <div
+      onClick={onOpenLyrics}
+      className="flex flex-col gap-2 p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/5 backdrop-blur-md cursor-pointer transition-all duration-300 group select-none flex-1 min-h-[110px] justify-between"
+    >
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+          <MessageSquareQuote size={14} />
+          {t('player.lyrics', 'Текст песни')}
+        </span>
+        <span className="text-[11px] text-secondary/70 group-hover:text-primary transition-colors flex items-center gap-1">
+          {t('player.tap_for_full', 'Открыть весь')} →
+        </span>
+      </div>
+
+      <div className="flex-1 flex flex-col justify-center overflow-hidden py-1">
+        {loadingLyrics ? (
+          <p className="text-xs text-secondary animate-pulse">{t('player.loading_lyrics', 'Загрузка текста...')}</p>
+        ) : lrcLines.length > 0 ? (
+          <div className="flex flex-col gap-1 overflow-hidden">
+            <p className="text-sm md:text-base font-bold text-foreground group-hover:text-primary transition-colors truncate">
+              {currentLine || '♪ ♪ ♪'}
+            </p>
+            {nextLine && (
+              <p className="text-xs md:text-sm text-secondary/70 truncate">
+                {nextLine}
+              </p>
+            )}
+            {nextNextLine && (
+              <p className="text-[11px] text-secondary/40 truncate">
+                {nextNextLine}
+              </p>
+            )}
+          </div>
+        ) : plainLines.length > 0 ? (
+          <div className="flex flex-col gap-1 overflow-hidden">
+            {plainLines.map((line, idx) => (
+              <p key={idx} className={`text-xs truncate ${idx === 0 ? 'text-foreground/90 font-medium' : 'text-secondary/60'}`}>
+                {line}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-secondary/70">
+            {t('player.tap_for_lyrics', 'Нажмите для просмотра текста')}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -238,10 +317,10 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
   const isLiked = likedTrackIds.includes(currentTrack.id);
 
-  // Common Seekbar and Controls block to eliminate repetition
-  const ControlsSection = (
-    <div className="w-full flex flex-col gap-5 mt-auto">
-      <div className="w-full flex flex-col gap-2">
+  // Playback Controls (Seekbar + Transport Bar)
+  const PlaybackControlsContent = (
+    <div className="w-full flex flex-col gap-4">
+      <div className="w-full flex flex-col gap-1.5">
         <LiquidSeekBar 
           ref={seekbarRef}
           value={progress / 100} 
@@ -268,23 +347,26 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
         onCycleRepeat={cycleRepeatMode}
         isListener={role === 'listener'}
       />
+    </div>
+  );
 
-      <div className="flex items-center justify-between w-full px-4 pt-2 text-secondary">
-        <SleepTimerButton 
-          onClick={() => setShowSleepTimerMenu(true)} 
-          isActive={!!sleepTimer.type} 
+  // Secondary Tools (Sleep Timer, Playback Rate, Bookmark)
+  const SecondaryControls = (
+    <div className="flex items-center justify-between w-full px-2 pt-1 text-secondary">
+      <SleepTimerButton 
+        onClick={() => setShowSleepTimerMenu(true)} 
+        isActive={!!sleepTimer.type} 
+      />
+      <SeekControls currentTrack={currentTrack} role={role}>
+        <PlaybackRateButton 
+          playbackRate={playbackRate} 
+          onCycle={cyclePlaybackRate} 
+          disabled={role === 'listener'} 
         />
-        <SeekControls currentTrack={currentTrack} role={role}>
-          <PlaybackRateButton 
-            playbackRate={playbackRate} 
-            onCycle={cyclePlaybackRate} 
-            disabled={role === 'listener'} 
-          />
-        </SeekControls>
-        <button onClick={handleBookmark} className={`hover:text-foreground transition-colors active:scale-95 ${isBookmarked ? 'text-primary' : ''}`}>
-          <Bookmark size={20} fill={isBookmarked ? 'currentColor' : 'none'} />
-        </button>
-      </div>
+      </SeekControls>
+      <button onClick={handleBookmark} className={`hover:text-foreground transition-colors active:scale-95 ${isBookmarked ? 'text-primary' : ''}`}>
+        <Bookmark size={20} fill={isBookmarked ? 'currentColor' : 'none'} />
+      </button>
     </div>
   );
 
@@ -375,9 +457,27 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       {isWide ? (
         /* Dual-Column Foldable / Tablet Split-View Layout (Benchmark: Galaxy Z Fold unfolded >= 600px) */
         <div className="relative z-10 flex-1 flex flex-row items-center justify-center w-full max-w-5xl mx-auto px-6 py-2 gap-8 min-h-0 overflow-hidden">
-          {/* Left Column: Fixed Cover & Title Area */}
-          <div className="w-[45%] max-w-[380px] h-full flex flex-col items-center justify-center shrink-0">
-            <div className="w-full aspect-square max-h-[46vh] flex items-center justify-center">
+          
+          {/* Left Column: Fixed Cover, Header, and Adaptive Bottom Control Slot */}
+          <div className="w-[44%] max-w-[380px] h-full flex flex-col shrink-0 py-2">
+            
+            {/* Top Area: Context Badge (Always fixed) */}
+            <div className="w-full flex items-center justify-between shrink-0 mb-3 px-0.5">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/10 text-xs text-secondary/90 max-w-[70%] truncate backdrop-blur-md">
+                <Disc3 size={14} className="text-primary shrink-0 animate-spin-slow" />
+                <span className="truncate">{currentTrack.album || t('player.single', 'Сингл')}</span>
+                {currentTrack.year && <span className="opacity-50 shrink-0">• {currentTrack.year}</span>}
+              </div>
+              {(currentTrack.suffix || currentTrack.bitRate) && (
+                <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-bold tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 backdrop-blur-md">
+                  {currentTrack.suffix && <span>{currentTrack.suffix.toUpperCase()}</span>}
+                  {currentTrack.bitRate && <span className="opacity-70 font-medium">{currentTrack.bitRate}k</span>}
+                </div>
+              )}
+            </div>
+
+            {/* Middle Area: Cover Art (Fixed aspect ratio, top-anchored) */}
+            <div className="w-full aspect-square max-h-[38vh] flex items-center justify-center shrink-0 mb-3">
               <TrackImage 
                 src={activeCoverSrc} 
                 trackId={currentTrack.id}
@@ -387,7 +487,8 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               />
             </div>
 
-            <div className="w-full flex items-center justify-between mt-4">
+            {/* Under Cover: Title & Artists + Like & Ban Buttons (Anchored above bottom slot) */}
+            <div className="w-full flex items-center justify-between shrink-0 mb-auto">
               <div className="flex flex-col overflow-hidden mr-3">
                 <h1 className="text-xl md:text-2xl font-bold text-foreground truncate drop-shadow-md">{currentTrack.title}</h1>
                 <h2 className="text-sm md:text-base text-secondary truncate drop-shadow-md">{formatArtistName(currentTrack.artist)}</h2>
@@ -407,10 +508,29 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                 </button>
               </div>
             </div>
+
+            {/* Bottom Slot of Left Column:
+                On 'player' tab -> Secondary controls (sleep timer, speed, bookmark).
+                On other tabs ('queue', 'lyrics', 'info') -> Main playback controls (seekbar + transport)! */}
+            <div className="w-full shrink-0 min-h-[115px] flex flex-col justify-end">
+              {activeTab === 'player' ? (
+                <div className="w-full pb-1">
+                  {SecondaryControls}
+                </div>
+              ) : (
+                <motion.div
+                  layoutId="foldPlaybackControls"
+                  transition={{ type: 'spring', stiffness: 350, damping: 32 }}
+                  className="w-full"
+                >
+                  {PlaybackControlsContent}
+                </motion.div>
+              )}
+            </div>
           </div>
 
           {/* Right Column: Tab View Area with Smooth Transitions */}
-          <div className="flex-1 h-full min-h-0 flex flex-col justify-between overflow-hidden relative">
+          <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden relative">
             {activeTab === 'player' ? (
               <motion.div
                 key="player-tab-right"
@@ -419,52 +539,54 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                 transition={{ duration: 0.18, ease: 'easeOut' }}
                 className="w-full h-full flex flex-col justify-between py-2"
               >
-                {/* Up Next / Lyrics Teaser Banner */}
-                {nextTrackItem ? (
-                  <div 
-                    onClick={() => handleTabChange('queue')}
-                    className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 backdrop-blur-md cursor-pointer transition-colors group mb-auto select-none"
-                  >
-                    <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-card border border-border">
-                      <TrackImage 
-                        src={nextTrackItem.coverArt ? getCoverArtUrl(nextTrackItem.coverArt, 120) : ''} 
-                        trackId={nextTrackItem.id} 
-                        className="w-full h-full object-cover" 
-                        alt={nextTrackItem.title} 
-                      />
+                {/* Combined Upper Area: Next Up Card + Live Synced Lyrics Teaser */}
+                <div className="w-full flex-1 flex flex-col gap-3 min-h-0 mb-4 overflow-hidden">
+                  {nextTrackItem && (
+                    <div 
+                      onClick={() => handleTabChange('queue')}
+                      className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 backdrop-blur-md cursor-pointer transition-colors group select-none shrink-0"
+                    >
+                      <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-card border border-border">
+                        <TrackImage 
+                          src={nextTrackItem.coverArt ? getCoverArtUrl(nextTrackItem.coverArt, 120) : ''} 
+                          trackId={nextTrackItem.id} 
+                          className="w-full h-full object-cover" 
+                          alt={nextTrackItem.title} 
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                          {t('player.up_next', 'Далее в очереди')}
+                        </span>
+                        <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                          {nextTrackItem.title}
+                        </p>
+                        <p className="text-xs text-secondary truncate">
+                          {'• ' + formatArtistName(nextTrackItem.artist)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                        {t('player.up_next', 'Далее в очереди')}
-                      </span>
-                      <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                        {nextTrackItem.title}
-                      </p>
-                      <p className="text-xs text-secondary truncate">
-                        {'• ' + formatArtistName(nextTrackItem.artist)}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div 
-                    onClick={() => handleTabChange('lyrics')}
-                    className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 backdrop-blur-md cursor-pointer transition-colors group mb-auto select-none"
-                  >
-                    <MessageSquareQuote size={20} className="text-primary shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                        {t('player.lyrics', 'Текст песни')}
-                      </span>
-                      <p className="text-xs text-secondary truncate">
-                        {t('player.tap_for_lyrics', 'Нажмите для просмотра синхронного текста')}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                {ControlsSection}
+                  <FoldLyricsTeaser 
+                    currentTrack={currentTrack} 
+                    onOpenLyrics={() => handleTabChange('lyrics')} 
+                  />
+                </div>
+
+                {/* Right Bottom Slot: Playback Controls when on Player Tab */}
+                <div className="w-full shrink-0 min-h-[115px] flex flex-col justify-end">
+                  <motion.div
+                    layoutId="foldPlaybackControls"
+                    transition={{ type: 'spring', stiffness: 350, damping: 32 }}
+                    className="w-full"
+                  >
+                    {PlaybackControlsContent}
+                  </motion.div>
+                </div>
               </motion.div>
             ) : (
+              /* Full-height active tab content on right screen */
               <motion.div
                 key={activeTab}
                 initial={{ opacity: 0, x: tabDirection > 0 ? 24 : -24 }}
@@ -524,7 +646,8 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
 
-                {ControlsSection}
+                {PlaybackControlsContent}
+                {SecondaryControls}
               </div>
             </motion.div>
           ) : (

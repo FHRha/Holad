@@ -19,6 +19,7 @@ export function mapSubsonicTrack(t: any): Track {
     fileName: t.fileName,
     path: t.path,
     fingerprint: t.fingerprint,
+    year: t.year,
     isUnavailable: t.isUnavailable,
   };
 }
