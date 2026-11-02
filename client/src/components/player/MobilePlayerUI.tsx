@@ -539,20 +539,20 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             {/* Left Column: Fixed Cover, Header, and Adaptive Bottom Control Slot */}
             <div className="w-[44%] max-w-[380px] h-full flex flex-col justify-between shrink-0 py-2 overflow-visible">
               
-              {/* Top Area: Technical Metadata Badges (Format/Bitrate on Left, Year on Right) */}
-              <div className="w-full flex items-center justify-between shrink-0 px-0.5">
-                <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-bold tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 backdrop-blur-md">
-                  <span>{formatBadgeText}</span>
-                </div>
-                {currentTrack.year ? (
-                  <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-bold tracking-wider px-2.5 py-1 rounded-full bg-white/[0.05] text-secondary/90 border border-white/10 backdrop-blur-md">
-                    <span>{currentTrack.year}</span>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Middle Area: Cover Art + Title + Artist + Album + Actions (Vertically Centered) */}
+              {/* Middle Area: Technical Badges + Cover Art + Title + Artist + Album + Actions (Vertically Centered) */}
               <div className="my-auto flex flex-col justify-center shrink-0 py-2 w-full">
+                {/* Technical Metadata Badges (Format/Bitrate on Left, Year on Right) */}
+                <div className="w-full flex items-center justify-between shrink-0 px-0.5 mb-2.5">
+                  <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-bold tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 backdrop-blur-md">
+                    <span>{formatBadgeText}</span>
+                  </div>
+                  {currentTrack.year ? (
+                    <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-bold tracking-wider px-2.5 py-1 rounded-full bg-white/[0.05] text-secondary/90 border border-white/10 backdrop-blur-md">
+                      <span>{currentTrack.year}</span>
+                    </div>
+                  ) : null}
+                </div>
+
                 <div className="w-full aspect-square max-h-[38vh] md:max-h-[42vh] flex items-center justify-center shrink-0">
                   <TrackImage 
                     src={activeCoverSrc} 
@@ -597,10 +597,10 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Bottom Slot of Left Column:
-                  min-h-[120px] h-[120px] shrink-0 flex flex-col justify-end overflow-visible relative z-20 pb-2
+                  min-h-[124px] h-[124px] shrink-0 flex flex-col justify-end overflow-visible relative z-20 pb-1
                   On 'player' tab -> Secondary controls (sleep timer, speed, bookmark) centered vertically.
                   On other tabs ('queue', 'lyrics', 'info') -> Main playback controls (seekbar + transport)! */}
-              <div className="w-full min-h-[120px] h-[120px] shrink-0 flex flex-col justify-end overflow-visible relative z-20 pb-2">
+              <div className="w-full min-h-[124px] h-[124px] shrink-0 flex flex-col justify-end overflow-visible relative z-20 pb-1">
                 {activeTab === 'player' ? (
                   <div className="w-full h-full flex flex-col justify-center">
                     {SecondaryControls}
@@ -621,7 +621,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             <div className="flex-1 h-full min-h-0 flex flex-col justify-between overflow-visible relative py-2">
               {activeTab === 'player' ? (
                 <>
-                  <div className="w-full flex-1 min-h-0 overflow-hidden relative mb-5">
+                  <div className="w-full flex-1 min-h-0 overflow-hidden relative mb-8 md:mb-10">
                     <motion.div
                       key="player-tab-right"
                       initial={{ opacity: 0, x: 20 }}
@@ -667,7 +667,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                   </div>
 
                   {/* Right Bottom Slot: Playback Controls on Player tab (strictly identical height and bottom position) */}
-                  <div className="w-full min-h-[120px] h-[120px] shrink-0 flex flex-col justify-end overflow-visible relative z-20 pb-2">
+                  <div className="w-full min-h-[124px] h-[124px] shrink-0 flex flex-col justify-end overflow-visible relative z-20 pb-1">
                     <motion.div
                       layoutId="foldPlaybackControls"
                       transition={{ type: 'spring', stiffness: 350, damping: 32 }}
