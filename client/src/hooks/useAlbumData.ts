@@ -51,7 +51,8 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
               coverArt: t.localCoverArtUri || downloadedAlbum.localCoverArtUri || t.coverArt,
               duration: t.duration || 0,
               bitRate: (t as any).bitRate,
-              suffix: (t as any).suffix
+              suffix: (t as any).suffix,
+              year: (t as any).year || (downloadedAlbum as any).year
             }))
           };
           setAlbum(fallbackAlbum);
@@ -102,7 +103,8 @@ export function useAlbumData(id: string | undefined, observerTarget: React.RefOb
       duration: t.duration,
       userRating: t.userRating,
       bitRate: t.bitRate,
-      suffix: t.suffix
+      suffix: t.suffix,
+      year: t.year || album.year
     }));
   };
 

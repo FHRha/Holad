@@ -55,6 +55,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
       duration: t.duration,
       bitRate: t.bitRate,
       suffix: t.suffix,
+      year: t.year,
       userRating: t.userRating
     }));
   };

@@ -208,7 +208,8 @@ export default function HeroAlbumCard({ album }: { album: any }) {
       coverArt: getCoverArtUrl(album.coverArt || album.id, 300),
       duration: t.duration,
       bitRate: t.bitRate,
-      suffix: t.suffix
+      suffix: t.suffix,
+      year: t.year || album.year
     }));
   };
 

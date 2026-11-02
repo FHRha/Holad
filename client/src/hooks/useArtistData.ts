@@ -75,7 +75,8 @@ export function useArtistData(id: string | undefined) {
             duration: s.duration,
             userRating: s.userRating,
             bitRate: s.bitRate,
-            suffix: s.suffix
+            suffix: s.suffix,
+        year: s.year
           }));
 
           setTopSongs(tracksForQueue);
@@ -131,7 +132,8 @@ export function useArtistData(id: string | undefined) {
         duration: s.duration,
         userRating: s.userRating,
         bitRate: s.bitRate,
-        suffix: s.suffix
+        suffix: s.suffix,
+        year: s.year
       }));
 
       if (tracksForQueue.length > 0) {

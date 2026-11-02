@@ -209,6 +209,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
       duration: t.duration,
       bitRate: t.bitRate,
       suffix: t.suffix,
+      year: t.year,
       userRating: t.userRating
     }));
   };
@@ -407,7 +408,8 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                               coverArt: getCoverArtUrl(album.coverArt || album.id, 300),
                               duration: t.duration,
       bitRate: t.bitRate,
-      suffix: t.suffix
+      suffix: t.suffix,
+                              year: t.year || album.year
                             }));
                             usePlayerStore.getState().setQueueAndPlay(mappedTracks, 0);
                             usePlayerStore.getState().setIsProcessing(false);
