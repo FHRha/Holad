@@ -3,11 +3,9 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
 import { Play, ChevronDown, Download, ListMusic, Radio, MessageSquareQuote, Activity, Users } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
-import { motion, AnimatePresence } from 'framer-motion';
 import { preloadAndDecodeImage } from '../../utils/assetPreloader';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { StorageManager } from '../../utils/StorageManager';
-import { getBakedBlurredCover, getCachedBakedBlurredCover } from '../../utils/blurredCoverCache';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 
 import { formatTime } from '../../utils/timeFormat';
@@ -94,6 +92,9 @@ export default function FullScreenPlayerUI({
   const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 1000) : '', [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
   // oxlint-disable-next-line
   const coverArtLowRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300) : '', [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
+  // Lightweight 120px resolution for blurred background
+  // oxlint-disable-next-line
+  const coverArtBg = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 120) : '', [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
 
   const [activeCoverSrc, setActiveCoverSrc] = useState(coverArtLowRes);
   useEffect(() => {
@@ -106,11 +107,9 @@ export default function FullScreenPlayerUI({
     return () => { isMounted = false; };
   }, [coverArtLowRes, coverArtHighRes]);
 
-  const [displayedBgCover, setDisplayedBgCover] = useState<string>(() => {
-    if (!currentTrack) return '';
-    const initialUrl = getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
-    return getCachedBakedBlurredCover(initialUrl) || '';
-  });
+  const [bgA, setBgA] = useState(coverArtBg);
+  const [bgB, setBgB] = useState('');
+  const [activeBg, setActiveBg] = useState<'A' | 'B'>('A');
 
   useEffect(() => {
     let isMounted = true;
@@ -125,19 +124,25 @@ export default function FullScreenPlayerUI({
         }
       } catch {}
 
-      if (!candidate && coverArtLowRes) {
+      if (!candidate && coverArtBg) {
         try {
-          candidate = await getCachedImageUrl(coverArtLowRes);
+          candidate = await getCachedImageUrl(coverArtBg);
         } catch {
-          candidate = coverArtLowRes;
+          candidate = coverArtBg;
         }
       }
 
       if (candidate && isMounted) {
-        await preloadAndDecodeImage(candidate);
-        if (isMounted) {
-          const baked = await getBakedBlurredCover(candidate);
-          setDisplayedBgCover(baked || candidate);
+        if (activeBg === 'A') {
+          if (bgA !== candidate) {
+            setBgB(candidate);
+            setActiveBg('B');
+          }
+        } else {
+          if (bgB !== candidate) {
+            setBgA(candidate);
+            setActiveBg('A');
+          }
         }
       }
     };
@@ -147,7 +152,7 @@ export default function FullScreenPlayerUI({
     return () => {
       isMounted = false;
     };
-  }, [currentTrack?.id, coverArtLowRes]);
+  }, [currentTrack?.id, coverArtBg, activeBg, bgA, bgB]);
 
   const {
     lyricsText,
@@ -187,26 +192,31 @@ export default function FullScreenPlayerUI({
 
   return (
     <div 
-      className={`absolute inset-0 bg-background flex text-foreground overflow-hidden z-[100] transform-gpu ${
+      className={`absolute inset-0 bg-background flex text-foreground overflow-hidden z-[100] transform-gpu will-change-transform ${
         isClosing ? 'animate-fullscreen-exit' : 'animate-fullscreen-enter'
       }`}
     >
       
-      {/* Blurred Background with Smooth Dual-Layer Crossfade */}
+      {/* Blurred Background with Pure Hardware CSS Crossfade */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <AnimatePresence mode="popLayout">
-          {displayedBgCover && (
-            <motion.div 
-              key={displayedBgCover}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.8 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8, ease: 'easeInOut' }}
-              className="absolute inset-0 bg-cover bg-center scale-105 transform-gpu"
-              style={{ backgroundImage: `url("${displayedBgCover}")` }}
-            />
-          )}
-        </AnimatePresence>
+        {bgA && (
+          <div 
+            className="absolute inset-0 bg-cover bg-center scale-110 blur-[30px] transform-gpu will-change-transform transition-opacity duration-700 ease-in-out"
+            style={{ 
+              backgroundImage: `url("${bgA}")`,
+              opacity: activeBg === 'A' ? 0.75 : 0
+            }}
+          />
+        )}
+        {bgB && (
+          <div 
+            className="absolute inset-0 bg-cover bg-center scale-110 blur-[30px] transform-gpu will-change-transform transition-opacity duration-700 ease-in-out"
+            style={{ 
+              backgroundImage: `url("${bgB}")`,
+              opacity: activeBg === 'B' ? 0.75 : 0
+            }}
+          />
+        )}
       </div>
       <div className="absolute inset-0 z-0 bg-black/35 pointer-events-none" />
 
