@@ -31,7 +31,7 @@ import {
 } from './controls';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
 import { StorageManager } from '../../utils/StorageManager';
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup, useDragControls } from 'framer-motion';
 import { preloadAndDecodeImage } from '../../utils/assetPreloader';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { useLyricsSync } from '../../hooks/useLyricsSync';
@@ -74,8 +74,6 @@ function FoldLyricsTeaser({ currentTrack, onOpenLyrics }: { currentTrack: any; o
   return (
     <div
       onClick={onOpenLyrics}
-      onPointerDownCapture={(e) => e.stopPropagation()}
-      onTouchStartCapture={(e) => e.stopPropagation()}
       className="flex flex-col gap-2 p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/5 backdrop-blur-md cursor-pointer transition-all duration-300 group select-none flex-1 min-h-[140px] md:min-h-[160px] justify-between relative overflow-hidden"
     >
       <div className="flex items-center justify-between shrink-0 z-10">
@@ -98,7 +96,7 @@ function FoldLyricsTeaser({ currentTrack, onOpenLyrics }: { currentTrack: any; o
         {loadingLyrics ? (
           <p className="text-xs text-secondary animate-pulse text-center">{t('player.loading_lyrics', 'Загрузка текста...')}</p>
         ) : lrcLines.length > 0 ? (
-          <div className="flex-1 overflow-y-auto hide-scrollbar relative">
+          <div className="flex-1 overflow-y-auto hide-scrollbar relative py-6 px-2">
             <div 
               ref={lyricsContainerRef}
               className="flex flex-col gap-4 text-center py-20 transition-all duration-300 w-full"
@@ -138,7 +136,7 @@ function FoldLyricsTeaser({ currentTrack, onOpenLyrics }: { currentTrack: any; o
             </div>
           </div>
         ) : plainLines.length > 0 ? (
-          <div className="flex-1 overflow-y-auto hide-scrollbar relative">
+          <div className="flex-1 overflow-y-auto hide-scrollbar relative py-6 px-2">
             <div className="flex flex-col gap-2.5 text-center py-6">
               {plainLines.map((line, idx) => (
                 <p 
@@ -203,6 +201,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const [showSleepTimerMenu, setShowSleepTimerMenu] = useState(false);
 
   const [isWide, setIsWide] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 600 : false);
+  const dragControls = useDragControls();
 
   useEffect(() => {
     const handleResize = () => {
@@ -383,11 +382,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
   // Playback Controls (Seekbar + Transport Bar)
   const PlaybackControlsContent = (
-    <div
-      onPointerDownCapture={(e) => e.stopPropagation()}
-      onTouchStartCapture={(e) => e.stopPropagation()}
-      className="w-full flex flex-col gap-4"
-    >
+    <div className="w-full flex flex-col gap-4">
       <div className="w-full flex flex-col gap-1.5">
         <LiquidSeekBar 
           ref={seekbarRef}
@@ -420,11 +415,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
   // Secondary Tools (Sleep Timer, Playback Rate, Bookmark)
   const SecondaryControls = (
-    <div
-      onPointerDownCapture={(e) => e.stopPropagation()}
-      onTouchStartCapture={(e) => e.stopPropagation()}
-      className="flex items-center justify-between w-full px-2 text-secondary"
-    >
+    <div className="flex items-center justify-between w-full px-2 text-secondary">
       <SleepTimerButton 
         onClick={() => setShowSleepTimerMenu(true)} 
         isActive={!!sleepTimer.type} 
@@ -449,9 +440,11 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       exit={{ y: '100%' }}
       transition={{ type: 'spring', damping: 28, stiffness: 260, mass: 0.8 }}
       drag={!isListenerPage ? 'y' : false}
-      dragSnapToOrigin={true}
+      dragControls={dragControls}
+      dragListener={false}
       dragConstraints={{ top: 0, bottom: 0 }}
       dragElastic={{ top: 0, bottom: 0.5 }}
+      dragSnapToOrigin={true}
       onDragEnd={(_, info) => {
         if (info.offset.y > 120 || info.velocity.y > 500) {
           onClose();
@@ -460,8 +453,11 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] transform-gpu will-change-transform"
     >
       {!isListenerPage && (
-        <div className="w-full pt-2 pb-0 flex justify-center items-center pointer-events-none z-20">
-          <div className="w-10 h-1 rounded-full bg-white/25" />
+        <div 
+          onPointerDown={(e) => dragControls.start(e)}
+          className="w-full pt-2 pb-0 flex justify-center items-center z-20 cursor-grab active:cursor-grabbing"
+        >
+          <div className="w-10 h-1 rounded-full bg-white/25 cursor-grab active:cursor-grabbing" />
         </div>
       )}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
@@ -482,7 +478,13 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       <div className="absolute inset-0 z-0 bg-black/40 pointer-events-none" />
 
       {/* Top Header */}
-      <div className="relative z-10 flex items-center justify-between px-4 py-3 w-full">
+      <div 
+        onPointerDown={(e) => {
+          if ((e.target as HTMLElement).closest('button, [role="button"], input, a')) return;
+          dragControls.start(e);
+        }}
+        className="relative z-10 flex items-center justify-between px-4 py-3 w-full cursor-grab active:cursor-grabbing"
+      >
         {!isListenerPage ? (
           <button 
             onClick={onClose}
@@ -496,6 +498,8 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
         <div className="flex-1 flex items-center justify-center min-w-0 px-2 overflow-hidden">
           {!isRemoteActive && (
             <div 
+              role="button"
+              tabIndex={0}
               onClick={() => {
                 promptSelectAudioOutput().catch(() => {});
               }}
@@ -530,26 +534,26 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       {isWide ? (
         /* Dual-Column Foldable / Tablet Split-View Layout (Benchmark: Galaxy Z Fold unfolded >= 600px) */
         <LayoutGroup id="fold-player-controls">
-          <div className="relative z-10 flex-1 flex flex-row items-stretch justify-center w-full max-w-5xl mx-auto px-6 py-2 gap-8 min-h-0 overflow-hidden">
+          <div className="relative z-10 flex-1 flex flex-row items-stretch justify-center w-full max-w-5xl mx-auto px-6 py-2 gap-8 min-h-0 overflow-visible">
             
             {/* Left Column: Fixed Cover, Header, and Adaptive Bottom Control Slot */}
-            <div className="w-[44%] max-w-[380px] h-full flex flex-col justify-between shrink-0 py-2">
+            <div className="w-[44%] max-w-[380px] h-full flex flex-col justify-between shrink-0 py-2 overflow-visible">
               
-              <div className="w-full flex flex-col shrink-0">
-                {/* Top Area: Technical Metadata Badges (Format/Bitrate on Left, Year on Right) */}
-                <div className="w-full flex items-center justify-between shrink-0 px-0.5">
-                  <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-bold tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 backdrop-blur-md">
-                    <span>{formatBadgeText}</span>
-                  </div>
-                  {currentTrack.year ? (
-                    <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-bold tracking-wider px-2.5 py-1 rounded-full bg-white/[0.05] text-secondary/90 border border-white/10 backdrop-blur-md">
-                      <span>{currentTrack.year}</span>
-                    </div>
-                  ) : null}
+              {/* Top Area: Technical Metadata Badges (Format/Bitrate on Left, Year on Right) */}
+              <div className="w-full flex items-center justify-between shrink-0 px-0.5">
+                <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-bold tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 backdrop-blur-md">
+                  <span>{formatBadgeText}</span>
                 </div>
+                {currentTrack.year ? (
+                  <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-bold tracking-wider px-2.5 py-1 rounded-full bg-white/[0.05] text-secondary/90 border border-white/10 backdrop-blur-md">
+                    <span>{currentTrack.year}</span>
+                  </div>
+                ) : null}
+              </div>
 
-                {/* Middle Area: Cover Art (Visual center, mt-3 md:mt-4, max-h-[40vh] md:max-h-[44vh]) */}
-                <div className="w-full aspect-square max-h-[40vh] md:max-h-[44vh] flex items-center justify-center shrink-0 mt-3 md:mt-4">
+              {/* Middle Area: Cover Art + Title + Artist + Album + Actions (Vertically Centered) */}
+              <div className="my-auto flex flex-col justify-center shrink-0 py-2 w-full">
+                <div className="w-full aspect-square max-h-[38vh] md:max-h-[42vh] flex items-center justify-center shrink-0">
                   <TrackImage 
                     src={activeCoverSrc} 
                     trackId={currentTrack.id}
@@ -573,11 +577,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                       <span className="truncate">{currentTrack.album || t('player.single', 'Сингл')}</span>
                     </div>
                   </div>
-                  <div 
-                    onPointerDownCapture={(e) => e.stopPropagation()}
-                    onTouchStartCapture={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1 shrink-0"
-                  >
+                  <div className="flex items-center gap-1 shrink-0">
                     <button 
                       onClick={handleLike}
                       className={`p-2 rounded-full transition-colors active:scale-95 ${isLiked ? 'text-primary' : 'text-secondary hover:text-foreground'}`}
@@ -597,10 +597,10 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Bottom Slot of Left Column:
-                  min-h-[115px] h-[115px] shrink-0 flex flex-col justify-end
+                  min-h-[120px] h-[120px] shrink-0 flex flex-col justify-end overflow-visible relative z-20 pb-2
                   On 'player' tab -> Secondary controls (sleep timer, speed, bookmark) centered vertically.
                   On other tabs ('queue', 'lyrics', 'info') -> Main playback controls (seekbar + transport)! */}
-              <div className="w-full min-h-[115px] h-[115px] shrink-0 flex flex-col justify-end">
+              <div className="w-full min-h-[120px] h-[120px] shrink-0 flex flex-col justify-end overflow-visible relative z-20 pb-2">
                 {activeTab === 'player' ? (
                   <div className="w-full h-full flex flex-col justify-center">
                     {SecondaryControls}
@@ -609,7 +609,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                   <motion.div
                     layoutId="foldPlaybackControls"
                     transition={{ type: 'spring', stiffness: 350, damping: 32 }}
-                    className="w-full"
+                    className="w-full relative z-30"
                   >
                     {PlaybackControlsContent}
                   </motion.div>
@@ -618,10 +618,10 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
             </div>
 
             {/* Right Column: Tab View Area with Smooth Transitions */}
-            <div className="flex-1 h-full min-h-0 flex flex-col justify-between overflow-hidden relative py-2">
+            <div className="flex-1 h-full min-h-0 flex flex-col justify-between overflow-visible relative py-2">
               {activeTab === 'player' ? (
                 <>
-                  <div className="w-full flex-1 min-h-0 overflow-hidden relative mb-4">
+                  <div className="w-full flex-1 min-h-0 overflow-hidden relative mb-5">
                     <motion.div
                       key="player-tab-right"
                       initial={{ opacity: 0, x: 20 }}
@@ -634,8 +634,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                         {nextTrackItem && (
                           <div 
                             onClick={() => handleTabChange('queue')}
-                            onPointerDownCapture={(e) => e.stopPropagation()}
-                            onTouchStartCapture={(e) => e.stopPropagation()}
                             className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 backdrop-blur-md cursor-pointer transition-colors group select-none shrink-0"
                           >
                             <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-card border border-border">
@@ -669,11 +667,11 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                   </div>
 
                   {/* Right Bottom Slot: Playback Controls on Player tab (strictly identical height and bottom position) */}
-                  <div className="w-full min-h-[115px] h-[115px] shrink-0 flex flex-col justify-end">
+                  <div className="w-full min-h-[120px] h-[120px] shrink-0 flex flex-col justify-end overflow-visible relative z-20 pb-2">
                     <motion.div
                       layoutId="foldPlaybackControls"
                       transition={{ type: 'spring', stiffness: 350, damping: 32 }}
-                      className="w-full"
+                      className="w-full relative z-30"
                     >
                       {PlaybackControlsContent}
                     </motion.div>
@@ -681,10 +679,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
                 </>
               ) : (
                 /* Full-height active tab content on right screen when activeTab !== 'player' */
-                <div 
-                  onPointerDownCapture={(e) => e.stopPropagation()}
-                  className="w-full flex-1 h-full min-h-0 overflow-hidden relative"
-                >
+                <div className="w-full flex-1 h-full min-h-0 overflow-hidden relative">
                   <motion.div
                     key={activeTab}
                     initial={{ opacity: 0, x: tabDirection > 0 ? 24 : -24 }}
@@ -768,8 +763,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
       {/* Bottom Navigation Bar with Spring Layout Pill */}
       <div 
-        onPointerDownCapture={(e) => e.stopPropagation()}
-        onTouchStartCapture={(e) => e.stopPropagation()}
         className="relative z-10 w-full h-[72px] flex-shrink-0 bg-background/40 backdrop-blur-md transform-gpu will-change-transform border-t border-border flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]"
       >
         <button 
