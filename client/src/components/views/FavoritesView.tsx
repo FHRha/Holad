@@ -12,6 +12,7 @@ import { useUIStore } from '../../store/uiStore';
 import { getOfflineTracks, getDownloadedAlbums } from '../../store/downloadStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { Virtuoso } from 'react-virtuoso';
+import { motion } from 'framer-motion';
 import FilterChip from '../common/FilterChip';
 import AlbumRow from '../common/AlbumRow';
 import { mapSubsonicTracks, mapSubsonicTrack } from '../../utils/trackMapper';
@@ -90,7 +91,7 @@ export default function FavoritesView() {
 
   if (loading) {
     return (
-      <div className="flex-1 bg-background p-8 flex items-center justify-center">
+      <div className="flex-1 bg-transparent p-8 flex items-center justify-center">
         <div className="animate-pulse text-primary font-bold text-xl">{t('views.loading_favorites')}</div>
       </div>
     );
@@ -98,7 +99,13 @@ export default function FavoritesView() {
 
   return (
     <>
-      <div ref={setDesktopScrollParent} className="hidden md:block flex-1 bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar">
+      <motion.div
+        ref={setDesktopScrollParent}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.15 }}
+        className="hidden md:block flex-1 bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar"
+      >
         <div className="flex items-center gap-6 text-xl font-bold mb-10 text-foreground border-b border-white/5 pb-4">
           <h1 className="text-2xl text-foreground">{t('views.favorites')}</h1>
         </div>
@@ -141,9 +148,15 @@ export default function FavoritesView() {
             <p>{t('views.empty_favorites')}</p>
           </div>
         )}
-      </div>
+      </motion.div>
 
-      <div ref={setMobileScrollParent} className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32 w-full">
+      <motion.div
+        ref={setMobileScrollParent}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.15 }}
+        className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32 w-full"
+      >
         <div className="px-4 pt-4 pb-2 sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border z-10 w-full">
           <div 
             className="flex items-center bg-card rounded-xl px-3 py-2.5 mb-4 w-full border border-border cursor-text shadow-xs"
@@ -182,7 +195,13 @@ export default function FavoritesView() {
           </div>
         </div>
         
-        <div ref={setMobileScrollParent} className="w-full flex-1 flex flex-col px-4">
+        <motion.div
+          key={mobileTab}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className="w-full flex-1 flex flex-col px-4"
+        >
           {mobileTab === 'tracks' && (
             searchedTracks.length === 0 ? (
               <div className="flex flex-col items-center justify-center flex-1 text-center w-full mt-20">
@@ -267,8 +286,8 @@ export default function FavoritesView() {
               </p>
             </div>
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </>
   );
 }

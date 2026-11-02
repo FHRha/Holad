@@ -1,4 +1,5 @@
-import { NavLink, Routes, Route, Navigate } from 'react-router-dom';
+import { NavLink, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import AlbumsView from '../views/AlbumsView';
 import TracksView from '../views/TracksView';
 import ArtistsView from '../views/ArtistsView';
@@ -14,6 +15,7 @@ import FilterChip from '../common/FilterChip';
 
 export default function LibraryView() {
   const { t } = useTranslation();
+  const location = useLocation();
   const { setSearchOpen, activeFilter, setActiveFilter, setOfflineModalOpen } = useUIStore();
   const { hideOfflineExplanationModal } = useSettingsStore();
   const { isOffline } = useNetworkStatus();
@@ -110,15 +112,23 @@ export default function LibraryView() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <Routes>
-          <Route path="/" element={<Navigate to="/library/albums" replace />} />
-          <Route path="/tracks" element={<TracksView />} />
-          <Route path="/albums" element={<AlbumsView viewMode={viewMode} />} />
-          <Route path="/artists" element={<ArtistsView />} />
-          <Route path="/playlists" element={<PlaylistsView />} />
-          <Route path="*" element={<div className="p-8 text-center text-secondary">{t('common.in_development')}</div>} />
-        </Routes>
+      <div className="flex-1 overflow-hidden flex flex-col relative">
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.14, ease: 'easeOut' }}
+          className="flex-1 overflow-hidden flex flex-col h-full"
+        >
+          <Routes location={location}>
+            <Route path="/" element={<Navigate to="/library/albums" replace />} />
+            <Route path="/tracks" element={<TracksView />} />
+            <Route path="/albums" element={<AlbumsView viewMode={viewMode} />} />
+            <Route path="/artists" element={<ArtistsView />} />
+            <Route path="/playlists" element={<PlaylistsView />} />
+            <Route path="*" element={<div className="p-8 text-center text-secondary">{t('common.in_development')}</div>} />
+          </Routes>
+        </motion.div>
       </div>
     </div>
   );

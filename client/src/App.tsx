@@ -357,17 +357,15 @@ function MainAppContent() {
                         <TopBar />
                       </div>
                       <main className="flex-1 overflow-hidden flex flex-col relative hide-scrollbar">
-                        <Suspense fallback={<div className="flex-1 bg-background" />}>
-                          <AnimatePresence mode="wait" initial={false}>
-                            <motion.div
-                              key={location.pathname}
-                              initial={{ opacity: 0, y: 4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -4 }}
-                              transition={{ duration: 0.16, ease: 'easeOut' }}
-                              className="flex-1 flex flex-col overflow-hidden h-full"
-                            >
-                              <Routes location={location}>
+                        <Suspense fallback={<div className="flex-1 bg-transparent" />}>
+                          <motion.div
+                            key={location.pathname.startsWith('/library') ? '/library' : location.pathname}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.14, ease: 'easeOut' }}
+                            className="flex-1 flex flex-col overflow-hidden h-full"
+                          >
+                            <Routes location={location}>
                                 <Route path="/" element={startPage && startPage !== '/' ? <Navigate to={startPage} replace /> : <MainContent />} />
                                 <Route path="/library/*" element={<LibraryView />} />
                                 <Route path="/albums" element={<AlbumsView />} />
@@ -385,8 +383,7 @@ function MainAppContent() {
                                 <Route path="/settings" element={<MobileSettingsView />} />
                                 <Route path="*" element={<MainContent />} />
                               </Routes>
-                            </motion.div>
-                          </AnimatePresence>
+                          </motion.div>
                         </Suspense>
                       </main>
                     </div>
