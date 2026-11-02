@@ -47,9 +47,19 @@ export default function FullScreenPlayerUI({
   const openMenu = useContextMenuStore(state => state.openMenu);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [activeTab, setActiveTab] = useState<'queue' | 'similar' | 'lyrics' | 'visualizer'>('lyrics');
-  const [hasEntered, setHasEntered] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [showJamMenu, setShowJamMenu] = useState(false);
   const jamMenuRef = useRef<HTMLDivElement>(null);
+
+  const handleClose = () => {
+    if (isClosing) return;
+    if (onClose) {
+      setIsClosing(true);
+      setTimeout(() => {
+        onClose();
+      }, 250);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -173,13 +183,10 @@ export default function FullScreenPlayerUI({
   } as import('../../types').Track;
 
   return (
-    <motion.div 
-      initial={{ y: '100%' }}
-      animate={{ y: 0 }}
-      exit={{ y: '100%' }}
-      transition={{ duration: 0.46, ease: [0.32, 0.72, 0, 1] }}
-      onAnimationComplete={() => setHasEntered(true)}
-      className="absolute inset-0 bg-background flex text-foreground overflow-hidden z-[100] transform-gpu will-change-transform"
+    <div 
+      className={`absolute inset-0 bg-background flex text-foreground overflow-hidden z-[100] transform-gpu ${
+        isClosing ? 'animate-fullscreen-exit' : 'animate-fullscreen-enter'
+      }`}
     >
       
       {/* Blurred Background with Smooth Dual-Layer Crossfade */}
@@ -204,7 +211,7 @@ export default function FullScreenPlayerUI({
         <div className="flex-1 pointer-events-auto flex items-center gap-4">
           {onClose && !isListenerPage && (
             <button 
-              onClick={onClose}
+              onClick={handleClose}
               className="p-2 bg-black/40 hover:bg-black/60 rounded-full transition-colors border border-white/10 shadow-lg"
               title={t('player.close')}
               aria-label={t('player.close')}
@@ -244,7 +251,7 @@ export default function FullScreenPlayerUI({
         </div>
       </div>
 
-      <div className="relative z-10 flex w-full h-full p-8 md:p-10 gap-8 lg:gap-16 pt-20 md:pt-24 pb-12 md:pb-16 items-stretch justify-center max-w-[1600px] mx-auto">
+      <div className="relative z-10 flex w-full h-full p-8 md:p-10 gap-8 lg:gap-16 pt-20 md:pt-24 pb-20 items-stretch justify-center max-w-[1600px] mx-auto">
         
         <div className="flex-1 flex flex-col items-center justify-center max-w-[600px]">
           <div 
@@ -278,7 +285,7 @@ export default function FullScreenPlayerUI({
           </div>
         </div>
 
-        <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-foreground/10 rounded-3xl border border-white/20 overflow-hidden shadow-xl relative">
+        <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-foreground/10 rounded-3xl border border-white/20 backdrop-blur-2xl overflow-hidden shadow-2xl relative">
           
           {activeTab === 'lyrics' && isUserScrolled && lrcLines.length > 0 && (
             <button 
@@ -369,14 +376,13 @@ export default function FullScreenPlayerUI({
                         return (
                           <div 
                             key={idx} 
-                            className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight transition-all duration-500 cursor-pointer px-4 ${hasEntered ? 'animate-cascade-item' : ''} ${
+                            className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight transition-all duration-500 cursor-pointer px-4 ${
                               isActive 
                                 ? 'text-primary scale-110 [text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
                                 : isPast 
                                   ? 'text-white/40' 
                                   : 'text-white/30 hover:text-foreground/50'
                             }`}
-                            style={hasEntered ? { animationDelay: `${Math.min(idx * 20, 300)}ms` } : undefined}
                             onClick={() => {
                               if (role === 'listener') return;
                               if (getAudioEngine()) {
@@ -413,12 +419,11 @@ export default function FullScreenPlayerUI({
                         return (
                           <div 
                             key={idx}
-                            className={`${
+                            className={
                               isSectionHeader 
                                 ? 'text-sm md:text-base font-bold text-primary tracking-[0.2em] uppercase mt-8 mb-2 opacity-80 drop-shadow-md' 
                                 : 'text-2xl md:text-3xl font-bold tracking-tight text-white/70 hover:text-foreground transition-colors cursor-default'
-                            } ${hasEntered ? 'animate-cascade-item' : ''}`}
-                            style={hasEntered ? { animationDelay: `${Math.min(idx * 20, 260)}ms` } : undefined}
+                            }
                           >
                             {text}
                           </div>
@@ -459,11 +464,11 @@ export default function FullScreenPlayerUI({
                         const isPlayingQueue = idx === currentIndex;
                         const sortableId = `${track.id}-${idx}`;
                         return (
-                          <div key={sortableId} className={`pb-2 ${hasEntered ? 'animate-cascade-item' : ''}`} style={hasEntered ? { animationDelay: `${Math.min(idx * 30, 240)}ms` } : undefined}>
+                          <div key={sortableId} className="pb-2">
                             <SortableItem id={sortableId}>
                               {({ setNodeRef, attributes, listeners, style, isDragging }) => (
                                 <div 
-                                  ref={setNodeRef}
+                                   ref={setNodeRef}
                                   style={style}
                                   {...(!readOnlyControls ? attributes : {})}
                                   {...(!readOnlyControls ? listeners : {})}
@@ -511,8 +516,7 @@ export default function FullScreenPlayerUI({
                   {similarTracks.length > 0 ? similarTracks.map((track, idx) => (
                     <div 
                       key={idx} 
-                      className={`flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-foreground/10 cursor-pointer ${hasEntered ? 'animate-cascade-item' : ''}`}
-                      style={hasEntered ? { animationDelay: `${Math.min(idx * 30, 240)}ms` } : undefined}
+                      className="flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-foreground/10 cursor-pointer"
                       onClick={() => !readOnlyControls && setQueueAndPlay(similarTracks, idx)}
                       onContextMenu={(e) => {
                         e.preventDefault();
@@ -550,6 +554,6 @@ export default function FullScreenPlayerUI({
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

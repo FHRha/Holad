@@ -61,7 +61,36 @@
 
 .animate-cascade-item {
   animation: cascade-entrance 0.32s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-  will-change: transform, opacity;
+}
+
+@keyframes fullscreen-slide-up {
+  0% {
+    transform: translateY(100%);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fullscreen-slide-down {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0.9;
+  }
+}
+
+.animate-fullscreen-enter {
+  animation: fullscreen-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fullscreen-exit {
+  animation: fullscreen-slide-down 0.26s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 /* Custom scrollbar for premium look (Webkit) */
