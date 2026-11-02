@@ -54,7 +54,7 @@ export default function NowPlayingModal() {
   const desktopOnClose = role === 'listener' ? undefined : handleClose;
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence>
       {showPlayer && (
         !isMobile ? (
           <FullScreenPlayerUI key="desktop-fullscreen-player" onClose={desktopOnClose} />

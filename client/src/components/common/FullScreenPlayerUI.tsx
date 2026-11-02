@@ -173,11 +173,11 @@ export default function FullScreenPlayerUI({
 
   return (
     <motion.div 
-      initial={{ y: '100%', opacity: 0.6 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={{ y: '100%', opacity: 0.6 }}
-      transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
-      className="absolute inset-0 bg-background flex text-foreground overflow-hidden z-[100] transform-gpu will-change-transform"
+      initial={{ y: '100%' }}
+      animate={{ y: 0 }}
+      exit={{ y: '100%' }}
+      transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+      className="fixed inset-0 bg-background flex text-foreground overflow-hidden z-[100] transform-gpu will-change-transform"
     >
       
       {/* Blurred Background with Smooth Dual-Layer Crossfade */}
@@ -190,7 +190,7 @@ export default function FullScreenPlayerUI({
               animate={{ opacity: 0.8 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8, ease: 'easeInOut' }}
-              className="absolute inset-0 bg-cover bg-center saturate-150 scale-105 transform-gpu"
+              className="absolute inset-0 bg-cover bg-center scale-105 transform-gpu"
               style={{ backgroundImage: `url("${displayedBgCover}")` }}
             />
           )}
@@ -245,11 +245,8 @@ export default function FullScreenPlayerUI({
       <div className="relative z-10 flex w-full h-full p-10 gap-16 pt-24 pb-20 items-stretch justify-center max-w-[1600px] mx-auto">
         
         <div className="flex-1 flex flex-col items-center justify-center max-w-[600px]">
-          <motion.div 
-            initial={{ scale: 0.94, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.45, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full aspect-square max-w-[500px] rounded-2xl overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] mb-10 border border-white/20 bg-muted"
+          <div 
+            className="w-full aspect-square max-w-[500px] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] mb-10 border border-white/20 bg-muted transform-gpu"
           >
             <TrackImage 
               src={activeCoverSrc} 
@@ -258,14 +255,14 @@ export default function FullScreenPlayerUI({
               alt={displayTrack.title} 
               priority={true}
             />
-          </motion.div>
-          <h1 className="text-4xl lg:text-5xl font-bold mb-3 text-center drop-shadow-xl leading-tight text-white">{displayTrack.title}</h1>
+          </div>
+          <h1 className="text-4xl lg:text-5xl font-bold mb-3 text-center [text-shadow:0_4px_16px_rgba(0,0,0,0.6)] leading-tight text-white">{displayTrack.title}</h1>
           <ArtistLinks 
             artistString={displayTrack.artist} 
             artistId={(displayTrack as any).artistId} 
-            className="text-2xl text-white/70 mb-2 text-center drop-shadow-lg font-medium" 
+            className="text-2xl text-white/70 mb-2 text-center [text-shadow:0_2px_8px_rgba(0,0,0,0.5)] font-medium" 
           />
-          <p className="text-base text-white/40 mb-8 text-center drop-shadow">{displayTrack.album || 'Unknown Album'}</p>
+          <p className="text-base text-white/40 mb-8 text-center [text-shadow:0_1px_4px_rgba(0,0,0,0.4)]">{displayTrack.album || 'Unknown Album'}</p>
           
           <div className="flex gap-4">
             <span className="px-4 py-1.5 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest border border-primary/30 backdrop-blur-md shadow-lg">
@@ -370,13 +367,14 @@ export default function FullScreenPlayerUI({
                         return (
                           <div 
                             key={idx} 
-                            className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight transition-all duration-500 cursor-pointer px-4 ${
+                            className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight transition-all duration-500 cursor-pointer px-4 animate-cascade-item ${
                               isActive 
                                 ? 'text-primary scale-110 [text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
                                 : isPast 
                                   ? 'text-white/40' 
                                   : 'text-white/30 hover:text-foreground/50'
                             }`}
+                            style={{ animationDelay: `${Math.min(idx * 20, 300)}ms` }}
                             onClick={() => {
                               if (role === 'listener') return;
                               if (getAudioEngine()) {
@@ -417,7 +415,8 @@ export default function FullScreenPlayerUI({
                               isSectionHeader 
                                 ? 'text-sm md:text-base font-bold text-primary tracking-[0.2em] uppercase mt-8 mb-2 opacity-80 drop-shadow-md' 
                                 : 'text-2xl md:text-3xl font-bold tracking-tight text-white/70 hover:text-foreground transition-colors cursor-default'
-                            }`}
+                            } animate-cascade-item`}
+                            style={{ animationDelay: `${Math.min(idx * 20, 260)}ms` }}
                           >
                             {text}
                           </div>
@@ -458,7 +457,7 @@ export default function FullScreenPlayerUI({
                         const isPlayingQueue = idx === currentIndex;
                         const sortableId = `${track.id}-${idx}`;
                         return (
-                          <div key={sortableId} className="pb-2">
+                          <div key={sortableId} className="pb-2 animate-cascade-item" style={{ animationDelay: `${Math.min(idx * 30, 240)}ms` }}>
                             <SortableItem id={sortableId}>
                               {({ setNodeRef, attributes, listeners, style, isDragging }) => (
                                 <div 
@@ -510,7 +509,8 @@ export default function FullScreenPlayerUI({
                   {similarTracks.length > 0 ? similarTracks.map((track, idx) => (
                     <div 
                       key={idx} 
-                      className="flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-foreground/10 cursor-pointer"
+                      className="flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-foreground/10 cursor-pointer animate-cascade-item"
+                      style={{ animationDelay: `${Math.min(idx * 30, 240)}ms` }}
                       onClick={() => !readOnlyControls && setQueueAndPlay(similarTracks, idx)}
                       onContextMenu={(e) => {
                         e.preventDefault();

@@ -61,7 +61,6 @@ export const usePlayerStore = create<PlayerState>()(
           excludedTrackIds: state.excludedTrackIds,
           excludedAlbumIds: state.excludedAlbumIds,
           excludedFingerprints: state.excludedFingerprints,
-          playbackUpdatedAt: state.playbackUpdatedAt,
           queueVersion: state.queueVersion,
         };
       },
