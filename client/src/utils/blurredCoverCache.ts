@@ -5,6 +5,14 @@ const inFlightBakes = new Map<string, Promise<string>>();
 const MAX_CACHE_SIZE = 50;
 
 /**
+ * Returns a synchronously available pre-baked blurred data URL if already cached.
+ */
+export function getCachedBakedBlurredCover(imageUrl: string | undefined | null): string | undefined {
+  if (!imageUrl) return undefined;
+  return bakedCoverCache.get(imageUrl);
+}
+
+/**
  * Pre-bakes a smooth, abstract blurred version of an image URL.
  * Renders downscaled to a 48x48 canvas and exports as a lightweight JPEG data URL.
  * When scaled to fullscreen via GPU bilinear filtering, it delivers silky 60-120 FPS

@@ -26,6 +26,7 @@ import { Bookmark } from 'lucide-react';
 import PlayerProgressControl from './PlayerProgressControl';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
 import { getBasePath, isJamPath } from '../../utils/basePath';
+import { getBakedBlurredCover } from '../../utils/blurredCoverCache';
 
 const MiniProgressBar = React.memo(function MiniProgressBar() {
   const progress = useAudioStore(s => s.progress);
@@ -61,6 +62,15 @@ export default function BottomPlayer() {
   useMediaSession();
 
   const currentTrack = queue[currentIndex];
+
+  useEffect(() => {
+    if (currentTrack) {
+      const coverUrl = getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
+      if (coverUrl) {
+        getBakedBlurredCover(coverUrl).catch(() => {});
+      }
+    }
+  }, [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
 
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const percentTextRef = useRef<HTMLSpanElement>(null);

@@ -17,7 +17,7 @@ export default function AudioVisualizer() {
   const engineRef = useRef<VisualizerEngine | null>(null);
   const coverImgRef = useRef<HTMLImageElement | null>(null);
 
-  const { audioElement } = useAudioStore();
+  const audioElement = useAudioStore(s => s.audioElement);
   const isPlaying = usePlayerStore(s => s.isPlaying);
   const queue = usePlayerStore(s => s.queue);
   const currentIndex = usePlayerStore(s => s.currentIndex);

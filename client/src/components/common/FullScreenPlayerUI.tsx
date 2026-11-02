@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { preloadAndDecodeImage } from '../../utils/assetPreloader';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { StorageManager } from '../../utils/StorageManager';
-import { getBakedBlurredCover } from '../../utils/blurredCoverCache';
+import { getBakedBlurredCover, getCachedBakedBlurredCover } from '../../utils/blurredCoverCache';
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from './TrackImage';
@@ -35,11 +36,16 @@ export default function FullScreenPlayerUI({
   extraControls?: React.ReactNode
 }) {
   const { t } = useTranslation();
-  const { queue, currentIndex, setQueueAndPlay, role, roomId } = usePlayerStore();
+  const queue = usePlayerStore(state => state.queue);
+  const currentIndex = usePlayerStore(state => state.currentIndex);
+  const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
+  const role = usePlayerStore(state => state.role);
+  const roomId = usePlayerStore(state => state.roomId);
   const currentTrack = queue[currentIndex];
-  const { audioElement } = useAudioStore();
+  const audioElement = useAudioStore(state => state.audioElement);
   const downloads = useDownloadStore(state => state.downloads);
-  const { openMenu } = useContextMenuStore();
+  const openMenu = useContextMenuStore(state => state.openMenu);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [activeTab, setActiveTab] = useState<'queue' | 'similar' | 'lyrics' | 'visualizer'>('lyrics');
   const [showJamMenu, setShowJamMenu] = useState(false);
   const jamMenuRef = useRef<HTMLDivElement>(null);
@@ -68,7 +74,7 @@ export default function FullScreenPlayerUI({
   const isListenerPage = isStandalone || (isJamRoute && role === 'listener');
   const readOnlyControls = isJamRoute && role === 'listener';
   
-  const queueContainerRef = useRef<HTMLDivElement>(null);
+
   
   // oxlint-disable-next-line
   const coverArtHighRes = useMemo(() => currentTrack ? getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 1000) : '', [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
@@ -88,7 +94,8 @@ export default function FullScreenPlayerUI({
 
   const [displayedBgCover, setDisplayedBgCover] = useState<string>(() => {
     if (!currentTrack) return '';
-    return getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
+    const initialUrl = getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
+    return getCachedBakedBlurredCover(initialUrl) || '';
   });
 
   useEffect(() => {
@@ -143,17 +150,17 @@ export default function FullScreenPlayerUI({
   const { similarTracks } = useSimilarTracks(currentTrack?.id);
 
   useEffect(() => {
-    if (activeTab === 'queue' && queueContainerRef.current) {
-      const activeElement = queueContainerRef.current.children[currentIndex] as HTMLElement;
-      const container = queueContainerRef.current.closest('.overflow-y-auto') as HTMLElement;
-      if (activeElement && container) {
-        container.scrollTo({
-          top: activeElement.offsetTop - (container.clientHeight / 2) + (activeElement.clientHeight / 2),
-          behavior: 'auto' // instant jump for queue
+    if (activeTab === 'queue' && currentIndex >= 0 && currentIndex < queue.length) {
+      const timer = setTimeout(() => {
+        virtuosoRef.current?.scrollToIndex({
+          index: currentIndex,
+          align: 'center',
+          behavior: 'auto'
         });
-      }
+      }, 50);
+      return () => clearTimeout(timer);
     }
-  }, [activeTab, currentIndex]);
+  }, [activeTab, currentIndex, queue.length]);
 
   const displayTrack = currentTrack || {
     id: 'empty',
@@ -272,7 +279,7 @@ export default function FullScreenPlayerUI({
           </div>
         </div>
 
-        <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-foreground/10 rounded-3xl border border-white/20 backdrop-blur-md overflow-hidden shadow-2xl relative">
+        <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-foreground/10 rounded-3xl border border-white/20 overflow-hidden shadow-2xl relative">
           
           {activeTab === 'lyrics' && isUserScrolled && lrcLines.length > 0 && (
             <button 
@@ -326,213 +333,218 @@ export default function FullScreenPlayerUI({
             </button>
           </div>
 
-          <div 
-            className="flex-1 overflow-y-auto custom-scrollbar p-6 relative"
-            onScroll={() => {
-              if (activeTab === 'lyrics') {
-                handleUserScroll();
-              }
-            }}
-            onWheel={() => {
-              if (activeTab === 'lyrics') setIsUserScrolled(true);
-            }}
-            onTouchMove={() => {
-              if (activeTab === 'lyrics') setIsUserScrolled(true);
-            }}
-          >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="h-full"
-              >
+          <div className="flex-1 min-h-0 relative overflow-hidden">
             {activeTab === 'lyrics' && (
-              <div className="h-full flex flex-col items-center justify-start text-center max-w-[600px] mx-auto py-10 relative">
-                {loadingLyrics ? (
-                  <p className="text-white/50 animate-pulse text-lg">{t('player.loading_lyrics')}</p>
-                ) : lrcLines.length > 0 ? (
-                  <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[350px] pb-[350px] w-full transition-all duration-300">
-                    {lrcLines.map((line, idx) => {
-                      const isActive = idx === activeLyricIndexRef.current;
-                      const isPast = idx < activeLyricIndexRef.current;
-                      
-                      if (line.isInterlude) {
+              <div 
+                className="h-full overflow-y-auto custom-scrollbar p-6 relative"
+                onScroll={handleUserScroll}
+                onWheel={() => setIsUserScrolled(true)}
+                onTouchMove={() => setIsUserScrolled(true)}
+              >
+                <div className="h-full flex flex-col items-center justify-start text-center max-w-[600px] mx-auto py-10 relative">
+                  {loadingLyrics ? (
+                    <p className="text-white/50 animate-pulse text-lg">{t('player.loading_lyrics')}</p>
+                  ) : lrcLines.length > 0 ? (
+                    <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[350px] pb-[350px] w-full transition-all duration-300">
+                      {lrcLines.map((line, idx) => {
+                        const isActive = idx === activeLyricIndexRef.current;
+                        const isPast = idx < activeLyricIndexRef.current;
+                        
+                        if (line.isInterlude) {
+                          return (
+                            <div key={idx} className={`flex justify-center items-center gap-4 transition-all duration-500 py-6 ${isActive ? 'scale-110' : 'opacity-40'}`}>
+                              {[0, 1, 2].map(i => (
+                                <div key={i} className="w-3 h-3 rounded-full bg-white/20 relative overflow-hidden shadow-inner">
+                                  <div 
+                                    className="absolute inset-0 bg-primary transition-opacity duration-100"
+                                    style={{ 
+                                      opacity: isActive ? `calc((var(--interlude-progress, 0) - ${i * 0.33}) * 3)` : 0
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        }
+                        
                         return (
-                          <div key={idx} className={`flex justify-center items-center gap-4 transition-all duration-500 py-6 ${isActive ? 'scale-110' : 'opacity-40'}`}>
-                            {[0, 1, 2].map(i => (
-                              <div key={i} className="w-3 h-3 rounded-full bg-white/20 relative overflow-hidden shadow-inner">
-                                <div 
-                                  className="absolute inset-0 bg-primary transition-opacity duration-100"
-                                  style={{ 
-                                    opacity: isActive ? `calc((var(--interlude-progress, 0) - ${i * 0.33}) * 3)` : 0
-                                  }}
-                                />
-                              </div>
-                            ))}
+                          <div 
+                            key={idx} 
+                            className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight transition-all duration-500 cursor-pointer px-4 ${
+                              isActive 
+                                ? 'text-primary scale-110 [text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
+                                : isPast 
+                                  ? 'text-white/40' 
+                                  : 'text-white/30 hover:text-foreground/50'
+                            }`}
+                            onClick={() => {
+                              if (role === 'listener') return;
+                              if (getAudioEngine()) {
+                                getAudioEngine().resume().catch(console.error);
+                                usePlayerStore.getState().setIsPlaying(true);
+                                const curDur = useAudioStore.getState().duration || currentTrack?.duration || 1;
+                                useAudioStore.getState().setIsSeeking(true);
+                                useAudioStore.getState().setProgress(Math.max(0, Math.min(100, (line.time / curDur) * 100)));
+                                getAudioEngine().seek(line.time);
+                                const pState = usePlayerStore.getState();
+                                if (pState.roomId && (pState.role === 'host' || pState.role === 'cohost')) {
+                                  jamSocket.syncSeek(line.time);
+                                }
+                                setTimeout(() => {
+                                  useAudioStore.getState().setIsSeeking(false);
+                                }, 150);
+                              }
+                              setIsUserScrolled(false);
+                            }}
+                          >
+                            {line.text}
                           </div>
                         )
-                      }
-                      
-                      return (
-                        <div 
-                          key={idx} 
-                          className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight transition-all duration-500 cursor-pointer px-4 ${
-                            isActive 
-                              ? 'text-primary scale-110 [text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
-                              : isPast 
-                                ? 'text-white/40' 
-                                : 'text-white/30 hover:text-foreground/50'
-                          }`}
-                          onClick={() => {
-                            if (role === 'listener') return;
-                            if (getAudioEngine()) {
-                              getAudioEngine().resume().catch(console.error);
-                              usePlayerStore.getState().setIsPlaying(true);
-                              const curDur = useAudioStore.getState().duration || currentTrack?.duration || 1;
-                              useAudioStore.getState().setIsSeeking(true);
-                              useAudioStore.getState().setProgress(Math.max(0, Math.min(100, (line.time / curDur) * 100)));
-                              getAudioEngine().seek(line.time);
-                              const pState = usePlayerStore.getState();
-                              if (pState.roomId && (pState.role === 'host' || pState.role === 'cohost')) {
-                                jamSocket.syncSeek(line.time);
-                              }
-                              setTimeout(() => {
-                                useAudioStore.getState().setIsSeeking(false);
-                              }, 150);
-                            }
-                            setIsUserScrolled(false);
-                          }}
-                        >
-                          {line.text}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : lyricsText ? (
-                  <div className="w-full flex flex-col items-center gap-5 pb-32 pt-10 px-4 text-center">
-                    {lyricsText.split('\n').map((line, idx) => {
-                      const text = line.trim();
-                      if (!text) return <div key={idx} className="h-2" />; // gap
-                      
-                      const isSectionHeader = (text.startsWith('[') && text.endsWith(']')) || (text.startsWith('(') && text.endsWith(')'));
-                      
-                      return (
-                        <div 
-                          key={idx}
-                          className={`${
-                            isSectionHeader 
-                              ? 'text-sm md:text-base font-bold text-primary tracking-[0.2em] uppercase mt-8 mb-2 opacity-80 drop-shadow-md' 
-                              : 'text-2xl md:text-3xl font-bold tracking-tight text-white/70 hover:text-foreground transition-colors cursor-default'
-                          }`}
-                        >
-                          {text}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-white/40 text-lg flex flex-col items-center gap-4 mt-20">
-                    <p>{t('player.lyrics_not_found')}</p>
-                    <p className="text-sm">Provided by My Server</p>
-                  </div>
-                )}
+                      })}
+                    </div>
+                  ) : lyricsText ? (
+                    <div className="w-full flex flex-col items-center gap-5 pb-32 pt-10 px-4 text-center">
+                      {lyricsText.split('\n').map((line, idx) => {
+                        const text = line.trim();
+                        if (!text) return <div key={idx} className="h-2" />; // gap
+                        
+                        const isSectionHeader = (text.startsWith('[') && text.endsWith(']')) || (text.startsWith('(') && text.endsWith(')'));
+                        
+                        return (
+                          <div 
+                            key={idx}
+                            className={`${
+                              isSectionHeader 
+                                ? 'text-sm md:text-base font-bold text-primary tracking-[0.2em] uppercase mt-8 mb-2 opacity-80 drop-shadow-md' 
+                                : 'text-2xl md:text-3xl font-bold tracking-tight text-white/70 hover:text-foreground transition-colors cursor-default'
+                            }`}
+                          >
+                            {text}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-white/40 text-lg flex flex-col items-center gap-4 mt-20">
+                      <p>{t('player.lyrics_not_found')}</p>
+                      <p className="text-sm">Provided by My Server</p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
             {activeTab === 'queue' && (
-              <div ref={queueContainerRef} className="space-y-2">
-                <SortableContext 
-                  items={queue.map((t, idx) => `${t.id}-${idx}`)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {queue.map((track, idx) => {
-                    const isPlayingQueue = idx === currentIndex;
-                    const sortableId = `${track.id}-${idx}`;
-                    return (
-                      <SortableItem key={sortableId} id={sortableId}>
-                        {({ setNodeRef, attributes, listeners, style, isDragging }) => (
-                          <div 
-                            ref={setNodeRef}
-                            style={style}
-                            {...(!readOnlyControls ? attributes : {})}
-                            {...(!readOnlyControls ? listeners : {})}
-                            className={`flex items-center px-4 py-3 rounded-xl transition-colors ${isPlayingQueue ? 'bg-primary/20 shadow-sm border border-primary/30' : 'hover:bg-foreground/10'} ${!readOnlyControls ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-30' : ''}`}
-                            onClick={() => {
-                              // Only handle play if it wasn't a drag
-                              if (!readOnlyControls && !isDragging) setQueueAndPlay(queue, idx);
-                            }}
-                            onContextMenu={(e) => {
-                              e.preventDefault();
-                              openMenu(e.clientX, e.clientY, { ...track, queueIndex: idx, coverArt: getCoverArtUrl(track.coverArt || track.albumId || track.id, 300) }, 'track');
-                            }}
-                          >
-                            <div className="w-8 flex justify-center text-white/50 text-sm font-medium select-none pointer-events-none">
-                              {isPlayingQueue ? <Play size={14} className="text-primary stroke-none" fill="currentColor" /> : idx + 1}
-                            </div>
-                            <div className="w-12 h-12 flex-shrink-0 mx-4 rounded-lg overflow-hidden shadow-md select-none pointer-events-none">
-                              <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId || track.id, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />
-                            </div>
-                            <div className="flex-1 min-w-0 flex flex-col justify-center select-none pointer-events-none">
-                              <p className={`flex items-center gap-2 truncate text-base font-semibold ${isPlayingQueue ? 'text-primary drop-shadow-md' : 'text-white/90'}`}>
-                                <span className="truncate">{track.title}</span>
-                                {isItemDownloaded(downloads, track.id, track.albumId, track) && <Download size={14} className="text-primary shrink-0" />}
-                              </p>
-                              <ArtistLinks artistString={track.artist} artistId={(track as any).artistId} className="truncate text-sm text-white/60" />
-                            </div>
-                            <div className="w-16 text-sm text-white/50 flex justify-end font-medium select-none pointer-events-none">
-                              {formatTime(track.duration)}
-                            </div>
-                          </div>
-                        )}
-                      </SortableItem>
-                    );
-                  })}
-                </SortableContext>
-              </div>
-            )}
-
-            {activeTab === 'similar' && (
-              <div className="space-y-2">
-                {similarTracks.length > 0 ? similarTracks.map((track, idx) => (
-                  <div 
-                    key={idx} 
-                    className="flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-foreground/10 cursor-pointer"
-                    onClick={() => !readOnlyControls && setQueueAndPlay(similarTracks, idx)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId || track.id, 300) }, 'track');
-                    }}
+              <div className="h-full p-4 min-h-0 overflow-hidden">
+                {queue.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-white/50">
+                    <p>{t('player.queue_is_empty')}</p>
+                  </div>
+                ) : (
+                  <SortableContext 
+                    items={queue.map((t, idx) => `${t.id}-${idx}`)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <div className="w-12 h-12 flex-shrink-0 mr-4 rounded-lg overflow-hidden shadow-md">
-                      <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId || track.id, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />
-                    </div>
-                    <div className="flex-1 min-w-0 flex flex-col justify-center">
-                      <p className="flex items-center gap-2 truncate text-base font-semibold text-white/90">
-                        <span className="truncate">{track.title}</span>
-                        {isItemDownloaded(downloads, track.id, track.albumId, track) && <Download size={14} className="text-primary shrink-0" />}
-                      </p>
-                      <ArtistLinks artistString={track.artist} artistId={(track as any).artistId} className="truncate text-sm text-white/60" />
-                    </div>
-                    <div className="w-16 text-sm text-white/50 flex justify-end font-medium">
-                      {formatTime(track.duration)}
-                    </div>
-                  </div>
-                )) : (
-                  <div className="text-white/40 text-lg flex flex-col items-center mt-20 font-medium">
-                    {t('player.similar_not_found')}
-                  </div>
+                    <Virtuoso
+                      ref={virtuosoRef}
+                      className="h-full custom-scrollbar"
+                      data={queue}
+                      initialTopMostItemIndex={Math.max(0, currentIndex - 1)}
+                      overscan={300}
+                      components={{
+                        Footer: () => <div className="h-10 flex-shrink-0" />
+                      }}
+                      itemContent={(idx: number, track: any) => {
+                        const isPlayingQueue = idx === currentIndex;
+                        const sortableId = `${track.id}-${idx}`;
+                        return (
+                          <div key={sortableId} className="pb-2">
+                            <SortableItem id={sortableId}>
+                              {({ setNodeRef, attributes, listeners, style, isDragging }) => (
+                                <div 
+                                  ref={setNodeRef}
+                                  style={style}
+                                  {...(!readOnlyControls ? attributes : {})}
+                                  {...(!readOnlyControls ? listeners : {})}
+                                  className={`flex items-center px-4 py-3 rounded-xl transition-colors ${isPlayingQueue ? 'bg-primary/20 shadow-sm border border-primary/30' : 'hover:bg-foreground/10'} ${!readOnlyControls ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-30' : ''}`}
+                                  onClick={() => {
+                                    // Only handle play if it wasn't a drag
+                                    if (!readOnlyControls && !isDragging) setQueueAndPlay(queue, idx);
+                                  }}
+                                  onContextMenu={(e) => {
+                                    e.preventDefault();
+                                    openMenu(e.clientX, e.clientY, { ...track, queueIndex: idx, coverArt: getCoverArtUrl(track.coverArt || track.albumId || track.id, 300) }, 'track');
+                                  }}
+                                >
+                                  <div className="w-8 flex justify-center text-white/50 text-sm font-medium select-none pointer-events-none">
+                                    {isPlayingQueue ? <Play size={14} className="text-primary stroke-none" fill="currentColor" /> : idx + 1}
+                                  </div>
+                                  <div className="w-12 h-12 flex-shrink-0 mx-4 rounded-lg overflow-hidden shadow-md select-none pointer-events-none">
+                                    <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId || track.id, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />
+                                  </div>
+                                  <div className="flex-1 min-w-0 flex flex-col justify-center select-none pointer-events-none">
+                                    <p className={`flex items-center gap-2 truncate text-base font-semibold ${isPlayingQueue ? 'text-primary drop-shadow-md' : 'text-white/90'}`}>
+                                      <span className="truncate">{track.title}</span>
+                                      {isItemDownloaded(downloads, track.id, track.albumId, track) && <Download size={14} className="text-primary shrink-0" />}
+                                    </p>
+                                    <ArtistLinks artistString={track.artist} artistId={(track as any).artistId} className="truncate text-sm text-white/60" />
+                                  </div>
+                                  <div className="w-16 text-sm text-white/50 flex justify-end font-medium select-none pointer-events-none">
+                                    {formatTime(track.duration)}
+                                  </div>
+                                </div>
+                              )}
+                            </SortableItem>
+                          </div>
+                        );
+                      }}
+                    />
+                  </SortableContext>
                 )}
               </div>
             )}
 
-            {activeTab === 'visualizer' && (
-              <AudioVisualizer />
+            {activeTab === 'similar' && (
+              <div className="h-full overflow-y-auto custom-scrollbar p-6">
+                <div className="space-y-2">
+                  {similarTracks.length > 0 ? similarTracks.map((track, idx) => (
+                    <div 
+                      key={idx} 
+                      className="flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-foreground/10 cursor-pointer"
+                      onClick={() => !readOnlyControls && setQueueAndPlay(similarTracks, idx)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.albumId || track.id, 300) }, 'track');
+                      }}
+                    >
+                      <div className="w-12 h-12 flex-shrink-0 mr-4 rounded-lg overflow-hidden shadow-md">
+                        <TrackImage src={getCoverArtUrl(track.coverArt || track.albumId || track.id, 100)} className="w-full h-full object-cover" alt="" trackId={track.id} />
+                      </div>
+                      <div className="flex-1 min-w-0 flex flex-col justify-center">
+                        <p className="flex items-center gap-2 truncate text-base font-semibold text-white/90">
+                          <span className="truncate">{track.title}</span>
+                          {isItemDownloaded(downloads, track.id, track.albumId, track) && <Download size={14} className="text-primary shrink-0" />}
+                        </p>
+                        <ArtistLinks artistString={track.artist} artistId={(track as any).artistId} className="truncate text-sm text-white/60" />
+                      </div>
+                      <div className="w-16 text-sm text-white/50 flex justify-end font-medium">
+                        {formatTime(track.duration)}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-white/40 text-lg flex flex-col items-center mt-20 font-medium">
+                      {t('player.similar_not_found')}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
-              </motion.div>
-            </AnimatePresence>
+
+            {activeTab === 'visualizer' && (
+              <div className="h-full p-6">
+                <AudioVisualizer />
+              </div>
+            )}
           </div>
         </div>
       </div>
