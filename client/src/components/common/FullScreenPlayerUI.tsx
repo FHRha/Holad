@@ -163,7 +163,13 @@ export default function FullScreenPlayerUI({
   } as import('../../types').Track;
 
   return (
-    <div className={`absolute inset-0 bg-background flex text-foreground overflow-hidden z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-500 ease-out`}>
+    <motion.div 
+      initial={{ y: '100%', opacity: 0.6 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: '100%', opacity: 0.6 }}
+      transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+      className="absolute inset-0 bg-background flex text-foreground overflow-hidden z-[100] transform-gpu will-change-transform"
+    >
       
       {/* Blurred Background with Smooth Dual-Layer Crossfade */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
@@ -230,7 +236,12 @@ export default function FullScreenPlayerUI({
       <div className="relative z-10 flex w-full h-full p-10 gap-16 pt-24 pb-20 items-stretch justify-center max-w-[1600px] mx-auto">
         
         <div className="flex-1 flex flex-col items-center justify-center max-w-[600px]">
-          <div className="w-full aspect-square max-w-[500px] rounded-2xl overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] mb-10 border border-white/20 bg-muted">
+          <motion.div 
+            initial={{ scale: 0.94, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.45, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full aspect-square max-w-[500px] rounded-2xl overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] mb-10 border border-white/20 bg-muted"
+          >
             <TrackImage 
               src={activeCoverSrc} 
               trackId={displayTrack.id}
@@ -238,7 +249,7 @@ export default function FullScreenPlayerUI({
               alt={displayTrack.title} 
               priority={true}
             />
-          </div>
+          </motion.div>
           <h1 className="text-4xl lg:text-5xl font-bold mb-3 text-center drop-shadow-xl leading-tight text-white">{displayTrack.title}</h1>
           <ArtistLinks 
             artistString={displayTrack.artist} 
@@ -327,7 +338,15 @@ export default function FullScreenPlayerUI({
               if (activeTab === 'lyrics') setIsUserScrolled(true);
             }}
           >
-            
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="h-full"
+              >
             {activeTab === 'lyrics' && (
               <div className="h-full flex flex-col items-center justify-start text-center max-w-[600px] mx-auto py-10 relative">
                 {loadingLyrics ? (
@@ -510,10 +529,11 @@ export default function FullScreenPlayerUI({
             {activeTab === 'visualizer' && (
               <AudioVisualizer />
             )}
-
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

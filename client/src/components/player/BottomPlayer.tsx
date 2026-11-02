@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'framer-motion';
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Maximize2, Monitor, Smartphone, Tv2, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -149,15 +150,23 @@ export default function BottomPlayer() {
             priority={true}
           />
         </div>
-        <div className="flex flex-col leading-tight justify-center gap-0.5 flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 w-full">
-            <span onClick={() => navigate(`/album/${currentTrack.albumId}`)} className="font-bold text-base text-foreground truncate hover:underline cursor-pointer">{currentTrack.title}</span>
-            <MoreVertical size={16} className="text-[#808080] hover:text-foreground cursor-pointer flex-shrink-0" onClick={(e) => { e.stopPropagation(); openMenu(e.clientX, e.clientY, currentTrack, 'track'); }} />
-          </div>
-          <ArtistLinks artistString={currentTrack.artist} artistId={currentTrack.artistId} className="text-sm font-medium text-secondary truncate mt-0.5" />
-          {currentTrack.album && (
-            <span onClick={() => navigate(`/album/${currentTrack.albumId}`)} className="text-sm text-secondary/70 truncate hover:underline cursor-pointer mt-0.5">{currentTrack.album}</span>
-          )}
+        <AnimatePresence mode="wait">
+          <motion.div 
+            key={currentTrack.id}
+            initial={{ opacity: 0, y: 2 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -2 }}
+            transition={{ duration: 0.16 }}
+            className="flex flex-col leading-tight justify-center gap-0.5 flex-1 min-w-0"
+          >
+            <div className="flex items-center gap-1.5 w-full">
+              <span onClick={() => navigate(`/album/${currentTrack.albumId}`)} className="font-bold text-base text-foreground truncate hover:underline cursor-pointer">{currentTrack.title}</span>
+              <MoreVertical size={16} className="text-[#808080] hover:text-foreground cursor-pointer flex-shrink-0" onClick={(e) => { e.stopPropagation(); openMenu(e.clientX, e.clientY, currentTrack, 'track'); }} />
+            </div>
+            <ArtistLinks artistString={currentTrack.artist} artistId={currentTrack.artistId} className="text-sm font-medium text-secondary truncate mt-0.5" />
+            {currentTrack.album && (
+              <span onClick={() => navigate(`/album/${currentTrack.albumId}`)} className="text-sm text-secondary/70 truncate hover:underline cursor-pointer mt-0.5">{currentTrack.album}</span>
+            )}
           {!isActiveDevice && activeDeviceObj && (
             <div className="relative shrink-0 mt-1 max-w-full w-fit">
               <div className={`absolute -inset-0.5 bg-gradient-to-r from-primary/70 to-primary/20 rounded-full blur-[6px] opacity-60 transition duration-1000 ${isPlaying ? 'animate-pulse' : 'opacity-20'}`}></div>
@@ -174,7 +183,8 @@ export default function BottomPlayer() {
               </div>
             </div>
           )}
-        </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <div className="flex flex-col items-center justify-center flex-[1.5] lg:flex-[2] min-w-[200px] gap-3 mt-0 mx-2">
@@ -359,7 +369,14 @@ export default function BottomPlayer() {
   );
 
   const MobileMiniPlayer = (
-    <div className={`md:hidden fixed bottom-[56px] left-0 right-0 z-40 px-2 pb-2 ${isJamRoute && !isMinimized ? 'hidden' : ''}`}>
+    <motion.div 
+      key="mobile-mini-player"
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 15 }}
+      transition={{ duration: 0.2 }}
+      className={`md:hidden fixed bottom-[56px] left-0 right-0 z-40 px-2 pb-2 ${isJamRoute && !isMinimized ? 'hidden' : ''}`}
+    >
       <div 
         className="flex h-14 bg-[#121212]/40 backdrop-blur-xl border border-white/10 rounded-[16px] items-center px-3 gap-3 relative overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
         onClick={() => {
@@ -402,7 +419,7 @@ export default function BottomPlayer() {
         <SkipForward fill="currentColor" size={20} />
       </button>
       </div>
-    </div>
+    </motion.div>
   );
 
   return (
@@ -422,9 +439,13 @@ export default function BottomPlayer() {
         ref={audioRef1}
       />
       {DesktopPlayer}
-      {!isMobileExpanded && MobileMiniPlayer}
+      <AnimatePresence>
+        {!isMobileExpanded && MobileMiniPlayer}
+      </AnimatePresence>
       <div className="md:hidden">
-        {isMobileExpanded && !isJamRoute && <MobilePlayerUI onClose={() => setIsMobileExpanded(false)} />}
+        <AnimatePresence>
+          {isMobileExpanded && !isJamRoute && <MobilePlayerUI onClose={() => setIsMobileExpanded(false)} />}
+        </AnimatePresence>
       </div>
     </>
   );

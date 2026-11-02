@@ -221,7 +221,26 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
   const isLiked = likedTrackIds.includes(currentTrack.id);
 
   return (
-    <div className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] animate-in slide-in-from-bottom-full fade-in-0 duration-300">
+    <motion.div 
+      initial={{ y: '100%' }}
+      animate={{ y: 0 }}
+      exit={{ y: '100%' }}
+      transition={{ type: 'spring', damping: 28, stiffness: 260, mass: 0.8 }}
+      drag={!isListenerPage && activeTab === 'player' ? 'y' : false}
+      dragConstraints={{ top: 0 }}
+      dragElastic={{ top: 0, bottom: 0.3 }}
+      onDragEnd={(_, info) => {
+        if (info.offset.y > 100 || info.velocity.y > 500) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] transform-gpu will-change-transform"
+    >
+      {!isListenerPage && (
+        <div className="w-full pt-2 pb-0 flex justify-center items-center pointer-events-none z-20">
+          <div className="w-10 h-1 rounded-full bg-white/25" />
+        </div>
+      )}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <AnimatePresence mode="popLayout">
           {effectiveBgCover && (
@@ -405,6 +424,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
         isOpen={showSleepTimerMenu} 
         onClose={() => setShowSleepTimerMenu(false)} 
       />
-    </div>
+    </motion.div>
   );
 }

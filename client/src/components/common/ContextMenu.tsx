@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { DesktopContextMenu, MobileContextMenuDrawer } from './context-menu';
 
@@ -14,7 +15,11 @@ export default function ContextMenu() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (!isOpen || !item) return null;
-
-  return isMobile ? <MobileContextMenuDrawer /> : <DesktopContextMenu />;
+  return (
+    <AnimatePresence>
+      {isOpen && item && (
+        isMobile ? <MobileContextMenuDrawer key="mobile-ctx" /> : <DesktopContextMenu key="desktop-ctx" />
+      )}
+    </AnimatePresence>
+  );
 }

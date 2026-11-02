@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { useUIStore } from '../../store/uiStore';
 import { usePlayerStore } from '../../store/playerStore';
 import FullScreenPlayerUI from './FullScreenPlayerUI';
@@ -42,8 +43,6 @@ export default function NowPlayingModal() {
   const isControlledByMinimization = isJamRoute && role !== 'host' && (!!roomId || validStandalone);
   const showPlayer = isControlledByMinimization ? !isMinimized : isNowPlayingOpen;
 
-  if (!showPlayer) return null;
-
   const handleClose = () => {
     if (isControlledByMinimization) {
       usePlayerStore.getState().setIsMinimized(true);
@@ -55,12 +54,14 @@ export default function NowPlayingModal() {
   const desktopOnClose = role === 'listener' ? undefined : handleClose;
 
   return (
-    <>
-      {!isMobile ? (
-        <FullScreenPlayerUI onClose={desktopOnClose} />
-      ) : (
-        <MobilePlayerUI onClose={handleClose} />
+    <AnimatePresence mode="wait">
+      {showPlayer && (
+        !isMobile ? (
+          <FullScreenPlayerUI key="desktop-fullscreen-player" onClose={desktopOnClose} />
+        ) : (
+          <MobilePlayerUI key="mobile-fullscreen-player" onClose={handleClose} />
+        )
       )}
-    </>
+    </AnimatePresence>
   );
 }

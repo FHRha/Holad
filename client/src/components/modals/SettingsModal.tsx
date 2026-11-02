@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Palette, Settings2, MonitorPlay, HardDrive, Speaker, Sliders, Globe, RotateCcw } from 'lucide-react';
@@ -103,18 +104,27 @@ export default function SettingsModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isModalOpen, handleClose]);
 
-  // If closed, return nothing
-  if (!isModalOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={handleClose}
-    >
-      <div
-        className="bg-card w-full max-w-4xl rounded-xl shadow-2xl border border-border flex h-[88vh] md:h-[600px] max-h-[800px] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {isModalOpen && (
+        <motion.div
+          key="settings-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={handleClose}
+        >
+          <motion.div
+            key="settings-card"
+            initial={{ scale: 0.95, opacity: 0, y: 12 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 12 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="bg-card w-full max-w-4xl rounded-xl shadow-2xl border border-border flex h-[88vh] md:h-[600px] max-h-[800px] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
         {/* Navigation Sidebar */}
         <div className="w-60 bg-background/50 border-r border-border flex flex-col p-4 shrink-0">
           <h2 className="text-lg font-bold mb-4 px-2">{t('sidebar.settings')}</h2>
@@ -371,7 +381,9 @@ export default function SettingsModal({
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
