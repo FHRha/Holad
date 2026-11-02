@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useUIStore } from '../../store/uiStore';
 import { usePlayerStore } from '../../store/playerStore';
@@ -43,6 +43,28 @@ export default function NowPlayingModal() {
   const isControlledByMinimization = isJamRoute && role !== 'host' && (!!roomId || validStandalone);
   const showPlayer = isControlledByMinimization ? !isMinimized : isNowPlayingOpen;
 
+  const [shouldRenderDesktop, setShouldRenderDesktop] = useState(showPlayer);
+  const [isDesktopClosing, setIsDesktopClosing] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (isMobile) return;
+    if (showPlayer) {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      setShouldRenderDesktop(true);
+      setIsDesktopClosing(false);
+    } else if (shouldRenderDesktop && !isDesktopClosing) {
+      setIsDesktopClosing(true);
+      closeTimerRef.current = setTimeout(() => {
+        setShouldRenderDesktop(false);
+        setIsDesktopClosing(false);
+      }, 250);
+    }
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, [showPlayer, isMobile, shouldRenderDesktop, isDesktopClosing]);
+
   const handleClose = () => {
     if (isControlledByMinimization) {
       usePlayerStore.getState().setIsMinimized(true);
@@ -56,7 +78,12 @@ export default function NowPlayingModal() {
   return (
     <>
       {!isMobile ? (
-        showPlayer && <FullScreenPlayerUI onClose={desktopOnClose} />
+        shouldRenderDesktop && (
+          <FullScreenPlayerUI 
+            onClose={desktopOnClose} 
+            isClosing={isDesktopClosing} 
+          />
+        )
       ) : (
         <AnimatePresence>
           {showPlayer && <MobilePlayerUI key="mobile-fullscreen-player" onClose={handleClose} />}

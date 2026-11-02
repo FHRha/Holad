@@ -30,9 +30,11 @@ import { getBasePath, isJamPath } from '../../utils/basePath';
 
 export default function FullScreenPlayerUI({ 
   onClose,
+  isClosing: externalIsClosing,
   extraControls
 }: { 
   onClose?: () => void,
+  isClosing?: boolean,
   extraControls?: React.ReactNode
 }) {
   const { t } = useTranslation();
@@ -47,14 +49,15 @@ export default function FullScreenPlayerUI({
   const openMenu = useContextMenuStore(state => state.openMenu);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [activeTab, setActiveTab] = useState<'queue' | 'similar' | 'lyrics' | 'visualizer'>('lyrics');
-  const [isClosing, setIsClosing] = useState(false);
+  const [localIsClosing, setLocalIsClosing] = useState(false);
+  const isClosing = externalIsClosing ?? localIsClosing;
   const [showJamMenu, setShowJamMenu] = useState(false);
   const jamMenuRef = useRef<HTMLDivElement>(null);
 
   const handleClose = () => {
     if (isClosing) return;
     if (onClose) {
-      setIsClosing(true);
+      setLocalIsClosing(true);
       setTimeout(() => {
         onClose();
       }, 250);
@@ -351,14 +354,14 @@ export default function FullScreenPlayerUI({
                   {loadingLyrics ? (
                     <p className="text-white/50 animate-pulse text-lg">{t('player.loading_lyrics')}</p>
                   ) : lrcLines.length > 0 ? (
-                    <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[350px] pb-[350px] w-full transition-all duration-300">
+                    <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[350px] pb-[350px] w-full">
                       {lrcLines.map((line, idx) => {
                         const isActive = idx === activeLyricIndexRef.current;
                         const isPast = idx < activeLyricIndexRef.current;
                         
                         if (line.isInterlude) {
                           return (
-                            <div key={idx} className={`flex justify-center items-center gap-4 transition-all duration-500 py-6 ${isActive ? 'scale-110' : 'opacity-40'}`}>
+                            <div key={idx} className={`flex justify-center items-center gap-4 transition-all duration-300 py-6 ${isActive ? 'scale-105' : 'opacity-40'}`}>
                               {[0, 1, 2].map(i => (
                                 <div key={i} className="w-3 h-3 rounded-full bg-white/20 relative overflow-hidden shadow-inner">
                                   <div 
@@ -376,12 +379,12 @@ export default function FullScreenPlayerUI({
                         return (
                           <div 
                             key={idx} 
-                            className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight transition-all duration-500 cursor-pointer px-4 ${
+                            className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight cursor-pointer px-4 transition-[color,transform,opacity] duration-300 ease-out transform-gpu origin-center ${
                               isActive 
-                                ? 'text-primary scale-110 [text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
+                                ? 'text-primary scale-105 [text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
                                 : isPast 
-                                  ? 'text-white/40' 
-                                  : 'text-white/30 hover:text-foreground/50'
+                                  ? 'text-white/40 scale-100' 
+                                  : 'text-white/30 hover:text-foreground/50 scale-100'
                             }`}
                             onClick={() => {
                               if (role === 'listener') return;
@@ -463,8 +466,13 @@ export default function FullScreenPlayerUI({
                       itemContent={(idx: number, track: any) => {
                         const isPlayingQueue = idx === currentIndex;
                         const sortableId = `${track.id}-${idx}`;
+                        const isInitialBatch = idx < 12;
                         return (
-                          <div key={sortableId} className="pb-2">
+                          <div 
+                            key={sortableId} 
+                            className={`pb-2 ${isInitialBatch ? 'animate-cascade-track' : ''}`}
+                            style={isInitialBatch ? { animationDelay: `${idx * 25}ms` } : undefined}
+                          >
                             <SortableItem id={sortableId}>
                               {({ setNodeRef, attributes, listeners, style, isDragging }) => (
                                 <div 
@@ -516,7 +524,8 @@ export default function FullScreenPlayerUI({
                   {similarTracks.length > 0 ? similarTracks.map((track, idx) => (
                     <div 
                       key={idx} 
-                      className="flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-foreground/10 cursor-pointer"
+                      className="animate-cascade-track flex items-center px-4 py-3 rounded-xl transition-colors hover:bg-foreground/10 cursor-pointer"
+                      style={{ animationDelay: `${Math.min(idx * 25, 200)}ms` }}
                       onClick={() => !readOnlyControls && setQueueAndPlay(similarTracks, idx)}
                       onContextMenu={(e) => {
                         e.preventDefault();

@@ -63,6 +63,21 @@
   animation: cascade-entrance 0.32s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
+@keyframes cascade-fade-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-cascade-track {
+  animation: cascade-fade-down 0.28s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
 @keyframes fullscreen-slide-up {
   0% {
     transform: translateY(100%);
