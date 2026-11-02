@@ -362,7 +362,7 @@ function MainAppContent() {
                             key={location.pathname.startsWith('/library') ? '/library' : location.pathname}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            transition={{ duration: 0.14, ease: 'easeOut' }}
+                            transition={{ duration: 0.22, ease: 'easeOut' }}
                             className="flex-1 flex flex-col overflow-hidden h-full"
                           >
                             <Routes location={location}>

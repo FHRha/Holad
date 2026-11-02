@@ -8,6 +8,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import type { Track } from '../../store/playerStore';
 import ArtistLinks from './ArtistLinks';
+import TrackImage from './TrackImage';
 import RatingStars from './RatingStars';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useDownloadStore } from '../../store/downloadStore';
@@ -191,18 +192,11 @@ const AlbumCard = memo(function AlbumCard({ album }: { album: any }) {
       {...longPressProps}
     >
       <div className="relative aspect-square overflow-hidden rounded-t-lg bg-background/20">
-        <img 
-          src={finalCoverUrl} 
+        <TrackImage 
+          src={finalCoverUrl || coverUrl} 
           alt={album.name} 
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          loading="lazy"
-          decoding="async"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            if (target.src.includes('&size=')) {
-              target.src = target.src.replace(/&size=\d+/, '');
-            }
-          }}
+          trackId={album.id}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
         />
 
         {rating > 0 && (

@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Play, Star, Download } from 'lucide-react';
@@ -91,21 +92,31 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
         className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar py-4 -my-4"
         style={{ scrollSnapType: 'x mandatory' }}
       >
-        {tracks.map((track) => (
-          <LongPressWrapper 
-            key={track.id} 
+        {tracks.map((track, idx) => (
+          <motion.div
+            key={track.id}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.38,
+              delay: Math.min(idx * 0.03, 0.24),
+              ease: 'easeOut'
+            }}
             className="snap-start flex flex-col gap-2 flex-shrink-0 cursor-pointer group transition-all"
             style={{ 
               width: 'calc(20% - 13px)', 
               minWidth: '150px',
               maxWidth: '220px'
             }}
-            onClick={() => playTrack(track)}
-            onLongPress={(e: any) => {
-              e.preventDefault?.();
-              openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
-            }}
           >
+            <LongPressWrapper 
+              className="w-full h-full flex flex-col gap-2"
+              onClick={() => playTrack(track)}
+              onLongPress={(e: any) => {
+                e.preventDefault?.();
+                openMenu(e.clientX, e.clientY, { ...track, coverArt: getCoverArtUrl(track.coverArt || track.id, 300) }, 'track');
+              }}
+            >
             <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#282828] shadow-md group-hover:shadow-xl transition-all duration-300">
               <TrackImage src={getCoverArtUrl(track.coverArt || track.id, 300)} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt={track.title || track.name} trackId={track.id} />
               
@@ -130,7 +141,8 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
               </span>
               <span className="text-[13px] text-secondary truncate">{track.artist}</span>
             </div>
-          </LongPressWrapper>
+            </LongPressWrapper>
+          </motion.div>
         ))}
       </div>
     </div>

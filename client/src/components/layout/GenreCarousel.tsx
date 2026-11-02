@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { useRef, useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Music, Play, Loader2 } from 'lucide-react';
 import { getSongsByGenre, getCoverArtUrl } from '../../api/subsonic';
@@ -149,7 +150,18 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
           const isThisLoading = loadingStation === genre.value;
 
           return (
-            <div key={genre.value} className="snap-start flex-shrink-0 h-[160px] transition-all" style={{ width: 'calc(20% - 13px)', minWidth: '160px', maxWidth: '240px' }}>
+            <motion.div 
+              key={genre.value} 
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.38,
+                delay: Math.min(idx * 0.03, 0.24),
+                ease: 'easeOut'
+              }}
+              className="snap-start flex-shrink-0 h-[160px] transition-all" 
+              style={{ width: 'calc(20% - 13px)', minWidth: '160px', maxWidth: '240px' }}
+            >
               <div 
                 onClick={isThisLoading ? undefined : () => startGenreRadio(genre.value)}
                 className={`w-full h-full relative overflow-hidden rounded-xl cursor-pointer group transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${colorClass}`}
@@ -173,7 +185,7 @@ export default function GenreCarousel({ title, genres }: GenreCarouselProps) {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>

@@ -9,6 +9,7 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import type { Track } from '../../store/playerStore';
 import { extractDominantColor } from '../../utils/colorExtractor';
 import ArtistLinks from './ArtistLinks';
+import TrackImage from './TrackImage';
 import RatingStars from './RatingStars';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useDownloadStore } from '../../store/downloadStore';
@@ -249,7 +250,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
   return (
     <div 
       ref={containerRef}
-      className="group relative rounded-xl cursor-pointer flex flex-col p-6 flex-shrink-0 h-full"
+      className="group relative rounded-xl cursor-pointer flex flex-col p-6 flex-shrink-0 h-full transition-colors duration-700 ease-out"
       style={{
         backgroundColor: dominantColor ? dominantColor : 'var(--card)'
       }}
@@ -260,18 +261,11 @@ export default function HeroAlbumCard({ album }: { album: any }) {
       </div>
 
       <div className="relative aspect-square overflow-hidden rounded-lg shadow-2xl mb-5 mx-2 bg-black/20">
-        <img 
-          src={finalCoverUrl} 
+        <TrackImage 
+          src={finalCoverUrl || coverUrl} 
           alt={album.name} 
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          loading="lazy"
-          decoding="async"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            if (target.src.includes('&size=')) {
-              target.src = target.src.replace(/&size=\d+/, '');
-            }
-          }}
+          trackId={album.id}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
         />
 
         {rating > 0 && (

@@ -1,3 +1,4 @@
+import { motion, type Variants } from 'framer-motion';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, CloudOff, Download, Heart, Music, Clock, Users, Flame, Shuffle, RefreshCw, ChevronRight, ChevronLeft, Star, Loader2, Play } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
@@ -100,6 +101,30 @@ interface MobileMainContentProps {
   frequentAlbums: any[];
   genres: any[];
 }
+
+
+const mobileContainerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.07,
+      delayChildren: 0.02
+    }
+  }
+};
+
+const mobileSectionVariants: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: 'easeOut'
+    }
+  }
+};
 
 export default function MobileMainContent({ albums, recentTracks, frequentAlbums, genres }: MobileMainContentProps) {
   const { t } = useTranslation();
@@ -253,7 +278,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
   };
 
   return (
-    <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32">
+    <motion.div variants={mobileContainerVariants} initial="hidden" animate="visible" className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32">
       <div className="px-4 pt-4 pb-2 sticky top-0 bg-background/80 backdrop-blur-xl z-10">
         <div className="flex items-center gap-3 mb-4">
           <div 
@@ -303,7 +328,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
 
       <div className="px-4 py-4 flex flex-col gap-8">
         
-        <section onClick={() => navigate('/history')} className="cursor-pointer group">
+        <motion.section variants={mobileSectionVariants} onClick={() => navigate('/history')} className="cursor-pointer group">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-foreground tracking-tight group-hover:text-primary transition-colors">{t('views.listening_history')}</h2>
             <ChevronRight size={24} className="text-secondary group-hover:text-foreground transition-colors" />
@@ -314,9 +339,9 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
             <StatCard icon={<Users size={18} className="text-primary" />} value={stats.uniqueArtists.toString()} label={t('views.artists_short')} />
             <StatCard icon={<Flame size={18} className="text-primary" />} value={stats.streak + t('views.days_short')} label={t('views.streak_label')} />
           </div>
-        </section>
+        </motion.section>
 
-        <ScrollableSection title={t('views.on_the_wave')}>
+        <motion.div variants={mobileSectionVariants}><ScrollableSection title={t('views.on_the_wave')}>
             <button 
               onClick={startRandomRadio}
               disabled={loadingStation === 'random'}
@@ -342,7 +367,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
                 </button>
               );
             })}
-        </ScrollableSection>
+        </ScrollableSection></motion.div>
 
         {actualRecent.length === 0 && actualFrequent.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 py-16 text-center opacity-70">
@@ -445,7 +470,7 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
         onClose={() => setIsJamModalOpen(false)} 
         defaultTab={roomId ? 'jam' : 'friends'}
       />
-    </div>
+    </motion.div>
   );
 }
 
