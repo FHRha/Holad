@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Play, Star, Download } from 'lucide-react';
@@ -92,17 +91,10 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
         className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar py-4 -my-4"
         style={{ scrollSnapType: 'x mandatory' }}
       >
-        {tracks.map((track, idx) => (
-          <motion.div
+        {tracks.map((track) => (
+          <div
             key={track.id}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.38,
-              delay: Math.min(idx * 0.03, 0.24),
-              ease: 'easeOut'
-            }}
-            className="snap-start flex flex-col gap-2 flex-shrink-0 cursor-pointer group transition-all"
+            className="snap-start flex flex-col gap-2 flex-shrink-0 cursor-pointer group transition-transform duration-300 transform-gpu"
             style={{ 
               width: 'calc(20% - 13px)', 
               minWidth: '150px',
@@ -142,7 +134,7 @@ export default function TrackCarousel({ title, tracks }: TrackCarouselProps) {
               <span className="text-[13px] text-secondary truncate">{track.artist}</span>
             </div>
             </LongPressWrapper>
-          </motion.div>
+          </div>
         ))}
       </div>
     </div>

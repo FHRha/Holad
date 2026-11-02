@@ -33,12 +33,12 @@ const mainContainerVariants: Variants = {
 };
 
 const sectionVariants: Variants = {
-  hidden: { opacity: 0, y: 16 },
+  hidden: { opacity: 0, y: 12 },
   visible: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.45,
+      duration: 0.28,
       ease: 'easeOut'
     }
   }
@@ -72,7 +72,17 @@ export default function MainContent() {
   }, [albums, isOfflineMode]);
 
   const randomAlbums = useMemo(() => {
-    return [...displayAlbums].sort(() => Math.random() - 0.5);
+    if (displayAlbums.length === 0) return [];
+    // Stable pseudo-random shuffle based on album ID to eliminate mid-transition layout reordering
+    return [...displayAlbums].sort((a, b) => {
+      const idA = String(a.id || a.title || '');
+      const idB = String(b.id || b.title || '');
+      let hA = 0;
+      for (let i = 0; i < idA.length; i++) hA = ((hA << 5) - hA + idA.charCodeAt(i)) | 0;
+      let hB = 0;
+      for (let i = 0; i < idB.length; i++) hB = ((hB << 5) - hB + idB.charCodeAt(i)) | 0;
+      return hA - hB;
+    });
   }, [displayAlbums]);
 
   const displayGenres = useMemo(() => {
@@ -155,17 +165,17 @@ export default function MainContent() {
         </motion.div>
       ) : (
         <>
-          <motion.div variants={sectionVariants}>
+          <motion.div variants={sectionVariants} className="transform-gpu will-change-transform">
             <AlbumCarousel 
               title={isOfflineMode ? t('views.downloaded_albums') : t('common.discover_new')} 
               albums={isOfflineMode ? displayAlbums : randomAlbums} 
               variant="hero" 
             />
           </motion.div>
-          <motion.div variants={sectionVariants}>
+          <motion.div variants={sectionVariants} className="transform-gpu will-change-transform">
             <GenreCarousel title={t('views.radio_genres')} genres={displayGenres} />
           </motion.div>
-          <motion.div variants={sectionVariants}>
+          <motion.div variants={sectionVariants} className="transform-gpu will-change-transform">
             {isOfflineMode ? (
               <TrackCarousel title={t('views.downloaded_tracks')} tracks={offlineTracks} />
             ) : (

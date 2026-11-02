@@ -170,29 +170,16 @@ export default function HeroAlbumCard({ album }: { album: any }) {
   useEffect(() => {
     if (!isVisible) return;
     let isMounted = true;
-    let idleId: number | undefined;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const runExtraction = () => {
+    // Delay non-critical dominant color extraction until entrance animation is finished (300ms)
+    const timeoutId = setTimeout(() => {
       extractDominantColor(coverUrl).then(color => {
         if (isMounted) setDominantColor(color);
       }).catch(() => {});
-    };
-
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      idleId = (window as any).requestIdleCallback(runExtraction);
-    } else {
-      timeoutId = setTimeout(runExtraction, 200);
-    }
+    }, 300);
 
     return () => {
       isMounted = false;
-      if (idleId !== undefined && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-        (window as any).cancelIdleCallback(idleId);
-      }
-      if (timeoutId !== undefined) {
-        clearTimeout(timeoutId);
-      }
+      clearTimeout(timeoutId);
     };
   }, [coverUrl, isVisible]);
 
@@ -250,7 +237,7 @@ export default function HeroAlbumCard({ album }: { album: any }) {
   return (
     <div 
       ref={containerRef}
-      className="group relative rounded-xl cursor-pointer flex flex-col p-6 flex-shrink-0 h-full transition-colors duration-700 ease-out"
+      className="group relative rounded-xl cursor-pointer flex flex-col p-6 flex-shrink-0 h-full transition-colors duration-500 ease-out transform-gpu will-change-transform"
       style={{
         backgroundColor: dominantColor ? dominantColor : 'var(--card)'
       }}

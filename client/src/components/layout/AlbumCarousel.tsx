@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -70,17 +69,10 @@ export default function AlbumCarousel({ title, albums, variant = 'standard' }: A
         className="flex overflow-x-auto gap-4 snap-x snap-mandatory hide-scrollbar py-4 -my-4"
         style={{ scrollSnapType: 'x mandatory' }}
       >
-        {albums.map((album, idx) => (
-          <motion.div 
+        {albums.map((album) => (
+          <div 
             key={album.id} 
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.38,
-              delay: Math.min(idx * 0.04, 0.28),
-              ease: 'easeOut'
-            }}
-            className="snap-start flex-shrink-0 h-full transition-all" 
+            className="snap-start flex-shrink-0 h-full transition-transform duration-300 transform-gpu" 
             style={{ 
               width: variant === 'hero' ? 'calc(25% - 12px)' : 'calc(20% - 13px)', 
               minWidth: variant === 'hero' ? '220px' : '150px',
@@ -88,7 +80,7 @@ export default function AlbumCarousel({ title, albums, variant = 'standard' }: A
             }}
           >
             {variant === 'hero' ? <HeroAlbumCard album={album} /> : <AlbumCard album={album} />}
-          </motion.div>
+          </div>
         ))}
       </div>
     </div>
