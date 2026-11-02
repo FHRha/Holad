@@ -358,24 +358,35 @@ function MainAppContent() {
                       </div>
                       <main className="flex-1 overflow-hidden flex flex-col relative hide-scrollbar">
                         <Suspense fallback={<div className="flex-1 bg-background" />}>
-                          <Routes>
-                            <Route path="/" element={startPage && startPage !== '/' ? <Navigate to={startPage} replace /> : <MainContent />} />
-                            <Route path="/library/*" element={<LibraryView />} />
-                            <Route path="/albums" element={<AlbumsView />} />
-                            <Route path="/artists" element={<ArtistsView />} />
-                            <Route path="/artist/:id" element={<ArtistView />} />
-                            <Route path="/tracks" element={<TracksView />} />
-                            <Route path="/album/:id" element={<AlbumView />} />
-                            <Route path="/playlists" element={<PlaylistsView />} />
-                            <Route path="/playlist/:id" element={<PlaylistDetailView />} />
-                            <Route path="/favorites" element={<FavoritesView />} />
-                            <Route path="/history" element={<HistoryView />} />
-                            <Route path="/downloads" element={<DownloadsView />} />
-                            <Route path="/radio" element={<RadioView />} />
-                            <Route path="/friends" element={<FriendsView />} />
-                            <Route path="/settings" element={<MobileSettingsView />} />
-                            <Route path="*" element={<MainContent />} />
-                          </Routes>
+                          <AnimatePresence mode="wait" initial={false}>
+                            <motion.div
+                              key={location.pathname}
+                              initial={{ opacity: 0, y: 4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -4 }}
+                              transition={{ duration: 0.16, ease: 'easeOut' }}
+                              className="flex-1 flex flex-col overflow-hidden h-full"
+                            >
+                              <Routes location={location}>
+                                <Route path="/" element={startPage && startPage !== '/' ? <Navigate to={startPage} replace /> : <MainContent />} />
+                                <Route path="/library/*" element={<LibraryView />} />
+                                <Route path="/albums" element={<AlbumsView />} />
+                                <Route path="/artists" element={<ArtistsView />} />
+                                <Route path="/artist/:id" element={<ArtistView />} />
+                                <Route path="/tracks" element={<TracksView />} />
+                                <Route path="/album/:id" element={<AlbumView />} />
+                                <Route path="/playlists" element={<PlaylistsView />} />
+                                <Route path="/playlist/:id" element={<PlaylistDetailView />} />
+                                <Route path="/favorites" element={<FavoritesView />} />
+                                <Route path="/history" element={<HistoryView />} />
+                                <Route path="/downloads" element={<DownloadsView />} />
+                                <Route path="/radio" element={<RadioView />} />
+                                <Route path="/friends" element={<FriendsView />} />
+                                <Route path="/settings" element={<MobileSettingsView />} />
+                                <Route path="*" element={<MainContent />} />
+                              </Routes>
+                            </motion.div>
+                          </AnimatePresence>
                         </Suspense>
                       </main>
                     </div>

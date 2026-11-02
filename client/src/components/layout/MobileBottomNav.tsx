@@ -56,7 +56,7 @@ function NavItem({
       end={end}
       className={({ isActive }) => {
         const active = typeof isActiveOverride === 'boolean' ? isActiveOverride : isActive;
-        return `flex flex-col items-center gap-0.5 p-1 flex-1 transition-colors ${active ? 'text-primary' : 'text-secondary hover:text-foreground'}`;
+        return `flex flex-col items-center gap-0.5 p-1 flex-1 transition-all active:scale-90 ${active ? 'text-primary' : 'text-secondary hover:text-foreground'}`;
       }}
     >
       {icon}

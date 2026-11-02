@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'framer-motion';
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useRef, useEffect } from 'react';
 import { X, Play, Music, Disc, Users, ArrowLeft, Search } from 'lucide-react';
@@ -45,13 +46,20 @@ export default function MobileSearchOverlay() {
     }
   }, [isSearchOpen, setQuery]);
 
-  if (!isSearchOpen) return null;
+  // Handled declaratively via AnimatePresence
 
   return (
-    <div 
-      id="mobile-search-overlay"
-      className="md:hidden fixed inset-0 z-[100] flex flex-col animate-in slide-in-from-bottom-4 duration-300 bg-gradient-to-b from-black via-black/95 to-primary/30"
-    >
+    <AnimatePresence>
+      {isSearchOpen && (
+        <motion.div 
+          key="mobile-search-overlay"
+          id="mobile-search-overlay"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 16 }}
+          transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+          className="md:hidden fixed inset-0 z-[100] flex flex-col bg-gradient-to-b from-black via-black/95 to-primary/30 transform-gpu"
+        >
       <div className="flex items-center gap-2 px-3 py-3 border-b border-white/5 bg-background">
         <button 
           onClick={() => setSearchOpen(false)}
@@ -200,6 +208,8 @@ export default function MobileSearchOverlay() {
           </div>
         )}
       </div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

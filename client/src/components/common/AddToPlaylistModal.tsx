@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -51,7 +52,7 @@ export default function AddToPlaylistModal({ isOpen, onClose, trackIds }: Props)
     }
   }, [isOpen, isOffline, customPlaylists]);
 
-  if (!isOpen) return null;
+  // Handled declaratively via AnimatePresence
 
   const filtered = playlists.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -104,12 +105,27 @@ export default function AddToPlaylistModal({ isOpen, onClose, trackIds }: Props)
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div 
-        className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[80vh] overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-        onContextMenu={(e) => e.preventDefault()}
-      >
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          key="playlist-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={onClose}
+        >
+          <motion.div 
+            key="playlist-modal"
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.preventDefault()}
+          >
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-lg font-bold text-foreground">{t('common.add_to_playlist')}</h2>
           <button onClick={onClose} className="p-2 text-secondary hover:text-foreground transition-colors rounded-full hover:bg-foreground/10">
@@ -186,8 +202,10 @@ export default function AddToPlaylistModal({ isOpen, onClose, trackIds }: Props)
             </button>
           </form>
         </div>
-      </div>
-    </div>,
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body
   );
 }
