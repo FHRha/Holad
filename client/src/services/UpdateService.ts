@@ -284,7 +284,16 @@ export class UpdateService {
                 const size = targetAsset?.size;
 
                 let expectedSha256: string | undefined;
-                if (fileName) {
+                if (targetAsset?.digest && typeof targetAsset.digest === 'string') {
+                    const rawDigest = targetAsset.digest.trim();
+                    if (rawDigest.toLowerCase().startsWith('sha256:')) {
+                        expectedSha256 = rawDigest.slice(7).toLowerCase();
+                    } else if (/^[a-f0-9]{64}$/i.test(rawDigest)) {
+                        expectedSha256 = rawDigest.toLowerCase();
+                    }
+                }
+
+                if (!expectedSha256 && fileName) {
                     const sumsAsset = assets.find((a: any) => 
                         a.name === 'SHA256SUMS' || 
                         a.name?.toLowerCase() === 'sha256sums.txt' || 

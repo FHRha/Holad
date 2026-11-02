@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { usePlayerStore } from '../../store/playerStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { useAudioStore } from '../../store/audioStore';
+
 import { AudioDeck } from '../../audio/AudioDeck';
 import { TransitionManager } from '../../audio/TransitionManager';
 import { createMockTrack, resetAllStores } from '../helpers/testUtils';

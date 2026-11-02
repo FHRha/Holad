@@ -335,7 +335,7 @@ function MainAppContent() {
     <GlobalDndProvider>
       <Toaster theme={effectiveToastTheme} position="bottom-center" richColors />
       <div className="flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden font-sans relative">
-        <MobileBackground />
+        {isMobile && <MobileBackground />}
         <div className="flex flex-1 overflow-hidden relative z-10">
           <Suspense fallback={<div className="flex-1 bg-background" />}>
             <Routes>

@@ -4,7 +4,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { useHoladStore } from '../../store/holadStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useAudioStore } from '../../store/audioStore';
-import { useSettingsStore } from '../../store/settingsStore';
+
 import { useAuthStore } from '../../store/authStore';
 import { getSocketUrl, getSocketPath } from '../../utils/serverConfig';
 import ConnectDeviceList from '../../components/player/connect/ConnectDeviceList';

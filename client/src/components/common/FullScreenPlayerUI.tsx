@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { preloadAndDecodeImage } from '../../utils/assetPreloader';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { StorageManager } from '../../utils/StorageManager';
+import { getBakedBlurredCover } from '../../utils/blurredCoverCache';
 
 import { formatTime } from '../../utils/timeFormat';
 import TrackImage from './TrackImage';
@@ -114,7 +115,8 @@ export default function FullScreenPlayerUI({
       if (candidate && isMounted) {
         await preloadAndDecodeImage(candidate);
         if (isMounted) {
-          setDisplayedBgCover(candidate);
+          const baked = await getBakedBlurredCover(candidate);
+          setDisplayedBgCover(baked || candidate);
         }
       }
     };
@@ -181,13 +183,13 @@ export default function FullScreenPlayerUI({
               animate={{ opacity: 0.8 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8, ease: 'easeInOut' }}
-              className="absolute inset-0 bg-cover bg-center blur-[80px] saturate-150 scale-110 transform-gpu will-change-transform"
+              className="absolute inset-0 bg-cover bg-center saturate-150 scale-105 transform-gpu"
               style={{ backgroundImage: `url("${displayedBgCover}")` }}
             />
           )}
         </AnimatePresence>
       </div>
-      <div className="absolute inset-0 z-0 bg-black/20 pointer-events-none" />
+      <div className="absolute inset-0 z-0 bg-black/35 pointer-events-none" />
 
       <div className="absolute top-0 left-0 right-0 p-6 z-50 flex justify-between items-start pointer-events-none">
         <div className="flex-1 pointer-events-auto flex items-center gap-4">
@@ -270,7 +272,7 @@ export default function FullScreenPlayerUI({
           </div>
         </div>
 
-        <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-foreground/10 rounded-3xl border border-white/20 backdrop-blur-2xl overflow-hidden shadow-2xl relative">
+        <div className="flex-1 h-full w-full max-w-[800px] flex flex-col bg-foreground/10 rounded-3xl border border-white/20 backdrop-blur-md overflow-hidden shadow-2xl relative">
           
           {activeTab === 'lyrics' && isUserScrolled && lrcLines.length > 0 && (
             <button 
@@ -379,7 +381,7 @@ export default function FullScreenPlayerUI({
                           key={idx} 
                           className={`text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight transition-all duration-500 cursor-pointer px-4 ${
                             isActive 
-                              ? 'text-primary scale-110 drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
+                              ? 'text-primary scale-110 [text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]' 
                               : isPast 
                                 ? 'text-white/40' 
                                 : 'text-white/30 hover:text-foreground/50'

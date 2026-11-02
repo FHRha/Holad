@@ -248,6 +248,38 @@ e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  Holad-setup.ex
     expect(parseSha256Sums(sums, 'nonexistent.exe')).toBeUndefined();
     expect(parseSha256Sums('', 'Holad-setup.exe')).toBeUndefined();
   });
+
+  it('checkForUpdates extracts expectedSha256 directly from asset digest', async () => {
+    const mockRelease = {
+      tag_name: 'v2.5.0',
+      body: 'Release notes',
+      prerelease: false,
+      assets: [
+        {
+          name: 'Holad_2.5.0_x64-setup.exe',
+          browser_download_url: 'https://github.com/FHRha/Holad/releases/download/v2.5.0/Holad_2.5.0_x64-setup.exe',
+          size: 15000000,
+          digest: 'sha256:b5dc54de69d1d62dac76f542fcbf830df99d8e391c34ca14fcbd88833efd58fc'
+        }
+      ]
+    };
+
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('api.github.com/repos/FHRha/Holad/releases')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockRelease)
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    vi.spyOn(UpdateService, 'getCurrentVersion').mockResolvedValue('2.0.0');
+
+    const result = await UpdateService.checkForUpdates(true);
+    expect(result.available).toBe(true);
+    expect(result.expectedSha256).toBe('b5dc54de69d1d62dac76f542fcbf830df99d8e391c34ca14fcbd88833efd58fc');
+  });
 });
 
 describe('syncAppLanguageToBackend', () => {

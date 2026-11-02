@@ -12,6 +12,34 @@ pub struct UpdateProgressPayload {
     pub error: Option<String>,
 }
 
+pub fn parse_sha256_from_sums(content: &str, target_file_name: &str) -> Option<String> {
+    let clean_target = std::path::Path::new(target_file_name)
+        .file_name()
+        .map(|f| f.to_string_lossy().to_string())
+        .unwrap_or_else(|| target_file_name.to_string());
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+        if parts.len() >= 2 {
+            let hash = parts[0].to_lowercase();
+            let file_part = parts[1].trim_start_matches('*').trim_start_matches("./");
+            let file_base = std::path::Path::new(file_part)
+                .file_name()
+                .map(|f| f.to_string_lossy().to_string())
+                .unwrap_or_else(|| file_part.to_string());
+
+            if file_base.eq_ignore_ascii_case(&clean_target) && hash.len() == 64 {
+                return Some(hash);
+            }
+        }
+    }
+    None
+}
+
 fn is_allowed_download_url(u: &str) -> bool {
     if !u.starts_with("https://") {
         return false;
@@ -216,11 +244,37 @@ fn download_and_install_sync(
     // 3. Cryptographic integrity verification (CWE-494)
     let calculated_hash = format!("{:x}", hasher.finalize());
     let clean_expected = expected_sha256
-        .as_deref()
         .map(|h| h.trim().to_lowercase())
         .filter(|h| !h.is_empty());
 
-    let is_valid = match clean_expected {
+    let mut resolved_expected = clean_expected;
+    let mut fetched_hash: Option<String> = None;
+
+    if resolved_expected.is_none() {
+        if let Some(last_slash) = url.rfind('/') {
+            let sums_url = format!("{}/SHA256SUMS", &url[..last_slash]);
+            if is_allowed_download_url(&sums_url) {
+                log::info!("expected_sha256 was not provided; attempting to fetch SHA256SUMS from: {}", sums_url);
+                if let Ok(resp) = ureq::get(&sums_url)
+                    .set("User-Agent", "Holad-Desktop-Updater")
+                    .call()
+                {
+                    if let Ok(content) = resp.into_string() {
+                        fetched_hash = parse_sha256_from_sums(&content, &file_name);
+                        if let Some(ref h) = fetched_hash {
+                            log::info!("Successfully extracted SHA-256 for '{}' from SHA256SUMS: {}", file_name, h);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if resolved_expected.is_none() && fetched_hash.is_some() {
+        resolved_expected = fetched_hash;
+    }
+
+    let is_valid = match resolved_expected {
         Some(ref exp) => exp == &calculated_hash,
         None => {
             // In production release builds, checksum is strictly required
@@ -382,5 +436,29 @@ mod tests {
         assert!(!is_allowed_download_url("https://malicious-site.com/Holad_setup.exe"));
         assert!(!is_allowed_download_url("https://fakegithubusercontent.com/asset.exe"));
         assert!(!is_allowed_download_url("https://github.com/OtherUser/OtherRepo/releases/download/v1.0.0/setup.exe"));
+    }
+
+    #[test]
+    fn test_parse_sha256_from_sums() {
+        let content = "\
+99a69322bac0afe403c5052003267397481e20323af9b4cdd359edaa855611fe  holad-web-release.tar.gz
+dbccf13f2ac97cd0872c65b2ba3f57ea2fda98f9ea55f9ef938f414ca530adfb  Holad-Android-2.2.1-test.34.apk
+b5dc54de69d1d62dac76f542fcbf830df99d8e391c34ca14fcbd88833efd58fc  Holad_2.2.1-test.34_x64-setup.exe
+ed5d17545d77f04e5e12de359e1677823b92a1f8ff4c2170de142875423693a6  *Holad_2.2.1-test.34_amd64.AppImage
+c7240f193e6fd6138c80d6c1ad38022f1bba22af82ad326f117a47d5a38e8c69  ./Holad_2.2.1-test.34_amd64.deb
+";
+        assert_eq!(
+            parse_sha256_from_sums(content, "Holad_2.2.1-test.34_x64-setup.exe"),
+            Some("b5dc54de69d1d62dac76f542fcbf830df99d8e391c34ca14fcbd88833efd58fc".to_string())
+        );
+        assert_eq!(
+            parse_sha256_from_sums(content, "Holad_2.2.1-test.34_amd64.AppImage"),
+            Some("ed5d17545d77f04e5e12de359e1677823b92a1f8ff4c2170de142875423693a6".to_string())
+        );
+        assert_eq!(
+            parse_sha256_from_sums(content, "Holad_2.2.1-test.34_amd64.deb"),
+            Some("c7240f193e6fd6138c80d6c1ad38022f1bba22af82ad326f117a47d5a38e8c69".to_string())
+        );
+        assert_eq!(parse_sha256_from_sums(content, "nonexistent.exe"), None);
     }
 }

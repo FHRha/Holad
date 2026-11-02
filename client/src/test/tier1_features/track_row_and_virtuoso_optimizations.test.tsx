@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import TrackRow from '../../components/common/TrackRow';
@@ -20,6 +20,12 @@ vi.mock('../../api/subsonic', async (importOriginal) => {
 
 describe('TrackRow and Optimization Stages 3 & 4', () => {
   beforeEach(() => {
+    global.fetch = vi.fn().mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        blob: () => Promise.resolve(new Blob(['img'], { type: 'image/jpeg' }))
+      })
+    );
     usePlayerStore.setState({
       queue: [
         { id: 't-1', title: 'Song 1', artist: 'Artist 1', album: 'Album 1', duration: 180 },
@@ -117,7 +123,7 @@ describe('TrackRow and Optimization Stages 3 & 4', () => {
     expect(screen.getByText('Favorite Song')).toBeDefined();
   });
 
-  it('AlbumCard renders with decoding="async" on cover image and uses atomic selectors', () => {
+  it('AlbumCard renders with decoding="async" on cover image and uses atomic selectors', async () => {
     const album = { id: 'alb-1', name: 'Cool Album', artist: 'Cool Artist', coverArt: 'c1' };
 
     const { container } = render(
@@ -126,9 +132,14 @@ describe('TrackRow and Optimization Stages 3 & 4', () => {
       </MemoryRouter>
     );
 
-    const img = container.querySelector('img');
-    expect(img).toBeDefined();
-    expect(img?.getAttribute('decoding')).toBe('async');
+    await waitFor(() => {
+      const img = container.querySelector('img');
+      expect(img).not.toBeNull();
+      expect(img?.getAttribute('decoding')).toBe('async');
+  
+    });
+
+
 
     // Atomic like check
     expect(usePlayerStore.getState().likedAlbumIds.includes('alb-1')).toBe(false);
