@@ -54,7 +54,9 @@ export default function FullScreenPlayerUI({
 
   const handleClose = () => {
     if (isClosing) return;
-    if (onClose) {
+    if (externalIsClosing !== undefined) {
+      onClose?.();
+    } else if (onClose) {
       setLocalIsClosing(true);
       setTimeout(() => {
         onClose();
@@ -193,12 +195,16 @@ export default function FullScreenPlayerUI({
   return (
     <div 
       className={`absolute inset-0 bg-background flex text-foreground overflow-hidden z-[100] transform-gpu will-change-transform ${
-        isClosing ? 'animate-fullscreen-exit' : 'animate-fullscreen-enter'
+        isClosing ? 'animate-fullscreen-exit pointer-events-none' : 'animate-fullscreen-enter'
       }`}
+      style={{ clipPath: 'inset(0)' }}
     >
       
       {/* Blurred Background with Pure Hardware CSS Crossfade */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+      <div 
+        className="absolute inset-0 z-0 overflow-hidden pointer-events-none"
+        style={{ clipPath: 'inset(0)' }}
+      >
         {bgA && (
           <div 
             className="absolute inset-0 bg-cover bg-center scale-110 blur-[30px] transform-gpu will-change-transform transition-opacity duration-700 ease-in-out"

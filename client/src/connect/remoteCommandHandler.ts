@@ -61,10 +61,13 @@ export function handleRemoteCommand(
 
   if (command.type === 'exclusionsSynced') {
     const { excludedTrackIds, excludedAlbumIds, excludedFingerprints } = command.payload || {};
+    const currentState = usePlayerStore.getState();
     usePlayerStore.setState({
-      excludedTrackIds: Array.isArray(excludedTrackIds) ? excludedTrackIds : [],
-      excludedAlbumIds: Array.isArray(excludedAlbumIds) ? excludedAlbumIds : [],
-      excludedFingerprints: Array.isArray(excludedFingerprints) ? excludedFingerprints : []
+      excludedTrackIds: Array.isArray(excludedTrackIds) ? excludedTrackIds : currentState.excludedTrackIds,
+      excludedAlbumIds: Array.isArray(excludedAlbumIds) ? excludedAlbumIds : currentState.excludedAlbumIds,
+      excludedFingerprints: excludedFingerprints !== undefined && Array.isArray(excludedFingerprints)
+        ? excludedFingerprints
+        : currentState.excludedFingerprints
     });
     return;
   }

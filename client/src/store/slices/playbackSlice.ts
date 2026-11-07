@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import type { PlayerState } from '../playerStore';
 import { isTauri, isCapacitor } from '../../utils/StorageManager';
 import { useHoladStore } from '../holadStore';
+import { flushPendingQueueSync } from './queueSlice';
 
 const isMobileClient = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -53,6 +54,9 @@ export const createPlaybackSlice: StateCreator<
     if (isRemote) {
       store.sendRemoteCommand(isPlaying ? 'play' : 'pause');
       return;
+    }
+    if (!isPlaying) {
+      flushPendingQueueSync();
     }
     set({ isPlaying });
   },

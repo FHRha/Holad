@@ -53,10 +53,11 @@ export function useAppLifecycle() {
 
       if (playerStore.queue.length > 0 && playerStore.currentIndex >= 0) {
         const currentTrack = playerStore.queue[playerStore.currentIndex];
-        if (currentTrack) {
+        if (currentTrack && (playerStore.isPlaying || currentTime > 0)) {
           localStorage.setItem('holad_track', currentTrack.id);
           localStorage.setItem('holad_time', currentTime.toString());
-          localStorage.setItem('holad_time_updated', Date.now().toString());
+          // Never update holad_time_updated with app shutdown/exit time:
+          // playback timestamp must only be updated during active playback or seek.
         }
       }
 

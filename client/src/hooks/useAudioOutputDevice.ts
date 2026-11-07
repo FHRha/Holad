@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { isCapacitor, isTauri } from '../utils/StorageManager';
 import { usePlayerStore } from '../store/playerStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { useAudioStore } from '../store/audioStore';
+import { useHoladStore } from '../store/holadStore';
+import { isJamPath } from '../utils/basePath';
+import { savePlaybackState } from '../api/playbackState';
 import { getAudioEngine } from '../audio/AudioEngine';
 
 export interface AudioOutputDevice {
@@ -149,11 +153,55 @@ export function handleHeadphonesDisconnected() {
   console.log('[AudioDevice] Headphones disconnected - pausing playback immediately');
   lastHeadphonesDisconnectedAt = Date.now();
   const store = usePlayerStore.getState();
+  const currentTrack = store.queue[store.currentIndex];
+
+  const engine = getAudioEngine();
+  let posSec = 0;
+  if (engine) {
+    const engTime = engine.getCurrentTime();
+    if (typeof engTime === 'number' && !isNaN(engTime) && engTime > 0) {
+      posSec = Math.round(engTime);
+    }
+  }
+  if (posSec <= 0) {
+    const audioState = useAudioStore.getState();
+    const dur = audioState.duration || currentTrack?.duration || 0;
+    if (dur > 0 && audioState.progress > 0) {
+      posSec = Math.round((audioState.progress / 100) * dur);
+    }
+  }
+
+  if (currentTrack) {
+    try {
+      localStorage.setItem('holad_track', currentTrack.id);
+      localStorage.setItem('holad_time', posSec.toString());
+      localStorage.setItem('holad_time_updated', Date.now().toString());
+    } catch {
+      // ignore
+    }
+  }
+
+  // Guaranteed flush/save of current position and track with useKeepalive = true before or during engine.pause()
+  if (currentTrack && store.role !== 'listener' && !isJamPath()) {
+    const holadState = useHoladStore.getState();
+    const isDeviceActive = !holadState.roomId || !holadState.activeDeviceId || holadState.activeDeviceId === holadState.deviceId;
+    if (isDeviceActive) {
+      const now = Date.now();
+      usePlayerStore.setState({ playbackUpdatedAt: now });
+      savePlaybackState({
+        currentIndex: store.currentIndex >= 0 ? store.currentIndex : 0,
+        songId: currentTrack.id,
+        position: posSec,
+        isPlaying: false,
+        updatedAt: now
+      }, true).catch(() => {});
+    }
+  }
+
   if (store.isPlaying) {
     isHeadphonesDisconnectPause = true;
     store.setIsPlaying(false);
   }
-  const engine = getAudioEngine();
   if (engine) {
     engine.pause();
   }

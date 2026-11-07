@@ -371,6 +371,67 @@ describe('Exclusions Database', () => {
     const albumRemoved = database.toggleExclusion(testUserId, 'album-2', 'album');
     expect(albumRemoved).toBe(false);
   });
+
+  it('should find and remove existing exclusion by fingerprint when entity_id changed after rescan', () => {
+    const rescanUser = 'test-rescan-user';
+    const fingerprint = 'trk_test_rescan_fingerprint_abc';
+
+    // 1. Initial exclusion with old Subsonic ID
+    const added = database.toggleExclusion(rescanUser, 'old-nav-id-1', 'track', {
+      fingerprint,
+      title: 'Rescanned Track',
+      artist: 'Navi Artist'
+    });
+    expect(added).toBe(true);
+
+    let current = database.getExclusions(rescanUser);
+    expect(current.excludedTrackIds).toContain('old-nav-id-1');
+    expect(current.excludedFingerprints).toContain(fingerprint);
+
+    // 2. Client encounters track with newly generated ID after rescan, same fingerprint, and tries to unignore
+    const removed = database.toggleExclusion(rescanUser, 'new-nav-id-2', 'track', {
+      fingerprint,
+      title: 'Rescanned Track',
+      artist: 'Navi Artist'
+    });
+    expect(removed).toBe(false);
+
+    // 3. Verify neither old nor new ID remains excluded, and no duplicate was created
+    current = database.getExclusions(rescanUser);
+    expect(current.excludedTrackIds).not.toContain('old-nav-id-1');
+    expect(current.excludedTrackIds).not.toContain('new-nav-id-2');
+    expect(current.excludedFingerprints).not.toContain(fingerprint);
+  });
+
+  it('should preserve existing fingerprints and metadata in setExclusions', () => {
+    const metaUser = 'test-meta-user';
+    const fp = 'trk_meta_preserve_123';
+
+    // 1. Exclude track with rich metadata
+    database.toggleExclusion(metaUser, 't-rich-1', 'track', {
+      fingerprint: fp,
+      title: 'Rich Title',
+      artist: 'Rich Artist',
+      album: 'Rich Album',
+      duration: 240
+    });
+
+    // 2. Client syncs exclusions with t-rich-1 and a new track
+    database.setExclusions(metaUser, ['t-rich-1', 't-plain-2'], ['a-1']);
+
+    const current = database.getExclusions(metaUser);
+    expect(current.excludedTrackIds).toEqual(expect.arrayContaining(['t-rich-1', 't-plain-2']));
+    expect(current.excludedTrackIds).toHaveLength(2);
+    expect(current.excludedAlbumIds).toEqual(['a-1']);
+    expect(current.excludedFingerprints).toContain(fp);
+
+    const richDetail = current.details.find(d => d.entityId === 't-rich-1');
+    expect(richDetail).toBeDefined();
+    expect(richDetail?.fingerprint).toBe(fp);
+    expect(richDetail?.title).toBe('Rich Title');
+    expect(richDetail?.artist).toBe('Rich Artist');
+    expect(richDetail?.album).toBe('Rich Album');
+  });
 });
 
 describe('WebSocket Events', () => {
@@ -620,6 +681,21 @@ describe('Exclusions REST API & Socket.io Broadcast', () => {
     expect(getRes.status).toBe(200);
     expect(getRes.body.excludedTrackIds).toEqual(['track-10', 'track-20']);
     expect(getRes.body.excludedAlbumIds).toEqual(['album-10']);
+
+    // Check GET works with /Holad BASE_PATH prefix
+    const getHoladRes = await request(app)
+      .get(`/Holad/api/holad/exclusions/${account.user}`)
+      .set(authHeaders);
+    expect(getHoladRes.status).toBe(200);
+    expect(getHoladRes.body.excludedTrackIds).toEqual(['track-10', 'track-20']);
+
+    // Check POST works with /Holad BASE_PATH prefix
+    const postHoladRes = await request(app)
+      .post(`/Holad/api/holad/exclusions/${account.user}`)
+      .set(authHeaders)
+      .send({ entityId: 'track-holad-base-1', entityType: 'track' });
+    expect(postHoladRes.status).toBe(200);
+    expect(postHoladRes.body).toHaveProperty('ok', true);
   });
 
   it('should maintain Grace Period when active device disconnects and NOT auto-switch to desktop', async () => {

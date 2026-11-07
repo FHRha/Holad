@@ -1335,7 +1335,15 @@ app.post('/api/holad/integrations/:roomId', validateRestAuth, express.json(), (r
   }
 });
 
-app.get('/api/holad/exclusions/:roomId', validateRestAuth, (req, res) => {
+const exclusionsPaths = (subpath = '') => {
+  const basePaths = [`/api/holad/exclusions${subpath}`, `/Holad/api/holad/exclusions${subpath}`];
+  if (normalizedBase && normalizedBase !== '/Holad' && !basePaths.includes(`${normalizedBase}/api/holad/exclusions${subpath}`)) {
+    basePaths.push(`${normalizedBase}/api/holad/exclusions${subpath}`);
+  }
+  return basePaths;
+};
+
+app.get(exclusionsPaths('/:roomId'), validateRestAuth, (req, res) => {
   const roomId = req.params.roomId as string;
   try {
     const exclusions = database.getExclusions(roomId);
@@ -1346,7 +1354,7 @@ app.get('/api/holad/exclusions/:roomId', validateRestAuth, (req, res) => {
   }
 });
 
-app.post('/api/holad/exclusions/:roomId', validateRestAuth, express.json(), (req, res) => {
+app.post(exclusionsPaths('/:roomId'), validateRestAuth, express.json(), (req, res) => {
   const roomId = req.params.roomId as string;
   try {
     if (req.body && 'entityId' in req.body && 'entityType' in req.body) {
@@ -1363,9 +1371,17 @@ app.post('/api/holad/exclusions/:roomId', validateRestAuth, express.json(), (req
       const excludedTrackIds = req.body.excludedTrackIds || [];
       const excludedAlbumIds = req.body.excludedAlbumIds || [];
       database.setExclusions(roomId, excludedTrackIds, excludedAlbumIds);
+      const userExclusions = database.getExclusions(roomId);
+      const syncPayload: any = {
+        excludedTrackIds: userExclusions.excludedTrackIds,
+        excludedAlbumIds: userExclusions.excludedAlbumIds
+      };
+      if (userExclusions.excludedFingerprints && userExclusions.excludedFingerprints.length > 0) {
+        syncPayload.excludedFingerprints = userExclusions.excludedFingerprints;
+      }
       broadcastConnectRemoteCommand(io, roomId, {
         type: 'exclusionsSynced',
-        payload: { excludedTrackIds, excludedAlbumIds }
+        payload: syncPayload
       });
       return res.json({ ok: true });
     } else {
@@ -1377,7 +1393,7 @@ app.post('/api/holad/exclusions/:roomId', validateRestAuth, express.json(), (req
   }
 });
 
-app.post('/api/holad/exclusions/:roomId/reconcile', validateRestAuth, express.json(), (req, res) => {
+app.post(exclusionsPaths('/:roomId/reconcile'), validateRestAuth, express.json(), (req, res) => {
   const roomId = req.params.roomId as string;
   try {
     const { oldId, newId, entityType, fingerprint } = req.body || {};
@@ -1387,9 +1403,16 @@ app.post('/api/holad/exclusions/:roomId/reconcile', validateRestAuth, express.js
     const reconciled = database.reconcileExclusion(roomId, oldId ? String(oldId) : '', String(newId), entityType || 'track', fingerprint);
     if (reconciled) {
       const exclusions = database.getExclusions(roomId);
+      const syncPayload: any = {
+        excludedTrackIds: exclusions.excludedTrackIds,
+        excludedAlbumIds: exclusions.excludedAlbumIds
+      };
+      if (exclusions.excludedFingerprints && exclusions.excludedFingerprints.length > 0) {
+        syncPayload.excludedFingerprints = exclusions.excludedFingerprints;
+      }
       broadcastConnectRemoteCommand(io, roomId, {
         type: 'exclusionsSynced',
-        payload: exclusions
+        payload: syncPayload
       });
       return res.json({ ok: true, reconciled, exclusions });
     }

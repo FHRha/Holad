@@ -4,6 +4,7 @@ import { useHoladStore } from '../../store/holadStore';
 import { useUIStore } from '../../store/uiStore';
 import * as exclusionsApi from '../../api/exclusions';
 import { generateTrackFingerprint } from '../../utils/trackFingerprint';
+import { handleRemoteCommand } from '../../connect/remoteCommandHandler';
 
 vi.mock('../../api/exclusions', () => ({
   fetchExclusions: vi.fn(),
@@ -218,5 +219,33 @@ describe('Exclusions Persistence & Real-Time Sync', () => {
     useUIStore.getState().closeUnignoreModal();
     expect(useUIStore.getState().unignoreModal.isOpen).toBe(false);
     expect(useUIStore.getState().unignoreModal.track).toBeNull();
+  });
+
+  it('exclusionsSynced preserves excludedFingerprints when omitted from command.payload', () => {
+    usePlayerStore.setState({
+      excludedTrackIds: ['t1'],
+      excludedAlbumIds: ['a1'],
+      excludedFingerprints: ['fp-secret-123']
+    });
+
+    handleRemoteCommand({
+      type: 'exclusionsSynced',
+      payload: {
+        excludedTrackIds: ['t2'],
+        excludedAlbumIds: ['a2']
+        // excludedFingerprints omitted
+      }
+    } as any, {
+      socket: {} as any,
+      deviceId: 'dev1',
+      roomId: 'room1',
+      activeDeviceId: 'dev1',
+      lastPausedAt: 0
+    });
+
+    const state = usePlayerStore.getState();
+    expect(state.excludedTrackIds).toEqual(['t2']);
+    expect(state.excludedAlbumIds).toEqual(['a2']);
+    expect(state.excludedFingerprints).toEqual(['fp-secret-123']);
   });
 });

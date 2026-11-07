@@ -75,7 +75,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const latestPositionRef = useRef<number>(initialPosition > 0 ? Math.round(initialPosition / 1000) : 0);
   const latestTrackIdRef = useRef<string | null>(currentTrack?.id || null);
 
-  const flushPositionToLocalStorage = useCallback(() => {
+  const flushPositionToLocalStorage = useCallback((updateTimestamp = true) => {
     if (latestTrackIdRef.current) {
       try {
         let posToSave = latestPositionRef.current;
@@ -104,7 +104,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         latestPositionRef.current = posToSave;
         localStorage.setItem('holad_time', posToSave.toString());
         localStorage.setItem('holad_track', latestTrackIdRef.current);
-        localStorage.setItem('holad_time_updated', Date.now().toString());
+        if (updateTimestamp && (usePlayerStore.getState().isPlaying || prevIsPlayingRef.current)) {
+          localStorage.setItem('holad_time_updated', Date.now().toString());
+        }
         lastLocalStorageWriteRef.current = performance.now();
       } catch {
         // ignore storage errors
@@ -153,14 +155,22 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     // Flush track position & progress on page unload / pagehide / visibilitychange / mobile backgrounding
     useEffect(() => {
       const handleUnload = () => {
-        flushPositionToLocalStorage();
-        flushPlaybackProgressToServer(true);
+        if (usePlayerStore.getState().isPlaying) {
+          flushPositionToLocalStorage(true);
+          flushPlaybackProgressToServer(true);
+        } else {
+          flushPositionToLocalStorage(false);
+        }
       };
   
       const handleVisibilityChange = () => {
         if (document.visibilityState === 'hidden') {
-          flushPositionToLocalStorage();
-          flushPlaybackProgressToServer(true);
+          if (usePlayerStore.getState().isPlaying) {
+            flushPositionToLocalStorage(true);
+            flushPlaybackProgressToServer(true);
+          } else {
+            flushPositionToLocalStorage(false);
+          }
         }
       };
   
@@ -527,8 +537,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
           console.error('Playback resume error:', e);
         });
       } else if (!isPlaying && prevIsPlayingRef.current) {
-        flushPositionToLocalStorage();
-        flushPlaybackProgressToServer(false);
+        flushPositionToLocalStorage(true);
+        flushPlaybackProgressToServer(true);
         engineRef.current.pause();
       } else if (isPlaying && (!isActiveDevice || isSpeakerDj)) {
         engineRef.current.pause();

@@ -125,10 +125,20 @@ export const savePlaybackState = async (
         keepalive: true,
         headers,
         body
-      }).catch(() => {});
+      }).then((res) => {
+        if (res.ok && typeof localStorage !== 'undefined') {
+          localStorage.removeItem('holad_pending_offline_playback');
+        }
+      }).catch(() => {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('holad_pending_offline_playback', 'true');
+        }
+      });
       return true;
     } catch {
-      // Fallback
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('holad_pending_offline_playback', 'true');
+      }
     }
   }
 
@@ -146,10 +156,16 @@ export const savePlaybackState = async (
       body,
       signal: currentController.signal
     });
+    if (res.ok && typeof localStorage !== 'undefined') {
+      localStorage.removeItem('holad_pending_offline_playback');
+    }
     return res.ok;
   } catch (error: any) {
     if (error?.name === 'AbortError') {
       return false;
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('holad_pending_offline_playback', 'true');
     }
     console.error('Failed to save playback state:', error);
     return false;

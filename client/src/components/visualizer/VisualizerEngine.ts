@@ -45,10 +45,12 @@ export class VisualizerEngine {
   // Animation & Lifecycle
   private rafId: number = 0;
   private isRunning: boolean = false;
+  private isDestroyed: boolean = false;
   private isVisible: boolean = true;
   private isDocumentVisible: boolean = true;
   private isWindowVisible: boolean = true;
   private unsubVisibility: (() => void) | null = null;
+  private pageHideHandler: (() => void) | null = null;
   private fadeFrames: number = FADE_OUT_FRAMES;
   private width: number = 0;
   private height: number = 0;
@@ -202,6 +204,15 @@ export class VisualizerEngine {
       this.isWindowVisible = visible;
       this.evaluateRunningState();
     });
+
+    // Page hide / unload listener for instant shutdown
+    this.pageHideHandler = () => {
+      this.stop();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', this.pageHideHandler);
+      window.addEventListener('beforeunload', this.pageHideHandler);
+    }
   }
 
   /**
@@ -233,6 +244,7 @@ export class VisualizerEngine {
    * Start or resume the rendering loop.
    */
   public start(): void {
+    if (this.isDestroyed) return;
     this.fadeFrames = FADE_OUT_FRAMES;
     this.evaluateRunningState();
   }
@@ -252,6 +264,10 @@ export class VisualizerEngine {
    * Determine if loop should be active based on playback, visibility, and fade states.
    */
   public evaluateRunningState(): void {
+    if (this.isDestroyed) {
+      this.stop();
+      return;
+    }
     const isPlaying = this.getIsPlaying();
     const canRun = this.isVisible && this.isDocumentVisible && this.isWindowVisible;
 
@@ -359,7 +375,16 @@ export class VisualizerEngine {
    * Main render loop (Zero-Allocation).
    */
   private render = (): void => {
-    if (!this.isRunning) return;
+    if (!this.isRunning || this.isDestroyed) return;
+
+    const canRun = this.isVisible && this.isDocumentVisible && this.isWindowVisible;
+    if (!canRun) {
+      this.stop();
+      if (this.width > 0 && this.height > 0) {
+        this.ctx.clearRect(0, 0, this.width, this.height);
+      }
+      return;
+    }
 
     const isPlaying = this.getIsPlaying();
     if (!isPlaying) {
@@ -418,6 +443,8 @@ export class VisualizerEngine {
         this.renderClassic(bufferLength, fadeMultiplier);
         break;
     }
+
+    if (!this.isRunning || this.isDestroyed) return;
 
     // Continue rAF
     this.rafId = requestAnimationFrame(this.render);
@@ -932,7 +959,12 @@ export class VisualizerEngine {
    * Free all resources and observers.
    */
   public destroy(): void {
+    this.isDestroyed = true;
     this.stop();
+
+    if (this.width > 0 && this.height > 0) {
+      this.ctx.clearRect(0, 0, this.width, this.height);
+    }
 
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
@@ -952,6 +984,12 @@ export class VisualizerEngine {
     if (this.visibilityHandler) {
       document.removeEventListener('visibilitychange', this.visibilityHandler);
       this.visibilityHandler = null;
+    }
+
+    if (this.pageHideHandler && typeof window !== 'undefined') {
+      window.removeEventListener('pagehide', this.pageHideHandler);
+      window.removeEventListener('beforeunload', this.pageHideHandler);
+      this.pageHideHandler = null;
     }
 
     if (this.unsubVisibility) {

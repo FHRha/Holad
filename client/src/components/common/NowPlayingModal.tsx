@@ -43,27 +43,52 @@ export default function NowPlayingModal() {
   const isControlledByMinimization = isJamRoute && role !== 'host' && (!!roomId || validStandalone);
   const showPlayer = isControlledByMinimization ? !isMinimized : isNowPlayingOpen;
 
-  const [shouldRenderDesktop, setShouldRenderDesktop] = useState(showPlayer);
+  const [shouldRenderDesktop, setShouldRenderDesktop] = useState(showPlayer && !isMobileDevice());
   const [isDesktopClosing, setIsDesktopClosing] = useState(false);
-  const closeTimerRef = useRef<number | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shouldRenderDesktopRef = useRef(shouldRenderDesktop);
+  shouldRenderDesktopRef.current = shouldRenderDesktop;
 
   useEffect(() => {
-    if (isMobile) return;
-    if (showPlayer) {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-      setShouldRenderDesktop(true);
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isMobile) {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
       setIsDesktopClosing(false);
-    } else if (shouldRenderDesktop && !isDesktopClosing) {
+      setShouldRenderDesktop(false);
+      return;
+    }
+
+    if (showPlayer) {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      setIsDesktopClosing(false);
+      setShouldRenderDesktop(true);
+    } else if (shouldRenderDesktopRef.current) {
+      // Transition from open to closing: trigger exit animation and unmount after 260ms
       setIsDesktopClosing(true);
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
       closeTimerRef.current = setTimeout(() => {
         setShouldRenderDesktop(false);
         setIsDesktopClosing(false);
-      }, 250);
+        closeTimerRef.current = null;
+      }, 260);
     }
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, [showPlayer, isMobile, shouldRenderDesktop, isDesktopClosing]);
+  }, [showPlayer, isMobile]);
 
   const handleClose = () => {
     if (isControlledByMinimization) {

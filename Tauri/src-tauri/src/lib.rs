@@ -437,29 +437,6 @@ pub fn run() {
           }
       }
 
-      // Предварительно создаем скрытое окно tray_menu, чтобы его WebView2 был полностью готов и прогрет
-      let tray_menu_builder = tauri::WebviewWindowBuilder::new(
-          app,
-          "tray_menu",
-          tauri::WebviewUrl::App("/#tray".into()),
-      )
-      .title("Holad (Tray Menu)")
-      .inner_size(320.0, 450.0)
-      .resizable(false)
-      .decorations(false)
-      .transparent(true)
-      .always_on_top(true)
-      .skip_taskbar(true)
-      .shadow(false)
-      .visible(false);
-
-      #[cfg(target_os = "windows")]
-      let tray_menu_builder = tray_menu_builder.background_color(tauri::window::Color(0, 0, 0, 0));
-
-      if let Ok(w) = tray_menu_builder.build() {
-          let _ = w.hide();
-      }
-
       let initial_tray_icon = tauri::image::Image::from_bytes(TRAY_WAVE_DARK)
           .unwrap_or_else(|_| app.default_window_icon().unwrap().clone());
 
@@ -583,7 +560,7 @@ pub fn run() {
                 if window.label() == "main" {
                     let config = window.state::<AppConfig>();
                     if *config.close_to_tray.lock().unwrap() {
-                        window.hide().unwrap();
+                        let _ = window.hide();
                         let _ = window.emit("window-visibility-change", false);
                         api.prevent_close();
                     } else {

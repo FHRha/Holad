@@ -5,13 +5,14 @@ import { Ban, Play, X, Music } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { getCoverArtUrl } from '../../api/subsonic';
+import { isTrackExcluded } from '../../utils/trackFingerprint';
 import { isMobileDevice } from '../../App';
 import BottomSheet from '../common/BottomSheet';
 
 export default function UnignoreTrackModal() {
   const { t } = useTranslation();
   const { unignoreModal, closeUnignoreModal } = useUIStore();
-  const { excludedTrackIds, excludedAlbumIds, toggleTrackExclude, toggleAlbumExclude } = usePlayerStore();
+  const { excludedTrackIds, excludedAlbumIds, excludedFingerprints, toggleTrackExclude, toggleAlbumExclude } = usePlayerStore();
 
   const checkIsMobile = () => {
     if (typeof window === 'undefined') return false;
@@ -32,11 +33,12 @@ export default function UnignoreTrackModal() {
   const coverUrl = getCoverArtUrl(track.coverArt || track.albumId || track.id, 300);
 
   const handleConfirm = () => {
-    if (excludedTrackIds.includes(track.id)) {
-      toggleTrackExclude(track.id);
+    const isTrackSelfExcluded = isTrackExcluded(track, excludedTrackIds, [], excludedFingerprints);
+    if (isTrackSelfExcluded || excludedTrackIds.includes(track.id)) {
+      toggleTrackExclude(track.id, track);
     }
     if (track.albumId && excludedAlbumIds.includes(track.albumId)) {
-      toggleAlbumExclude(track.albumId);
+      toggleAlbumExclude(track.albumId, { album: track.album, artist: track.artist });
     }
     unignoreModal.onConfirm?.();
     closeUnignoreModal();

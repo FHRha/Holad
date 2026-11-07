@@ -57,13 +57,38 @@ export const toCompactQueue = (tracks: Track[]) => {
 };
 
 let queueSyncTimeout: ReturnType<typeof setTimeout> | null = null;
+let pendingSyncPayload: (() => void) | null = null;
+
+export const flushPendingQueueSync = () => {
+  if (queueSyncTimeout) {
+    clearTimeout(queueSyncTimeout);
+    queueSyncTimeout = null;
+  }
+  if (pendingSyncPayload) {
+    const fn = pendingSyncPayload;
+    pendingSyncPayload = null;
+    fn();
+  }
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushPendingQueueSync);
+  window.addEventListener('beforeunload', flushPendingQueueSync);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flushPendingQueueSync();
+    }
+  });
+}
 
 export const syncQueueToServer = (
   queue: Track[],
   currentIndex: number,
   queueVersion: string,
   updatedAt: number,
-  playerState?: Partial<PlayerState>
+  playerState?: Partial<PlayerState>,
+  immediate = false,
+  useKeepalive = false
 ) => {
   if (useHoladStore.getState().isApplyingRemoteState) return;
   if (isJamPath()) return;
@@ -73,9 +98,11 @@ export const syncQueueToServer = (
 
   if (queueSyncTimeout) {
     clearTimeout(queueSyncTimeout);
+    queueSyncTimeout = null;
   }
 
-  queueSyncTimeout = setTimeout(() => {
+  const doSync = (keepalive = useKeepalive) => {
+    pendingSyncPayload = null;
     const curTrack = queue[currentIndex];
     savePlaybackState({
       queue: toCompactQueue(queue),
@@ -87,8 +114,17 @@ export const syncQueueToServer = (
       isShuffled: playerState?.isShuffle ?? false,
       repeatMode: playerState?.repeatMode ?? 'off',
       updatedAt
-    }).catch(() => {});
-  }, 250);
+    }, keepalive).catch(() => {});
+  };
+
+  if (immediate) {
+    doSync(useKeepalive);
+  } else {
+    pendingSyncPayload = () => doSync(true);
+    queueSyncTimeout = setTimeout(() => {
+      doSync(false);
+    }, 250);
+  }
 };
 
 export interface QueueSlice {
@@ -151,7 +187,7 @@ export const createQueueSlice: StateCreator<
       playbackUpdatedAt: now,
       queueVersion: newVersion
     });
-    syncQueueToServer(filtered, newIndex, newVersion, now, get());
+    syncQueueToServer(filtered, newIndex, newVersion, now, get(), true, true);
   },
 
   setQueueAndPlay: (tracks, startIndex = 0) => {
@@ -188,7 +224,7 @@ export const createQueueSlice: StateCreator<
       playbackUpdatedAt: now,
       queueVersion: newVersion
     }));
-    syncQueueToServer(filtered, newIndex, newVersion, now, get());
+    syncQueueToServer(filtered, newIndex, newVersion, now, get(), true, true);
   },
 
   playNext: (tracks) => {
@@ -268,7 +304,7 @@ export const createQueueSlice: StateCreator<
   clearQueue: () => {
     const now = Date.now();
     const newVersion = `${now}-${Math.random().toString(36).substring(2, 7)}`;
-    syncQueueToServer([], -1, newVersion, now);
+    syncQueueToServer([], -1, newVersion, now, undefined, true, true);
     set({
       queue: [],
       originalQueue: [],
@@ -314,7 +350,7 @@ export const createQueueSlice: StateCreator<
           currentIndex: index,
           initialPosition: 0,
           isPlaying: true
-        });
+        }, true, true);
       }
       return {
         currentIndex: index,
@@ -335,7 +371,7 @@ export const createQueueSlice: StateCreator<
           ...state,
           initialPosition: 0,
           isPlaying: true
-        });
+        }, true, true);
         return { currentIndex: state.currentIndex, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
       }
       if (state.currentIndex < state.queue.length - 1) {
@@ -349,7 +385,7 @@ export const createQueueSlice: StateCreator<
             currentIndex: nextIdx,
             initialPosition: 0,
             isPlaying: true
-          });
+          }, true, true);
           return { currentIndex: nextIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
         }
       } else if (state.repeatMode === 'all') {
@@ -363,7 +399,7 @@ export const createQueueSlice: StateCreator<
             currentIndex: firstIdx,
             initialPosition: 0,
             isPlaying: true
-          });
+          }, true, true);
           return { currentIndex: firstIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
         }
       }
@@ -386,7 +422,7 @@ export const createQueueSlice: StateCreator<
             currentIndex: prevIdx,
             initialPosition: 0,
             isPlaying: true
-          });
+          }, true, true);
           return { currentIndex: prevIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
         }
       }

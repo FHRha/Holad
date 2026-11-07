@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
+import { useAuthStore } from '../../store/authStore';
 import {
   handleHeadphonesDisconnected,
   handleHeadphonesConnected,
@@ -34,7 +35,13 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
   });
 
   describe('1. Headphone Disconnection Handler', () => {
-    it('immediately sets isPlaying to false when headphones are disconnected', () => {
+    it('immediately sets isPlaying to false and flushes playback state with useKeepalive=true when headphones are disconnected', () => {
+      useAuthStore.setState({
+        user: 'testuser',
+        token: 'testtoken',
+        isAuthenticated: true
+      });
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true } as any);
       const track = createMockTrack('hp-1', 'Headphone Song', 200);
       usePlayerStore.getState().setQueue([track]);
       usePlayerStore.getState().setIsPlaying(true);
@@ -45,6 +52,14 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       handleHeadphonesDisconnected();
 
       expect(usePlayerStore.getState().isPlaying).toBe(false);
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/playback-state'),
+        expect.objectContaining({
+          method: 'POST',
+          keepalive: true,
+          body: expect.stringContaining('"songId":"hp-1"')
+        })
+      );
     });
 
     it('returns valid initial audio output device', () => {
