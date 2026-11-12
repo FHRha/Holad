@@ -3,6 +3,7 @@ import type { PlayerState } from '../playerStore';
 import { isTauri, isCapacitor } from '../../utils/StorageManager';
 import { useHoladStore } from '../holadStore';
 import { flushPendingQueueSync } from './queueSlice';
+import { isClientOffline } from '../../utils/networkStatus';
 
 const isMobileClient = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -18,6 +19,8 @@ export interface PlaybackSlice {
   repeatMode: 'none' | 'all' | 'one';
   playbackRate: number;
   sleepTimer: { type: 'time' | 'track_end' | null, endTime: number | null };
+  isSessionHydrated: boolean;
+  hasActiveOfflinePlayback: boolean;
   setIsPlaying: (isPlaying: boolean) => void;
   setVolume: (volume: number) => void;
   setMobileVolume: (mobileVolume: number) => void;
@@ -27,6 +30,8 @@ export interface PlaybackSlice {
   cycleRepeatMode: () => void;
   cyclePlaybackRate: () => void;
   setSleepTimer: (minutes: number | 'track_end' | null) => void;
+  setIsSessionHydrated: (val: boolean) => void;
+  setHasActiveOfflinePlayback: (val: boolean) => void;
 }
 
 export const createPlaybackSlice: StateCreator<
@@ -43,6 +48,19 @@ export const createPlaybackSlice: StateCreator<
   repeatMode: 'none',
   playbackRate: 1,
   sleepTimer: { type: null, endTime: null },
+  isSessionHydrated: false,
+  hasActiveOfflinePlayback: false,
+  setIsSessionHydrated: (isSessionHydrated) => set({ isSessionHydrated }),
+  setHasActiveOfflinePlayback: (hasActiveOfflinePlayback) => {
+    try {
+      if (hasActiveOfflinePlayback) {
+        localStorage.setItem('holad_pending_offline_playback', 'true');
+      } else {
+        localStorage.removeItem('holad_pending_offline_playback');
+      }
+    } catch {}
+    set({ hasActiveOfflinePlayback });
+  },
   setIsPlaying: (isPlaying) => {
     const store = useHoladStore.getState();
     const isRemote = (
@@ -58,7 +76,16 @@ export const createPlaybackSlice: StateCreator<
     if (!isPlaying) {
       flushPendingQueueSync();
     }
-    set({ isPlaying });
+    const offline = isClientOffline();
+    if (offline) {
+      try {
+        localStorage.setItem('holad_pending_offline_playback', 'true');
+      } catch {}
+    }
+    set((s) => ({
+      isPlaying,
+      hasActiveOfflinePlayback: offline ? true : s.hasActiveOfflinePlayback,
+    }));
   },
   setVolume: (volume) => set({ volume }),
   setMobileVolume: (mobileVolume) => set({ mobileVolume }),

@@ -16,6 +16,7 @@ describe('ConnectRoomManager Unit Tests', () => {
     for (const [roomId] of manager.rooms) {
       manager.clearRoomGraceTimers(roomId);
     }
+    manager.clearAllSaveDebounceTimers();
   });
 
   it('should initialize room with default snapshot values and null lease', () => {
@@ -235,6 +236,126 @@ describe('ConnectRoomManager Unit Tests', () => {
     expect(res!.snapshot.activeDeviceId).toBe('desktop-1');
     expect(res!.snapshot.version).toBe(verBefore + 1);
     expect(res!.leaseExpiresAt).toBeGreaterThan(Date.now());
+  });
+
+  it('should initialize room snapshot and cachedState from database saved state', () => {
+    const mockDb = {
+      getPlaybackState: vi.fn().mockReturnValue({
+        song_id: 'db-song-42',
+        current_index: 2,
+        queue: [{ id: 'db-song-40' }, { id: 'db-song-41' }, { id: 'db-song-42' }],
+        position: 15,
+        is_playing: false
+      }),
+      savePlaybackState: vi.fn()
+    };
+
+    const dbManager = new ConnectRoomManager(mockDb);
+    const room = dbManager.getOrCreateRoom('user_db_test');
+
+    expect(mockDb.getPlaybackState).toHaveBeenCalledWith('user_db_test');
+    expect(room.snapshot.trackId).toBe('db-song-42');
+    expect(room.snapshot.currentIndex).toBe(2);
+    expect(room.snapshot.queue).toHaveLength(3);
+    expect(room.snapshot.positionMs).toBe(15000);
+    expect(room.snapshot.isPlaying).toBe(false);
+    expect(room.snapshot.playbackRate).toBe(1);
+    expect(room.snapshot.version).toBe(1);
+
+    expect(room.cachedState).toBeDefined();
+    expect(room.cachedState.trackId).toBe('db-song-42');
+    expect(room.cachedState.currentIndex).toBe(2);
+    expect(room.cachedState.currentTime).toBe(15);
+  });
+
+  it('should debounce saving playback state to database on updateSnapshot, transferPlayback, handleLeaseExpiration', async () => {
+    vi.useFakeTimers();
+    try {
+      const mockDb = {
+        getPlaybackState: vi.fn().mockReturnValue(null),
+        savePlaybackState: vi.fn()
+      };
+
+      const dbManager = new ConnectRoomManager(mockDb);
+      dbManager.addDevice('user_db_test', {
+        id: 'phone-1',
+        name: 'Phone',
+        socketId: 'sock-1'
+      });
+
+      // 1. updateSnapshot triggers debounced save
+      dbManager.updateSnapshot('user_db_test', 'phone-1', {
+        trackId: 'song-1',
+        currentIndex: 0,
+        positionMs: 5000,
+        isPlaying: true,
+        queue: [{ id: 'song-1' }]
+      });
+
+      expect(mockDb.savePlaybackState).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(450);
+      expect(mockDb.savePlaybackState).toHaveBeenCalledTimes(1);
+      expect(mockDb.savePlaybackState).toHaveBeenLastCalledWith('user_db_test', expect.objectContaining({
+        song_id: 'song-1',
+        current_index: 0,
+        position: 5,
+        is_playing: true
+      }));
+
+      // 2. transferPlayback triggers debounced save
+      dbManager.addDevice('user_db_test', {
+        id: 'desktop-1',
+        name: 'Desktop',
+        socketId: 'sock-2'
+      });
+      dbManager.transferPlayback('user_db_test', 'desktop-1');
+      vi.advanceTimersByTime(450);
+      expect(mockDb.savePlaybackState).toHaveBeenCalledTimes(2);
+
+      // 3. handleLeaseExpiration triggers debounced save
+      dbManager.handleLeaseExpiration('user_db_test', 'desktop-1');
+      vi.advanceTimersByTime(450);
+      expect(mockDb.savePlaybackState).toHaveBeenCalledTimes(3);
+      expect(mockDb.savePlaybackState).toHaveBeenLastCalledWith('user_db_test', expect.objectContaining({
+        is_playing: false
+      }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('should reconcile offline state correctly in ConnectRoomManager and persist immediately', () => {
+    const mockDb = {
+      getPlaybackState: vi.fn().mockReturnValue(null),
+      savePlaybackState: vi.fn()
+    };
+
+    const dbManager = new ConnectRoomManager(mockDb);
+    const room = dbManager.reconcileOffline('user_offline_test', 'device-offline-1', {
+      queue: [{ id: 'off-1' }, { id: 'off-2' }],
+      currentIndex: 1,
+      positionMs: 30000,
+      isPlaying: true,
+      playbackRate: 1.25
+    });
+
+    expect(room.activeDeviceId).toBe('device-offline-1');
+    expect(room.snapshot.activeDeviceId).toBe('device-offline-1');
+    expect(room.snapshot.trackId).toBe('off-2');
+    expect(room.snapshot.currentIndex).toBe(1);
+    expect(room.snapshot.positionMs).toBe(30000);
+    expect(room.snapshot.isPlaying).toBe(true);
+    expect(room.snapshot.playbackRate).toBe(1.25);
+    expect(room.snapshot.version).toBe(2);
+    expect(room.leaseExpiresAt).toBeGreaterThan(Date.now());
+
+    // Immediate save was called without timer delay
+    expect(mockDb.savePlaybackState).toHaveBeenCalledWith('user_offline_test', expect.objectContaining({
+      song_id: 'off-2',
+      current_index: 1,
+      position: 30,
+      is_playing: true
+    }));
   });
 });
 
@@ -520,5 +641,75 @@ describe('Holad Connect v2 Socket Integration Tests', () => {
     expect(devices.devices.some((d: any) => d.id === 'phone-fallback-1')).toBe(true);
 
     client.disconnect();
+  });
+
+  it('should handle holad_reconcileOffline socket event and broadcast to room participants', async () => {
+    const reconcileUser = 'reconcile_offline_user';
+    database.saveNavidromeAccount({
+      url: auth.url,
+      user: reconcileUser,
+      token: auth.token,
+      salt: auth.salt
+    });
+
+    const client1 = Client(`http://localhost:${port}`, { path: '/holad/socket.io' });
+    const client2 = Client(`http://localhost:${port}`, { path: '/holad/socket.io' });
+    await Promise.all([
+      new Promise<void>((r) => client1.on('connect', r)),
+      new Promise<void>((r) => client2.on('connect', r))
+    ]);
+
+    // Both join room
+    client1.emit('holad_joinRoom', {
+      roomId: reconcileUser,
+      deviceId: 'client-1',
+      deviceName: 'Client 1',
+      auth: { user: reconcileUser, token: auth.token, salt: auth.salt, url: auth.url }
+    });
+    client2.emit('holad_joinRoom', {
+      roomId: reconcileUser,
+      deviceId: 'client-2',
+      deviceName: 'Client 2',
+      auth: { user: reconcileUser, token: auth.token, salt: auth.salt, url: auth.url }
+    });
+
+    await new Promise((r) => setTimeout(r, 200));
+
+    // Listen on client2 for syncState and devices from reconcile
+    const syncPromise = new Promise<any>((resolve) => {
+      client2.on('holad_syncState', (state) => {
+        if (state.trackId === 'offline-song-99') {
+          resolve(state);
+        }
+      });
+    });
+
+    const devicesPromise = new Promise<any>((resolve) => {
+      client2.on('holad_devices', (payload) => {
+        if (payload.activeDeviceId === 'client-1') {
+          resolve(payload);
+        }
+      });
+    });
+
+    client1.emit('holad_reconcileOffline', {
+      roomId: reconcileUser,
+      deviceId: 'client-1',
+      queue: [{ id: 'offline-song-99', title: 'Offline Song' }],
+      currentIndex: 0,
+      positionMs: 45000,
+      isPlaying: true,
+      playbackRate: 1.0
+    });
+
+    const [syncedState, devicesPayload] = await Promise.all([syncPromise, devicesPromise]);
+    expect(syncedState.activeDeviceId).toBe('client-1');
+    expect(syncedState.trackId).toBe('offline-song-99');
+    expect(syncedState.positionMs).toBe(45000);
+    expect(syncedState.isPlaying).toBe(true);
+    expect(devicesPayload.activeDeviceId).toBe('client-1');
+
+    client1.disconnect();
+    client2.disconnect();
   });
 });

@@ -1981,7 +1981,7 @@ interface Room {
 const rooms = new Map<string, Room>();
 
 // Holad Connect
-const connectRoomManager = new ConnectRoomManager();
+const connectRoomManager = new ConnectRoomManager(database);
 
 const broadcastParticipants = (roomId: string) => {
   const room = rooms.get(roomId);

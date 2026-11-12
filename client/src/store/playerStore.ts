@@ -62,6 +62,7 @@ export const usePlayerStore = create<PlayerState>()(
           excludedAlbumIds: state.excludedAlbumIds,
           excludedFingerprints: state.excludedFingerprints,
           queueVersion: state.queueVersion,
+          hasActiveOfflinePlayback: state.hasActiveOfflinePlayback,
         };
       },
       version: 1,
@@ -90,6 +91,11 @@ export const usePlayerStore = create<PlayerState>()(
           idx = 0;
         }
 
+        const wasOffline = Boolean(
+          state.hasActiveOfflinePlayback || 
+          (typeof localStorage !== 'undefined' && localStorage.getItem('holad_pending_offline_playback') === 'true')
+        );
+
         usePlayerStore.setState({
           queue: q,
           originalQueue: origQ,
@@ -97,6 +103,8 @@ export const usePlayerStore = create<PlayerState>()(
           isPlaying: false,
           playbackUpdatedAt: state.playbackUpdatedAt || 0,
           queueVersion: state.queueVersion || '',
+          isSessionHydrated: false,
+          hasActiveOfflinePlayback: wasOffline,
         });
       },
     }

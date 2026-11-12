@@ -6,6 +6,7 @@ import { useSettingsStore } from './settingsStore';
 import { useHistoryStore } from './historyStore';
 import { useAuthStore } from './authStore';
 import { getSocketUrl, getHoladServerUrl, getSocketPath } from '../utils/serverConfig';
+import { getCoverArtUrl } from '../api/subsonic';
 import {
   generateDeviceId,
   getDeviceName,
@@ -13,6 +14,7 @@ import {
   setupPlaybackSubscriptions,
   cleanupPlaybackSubscriptions,
   setIsApplyingRemoteState as setSyncApplyingRemoteState,
+  getCurrentPositionMs,
 } from '../connect';
 import type { PlaybackSnapshot, HoladDevice, HoladAuthErrorPayload } from '../connect/types';
 
@@ -266,6 +268,23 @@ export const useHoladStore = create<HoladState>((set, get) => {
         socket!.emit('holad_ping', { t0: performance.now() });
 
         emitJoinRoom(socket!, normalizedRoom);
+
+        // If client had active offline playback, reconcile immediately
+        const playerStore = usePlayerStore.getState();
+        if (playerStore.hasActiveOfflinePlayback) {
+          const positionMs = getCurrentPositionMs(playerStore);
+          socket!.emit('holad_reconcileOffline', {
+            roomId: normalizedRoom,
+            deviceId,
+            queue: playerStore.queue,
+            currentIndex: playerStore.currentIndex,
+            positionMs,
+            isPlaying: playerStore.isPlaying,
+            playbackRate: playerStore.playbackRate || 1,
+          });
+          playerStore.setHasActiveOfflinePlayback(false);
+          playerStore.setIsSessionHydrated(true);
+        }
       });
 
       // NTP-light pong handler
@@ -324,7 +343,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
         // Strictly respect server SSOT activeDeviceId. Never self-proclaim active!
         set({ devices: deviceList, activeDeviceId: newActive });
 
-        if (newActive === deviceId && previousActive !== deviceId) {
+        if (newActive === deviceId && previousActive !== deviceId && previousActive !== null && usePlayerStore.getState().isSessionHydrated) {
           stopPassiveTicker();
           const playerStore = usePlayerStore.getState();
           const audioStore = useAudioStore.getState();
@@ -360,6 +379,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
         setSyncApplyingRemoteState(true);
         set({ isApplyingRemoteState: true });
 
+        const playerStore = usePlayerStore.getState();
         const currentSnapshot = get().snapshot;
         const snapshot: PlaybackSnapshot = {
           roomId: state.roomId ?? get().roomId ?? '',
@@ -375,6 +395,28 @@ export const useHoladStore = create<HoladState>((set, get) => {
           playbackRate: typeof state.playbackRate === 'number' ? state.playbackRate : (currentSnapshot?.playbackRate ?? 1),
           version: typeof state.version === 'number' ? state.version : ((currentSnapshot?.version ?? 0) + 1),
         };
+
+        // If client has active offline playback that was not yet reconciled:
+        if (playerStore.hasActiveOfflinePlayback) {
+          const positionMs = getCurrentPositionMs(playerStore);
+          socket!.emit('holad_reconcileOffline', {
+            roomId: get().roomId || snapshot.roomId,
+            deviceId: get().deviceId,
+            queue: playerStore.queue,
+            currentIndex: playerStore.currentIndex,
+            positionMs,
+            isPlaying: playerStore.isPlaying,
+            playbackRate: playerStore.playbackRate || 1,
+          });
+          playerStore.setHasActiveOfflinePlayback(false);
+          playerStore.setIsSessionHydrated(true);
+
+          setTimeout(() => {
+            setSyncApplyingRemoteState(false);
+            set({ isApplyingRemoteState: false });
+          }, 50);
+          return;
+        }
 
         const currentActive = get().activeDeviceId;
         const newActive = snapshot.activeDeviceId;
@@ -403,25 +445,35 @@ export const useHoladStore = create<HoladState>((set, get) => {
         const effectiveActive = newActive !== undefined ? newActive : currentActive;
         const isPassive = effectiveActive !== deviceId;
 
+        const serverQueue = Array.isArray(snapshot.queue) ? snapshot.queue : [];
+        const mappedQueue = serverQueue.map((t: any) => ({
+          id: t.id,
+          title: t.title || '',
+          artist: t.artist || '',
+          album: t.album || '',
+          albumId: t.albumId,
+          artistId: t.artistId,
+          coverArt: t.coverArt || (t.id ? getCoverArtUrl(t.id, 300) : ''),
+          duration: t.duration || 0,
+          bitRate: t.bitRate,
+          suffix: t.suffix,
+        }));
+
+        let targetIndex = snapshot.currentIndex;
+        if (targetIndex < 0 || targetIndex >= mappedQueue.length) {
+          targetIndex = mappedQueue.length > 0 ? 0 : -1;
+        }
+
+        const audioStore = useAudioStore.getState();
+        const currentTrack = mappedQueue[targetIndex];
+
         if (isPassive) {
-          const playerStore = usePlayerStore.getState();
-          const audioStore = useAudioStore.getState();
-
-          const currentTrack = (snapshot.queue && snapshot.currentIndex >= 0 && snapshot.currentIndex < snapshot.queue.length)
-            ? snapshot.queue[snapshot.currentIndex]
-            : playerStore.queue[snapshot.currentIndex];
-
-          const prevTrackId = playerStore.queue[playerStore.currentIndex]?.id;
-          const nextTrackId = currentTrack?.id;
-          const isSameTrack = prevTrackId && nextTrackId
-            ? prevTrackId === nextTrackId
-            : playerStore.currentIndex === snapshot.currentIndex;
-
-          // Sync queue, index and remote isPlaying without triggering local audio playback
           usePlayerStore.setState({
-            ...(snapshot.queue ? { queue: snapshot.queue as any } : {}),
-            currentIndex: snapshot.currentIndex,
+            queue: mappedQueue,
+            originalQueue: mappedQueue,
+            currentIndex: targetIndex,
             isPlaying: snapshot.isPlaying,
+            isSessionHydrated: true,
           });
 
           const trackDurSec = currentTrack?.duration && currentTrack.duration > 0
@@ -442,14 +494,18 @@ export const useHoladStore = create<HoladState>((set, get) => {
 
           const currentLocalPosMs = (audioStore.progress / 100) * trackDurationMs;
 
-          // Anti-Jitter: if playing the same track and drift < 800ms, do not jerk slider backward
+          const prevTrackId = playerStore.queue[playerStore.currentIndex]?.id;
+          const nextTrackId = currentTrack?.id;
+          const isSameTrack = prevTrackId && nextTrackId
+            ? prevTrackId === nextTrackId
+            : playerStore.currentIndex === targetIndex;
+
           const isCloseEnough = snapshot.isPlaying && isSameTrack && Math.abs(calculatedPosMs - currentLocalPosMs) < 800;
 
           if (!isCloseEnough && !audioStore.isSeeking) {
             audioStore.setProgress((calculatedPosMs / trackDurationMs) * 100);
           }
 
-          // UI Ticker management (4 Hz)
           if (snapshot.isPlaying) {
             startPassiveTicker();
           } else {
@@ -457,6 +513,40 @@ export const useHoladStore = create<HoladState>((set, get) => {
           }
         } else {
           stopPassiveTicker();
+
+          const trackDur = currentTrack?.duration || 0;
+          if (trackDur > 0) {
+            audioStore.setDuration(trackDur);
+          }
+
+          if (!playerStore.isSessionHydrated) {
+            if (trackDur > 0 && snapshot.positionMs > 0) {
+              audioStore.setProgress(((snapshot.positionMs / 1000) / trackDur) * 100);
+            }
+            usePlayerStore.setState({
+              queue: mappedQueue,
+              originalQueue: mappedQueue,
+              currentIndex: targetIndex,
+              isPlaying: false,
+              initialPosition: snapshot.positionMs,
+              isSessionHydrated: true,
+            });
+          } else {
+            usePlayerStore.setState({
+              queue: mappedQueue,
+              originalQueue: mappedQueue,
+              currentIndex: targetIndex,
+              isSessionHydrated: true,
+            });
+          }
+        }
+
+        // Continuous mirroring: keep local storage in sync
+        if (currentTrack) {
+          try {
+            localStorage.setItem('holad_track', currentTrack.id);
+            localStorage.setItem('holad_time', (snapshot.positionMs / 1000).toString());
+          } catch {}
         }
 
         setTimeout(() => {

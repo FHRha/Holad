@@ -5,6 +5,7 @@ import { useHoladStore } from '../holadStore';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
 import { isJamPath } from '../../utils/basePath';
 import { savePlaybackState } from '../../api/playbackState';
+import { isClientOffline } from '../../utils/networkStatus';
 
 const triggerPlay = () => {
   const store = useHoladStore.getState();
@@ -14,6 +15,16 @@ const triggerPlay = () => {
       store.setActiveDevice(store.deviceId);
     }
   }
+};
+
+const checkAndMarkOffline = (state: PlayerState): boolean => {
+  if (isClientOffline()) {
+    try {
+      localStorage.setItem('holad_pending_offline_playback', 'true');
+    } catch {}
+    return true;
+  }
+  return state.hasActiveOfflinePlayback;
 };
 
 export const sanitizeTracks = (tracks: Track[]): Track[] => {
@@ -179,13 +190,15 @@ export const createQueueSlice: StateCreator<
     const isJamGuest = state.roomId && state.role !== 'host';
     const filtered = isJamGuest ? sanitized : sanitized.filter(t => !isTrackExcluded(t, state.excludedTrackIds, state.excludedAlbumIds, state.excludedFingerprints));
     const newIndex = filtered.length > 0 ? 0 : -1;
+    const hasActiveOfflinePlayback = checkAndMarkOffline(state);
     set({
       queue: filtered,
       originalQueue: filtered,
       currentIndex: newIndex,
       isShuffle: false,
       playbackUpdatedAt: now,
-      queueVersion: newVersion
+      queueVersion: newVersion,
+      hasActiveOfflinePlayback
     });
     syncQueueToServer(filtered, newIndex, newVersion, now, get(), true, true);
   },
@@ -212,6 +225,7 @@ export const createQueueSlice: StateCreator<
     let newIndex = filtered.findIndex(t => t.id === targetTrackId);
     if (newIndex === -1) newIndex = 0;
 
+    const hasActiveOfflinePlayback = checkAndMarkOffline(state);
     triggerPlay();
     set((s) => ({
       queue: filtered,
@@ -222,7 +236,8 @@ export const createQueueSlice: StateCreator<
       isShuffle: false,
       playActionId: s.playActionId + 1,
       playbackUpdatedAt: now,
-      queueVersion: newVersion
+      queueVersion: newVersion,
+      hasActiveOfflinePlayback
     }));
     syncQueueToServer(filtered, newIndex, newVersion, now, get(), true, true);
   },
@@ -265,6 +280,7 @@ export const createQueueSlice: StateCreator<
         newOriginalQueue = newQueue;
       }
 
+      const hasActiveOfflinePlayback = checkAndMarkOffline(state);
       syncQueueToServer(newQueue, newCurrentIndex, newVersion, now, { ...state, queue: newQueue, currentIndex: newCurrentIndex });
 
       return {
@@ -273,7 +289,8 @@ export const createQueueSlice: StateCreator<
         currentIndex: newCurrentIndex,
         isPlaying: true,
         playbackUpdatedAt: now,
-        queueVersion: newVersion
+        queueVersion: newVersion,
+        hasActiveOfflinePlayback
       };
     });
   },
@@ -289,6 +306,7 @@ export const createQueueSlice: StateCreator<
       if (filtered.length === 0) return state;
       const newQueue = [...state.queue, ...filtered];
       const newIndex = state.currentIndex === -1 ? 0 : state.currentIndex;
+      const hasActiveOfflinePlayback = checkAndMarkOffline(state);
       syncQueueToServer(newQueue, newIndex, newVersion, now, { ...state, queue: newQueue, currentIndex: newIndex });
       return { 
         queue: newQueue,
@@ -296,12 +314,15 @@ export const createQueueSlice: StateCreator<
         currentIndex: newIndex,
         isPlaying: state.isPlaying,
         playbackUpdatedAt: now,
-        queueVersion: newVersion
+        queueVersion: newVersion,
+        hasActiveOfflinePlayback
       };
     });
   },
 
   clearQueue: () => {
+    const state = get();
+    const hasActiveOfflinePlayback = checkAndMarkOffline(state);
     const now = Date.now();
     const newVersion = `${now}-${Math.random().toString(36).substring(2, 7)}`;
     syncQueueToServer([], -1, newVersion, now, undefined, true, true);
@@ -312,7 +333,8 @@ export const createQueueSlice: StateCreator<
       isPlaying: false,
       isShuffle: false,
       playbackUpdatedAt: now,
-      queueVersion: newVersion
+      queueVersion: newVersion,
+      hasActiveOfflinePlayback
     });
   },
 
@@ -328,19 +350,27 @@ export const createQueueSlice: StateCreator<
         : state.currentIndex > index 
           ? state.currentIndex - 1 
           : state.currentIndex;
+      const hasActiveOfflinePlayback = checkAndMarkOffline(state);
       syncQueueToServer(newQueue, newIndex, newVersion, now, { ...state, queue: newQueue, currentIndex: newIndex });
       return {
         queue: newQueue,
         currentIndex: newIndex,
         playbackUpdatedAt: now,
-        queueVersion: newVersion
+        queueVersion: newVersion,
+        hasActiveOfflinePlayback
       };
     });
   },
 
-  setCurrentIndex: (index) => set({ currentIndex: index, playbackUpdatedAt: Date.now() }),
+  setCurrentIndex: (index) => {
+    const state = get();
+    const hasActiveOfflinePlayback = checkAndMarkOffline(state);
+    set({ currentIndex: index, playbackUpdatedAt: Date.now(), hasActiveOfflinePlayback });
+  },
   
   playTrack: (index) => {
+    const stateNow = get();
+    const hasActiveOfflinePlayback = checkAndMarkOffline(stateNow);
     triggerPlay();
     const now = Date.now();
     set((state) => {
@@ -357,12 +387,15 @@ export const createQueueSlice: StateCreator<
         initialPosition: 0,
         isPlaying: true,
         playbackUpdatedAt: now,
-        playActionId: state.playActionId + 1
+        playActionId: state.playActionId + 1,
+        hasActiveOfflinePlayback
       };
     });
   },
   
   nextTrack: () => {
+    const stateNow = get();
+    const hasActiveOfflinePlayback = checkAndMarkOffline(stateNow);
     triggerPlay();
     const now = Date.now();
     set((state) => {
@@ -372,7 +405,7 @@ export const createQueueSlice: StateCreator<
           initialPosition: 0,
           isPlaying: true
         }, true, true);
-        return { currentIndex: state.currentIndex, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
+        return { currentIndex: state.currentIndex, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1, hasActiveOfflinePlayback };
       }
       if (state.currentIndex < state.queue.length - 1) {
         let nextIdx = state.currentIndex + 1;
@@ -386,7 +419,7 @@ export const createQueueSlice: StateCreator<
             initialPosition: 0,
             isPlaying: true
           }, true, true);
-          return { currentIndex: nextIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
+          return { currentIndex: nextIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1, hasActiveOfflinePlayback };
         }
       } else if (state.repeatMode === 'all') {
         let firstIdx = 0;
@@ -400,14 +433,16 @@ export const createQueueSlice: StateCreator<
             initialPosition: 0,
             isPlaying: true
           }, true, true);
-          return { currentIndex: firstIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
+          return { currentIndex: firstIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1, hasActiveOfflinePlayback };
         }
       }
-      return state;
+      return { ...state, hasActiveOfflinePlayback };
     });
   },
   
   prevTrack: () => {
+    const stateNow = get();
+    const hasActiveOfflinePlayback = checkAndMarkOffline(stateNow);
     triggerPlay();
     const now = Date.now();
     set((state) => {
@@ -423,10 +458,10 @@ export const createQueueSlice: StateCreator<
             initialPosition: 0,
             isPlaying: true
           }, true, true);
-          return { currentIndex: prevIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1 };
+          return { currentIndex: prevIdx, initialPosition: 0, isPlaying: true, playbackUpdatedAt: now, playActionId: state.playActionId + 1, hasActiveOfflinePlayback };
         }
       }
-      return state;
+      return { ...state, hasActiveOfflinePlayback };
     });
   },
 
@@ -435,12 +470,14 @@ export const createQueueSlice: StateCreator<
   toggleShuffle: () => {
     const now = Date.now();
     const newVersion = `${now}-${Math.random().toString(36).substring(2, 7)}`;
+    const stateNow = get();
+    const hasActiveOfflinePlayback = checkAndMarkOffline(stateNow);
 
     set((state) => {
       if (!state.isShuffle) {
         if (state.queue.length <= 1) {
           syncQueueToServer(state.queue, state.currentIndex, newVersion, now, state);
-          return { isShuffle: true, playbackUpdatedAt: now, queueVersion: newVersion };
+          return { isShuffle: true, playbackUpdatedAt: now, queueVersion: newVersion, hasActiveOfflinePlayback };
         }
         
         const currentTrack = state.queue[state.currentIndex];
@@ -460,7 +497,8 @@ export const createQueueSlice: StateCreator<
           queue: newQueue, 
           currentIndex: 0,
           playbackUpdatedAt: now,
-          queueVersion: newVersion
+          queueVersion: newVersion,
+          hasActiveOfflinePlayback
         };
       } else {
         const currentTrack = state.queue[state.currentIndex];
@@ -473,7 +511,8 @@ export const createQueueSlice: StateCreator<
           queue: origQueue,
           currentIndex: resolvedIndex,
           playbackUpdatedAt: now,
-          queueVersion: newVersion
+          queueVersion: newVersion,
+          hasActiveOfflinePlayback
         };
       }
     });
@@ -482,6 +521,8 @@ export const createQueueSlice: StateCreator<
   reorderQueue: (oldIndex, newIndex) => {
     const now = Date.now();
     const newVersion = `${now}-${Math.random().toString(36).substring(2, 7)}`;
+    const stateNow = get();
+    const hasActiveOfflinePlayback = checkAndMarkOffline(stateNow);
 
     set((state) => {
       if (oldIndex < 0 || oldIndex >= state.queue.length || newIndex < 0 || newIndex >= state.queue.length) {
@@ -506,7 +547,8 @@ export const createQueueSlice: StateCreator<
         queue: newQueue,
         currentIndex: newCurrentIndex,
         playbackUpdatedAt: now,
-        queueVersion: newVersion
+        queueVersion: newVersion,
+        hasActiveOfflinePlayback
       };
     });
   },

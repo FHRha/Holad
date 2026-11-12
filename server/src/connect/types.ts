@@ -95,6 +95,17 @@ export interface HoladPongPayload {
   serverTime: number;
 }
 
+export interface HoladReconcileOfflinePayload {
+  roomId?: string;
+  deviceId?: string;
+  queue?: TrackCompact[] | any[];
+  currentIndex?: number;
+  positionMs?: number;
+  isPlaying?: boolean;
+  playbackRate?: number;
+  trackId?: string | null;
+}
+
 export interface HoladAuthErrorPayload {
   code: string;
   message: string;

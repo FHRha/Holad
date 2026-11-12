@@ -10,7 +10,8 @@ import type {
   PlaybackSnapshot,
   HoladHeartbeatPayload,
   HoladTransferPlaybackPayload,
-  HoladPingPayload
+  HoladPingPayload,
+  HoladReconcileOfflinePayload
 } from './types.js';
 import { demoManager as defaultDemoManager } from '../demoManager.js';
 
@@ -294,6 +295,22 @@ export function registerConnectSocketHandlers(
       socket.emit('holad_devices', payload);
       io.to(`holad_${data.roomId}`).emit('holad_devices', payload);
       io.to(`holad_${data.roomId}`).emit('holad_syncState', room.snapshot);
+    }
+  });
+
+  // Reconcile playback state after offline playback
+  socket.on('holad_reconcileOffline', (payload: HoladReconcileOfflinePayload) => {
+    const holadData = (socket as any).holadData as SocketHoladData | undefined;
+    const targetRoomId = (payload?.roomId || holadData?.roomId || '').trim().toLowerCase();
+    const targetDeviceId = payload?.deviceId || holadData?.deviceId;
+    if (!holadData || !targetRoomId || !targetDeviceId) return;
+    if (holadData.roomId.toLowerCase() !== targetRoomId) return;
+
+    const room = roomManager.reconcileOffline(targetRoomId, targetDeviceId, payload);
+    if (room) {
+      const devicesPayload = { devices: room.devices, activeDeviceId: room.activeDeviceId };
+      io.to(`holad_${targetRoomId}`).emit('holad_devices', devicesPayload);
+      io.to(`holad_${targetRoomId}`).emit('holad_syncState', room.snapshot);
     }
   });
 

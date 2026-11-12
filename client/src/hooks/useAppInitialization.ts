@@ -111,7 +111,8 @@ const applyServerPlaybackState = (
     isShuffle: serverState.is_shuffled ?? currentStore.isShuffle,
     repeatMode: (serverState.repeat_mode as any) ?? currentStore.repeatMode,
     queueVersion: serverState.queue_version || currentStore.queueVersion || '',
-    playbackUpdatedAt: serverUpdatedAt
+    playbackUpdatedAt: serverUpdatedAt,
+    isSessionHydrated: true,
   });
   setTimeout(() => {
     useHoladStore.getState().setIsApplyingRemoteState(false);
@@ -291,62 +292,36 @@ export function useAppInitialization() {
         const activeLocalQueue = storeNow.queue || [];
         const activeLocalIndex = storeNow.currentIndex;
         const activeLocalTrack = activeLocalIndex >= 0 && activeLocalIndex < activeLocalQueue.length ? activeLocalQueue[activeLocalIndex] : null;
-        const curSavedUpdatedStr = localStorage.getItem('holad_time_updated');
-        const curLocalTimeUpdated = curSavedUpdatedStr ? parseInt(curSavedUpdatedStr, 10) : 0;
-        const currentLocalUpdatedAt = Math.max(storeNow.playbackUpdatedAt || 0, curLocalTimeUpdated || 0);
 
-        const hasActiveRecentPlayback = Boolean(
-          storeNow.isPlaying ||
-          (storeNow.playbackUpdatedAt && storeNow.playbackUpdatedAt > 0) ||
-          (storeNow.playActionId && storeNow.playActionId > 0) ||
-          localStorage.getItem('holad_pending_offline_playback') === 'true'
-        );
-
-        if (!serverState) {
-          // Server has no state. If local has tracks and had active playback, save local state to server
-          if (activeLocalQueue.length > 0 && activeLocalTrack && hasActiveRecentPlayback) {
-            savePlaybackState({
-              queue: toCompactQueue(activeLocalQueue),
-              queueVersion: storeNow.queueVersion || '',
-              currentIndex: activeLocalIndex >= 0 ? activeLocalIndex : 0,
-              songId: activeLocalTrack.id,
-              position: Math.round(localPosMs / 1000),
-              isPlaying: false,
-              isShuffled: storeNow.isShuffle,
-              repeatMode: storeNow.repeatMode,
-              updatedAt: currentLocalUpdatedAt || Date.now()
-            }).catch(() => {});
-          }
+        // If active offline playback occurred, push offline state to server
+        if (storeNow.hasActiveOfflinePlayback && activeLocalQueue.length > 0 && activeLocalTrack) {
+          savePlaybackState({
+            queue: toCompactQueue(activeLocalQueue),
+            queueVersion: storeNow.queueVersion || '',
+            currentIndex: activeLocalIndex >= 0 ? activeLocalIndex : 0,
+            songId: activeLocalTrack.id,
+            position: Math.round(localPosMs / 1000),
+            isPlaying: false,
+            isShuffled: storeNow.isShuffle,
+            repeatMode: storeNow.repeatMode,
+            updatedAt: Date.now()
+          }).then(() => {
+            storeNow.setHasActiveOfflinePlayback(false);
+            storeNow.setIsSessionHydrated(true);
+          }).catch(() => {});
           return;
         }
 
-        const serverUpdatedAt = serverState.updated_at || 0;
-
-        // Last-Write-Wins (LWW)
-        if (serverUpdatedAt > currentLocalUpdatedAt) {
+        if (serverState) {
+          // Normal startup: server SSOT state unconditionally applied!
           applyServerPlaybackState(serverState, storeNow);
         } else {
-          // Local state is newer or equal.
-          // Overwrite server ONLY if local state actually had active recent playback or offline playback,
-          // not just a cold start with an old cached session!
-          if (hasActiveRecentPlayback && activeLocalQueue.length > 0 && activeLocalTrack) {
-            savePlaybackState({
-              queue: toCompactQueue(activeLocalQueue),
-              queueVersion: storeNow.queueVersion || '',
-              currentIndex: activeLocalIndex >= 0 ? activeLocalIndex : 0,
-              songId: activeLocalTrack.id,
-              position: Math.round(localPosMs / 1000),
-              isPlaying: false,
-              isShuffled: storeNow.isShuffle,
-              repeatMode: storeNow.repeatMode,
-              updatedAt: currentLocalUpdatedAt || Date.now()
-            }).catch(() => {});
-          } else if (!hasActiveRecentPlayback && (serverState.song_id || (serverState.queue && serverState.queue.length > 0))) {
-            // Cold start without recent playback: adopt server state rather than overwriting
-            applyServerPlaybackState(serverState, storeNow);
-          }
+          // Server has no state yet (empty DB): mark session as hydrated
+          usePlayerStore.setState({ isSessionHydrated: true });
         }
-      }).catch(e => console.error("Failed to fetch playback state", e));
+      }).catch(e => {
+        console.warn("[Holad] Failed to fetch server playback state, keeping local cache as offline fallback", e);
+      });
     }
   }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute, isDemoMode, guestUserId]);
 
@@ -380,7 +355,7 @@ export function useAppInitialization() {
         }
       }).catch(() => {});
 
-      // 3. Synchronize playback state (LWW)
+      // 3. Synchronize playback state (Server-Authoritative SSOT)
       fetchPlaybackState().then(serverState => {
         if (!serverState) return;
         const holadState = useHoladStore.getState();
@@ -393,37 +368,29 @@ export function useAppInitialization() {
           return;
         }
         const currentStore = usePlayerStore.getState();
-        const savedUpdatedStr = localStorage.getItem('holad_time_updated');
-        const localTimeUpdated = savedUpdatedStr ? parseInt(savedUpdatedStr, 10) : 0;
-        const localUpdatedAt = Math.max(currentStore.playbackUpdatedAt || 0, localTimeUpdated || 0);
-        const hasActiveRecentPlayback = Boolean(
-          currentStore.isPlaying ||
-          (currentStore.playbackUpdatedAt && currentStore.playbackUpdatedAt > 0) ||
-          (currentStore.playActionId && currentStore.playActionId > 0) ||
-          localStorage.getItem('holad_pending_offline_playback') === 'true'
-        );
-
-        if (serverState.updated_at > localUpdatedAt) {
-          applyServerPlaybackState(serverState, currentStore);
-        } else if (localUpdatedAt > serverState.updated_at) {
-          if (hasActiveRecentPlayback) {
-            const curTrack = currentStore.queue[currentStore.currentIndex];
-            if (curTrack && currentStore.queue.length > 0) {
-              const savedTime = localStorage.getItem('holad_time');
-              const pos = savedTime ? Math.round(parseFloat(savedTime)) : 0;
-              savePlaybackState({
-                queue: toCompactQueue(currentStore.queue),
-                queueVersion: currentStore.queueVersion || '',
-                currentIndex: currentStore.currentIndex >= 0 ? currentStore.currentIndex : 0,
-                songId: curTrack.id,
-                position: pos,
-                isPlaying: false,
-                isShuffled: currentStore.isShuffle,
-                repeatMode: currentStore.repeatMode,
-                updatedAt: localUpdatedAt
-              }).catch(() => {});
-            }
+        if (currentStore.hasActiveOfflinePlayback) {
+          const curTrack = currentStore.queue[currentStore.currentIndex];
+          if (curTrack && currentStore.queue.length > 0) {
+            const savedTime = localStorage.getItem('holad_time');
+            const pos = savedTime ? Math.round(parseFloat(savedTime)) : 0;
+            savePlaybackState({
+              queue: toCompactQueue(currentStore.queue),
+              queueVersion: currentStore.queueVersion || '',
+              currentIndex: currentStore.currentIndex >= 0 ? currentStore.currentIndex : 0,
+              songId: curTrack.id,
+              position: pos,
+              isPlaying: false,
+              isShuffled: currentStore.isShuffle,
+              repeatMode: currentStore.repeatMode,
+              updatedAt: Date.now()
+            }).then(() => {
+              currentStore.setHasActiveOfflinePlayback(false);
+              currentStore.setIsSessionHydrated(true);
+            }).catch(() => {});
           }
+        } else {
+          // Unconditional SSOT sync from server
+          applyServerPlaybackState(serverState, currentStore);
         }
       }).catch(() => {});
     };

@@ -38,7 +38,7 @@ export function setIsApplyingRemoteState(val: boolean): void {
 /**
  * Returns the current playback position in milliseconds.
  */
-function getCurrentPositionMs(playerStore: any): number {
+export function getCurrentPositionMs(playerStore: any): number {
   const engine = getAudioEngine();
   if (engine) {
     const t = engine.getCurrentTime();
@@ -151,6 +151,7 @@ export function setupPlaybackSubscriptions(): void {
 
   unsubscribeStore = usePlayerStore.subscribe((state, prevState) => {
     if (isApplyingRemoteState || useHoladStore.getState().isApplyingRemoteState) return;
+    if (!state.isSessionHydrated && !state.hasActiveOfflinePlayback) return;
 
     const holad = useHoladStore.getState();
     const currentActive = holad.activeDeviceId;

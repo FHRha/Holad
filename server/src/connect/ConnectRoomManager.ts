@@ -2,7 +2,8 @@ import type {
   HoladDevice,
   HoladRoom,
   HoladDevicesPayload,
-  PlaybackSnapshot
+  PlaybackSnapshot,
+  HoladReconcileOfflinePayload
 } from './types.js';
 
 export class ConnectRoomManager {
@@ -10,6 +11,13 @@ export class ConnectRoomManager {
 
   private holadRooms = new Map<string, HoladRoom>();
   private holadGraceTimers = new Map<string, NodeJS.Timeout>();
+  private saveDebounceTimers = new Map<string, NodeJS.Timeout>();
+
+  constructor(private database?: any) {}
+
+  public setDatabase(database: any): void {
+    this.database = database;
+  }
 
   public get rooms(): Map<string, HoladRoom> {
     return this.holadRooms;
@@ -31,23 +39,66 @@ export class ConnectRoomManager {
     let room = this.holadRooms.get(roomId);
     if (!room) {
       const now = Date.now();
+      let snapshot: PlaybackSnapshot = {
+        roomId,
+        activeDeviceId: null,
+        trackId: null,
+        currentIndex: 0,
+        queue: [],
+        positionMs: 0,
+        timestamp: now,
+        isPlaying: false,
+        playbackRate: 1,
+        version: 1
+      };
+      let cachedState: any = null;
+
+      if (this.database && typeof this.database.getPlaybackState === 'function') {
+        try {
+          const saved = this.database.getPlaybackState(roomId);
+          if (saved) {
+            const trackId = saved.song_id ?? saved.current_song_id ?? null;
+            const currentIndex = typeof saved.current_index === 'number' ? saved.current_index : 0;
+            const queue = Array.isArray(saved.queue) ? saved.queue : [];
+            const positionMs = (saved.position || 0) * 1000;
+
+            snapshot = {
+              roomId,
+              activeDeviceId: null,
+              trackId,
+              currentIndex,
+              queue,
+              positionMs,
+              timestamp: now,
+              isPlaying: false,
+              playbackRate: 1,
+              version: 1
+            };
+
+            cachedState = {
+              trackId,
+              currentIndex,
+              queue,
+              positionMs,
+              currentTime: positionMs / 1000,
+              isPlaying: false,
+              playbackRate: 1,
+              version: 1,
+              activeDeviceId: null,
+              lastPausedAt: null
+            };
+          }
+        } catch (err) {
+          console.error(`[ConnectRoomManager] Failed to load playback state for room ${roomId}:`, err);
+        }
+      }
+
       room = {
         activeDeviceId: null,
         devices: [],
-        cachedState: null,
+        cachedState,
         lastPausedAt: null,
-        snapshot: {
-          roomId,
-          activeDeviceId: null,
-          trackId: null,
-          currentIndex: 0,
-          queue: [],
-          positionMs: 0,
-          timestamp: now,
-          isPlaying: false,
-          playbackRate: 1,
-          version: 1
-        },
+        snapshot,
         leaseExpiresAt: null
       };
       this.holadRooms.set(roomId, room);
@@ -55,7 +106,60 @@ export class ConnectRoomManager {
     return room;
   }
 
+  public scheduleSavePlaybackState(roomId: string, delayMs: number = 400): void {
+    if (!this.database || typeof this.database.savePlaybackState !== 'function') return;
+    const existing = this.saveDebounceTimers.get(roomId);
+    if (existing) {
+      clearTimeout(existing);
+    }
+    const timer = setTimeout(() => {
+      this.saveDebounceTimers.delete(roomId);
+      this.persistPlaybackStateNow(roomId);
+    }, delayMs);
+    this.saveDebounceTimers.set(roomId, timer);
+  }
+
+  public persistPlaybackStateNow(roomId: string): void {
+    const timer = this.saveDebounceTimers.get(roomId);
+    if (timer) {
+      clearTimeout(timer);
+      this.saveDebounceTimers.delete(roomId);
+    }
+    if (!this.database || typeof this.database.savePlaybackState !== 'function') return;
+    const room = this.holadRooms.get(roomId);
+    if (!room) return;
+
+    try {
+      this.database.savePlaybackState(roomId, {
+        song_id: room.snapshot.trackId,
+        current_index: typeof room.snapshot.currentIndex === 'number' ? room.snapshot.currentIndex : 0,
+        queue: Array.isArray(room.snapshot.queue) ? room.snapshot.queue : [],
+        position: Math.round((room.snapshot.positionMs || 0) / 1000),
+        is_playing: Boolean(room.snapshot.isPlaying),
+        updated_at: Date.now()
+      });
+    } catch (err) {
+      console.error(`[ConnectRoomManager] Failed to persist playback state for room ${roomId}:`, err);
+    }
+  }
+
+  public clearSaveDebounceTimer(roomId: string): void {
+    const timer = this.saveDebounceTimers.get(roomId);
+    if (timer) {
+      clearTimeout(timer);
+      this.saveDebounceTimers.delete(roomId);
+    }
+  }
+
+  public clearAllSaveDebounceTimers(): void {
+    for (const [roomId, timer] of this.saveDebounceTimers.entries()) {
+      clearTimeout(timer);
+    }
+    this.saveDebounceTimers.clear();
+  }
+
   public deleteRoom(roomId: string): boolean {
+    this.persistPlaybackStateNow(roomId);
     return this.holadRooms.delete(roomId);
   }
 
@@ -155,6 +259,8 @@ export class ConnectRoomManager {
       };
     }
 
+    this.scheduleSavePlaybackState(roomId);
+
     return room;
   }
 
@@ -200,6 +306,8 @@ export class ConnectRoomManager {
       room.cachedState.version = room.snapshot.version;
     }
 
+    this.scheduleSavePlaybackState(roomId);
+
     return room;
   }
 
@@ -215,6 +323,7 @@ export class ConnectRoomManager {
     room.leaseExpiresAt = Date.now() + ConnectRoomManager.GRACE_PERIOD_MS;
     room.snapshot.version++;
     room.snapshot.timestamp = Date.now();
+    this.scheduleSavePlaybackState(roomId);
     return room;
   }
 
@@ -285,6 +394,8 @@ export class ConnectRoomManager {
       activeDeviceId: room.activeDeviceId,
       lastPausedAt: room.snapshot.isPlaying ? null : (room.lastPausedAt || Date.now())
     };
+
+    this.scheduleSavePlaybackState(roomId);
 
     return { updated: true, becameActive, room };
   }
@@ -363,6 +474,7 @@ export class ConnectRoomManager {
       }
       room.cachedState = { ...room.cachedState, ...state, lastPausedAt: room.lastPausedAt };
       this.syncSnapshotFromState(room, state);
+      this.scheduleSavePlaybackState(roomId);
       return { updated: true, becameActive: false, room };
     } else if (!room.activeDeviceId && state.isPlaying) {
       room.activeDeviceId = deviceId;
@@ -371,6 +483,7 @@ export class ConnectRoomManager {
       room.lastPausedAt = null;
       room.cachedState = { ...room.cachedState, ...state, lastPausedAt: null };
       this.syncSnapshotFromState(room, state);
+      this.scheduleSavePlaybackState(roomId);
       return { updated: true, becameActive: true, room };
     }
 
@@ -424,5 +537,73 @@ export class ConnectRoomManager {
       devices: room.devices,
       activeDeviceId: room.activeDeviceId
     };
+  }
+
+  public reconcileOffline(
+    roomId: string,
+    deviceId: string,
+    payload: HoladReconcileOfflinePayload
+  ): HoladRoom {
+    const room = this.getOrCreateRoom(roomId);
+
+    this.clearGraceTimer(roomId, deviceId);
+
+    const existingDevice = room.devices.find(d => d.id === deviceId);
+    if (!existingDevice) {
+      room.devices.push({
+        id: deviceId,
+        name: 'Device',
+        socketId: ''
+      });
+    }
+
+    room.activeDeviceId = deviceId;
+    room.snapshot.activeDeviceId = deviceId;
+
+    if (Array.isArray(payload.queue)) {
+      room.snapshot.queue = payload.queue;
+    }
+    if (typeof payload.currentIndex === 'number') {
+      room.snapshot.currentIndex = payload.currentIndex;
+    }
+    if (payload.trackId !== undefined) {
+      room.snapshot.trackId = payload.trackId;
+    } else if (room.snapshot.queue.length > 0 && room.snapshot.queue[room.snapshot.currentIndex]) {
+      const item = room.snapshot.queue[room.snapshot.currentIndex];
+      room.snapshot.trackId = item?.id ?? null;
+    }
+
+    if (typeof payload.positionMs === 'number') {
+      room.snapshot.positionMs = payload.positionMs;
+    }
+    if (typeof payload.isPlaying === 'boolean') {
+      room.snapshot.isPlaying = payload.isPlaying;
+    }
+    if (typeof payload.playbackRate === 'number' && payload.playbackRate > 0) {
+      room.snapshot.playbackRate = payload.playbackRate;
+    }
+
+    room.snapshot.version++;
+    room.snapshot.timestamp = Date.now();
+    room.leaseExpiresAt = Date.now() + ConnectRoomManager.GRACE_PERIOD_MS;
+
+    room.cachedState = {
+      ...room.cachedState,
+      trackId: room.snapshot.trackId,
+      currentIndex: room.snapshot.currentIndex,
+      queue: room.snapshot.queue,
+      positionMs: room.snapshot.positionMs,
+      currentTime: room.snapshot.positionMs / 1000,
+      isPlaying: room.snapshot.isPlaying,
+      playbackRate: room.snapshot.playbackRate,
+      version: room.snapshot.version,
+      activeDeviceId: room.activeDeviceId,
+      lastPausedAt: room.snapshot.isPlaying ? null : (room.lastPausedAt || Date.now())
+    };
+
+    // Immediate save in SQLite
+    this.persistPlaybackStateNow(roomId);
+
+    return room;
   }
 }

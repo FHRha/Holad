@@ -1,4 +1,5 @@
 import { isCapacitor } from './StorageManager';
+import { useHoladStore } from '../store/holadStore';
 
 type NetworkListener = (online: boolean) => void;
 
@@ -188,3 +189,14 @@ export const setNetworkStatusForTesting = (online: boolean) => networkManager.se
 export const resetNetworkStatusForTesting = () => networkManager.resetTestingStatus();
 export const checkNetworkConnection = () => networkManager.checkConnection();
 export const verifyNetworkPing = () => networkManager.checkConnection();
+
+export const isClientOffline = (): boolean => {
+  if (isOffline()) return true;
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return true;
+  try {
+    const status = useHoladStore.getState().connectionStatus;
+    return status !== 'connected';
+  } catch {
+    return false;
+  }
+};
