@@ -3,6 +3,7 @@ import { ensureUserExists } from './socialTable.js';
 import type { HistoryRecord } from '../types.js';
 
 export function pruneUserHistory(userId: string, maxEntries = 5000): void {
+  userId = (userId || '').trim().toLowerCase();
   if (!userId) return;
   try {
     db.prepare(`
@@ -17,6 +18,7 @@ export function pruneUserHistory(userId: string, maxEntries = 5000): void {
 }
 
 export function addHistoryEntry(userId: string, entry: HistoryRecord): boolean {
+  userId = (userId || '').trim().toLowerCase();
   if (!userId || !entry || !entry.song_id) return false;
   ensureUserExists(userId);
 
@@ -63,6 +65,7 @@ export function addHistoryEntry(userId: string, entry: HistoryRecord): boolean {
 }
 
 export function addHistoryBatch(userId: string, entries: HistoryRecord[]): number {
+  userId = (userId || '').trim().toLowerCase();
   if (!userId || !Array.isArray(entries) || entries.length === 0) return 0;
   ensureUserExists(userId);
 
@@ -119,6 +122,7 @@ export function addHistoryBatch(userId: string, entries: HistoryRecord[]): numbe
 }
 
 export function getHistory(userId: string, since?: number, limit = 500): HistoryRecord[] {
+  userId = (userId || '').trim().toLowerCase();
   if (!userId) return [];
   ensureUserExists(userId);
 
@@ -158,6 +162,7 @@ export function getHistory(userId: string, since?: number, limit = 500): History
 }
 
 export function clearUserHistory(userId: string): void {
+  userId = (userId || '').trim().toLowerCase();
   if (!userId) return;
   db.prepare('DELETE FROM history WHERE user_id = ?').run(userId);
 }

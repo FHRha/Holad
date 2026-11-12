@@ -819,7 +819,8 @@ const historyTimers = new Map<string, NodeJS.Timeout>();
 const validateAuthCache = new Map<string, number>();
 
 const validateRestAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
+  req.params.roomId = roomId;
   let user = req.headers['x-user'] as string;
   let token = req.headers['x-token'] as string;
   let salt = req.headers['x-salt'] as string;
@@ -901,7 +902,7 @@ const validateRestAuth = async (req: express.Request, res: express.Response, nex
 };
 
 app.post('/api/holad/history/:roomId', validateRestAuth, express.json({ limit: '10mb' }), (req, res) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   const body = req.body;
 
   try {
@@ -947,7 +948,7 @@ app.post('/api/holad/history/:roomId', validateRestAuth, express.json({ limit: '
 });
 
 app.get('/api/holad/history/:roomId', validateRestAuth, (req, res) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   const sinceParam = req.query.since as string | undefined;
   const limitParam = req.query.limit as string | undefined;
 
@@ -980,7 +981,7 @@ app.get('/api/holad/history/:roomId', validateRestAuth, (req, res) => {
 });
 
 app.delete('/api/holad/history/:roomId', validateRestAuth, (req, res) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   try {
     database.clearUserHistory(roomId);
     broadcastConnectRemoteCommand(io, roomId, { type: 'clearHistory', fromUserId: roomId });
@@ -993,7 +994,7 @@ app.delete('/api/holad/history/:roomId', validateRestAuth, (req, res) => {
 
 // --- Preferences REST Endpoints ---
 app.get('/api/holad/preferences/:roomId', validateRestAuth, (req, res) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   try {
     const prefs = database.getPreferences(roomId);
     res.json(prefs || {});
@@ -1004,7 +1005,7 @@ app.get('/api/holad/preferences/:roomId', validateRestAuth, (req, res) => {
 });
 
 app.post('/api/holad/preferences/:roomId', validateRestAuth, express.json(), (req, res) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   try {
     const body = req.body || {};
     database.savePreferences(roomId, {
@@ -1281,7 +1282,7 @@ app.post(libraryPaths('sync'), async (req, res) => {
 
 
 app.get(['/api/holad/playback/:roomId', '/Holad/api/holad/playback/:roomId'], validateRestAuth, (req, res) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   try {
     const state = database.getPlaybackState(roomId);
     res.json(state || {});
@@ -1292,7 +1293,7 @@ app.get(['/api/holad/playback/:roomId', '/Holad/api/holad/playback/:roomId'], va
 });
 
 app.post(['/api/holad/playback/:roomId', '/Holad/api/holad/playback/:roomId'], validateRestAuth, express.json({ limit: '10mb' }), (req, res) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   try {
     const body = req.body || {};
     database.savePlaybackState(roomId, body);
@@ -1305,7 +1306,7 @@ app.post(['/api/holad/playback/:roomId', '/Holad/api/holad/playback/:roomId'], v
 
 // --- Integrations REST Endpoints ---
 app.get('/api/holad/integrations/:roomId', validateRestAuth, (req, res) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   try {
     const integrations = database.getIntegrations(roomId);
     res.json(integrations);
@@ -1316,7 +1317,7 @@ app.get('/api/holad/integrations/:roomId', validateRestAuth, (req, res) => {
 });
 
 app.post('/api/holad/integrations/:roomId', validateRestAuth, express.json(), (req, res) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   try {
     const items = Array.isArray(req.body) ? req.body : [req.body];
     database.saveIntegrations(roomId, items.map((i: any) => ({
@@ -1344,7 +1345,7 @@ const exclusionsPaths = (subpath = '') => {
 };
 
 app.get(exclusionsPaths('/:roomId'), validateRestAuth, (req, res) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   try {
     const exclusions = database.getExclusions(roomId);
     res.json(exclusions);
@@ -1355,7 +1356,7 @@ app.get(exclusionsPaths('/:roomId'), validateRestAuth, (req, res) => {
 });
 
 app.post(exclusionsPaths('/:roomId'), validateRestAuth, express.json(), (req, res) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   try {
     if (req.body && 'entityId' in req.body && 'entityType' in req.body) {
       const { entityId, entityType, title, artist, album, trackNumber, duration, fileName, path, lyrics, lyricsHash, fingerprint } = req.body;
@@ -1394,7 +1395,7 @@ app.post(exclusionsPaths('/:roomId'), validateRestAuth, express.json(), (req, re
 });
 
 app.post(exclusionsPaths('/:roomId/reconcile'), validateRestAuth, express.json(), (req, res) => {
-  const roomId = req.params.roomId as string;
+  const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   try {
     const { oldId, newId, entityType, fingerprint } = req.body || {};
     if (!newId || (!oldId && !fingerprint)) {

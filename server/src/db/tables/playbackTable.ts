@@ -3,6 +3,7 @@ import { ensureUserExists } from './socialTable.js';
 import type { PlaybackStateRecord, PlaybackState } from '../types.js';
 
 export function getPlaybackState(userId: string): PlaybackStateRecord | null {
+  userId = (userId || '').trim().toLowerCase();
   const row = db.prepare(`
     SELECT 
       COALESCE(song_id, current_song_id) as song_id,
@@ -53,6 +54,7 @@ export function getPlaybackState(userId: string): PlaybackStateRecord | null {
 }
 
 export function savePlaybackState(userId: string, state: Partial<PlaybackStateRecord>): void {
+  userId = (userId || '').trim().toLowerCase();
   ensureUserExists(userId);
   const anyState = state as any;
   const now = anyState.updated_at || anyState.updatedAt || Date.now();

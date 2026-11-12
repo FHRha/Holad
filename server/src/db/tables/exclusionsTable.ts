@@ -15,6 +15,7 @@ export function getExclusions(userId: string): {
   excludedFingerprints: string[];
   details: DetailedExclusion[];
 } {
+  userId = (userId || '').trim().toLowerCase();
   ensureUserExists(userId);
   const rows = db.prepare('SELECT entity_id, entity_type, fingerprint, title, artist, album, track_number, duration, file_name, lyrics_hash, updated_at FROM exclusions WHERE user_id = ?').all(userId) as any[];
   const excludedTrackIds: string[] = [];
@@ -49,6 +50,7 @@ export function getExclusions(userId: string): {
 }
 
 export function setExclusions(userId: string, excludedTrackIds: string[], excludedAlbumIds: string[]): void {
+  userId = (userId || '').trim().toLowerCase();
   ensureUserExists(userId);
   const existingRows = db.prepare('SELECT entity_id, entity_type FROM exclusions WHERE user_id = ?').all(userId) as { entity_id: string; entity_type: string }[];
   
@@ -100,6 +102,7 @@ export function toggleExclusion(
   entityType: 'track' | 'album',
   meta?: ExclusionMeta
 ): boolean {
+  userId = (userId || '').trim().toLowerCase();
   ensureUserExists(userId);
 
   let fp = meta?.fingerprint;
@@ -181,6 +184,7 @@ export function reconcileExclusion(
   entityType: 'track' | 'album' = 'track',
   fingerprint?: string
 ): boolean {
+  userId = (userId || '').trim().toLowerCase();
   ensureUserExists(userId);
   let existing: any = null;
   if (oldEntityId) {

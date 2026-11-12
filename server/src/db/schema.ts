@@ -4,7 +4,7 @@ export function initSchema(database: SqliteDatabase = db): void {
   // Initialize tables
   database.exec(`
     CREATE TABLE IF NOT EXISTS users (
-      user_id TEXT PRIMARY KEY,
+      user_id TEXT PRIMARY KEY COLLATE NOCASE,
       username TEXT,
       tag TEXT,
       avatar_url TEXT,
@@ -23,7 +23,7 @@ export function initSchema(database: SqliteDatabase = db): void {
     );
 
     CREATE TABLE IF NOT EXISTS preferences (
-      user_id TEXT PRIMARY KEY,
+      user_id TEXT PRIMARY KEY COLLATE NOCASE,
       theme TEXT,
       accent_color TEXT,
       custom_colors TEXT,
@@ -34,7 +34,7 @@ export function initSchema(database: SqliteDatabase = db): void {
     );
 
     CREATE TABLE IF NOT EXISTS playback_state (
-      user_id TEXT PRIMARY KEY,
+      user_id TEXT PRIMARY KEY COLLATE NOCASE,
       song_id TEXT,
       current_song_id TEXT,
       position INTEGER,
@@ -50,7 +50,7 @@ export function initSchema(database: SqliteDatabase = db): void {
     );
 
     CREATE TABLE IF NOT EXISTS exclusions (
-      user_id TEXT,
+      user_id TEXT COLLATE NOCASE,
       entity_id TEXT,
       entity_type TEXT,
       fingerprint TEXT,
@@ -68,7 +68,7 @@ export function initSchema(database: SqliteDatabase = db): void {
 
     CREATE TABLE IF NOT EXISTS history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id TEXT NOT NULL,
+      user_id TEXT NOT NULL COLLATE NOCASE,
       song_id TEXT NOT NULL,
       title TEXT,
       artist TEXT,

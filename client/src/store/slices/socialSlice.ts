@@ -123,7 +123,8 @@ export const createSocialSlice: StateCreator<
         entityId: id,
         entityType: 'track',
         isExcluded: nextExcluded,
-        fingerprint
+        fingerprint,
+        ...(metaPayload || {})
       });
     } catch (e) {
       console.error('[Holad] Failed to send exclusionToggled over socket:', e);
@@ -167,7 +168,9 @@ export const createSocialSlice: StateCreator<
         entityId: id,
         entityType: 'album',
         isExcluded: nextExcluded,
-        fingerprint
+        fingerprint,
+        album: meta?.album,
+        artist: meta?.artist
       });
     } catch (e) {
       console.error('[Holad] Failed to send exclusionToggled over socket:', e);

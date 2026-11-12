@@ -181,11 +181,20 @@ export function useAppInitialization() {
 
       fetchExclusions().then(exclusions => {
         if (exclusions) {
-          setExcludedItems(
-            exclusions.excludedTrackIds || [],
-            exclusions.excludedAlbumIds || [],
-            exclusions.excludedFingerprints || []
-          );
+          const currentStore = usePlayerStore.getState();
+          const mergedTracks = Array.from(new Set([
+            ...(currentStore.excludedTrackIds || []),
+            ...(exclusions.excludedTrackIds || [])
+          ]));
+          const mergedAlbums = Array.from(new Set([
+            ...(currentStore.excludedAlbumIds || []),
+            ...(exclusions.excludedAlbumIds || [])
+          ]));
+          const mergedFingerprints = Array.from(new Set([
+            ...(currentStore.excludedFingerprints || []),
+            ...(exclusions.excludedFingerprints || [])
+          ]));
+          setExcludedItems(mergedTracks, mergedAlbums, mergedFingerprints);
         }
       }).catch(e => console.error("Failed to fetch exclusions", e));
 
@@ -332,11 +341,19 @@ export function useAppInitialization() {
       fetchExclusions().then(exclusions => {
         if (exclusions) {
           const currentStore = usePlayerStore.getState();
-          currentStore.setExcludedItems(
-            exclusions.excludedTrackIds || [],
-            exclusions.excludedAlbumIds || [],
-            exclusions.excludedFingerprints || []
-          );
+          const mergedTracks = Array.from(new Set([
+            ...(currentStore.excludedTrackIds || []),
+            ...(exclusions.excludedTrackIds || [])
+          ]));
+          const mergedAlbums = Array.from(new Set([
+            ...(currentStore.excludedAlbumIds || []),
+            ...(exclusions.excludedAlbumIds || [])
+          ]));
+          const mergedFingerprints = Array.from(new Set([
+            ...(currentStore.excludedFingerprints || []),
+            ...(exclusions.excludedFingerprints || [])
+          ]));
+          currentStore.setExcludedItems(mergedTracks, mergedAlbums, mergedFingerprints);
         }
       }).catch(() => {});
 

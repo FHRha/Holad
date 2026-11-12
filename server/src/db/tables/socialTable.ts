@@ -4,21 +4,23 @@ import type { UserRecord, FriendRecord, PendingRequest } from '../types.js';
 
 // Ensure user exists before inserting related data
 export function ensureUserExists(userId: string): void {
+  const normalizedUserId = (userId || '').trim().toLowerCase();
   const stmt = db.prepare('INSERT OR IGNORE INTO users (user_id) VALUES (?)');
-  stmt.run(userId);
+  stmt.run(normalizedUserId);
 }
 
 export function ensureUserWithTag(userId: string, username: string, avatarUrl?: string): UserRecord {
-  const finalUsername = username || userId;
+  const normalizedUserId = (userId || '').trim().toLowerCase();
+  const finalUsername = username || normalizedUserId;
 
-  db.prepare('INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)').run(userId, finalUsername);
+  db.prepare('INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)').run(normalizedUserId, finalUsername);
 
-  let user = db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE user_id = ?').get(userId) as UserRecord;
+  let user = db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE user_id = ?').get(normalizedUserId) as UserRecord;
 
   let currentTag = user.tag;
   if (!currentTag) {
     const existingTags = new Set(
-      (db.prepare('SELECT tag FROM users WHERE username = ? AND tag IS NOT NULL AND user_id != ?').all(finalUsername, userId) as { tag: string }[])
+      (db.prepare('SELECT tag FROM users WHERE username = ? AND tag IS NOT NULL AND user_id != ?').all(finalUsername, normalizedUserId) as { tag: string }[])
         .map(row => row.tag)
     );
     for (let attempts = 0; attempts < 50; attempts++) {
@@ -38,9 +40,9 @@ export function ensureUserWithTag(userId: string, username: string, avatarUrl?: 
     UPDATE users 
     SET username = ?, tag = ?, avatar_url = ?, last_seen = CURRENT_TIMESTAMP 
     WHERE user_id = ?
-  `).run(finalUsername, currentTag, updatedAvatar, userId);
+  `).run(finalUsername, currentTag, updatedAvatar, normalizedUserId);
 
-  return db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE user_id = ?').get(userId) as UserRecord;
+  return db.prepare('SELECT user_id, username, tag, avatar_url, last_seen FROM users WHERE user_id = ?').get(normalizedUserId) as UserRecord;
 }
 
 export function searchUsers(query: string, currentUserId: string): Array<{ user_id: string; username: string; tag: string; avatar_url: string | null }> {

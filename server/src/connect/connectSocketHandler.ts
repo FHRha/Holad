@@ -20,7 +20,8 @@ export function broadcastConnectRemoteCommand(
   roomId: string,
   command: HoladRemoteCommand | { type: string; payload?: any; [key: string]: any }
 ): void {
-  io.to(`holad_${roomId}`).emit('holad_remoteCommand', command);
+  const normalizedRoom = (roomId || '').trim().toLowerCase();
+  io.to(`holad_${normalizedRoom}`).emit('holad_remoteCommand', command);
 }
 
 export function handleConnectDisconnect(
@@ -371,9 +372,47 @@ export function registerConnectSocketHandlers(
   socket.on('holad_remoteCommand', (command: { type: string; payload?: any; [key: string]: any }) => {
     const data = (socket as any).holadData as SocketHoladData | undefined;
     if (!data) return;
-    io.to(`holad_${data.roomId}`).emit('holad_remoteCommand', {
+    const normalizedRoom = (data.roomId || '').trim().toLowerCase();
+
+    if (command?.type === 'exclusionToggled' && command?.payload) {
+      try {
+        const {
+          entityId,
+          entityType,
+          isExcluded,
+          fingerprint,
+          title,
+          artist,
+          album,
+          trackNumber,
+          duration,
+          fileName,
+          path,
+          lyrics,
+          lyricsHash
+        } = command.payload;
+        if (entityId && entityType && typeof database?.toggleExclusion === 'function') {
+          database.toggleExclusion(normalizedRoom, entityId, entityType, {
+            title,
+            artist,
+            album,
+            trackNumber,
+            duration,
+            fileName,
+            path,
+            lyrics,
+            lyricsHash,
+            fingerprint
+          });
+        }
+      } catch (err) {
+        console.error('[Holad] Failed to save exclusion on holad_remoteCommand:', err);
+      }
+    }
+
+    io.to(`holad_${normalizedRoom}`).emit('holad_remoteCommand', {
       ...command,
-      fromUserId: data.roomId,
+      fromUserId: normalizedRoom,
       fromDeviceId: data.deviceId
     });
   });

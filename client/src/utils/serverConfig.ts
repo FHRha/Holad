@@ -12,6 +12,18 @@ export const getHoladServerUrl = (): string => {
     return import.meta.env.VITE_SERVER_URL.replace(/\/$/, '');
   }
   
+  if (isTauri() || isCapacitor()) {
+    try {
+      const authUrl = useAuthStore.getState().url;
+      if (authUrl) {
+        const fullUrl = authUrl.includes('://') ? authUrl : `http://${authUrl}`;
+        const parsed = new URL(fullUrl);
+        const subpath = parsed.pathname.replace(/\/$/, '');
+        return `${parsed.origin}${subpath}`;
+      }
+    } catch {}
+  }
+
   return getBasePath();
 };
 

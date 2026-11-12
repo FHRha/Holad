@@ -3,11 +3,13 @@ import { ensureUserExists } from './socialTable.js';
 import type { UserPreferences } from '../types.js';
 
 export function getPreferences(userId: string): UserPreferences | null {
+  userId = (userId || '').trim().toLowerCase();
   const row = db.prepare('SELECT theme, accent_color, custom_colors, language, profiles, updated_at FROM preferences WHERE user_id = ?').get(userId) as UserPreferences | undefined;
   return row || null;
 }
 
 export function savePreferences(userId: string, prefs: Partial<UserPreferences>): void {
+  userId = (userId || '').trim().toLowerCase();
   ensureUserExists(userId);
   const now = Date.now();
   const existing = getPreferences(userId);
