@@ -79,8 +79,6 @@ export default function BottomPlayer() {
 
   useAudioEngine(audioRefs, queue[currentIndex]);
 
-  useMediaSession();
-
   const currentTrack = queue[currentIndex];
 
   useEffect(() => {

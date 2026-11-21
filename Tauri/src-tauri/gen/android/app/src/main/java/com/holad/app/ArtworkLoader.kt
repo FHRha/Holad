@@ -38,16 +38,21 @@ object ArtworkLoader {
             var conn: HttpURLConnection? = null
             var inputStream: InputStream? = null
             try {
-                val url = URL(requestUrl)
-                conn = url.openConnection() as HttpURLConnection
-                conn.connectTimeout = 8000
-                conn.readTimeout = 8000
-                conn.doInput = true
-                conn.connect()
+                if (requestUrl.startsWith("file://") || requestUrl.startsWith("/")) {
+                    val filePath = if (requestUrl.startsWith("file://")) requestUrl.removePrefix("file://") else requestUrl
+                    bitmap = BitmapFactory.decodeFile(filePath)
+                } else if (requestUrl.startsWith("http://") || requestUrl.startsWith("https://")) {
+                    val url = URL(requestUrl)
+                    conn = url.openConnection() as HttpURLConnection
+                    conn.connectTimeout = 8000
+                    conn.readTimeout = 8000
+                    conn.doInput = true
+                    conn.connect()
 
-                if (conn.responseCode == HttpURLConnection.HTTP_OK) {
-                    inputStream = conn.inputStream
-                    bitmap = BitmapFactory.decodeStream(inputStream)
+                    if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                        inputStream = conn.inputStream
+                        bitmap = BitmapFactory.decodeStream(inputStream)
+                    }
                 }
             } catch (e: Exception) {
                 bitmap = null

@@ -138,12 +138,9 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
     }
 
     private fun initMediaSession() {
-        val mbrIntent = Intent(Intent.ACTION_MEDIA_BUTTON, null, this, MediaButtonReceiver::class.java)
-        val mbrPendingIntent = PendingIntent.getBroadcast(
+        val mbrPendingIntent = MediaButtonReceiver.buildMediaButtonPendingIntent(
             this,
-            0,
-            mbrIntent,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+            PlaybackStateCompat.ACTION_PLAY_PAUSE
         )
 
         mediaSession = MediaSessionCompat(this, "HoladMediaSession", null, mbrPendingIntent).apply {
@@ -226,9 +223,8 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         MediaButtonReceiver.handleIntent(mediaSession, intent)
 
-        if (isPlayingState) {
-            startForegroundInternal()
-        }
+        // Always satisfy the Foreground Service contract immediately when started
+        startForegroundInternal()
 
         intent?.action?.let { action ->
             when (action) {
@@ -481,6 +477,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
     }
 
     private fun buildNotification(): Notification {
+        createNotificationChannel()
         val sessionToken = mediaSession?.sessionToken
 
         val piFlags = PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)

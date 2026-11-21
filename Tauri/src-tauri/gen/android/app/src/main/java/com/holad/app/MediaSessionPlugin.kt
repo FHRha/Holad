@@ -1,5 +1,6 @@
 package com.holad.app
 
+import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -33,7 +34,7 @@ class PlaybackStateArgs {
 }
 
 @TauriPlugin
-class MediaSessionPlugin(private val activity: AppCompatActivity) : Plugin(activity), MediaService.MediaActionListener {
+class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), MediaService.MediaActionListener {
 
     private var mediaService: MediaService? = null
     private var isBound: Boolean = false

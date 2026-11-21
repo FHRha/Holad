@@ -18,6 +18,7 @@ import { useTaskbarControls } from './hooks/useTaskbarControls';
 import { useTrayIntegration } from './hooks/useTrayIntegration';
 import { useWindowVisibility } from './hooks/useWindowVisibility';
 import { useAudioOutputDevice, initAudioDeviceManager } from './hooks/useAudioOutputDevice';
+import { useMediaSession } from './hooks/useMediaSession';
 import { useDiscordRpc } from './hooks/useDiscordRpc';
 import OfflineModeModal from './components/modals/OfflineModeModal';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -158,6 +159,8 @@ function MainAppContent() {
   useWindowVisibility();
   // oxlint-disable-next-line
   useAudioOutputDevice();
+  // oxlint-disable-next-line
+  useMediaSession();
   // oxlint-disable-next-line
   useDiscordRpc();
   
