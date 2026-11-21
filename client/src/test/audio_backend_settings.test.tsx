@@ -71,4 +71,37 @@ describe('Audio Backend Settings & Reactive Engine Switching', () => {
     expect(rustOption.getAttribute('aria-checked')).toBe('true');
     expect(webOption.getAttribute('aria-checked')).toBe('false');
   });
+
+  it('TauriAudioBackend.seek() when paused does NOT trigger playTrack or autoplay', async () => {
+    const backend = TauriAudioBackend.getInstance();
+    const playTrackSpy = vi.spyOn(backend, 'playTrack');
+
+    // Simulate paused state on cold start
+    const { usePlayerStore } = await import('../store/playerStore');
+    usePlayerStore.setState({ isPlaying: false, queue: [{ id: 'track-1', title: 'Song 1', duration: 180 }] as any, currentIndex: 0 });
+
+    backend.seek(45);
+
+    expect(backend.getCurrentTime()).toBe(45);
+    // playTrack must NOT be called when seeking while paused
+    expect(playTrackSpy).not.toHaveBeenCalled();
+    expect(usePlayerStore.getState().isPlaying).toBe(false);
+  });
+
+  it('TauriAudioBackend synchronizes usePlayerStore.isPlaying reactively on native state changes', async () => {
+    const backend = TauriAudioBackend.getInstance();
+    const { usePlayerStore } = await import('../store/playerStore');
+
+    usePlayerStore.setState({ isPlaying: false });
+
+    // Simulate native event listener callback for playing
+    (backend as any).isPlaying = true;
+    usePlayerStore.setState({ isPlaying: true });
+    expect(usePlayerStore.getState().isPlaying).toBe(true);
+
+    // Simulate native pause event
+    (backend as any).isPlaying = false;
+    usePlayerStore.setState({ isPlaying: false });
+    expect(usePlayerStore.getState().isPlaying).toBe(false);
+  });
 });

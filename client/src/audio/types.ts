@@ -36,6 +36,7 @@ export interface PlayTrackOptions {
     immediate?: boolean;
     transitionDuration?: number;
     crossfade?: boolean;
+    autoplay?: boolean;
 }
 
 export interface BufferedRange {

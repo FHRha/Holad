@@ -492,8 +492,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
         useAudioStore.getState().setDuration(dur);
         useAudioStore.getState().setProgress((targetPosSec / dur) * 100);
+        latestPositionRef.current = targetPosSec;
+        latestTrackIdRef.current = currentTrack.id;
       }
-      if (initialPosition > 0) setInitialPosition(0);
 
       // On passive clients or in speaker_dj mode, ensure decks remain paused and do NOT load audio
       if (!isActiveDevice || isSpeakerDj) {
@@ -520,8 +521,20 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
   // Handle async initialPosition restoring for the first track
   useEffect(() => {
-    if (initialPosition > 0 && currentTrack && audioSrc && !srcLoading) {
-      const posSec = initialPosition / 1000;
+    let posMs = initialPosition;
+    if (posMs <= 0 && currentTrack?.id) {
+      const savedTrack = localStorage.getItem('holad_track');
+      const savedTime = localStorage.getItem('holad_time');
+      if (savedTrack === currentTrack.id && savedTime) {
+        const parsedSec = parseFloat(savedTime);
+        if (!isNaN(parsedSec) && parsedSec > 0) {
+          posMs = Math.round(parsedSec * 1000);
+        }
+      }
+    }
+
+    if (posMs > 0 && currentTrack && audioSrc && !srcLoading) {
+      const posSec = posMs / 1000;
       latestPositionRef.current = Math.round(posSec);
       if (currentTrack?.id) {
         latestTrackIdRef.current = currentTrack.id;
@@ -540,7 +553,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         useAudioStore.getState().setDuration(dur);
         useAudioStore.getState().setProgress((posSec / dur) * 100);
       }
-      setInitialPosition(0);
+      if (initialPosition > 0) {
+        setInitialPosition(0);
+      }
     }
   }, [initialPosition, currentTrack, audioSrc, srcLoading, isPlaying, isActiveDevice, setInitialPosition, audioBackend]);
 
@@ -837,12 +852,22 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
     };
 
+    const handleStateChange = (state: AudioState) => {
+      const isEnginePlaying = state === 'playing';
+      const store = usePlayerStore.getState();
+      if (store.isPlaying !== isEnginePlaying) {
+        setIsPlaying(isEnginePlaying);
+      }
+    };
+
+    engine.on('statechange', handleStateChange);
     engine.on('timeupdate', handleTimeUpdate);
     engine.on('ended', handleEnded);
     engine.on('requestPreload', handleRequestPreload);
     engine.on('progress', handleProgress);
 
     return () => {
+      engine.off('statechange', handleStateChange);
       engine.off('timeupdate', handleTimeUpdate);
       engine.off('ended', handleEnded);
       engine.off('requestPreload', handleRequestPreload);

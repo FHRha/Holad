@@ -83,19 +83,27 @@ export class TauriAudioBackend implements IAudioEngine {
             });
             this.unlistenFns.push(unlistenTime);
 
-            const unlistenState = await listen<NativeAudioState>('playback-state-changed', (event) => {
-                const payload = event.payload;
+            const handleNativeStateChange = (payload: NativeAudioState) => {
                 if (!payload) return;
                 this.isPlaying = payload.isPlaying;
                 this.currentTime = payload.currentTime;
-                if (payload.duration > 0) {
+                if (payload.duration > 0 && Math.abs(this.duration - payload.duration) > 0.5) {
                     this.duration = payload.duration;
+                    this.emit('durationchange', this.duration);
                 }
                 if (typeof payload.bufferedPercent === 'number') {
                     this.bufferedPercent = payload.bufferedPercent;
                     this.emit('progress', this.bufferedPercent);
                     useAudioStore.getState().setBuffered(this.bufferedPercent);
                 }
+
+                // CRITICAL SYNC: Ensure playerStore.isPlaying is reactive and in sync with native Rust engine
+                const store = usePlayerStore.getState();
+                if (store.isPlaying !== payload.isPlaying) {
+                    console.log(`[TauriAudioBackend] Syncing playerStore.isPlaying: ${store.isPlaying} -> ${payload.isPlaying} (status: ${payload.status})`);
+                    usePlayerStore.setState({ isPlaying: payload.isPlaying });
+                }
+
                 const audioState: AudioState = payload.status === 'playing'
                     ? 'playing'
                     : payload.status === 'paused'
@@ -104,8 +112,26 @@ export class TauriAudioBackend implements IAudioEngine {
                     ? 'loading'
                     : 'idle';
                 this.emit('statechange', audioState);
+
+                if (payload.isPlaying) {
+                    this.emit('play');
+                    if (payload.status === 'playing') {
+                        this.emit('playing');
+                    }
+                } else {
+                    this.emit('pause');
+                }
+            };
+
+            const unlistenState = await listen<NativeAudioState>('playback-state-changed', (event) => {
+                handleNativeStateChange(event.payload);
             });
             this.unlistenFns.push(unlistenState);
+
+            const unlistenStateAlias = await listen<NativeAudioState>('state-changed', (event) => {
+                handleNativeStateChange(event.payload);
+            });
+            this.unlistenFns.push(unlistenStateAlias);
 
             const unlistenEnded = await listen<NativeAudioState>('track-ended', (event) => {
                 const payload = event.payload;
@@ -141,7 +167,8 @@ export class TauriAudioBackend implements IAudioEngine {
     public async playTrack(track: any, options: PlayTrackOptions = {}): Promise<void> {
         this.currentTrack = track;
         this.activeTrackId = track?.id || null;
-        this.isPlaying = true;
+        const autoplay = options.autoplay ?? true;
+        this.isPlaying = autoplay;
 
         let streamUrl = track?.streamUrl || track?.src || (typeof track === 'string' ? track : '');
         if (!streamUrl && track?.id) {
@@ -163,7 +190,7 @@ export class TauriAudioBackend implements IAudioEngine {
 
         const startPos = options.startTime || 0;
         const isGapless = Boolean(this.settings.isGaplessEnabled);
-        const shouldCrossfade = !isGapless && !options.immediate && (options.crossfade || this.settings.isCrossfadeEnabled) && this.isPlaying;
+        const shouldCrossfade = !isGapless && !options.immediate && (options.crossfade || this.settings.isCrossfadeEnabled) && this.isPlaying && autoplay;
         const crossfadeDur = options.transitionDuration || this.settings.crossfadeDuration || 2.0;
         const crossfadeCurve = this.settings.crossfadeCurve || 'equalPower';
 
@@ -209,11 +236,12 @@ export class TauriAudioBackend implements IAudioEngine {
             }
         }
 
-        console.log(`[TauriAudioBackend] audio_load initiating with url: "${streamUrl}", startPos: ${startPos}`);
+        console.log(`[TauriAudioBackend] audio_load initiating with url: "${streamUrl}", autoplay: ${autoplay}, startPos: ${startPos}`);
         try {
             const state = await invoke<NativeAudioState>('audio_load', {
                 url: streamUrl,
-                autoplay: true,
+                autoplay,
+                position: startPos,
             });
             console.log('[TauriAudioBackend] audio_load successful, state:', state);
 
@@ -225,12 +253,6 @@ export class TauriAudioBackend implements IAudioEngine {
                 this.bufferedPercent = pct;
                 this.emit('progress', pct);
                 useAudioStore.getState().setBuffered(pct);
-            }
-
-            if (startPos > 0) {
-                console.log(`[TauriAudioBackend] audio_seek to startPos: ${startPos}`);
-                await invoke<NativeAudioState>('audio_seek', { position: startPos });
-                this.currentTime = startPos;
             }
 
             this.emit('timeupdate', this.currentTime, this.activeTrackId);
@@ -267,7 +289,7 @@ export class TauriAudioBackend implements IAudioEngine {
             const fallbackTrack = this.currentTrack || usePlayerStore.getState().queue[usePlayerStore.getState().currentIndex];
             if (fallbackTrack && (errMsg.includes('No audio loaded') || errMsg.includes('empty') || errMsg.includes('not loaded'))) {
                 console.log('[TauriAudioBackend] Fallback: reloading track in Rust engine via playTrack:', fallbackTrack.title || fallbackTrack.id);
-                await this.playTrack(fallbackTrack, { startTime: this.currentTime });
+                await this.playTrack(fallbackTrack, { startTime: this.currentTime, autoplay: true });
                 return;
             }
             throw e;
@@ -282,14 +304,20 @@ export class TauriAudioBackend implements IAudioEngine {
             console.warn('[TauriAudioBackend] audio_seek error:', e);
             const errMsg = String(e?.message || e || '');
             if (errMsg.includes('No audio loaded')) {
-                const fallbackTrack = this.currentTrack || usePlayerStore.getState().queue[usePlayerStore.getState().currentIndex];
-                if (fallbackTrack) {
-                    console.log('[TauriAudioBackend] Fallback: loading track upon seek error:', fallbackTrack.title || fallbackTrack.id);
-                    try {
-                        await this.playTrack(fallbackTrack, { startTime: safePos });
-                    } catch (err) {
-                        console.error('[TauriAudioBackend] Failed fallback seek playTrack:', err);
+                const store = usePlayerStore.getState();
+                const isCurrentlyPlaying = this.isPlaying || store.isPlaying;
+                if (isCurrentlyPlaying) {
+                    const fallbackTrack = this.currentTrack || store.queue[store.currentIndex];
+                    if (fallbackTrack) {
+                        console.log('[TauriAudioBackend] Fallback: loading track upon seek error (playing):', fallbackTrack.title || fallbackTrack.id);
+                        try {
+                            await this.playTrack(fallbackTrack, { startTime: safePos, autoplay: true });
+                        } catch (err) {
+                            console.error('[TauriAudioBackend] Failed fallback seek playTrack:', err);
+                        }
                     }
+                } else {
+                    console.log(`[TauriAudioBackend] Seek requested while paused and no audio loaded - saved target position: ${safePos}s without starting playback.`);
                 }
             }
         });

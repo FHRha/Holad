@@ -86,7 +86,12 @@ impl AudioPlayer {
         }
     }
 
-    pub fn load_source(&self, path_or_url: &str, autoplay: bool) -> Result<AudioState, String> {
+    pub fn load_source(
+        &self,
+        path_or_url: &str,
+        autoplay: bool,
+        position_secs: Option<f64>,
+    ) -> Result<AudioState, String> {
         self.ensure_device_sink()?;
 
         // Stop existing player
@@ -97,6 +102,8 @@ impl AudioPlayer {
             }
         }
 
+        let initial_pos = position_secs.unwrap_or(0.0).max(0.0);
+
         let current_gen = {
             let mut meta = self.meta.lock().unwrap();
             meta.generation = meta.generation.wrapping_add(1);
@@ -104,7 +111,7 @@ impl AudioPlayer {
             meta.url = path_or_url.to_string();
             meta.status = PlaybackStatus::Loading;
             meta.buffered_percent = 0.0;
-            meta.position_secs = 0.0;
+            meta.position_secs = initial_pos;
             meta.generation
         };
 
@@ -129,7 +136,13 @@ impl AudioPlayer {
         let source = Decoder::try_from(BufReader::new(cursor))
             .map_err(|e| format!("Failed to decode audio: {:?}", e))?;
 
-        new_player.append(source);
+        if initial_pos > 0.0 {
+            let seek_dur = Duration::from_secs_f64(initial_pos);
+            let skipped_source = source.skip_duration(seek_dur);
+            new_player.append(skipped_source);
+        } else {
+            new_player.append(source);
+        }
 
         if !autoplay {
             new_player.pause();
@@ -152,7 +165,7 @@ impl AudioPlayer {
                 meta.url = path_or_url.to_string();
                 meta.duration = duration_secs;
                 meta.status = status;
-                meta.position_secs = 0.0;
+                meta.position_secs = initial_pos;
                 meta.buffered_percent = 100.0;
             }
         }
@@ -178,7 +191,7 @@ impl AudioPlayer {
 
         // If not currently playing or duration is negligible, fallback to normal load
         if !was_playing || duration_secs <= 0.05 {
-            return self.load_source(path_or_url, true);
+            return self.load_source(path_or_url, true, None);
         }
 
         let current_gen = {
