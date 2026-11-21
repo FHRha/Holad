@@ -129,6 +129,10 @@ impl AudioPlayer {
             Player::connect_new(mixer_sink.mixer())
         };
 
+        if !autoplay {
+            new_player.pause();
+        }
+
         new_player.set_volume(current_volume);
 
         // Decode audio stream
@@ -142,10 +146,6 @@ impl AudioPlayer {
             new_player.append(skipped_source);
         } else {
             new_player.append(source);
-        }
-
-        if !autoplay {
-            new_player.pause();
         }
 
         let status = if autoplay {

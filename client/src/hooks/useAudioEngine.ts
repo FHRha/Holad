@@ -515,14 +515,6 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
 
       if (isNativeAudio) {
-        scheduleIdle(() => {
-          if (!usePlayerStore.getState().isPlaying) {
-            engineRef.current.playTrack(
-              { ...currentTrack, streamUrl: audioSrc },
-              { startTime: targetPosSec, autoplay: false, immediate: true }
-            ).catch(() => {});
-          }
-        });
         return;
       }
 

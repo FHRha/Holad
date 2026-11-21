@@ -76,7 +76,14 @@ export function useMediaSession() {
 
   useEffect(() => {
     if (currentTrack) {
-      const coverUrl = getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
+      let coverUrl = getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
+      if (coverUrl && coverUrl.startsWith('/')) {
+        try {
+          if (typeof window !== 'undefined' && window.location && window.location.origin) {
+            coverUrl = `${window.location.origin}${coverUrl}`;
+          }
+        } catch {}
+      }
       const metadata = {
         title: currentTrack.title || 'Unknown Title',
         artist: currentTrack.artist || 'Unknown Artist',

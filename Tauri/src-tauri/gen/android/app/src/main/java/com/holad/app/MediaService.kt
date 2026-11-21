@@ -225,6 +225,36 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         Log.i("MediaService", "MediaService onStartCommand: action=${intent?.action}")
         MediaButtonReceiver.handleIntent(mediaSession, intent)
 
+        val intentTitle = intent?.getStringExtra("extra_title")
+        val intentArtist = intent?.getStringExtra("extra_artist")
+        val intentAlbum = intent?.getStringExtra("extra_album")
+        val intentDuration = intent?.getLongExtra("extra_duration", -1L) ?: -1L
+        val intentArtwork = intent?.getStringExtra("extra_artwork")
+
+        if (!intentTitle.isNullOrEmpty()) {
+            currentTitle = intentTitle
+        }
+        if (!intentArtist.isNullOrEmpty()) {
+            currentArtist = intentArtist
+        }
+        if (!intentAlbum.isNullOrEmpty()) {
+            currentAlbum = intentAlbum
+        }
+        if (intentDuration >= 0L) {
+            currentDurationMs = intentDuration
+        }
+        if (!intentArtwork.isNullOrEmpty() && intentArtwork != currentArtworkUrl) {
+            currentArtworkUrl = intentArtwork
+            currentArtworkBitmap = null
+            ArtworkLoader.loadBitmap(intentArtwork) { bitmap ->
+                currentArtworkBitmap = bitmap
+                applyMetadataToSession()
+                refreshNotification()
+            }
+        }
+
+        applyMetadataToSession()
+
         // Always satisfy the Foreground Service contract immediately when started
         startForegroundInternal()
 
@@ -468,13 +498,24 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
     private fun applyMetadataToSession() {
         val metaBuilder = MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
+            .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentTitle)
             .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist)
+            .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, currentArtist)
             .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, currentAlbum)
+            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, currentArtist)
+            .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, currentAlbum)
             .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, currentDurationMs)
 
         if (currentArtworkBitmap != null) {
             metaBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, currentArtworkBitmap)
             metaBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, currentArtworkBitmap)
+            metaBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, currentArtworkBitmap)
+        }
+
+        if (!currentArtworkUrl.isNullOrEmpty()) {
+            metaBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentArtworkUrl)
+            metaBuilder.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, currentArtworkUrl)
+            metaBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, currentArtworkUrl)
         }
 
         mediaSession?.setMetadata(metaBuilder.build())

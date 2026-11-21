@@ -33,6 +33,7 @@ object ArtworkLoader {
         }
 
         val requestUrl = urlStr
+        lastUrl = requestUrl
         executor.execute {
             var bitmap: Bitmap? = null
             var conn: HttpURLConnection? = null
@@ -55,6 +56,7 @@ object ArtworkLoader {
                     }
                 }
             } catch (e: Exception) {
+                android.util.Log.w("ArtworkLoader", "Failed to load artwork from $requestUrl", e)
                 bitmap = null
             } finally {
                 try {
@@ -66,8 +68,7 @@ object ArtworkLoader {
             }
 
             mainHandler.post {
-                if (requestUrl == lastUrl || lastUrl == null) {
-                    lastUrl = requestUrl
+                if (requestUrl == lastUrl) {
                     cachedBitmap = bitmap
                     callback(bitmap)
                 }

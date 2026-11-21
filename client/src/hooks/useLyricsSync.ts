@@ -81,7 +81,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       
       if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current);
       
-      if (audioElement && !audioElement.paused) {
+      if (usePlayerStore.getState().isPlaying) {
         userScrollTimeoutRef.current = setTimeout(() => {
           setIsUserScrolled(false);
           isUserScrolledRef.current = false;
@@ -123,7 +123,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
 
   // Karaoke Loop
   useEffect(() => {
-    if (!audioElement || lrcLines.length === 0 || !isActive) return;
+    if (lrcLines.length === 0 || !isActive) return;
     
     let rafId: number | null = null;
     // oxlint-disable-next-line
@@ -139,17 +139,16 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       const duration = currentTrack?.duration || 1;
       let currentTime = (audioStore.progress / 100) * duration;
       const engine = getAudioEngine();
-      const engDur = engine.getDuration();
       const holadState = useHoladStore.getState();
       const isLocalActive = !holadState.roomId || holadState.activeDeviceId === holadState.deviceId;
-      if (isLocalActive && engDur > 0) {
+      if (isLocalActive && engine) {
         const engTime = engine.getCurrentTime();
         if (typeof engTime === 'number' && !isNaN(engTime) && engTime >= 0) {
           currentTime = engTime;
         }
       }
 
-      let newIndex = 0;
+      let newIndex = -1;
       for (let i = 0; i < lrcLines.length; i++) {
         if (currentTime >= lrcLines[i].time) {
           newIndex = i;
@@ -158,7 +157,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
         }
       }
 
-      if (newIndex !== -1 && lrcLines[newIndex].isInterlude) {
+      if (newIndex >= 0 && lrcLines[newIndex].isInterlude) {
         const line = lrcLines[newIndex];
         const nextLine = lrcLines[newIndex + 1];
         if (nextLine && lyricsContainerRef.current) {
@@ -179,7 +178,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
           Array.from(lyricsContainerRef.current.children).forEach((child, idx) => {
             const isSectionHeader = child.textContent?.trim().startsWith('[') || child.textContent?.trim().startsWith('(');
             
-            if (idx === newIndex) {
+            if (idx === newIndex && newIndex >= 0) {
               child.classList.add('text-primary', 'scale-105', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
               child.classList.remove('text-white/40', 'text-white/30', 'hover:text-white/50', 'text-primary/40', 'text-primary/70', 'scale-110', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
             } else if (idx < newIndex) {
@@ -199,7 +198,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
             }
           });
 
-          if (activeElement && !isUserScrolledRef.current) {
+          if (activeElement && !isUserScrolledRef.current && newIndex >= 0) {
             scrollToActiveElement(activeElement);
           }
         }
@@ -215,6 +214,11 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       if (state.isPlaying && !prevState.isPlaying) {
         if (!rafId && getIsWindowVisible()) {
           rafId = requestAnimationFrame(updateCurrentLyric);
+        }
+      } else if (!state.isPlaying && prevState.isPlaying) {
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
         }
       }
     });
@@ -235,7 +239,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       unsub();
       unsubVis();
     };
-  }, [audioElement, lrcLines, isActive]);
+  }, [lrcLines, isActive]);
 
   // Jump to current active line when switching back to lyrics tab
   useEffect(() => {

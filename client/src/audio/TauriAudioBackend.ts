@@ -310,18 +310,26 @@ export class TauriAudioBackend implements IAudioEngine {
     public seek(positionSeconds: number): void {
         const safePos = Math.max(0, positionSeconds);
         this.currentTime = safePos;
+        const store = usePlayerStore.getState();
+        const isCurrentlyPlaying = this.isPlaying || store.isPlaying;
+
+        // If player is paused and no track is playing, do NOT load audio or trigger autoplay on seek
+        if (!isCurrentlyPlaying) {
+            console.log(`[TauriAudioBackend] seek() while paused - saved currentTime: ${safePos}s without loading audio`);
+            this.emit('timeupdate', safePos, this.activeTrackId);
+            return;
+        }
+
         console.log(`[TauriAudioBackend] audio_seek to position: ${safePos}`);
         invoke<NativeAudioState>('audio_seek', { position: safePos }).catch(async (e) => {
             console.warn('[TauriAudioBackend] audio_seek error:', e);
             const errMsg = String(e?.message || e || '');
             if (errMsg.includes('No audio loaded')) {
-                const store = usePlayerStore.getState();
-                const isCurrentlyPlaying = this.isPlaying || store.isPlaying;
                 const fallbackTrack = this.currentTrack || store.queue[store.currentIndex];
-                if (fallbackTrack) {
-                    console.log(`[TauriAudioBackend] Preloading standby track upon seek error (autoplay: ${isCurrentlyPlaying}):`, fallbackTrack.title || fallbackTrack.id);
+                if (fallbackTrack && (this.isPlaying || usePlayerStore.getState().isPlaying)) {
+                    console.log('[TauriAudioBackend] Reloading track upon seek error (playing):', fallbackTrack.title || fallbackTrack.id);
                     try {
-                        await this.playTrack(fallbackTrack, { startTime: safePos, autoplay: isCurrentlyPlaying });
+                        await this.playTrack(fallbackTrack, { startTime: safePos, autoplay: true });
                     } catch (err) {
                         console.error('[TauriAudioBackend] Failed fallback seek playTrack:', err);
                     }

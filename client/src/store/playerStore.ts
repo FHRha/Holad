@@ -67,6 +67,9 @@ export const usePlayerStore = create<PlayerState>()(
       },
       version: 1,
       migrate: (persistedState: any, version: number) => {
+        if (persistedState) {
+          persistedState.isPlaying = false;
+        }
         if (version === 0) {
           if (persistedState.volume === 1) {
             persistedState.volume = 0.5;

@@ -124,7 +124,8 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
         pendingDurationMs = durationMs
         pendingArtworkUrl = artworkUrl
 
-        mediaService?.updateMetadata(title, artist, album, durationMs, artworkUrl)
+        val svc = mediaService ?: MediaService.instance
+        svc?.updateMetadata(title, artist, album, durationMs, artworkUrl)
         invoke.resolve()
     }
 
@@ -143,15 +144,22 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
 
         if (isPlaying) {
             try {
-                val intent = Intent(activity, MediaService::class.java)
+                val intent = Intent(activity, MediaService::class.java).apply {
+                    putExtra("extra_title", pendingTitle)
+                    putExtra("extra_artist", pendingArtist)
+                    putExtra("extra_album", pendingAlbum)
+                    putExtra("extra_duration", pendingDurationMs)
+                    putExtra("extra_artwork", pendingArtworkUrl)
+                }
                 ContextCompat.startForegroundService(activity, intent)
-                Log.i("MediaSessionPlugin", "ContextCompat.startForegroundService invoked for MediaService")
+                Log.i("MediaSessionPlugin", "ContextCompat.startForegroundService invoked for MediaService with metadata: title='$pendingTitle', artist='$pendingArtist'")
             } catch (e: Exception) {
                 Log.e("MediaSessionPlugin", "Failed to startForegroundService", e)
             }
         }
 
-        mediaService?.updatePlaybackState(isPlaying, positionMs, speed)
+        val svc = mediaService ?: MediaService.instance
+        svc?.updatePlaybackState(isPlaying, positionMs, speed)
         invoke.resolve()
     }
 

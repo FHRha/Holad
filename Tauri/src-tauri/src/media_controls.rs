@@ -99,14 +99,34 @@ impl DesktopMediaService {
                         None
                     }
                 });
+
+                // Windows SMTC requires cover_url to be an absolute URI with scheme
+                let valid_cover = cover_url.filter(|url| {
+                    url.starts_with("http://") || url.starts_with("https://") || url.starts_with("file://")
+                });
+
                 let meta = MediaMetadata {
                     title,
                     artist,
                     album,
                     duration: dur,
-                    cover_url,
+                    cover_url: valid_cover,
                 };
-                controls.set_metadata(meta).map_err(|e| format!("{:?}", e))?;
+
+                let res = controls.set_metadata(meta);
+                if res.is_err() && valid_cover.is_some() {
+                    log::warn!("[SMTC] set_metadata failed with cover_url ({:?}), retrying without cover", valid_cover);
+                    let meta_no_cover = MediaMetadata {
+                        title,
+                        artist,
+                        album,
+                        duration: dur,
+                        cover_url: None,
+                    };
+                    controls.set_metadata(meta_no_cover).map_err(|e| format!("{:?}", e))?;
+                } else {
+                    res.map_err(|e| format!("{:?}", e))?;
+                }
             }
         }
         #[cfg(not(any(target_os = "windows", target_os = "linux")))]
