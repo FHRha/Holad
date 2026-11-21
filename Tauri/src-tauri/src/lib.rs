@@ -3,6 +3,7 @@ mod audio_session;
 mod updater;
 mod discord_rpc;
 use std::sync::Mutex;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState, TrayIconEvent};
 use tauri::Manager;
 use tauri::State;
@@ -53,6 +54,7 @@ fn quit_app() {
 fn show_main_window(app: tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
         let _ = window.unminimize();
         let _ = window.set_focus();
         let _ = window.emit("window-visibility-change", true);
@@ -63,39 +65,45 @@ const WINDOW_WAVE_DARK: &[u8] = include_bytes!("../icons/window_wave_dark.png");
 const WINDOW_WAVE_LIGHT: &[u8] = include_bytes!("../icons/window_wave_light.png");
 const WINDOW_CASSETTE: &[u8] = include_bytes!("../icons/window_cassette.png");
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 const TRAY_WAVE_DARK: &[u8] = include_bytes!("../icons/tray_wave_dark.png");
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 const TRAY_WAVE_LIGHT: &[u8] = include_bytes!("../icons/tray_wave_light.png");
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 const TRAY_CASSETTE: &[u8] = include_bytes!("../icons/tray_cassette.png");
 
 #[tauri::command]
 fn set_app_icon(app: tauri::AppHandle, icon: String) -> Result<(), String> {
-    let win_bytes = match icon.as_str() {
-        "wave_light" => WINDOW_WAVE_LIGHT,
-        "cassette" => WINDOW_CASSETTE,
-        _ => WINDOW_WAVE_DARK,
-    };
-    let win_img = tauri::image::Image::from_bytes(win_bytes).map_err(|e| e.to_string())?;
-
-    let tray_bytes = match icon.as_str() {
-        "wave_light" => TRAY_WAVE_LIGHT,
-        "cassette" => TRAY_CASSETTE,
-        _ => TRAY_WAVE_DARK,
-    };
-    let tray_img = tauri::image::Image::from_bytes(tray_bytes).map_err(|e| e.to_string())?;
-
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_icon(win_img.clone());
-    }
-    if let Some(window) = app.get_webview_window("tray_menu") {
-        let _ = window.set_icon(win_img.clone());
-    }
-    if let Some(tray) = app.tray_by_id("main") {
-        let _ = tray.set_icon(Some(tray_img));
-    }
-
-    #[cfg(target_os = "windows")]
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
-        audio_session::windows_audio::set_current_icon(&icon);
+        let win_bytes = match icon.as_str() {
+            "wave_light" => WINDOW_WAVE_LIGHT,
+            "cassette" => WINDOW_CASSETTE,
+            _ => WINDOW_WAVE_DARK,
+        };
+        let win_img = tauri::image::Image::from_bytes(win_bytes).map_err(|e| e.to_string())?;
+
+        let tray_bytes = match icon.as_str() {
+            "wave_light" => TRAY_WAVE_LIGHT,
+            "cassette" => TRAY_CASSETTE,
+            _ => TRAY_WAVE_DARK,
+        };
+        let tray_img = tauri::image::Image::from_bytes(tray_bytes).map_err(|e| e.to_string())?;
+
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.set_icon(win_img.clone());
+        }
+        if let Some(window) = app.get_webview_window("tray_menu") {
+            let _ = window.set_icon(win_img.clone());
+        }
+        if let Some(tray) = app.tray_by_id("main") {
+            let _ = tray.set_icon(Some(tray_img));
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            audio_session::windows_audio::set_current_icon(&icon);
+        }
     }
 
     Ok(())
@@ -377,10 +385,13 @@ fn current_millis() -> u64 {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  tauri::Builder::default()
+  let builder = tauri::Builder::default()
     .manage(AppConfig {
         close_to_tray: Mutex::new(true),
-    })
+    });
+
+  #[cfg(not(any(target_os = "android", target_os = "ios")))]
+  let builder = builder
     .plugin(tauri_plugin_autostart::init(
         tauri_plugin_autostart::MacosLauncher::LaunchAgent,
         Some(vec!["--autostart"]),
@@ -391,7 +402,9 @@ pub fn run() {
             let _ = window.unminimize();
             let _ = window.set_focus();
         }
-    }))
+    }));
+
+  builder
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_dialog::init())
@@ -437,113 +450,116 @@ pub fn run() {
           }
       }
 
-      let initial_tray_icon = tauri::image::Image::from_bytes(TRAY_WAVE_DARK)
-          .unwrap_or_else(|_| app.default_window_icon().unwrap().clone());
+      #[cfg(not(any(target_os = "android", target_os = "ios")))]
+      {
+          let initial_tray_icon = tauri::image::Image::from_bytes(TRAY_WAVE_DARK)
+              .unwrap_or_else(|_| app.default_window_icon().unwrap().clone());
 
-      let _tray = TrayIconBuilder::with_id("main")
-          .icon(initial_tray_icon)
-          .on_tray_icon_event(|tray, event| match event {
-              TrayIconEvent::Click {
-                  button: MouseButton::Right,
-                  button_state: MouseButtonState::Up,
-                  position: _position,
-                  ..
-              } => {
-                  let app = tray.app_handle();
-                  let window = if let Some(w) = app.get_webview_window("tray_menu") {
-                      w
-                  } else {
-                      let builder = tauri::WebviewWindowBuilder::new(
-                          app,
-                          "tray_menu",
-                          tauri::WebviewUrl::App("/#tray".into()),
-                      )
-                      .title("Holad (Tray Menu)")
-                      .inner_size(320.0, 450.0)
-                      .resizable(false)
-                      .decorations(false)
-                      .transparent(true)
-                      .always_on_top(true)
-                      .skip_taskbar(true)
-                      .shadow(false)
-                      .visible(false);
+          let _tray = TrayIconBuilder::with_id("main")
+              .icon(initial_tray_icon)
+              .on_tray_icon_event(|tray, event| match event {
+                  TrayIconEvent::Click {
+                      button: MouseButton::Right,
+                      button_state: MouseButtonState::Up,
+                      position: _position,
+                      ..
+                  } => {
+                      let app = tray.app_handle();
+                      let window = if let Some(w) = app.get_webview_window("tray_menu") {
+                          w
+                      } else {
+                          let builder = tauri::WebviewWindowBuilder::new(
+                              app,
+                              "tray_menu",
+                              tauri::WebviewUrl::App("/#tray".into()),
+                          )
+                          .title("Holad (Tray Menu)")
+                          .inner_size(320.0, 450.0)
+                          .resizable(false)
+                          .decorations(false)
+                          .transparent(true)
+                          .always_on_top(true)
+                          .skip_taskbar(true)
+                          .shadow(false)
+                          .visible(false);
 
-                      #[cfg(target_os = "windows")]
-                      let builder = builder.background_color(tauri::window::Color(0, 0, 0, 0));
+                          #[cfg(target_os = "windows")]
+                          let builder = builder.background_color(tauri::window::Color(0, 0, 0, 0));
 
-                      match builder.build() {
-                          Ok(w) => w,
-                          Err(e) => {
-                              log::error!("Failed to create tray_menu window: {:?}", e);
-                              return;
+                          match builder.build() {
+                              Ok(w) => w,
+                              Err(e) => {
+                                  log::error!("Failed to create tray_menu window: {:?}", e);
+                                  return;
+                              }
                           }
-                      }
-                  };
-
-                  let is_visible = window.is_visible().unwrap_or(false);
-                  if is_visible {
-                      window.hide().unwrap();
-                  } else {
-                      let _ = window.set_shadow(false);
-                      let size = window.outer_size().unwrap();
-                      
-                      #[cfg(target_os = "windows")]
-                      let cursor_pos = {
-                          use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
-                          use windows::Win32::Foundation::POINT;
-                          let mut point = POINT::default();
-                          unsafe {
-                              let _ = GetCursorPos(&mut point);
-                          }
-                          tauri::PhysicalPosition::new(point.x as f64, point.y as f64)
                       };
-                      #[cfg(not(target_os = "windows"))]
-                      let cursor_pos = window.cursor_position().unwrap_or(_position);
-                      
-                      let scale_factor = window.scale_factor().unwrap_or(1.0);
-                      let logical_pos = cursor_pos.to_logical::<f64>(scale_factor);
-                      let logical_size = size.to_logical::<f64>(scale_factor);
-                      
-                      let logical_x = logical_pos.x;
-                      let logical_y = logical_pos.y;
-                      
-                      // Position menu such that it stays on screen relative to cursor
-                      let win_x = if logical_x > logical_size.width { logical_x - logical_size.width } else { logical_x };
-                      let win_y = if logical_y > logical_size.height { logical_y - logical_size.height } else { logical_y + 10.0 };
-                      
-                      window.set_position(tauri::LogicalPosition::new(win_x, win_y)).unwrap();
-                      TRAY_MENU_SHOWN_AT.store(current_millis(), std::sync::atomic::Ordering::SeqCst);
-                      window.show().unwrap();
-                      window.set_focus().unwrap();
-                      let _ = window.emit("request-tray-sync", ());
-                  }
-              }
-              TrayIconEvent::Click {
-                  button: MouseButton::Left,
-                  button_state: MouseButtonState::Up,
-                  ..
-              } => {
-                  let app = tray.app_handle();
-                  if let Some(window) = app.get_webview_window("main") {
+
                       let is_visible = window.is_visible().unwrap_or(false);
                       if is_visible {
                           window.hide().unwrap();
-                          let _ = window.emit("window-visibility-change", false);
                       } else {
-                          window.show().unwrap();
-                          let _ = window.unminimize();
-                          window.set_focus().unwrap();
-                          let _ = window.emit("window-visibility-change", true);
+                          let _ = window.set_shadow(false);
+                          let size = window.outer_size().unwrap();
+                          
                           #[cfg(target_os = "windows")]
-                          {
-                              unsafe { crate::taskbar::setup_taskbar_buttons(&window); }
+                          let cursor_pos = {
+                              use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+                              use windows::Win32::Foundation::POINT;
+                              let mut point = POINT::default();
+                              unsafe {
+                                  let _ = GetCursorPos(&mut point);
+                              }
+                              tauri::PhysicalPosition::new(point.x as f64, point.y as f64)
+                          };
+                          #[cfg(not(target_os = "windows"))]
+                          let cursor_pos = window.cursor_position().unwrap_or(_position);
+                          
+                          let scale_factor = window.scale_factor().unwrap_or(1.0);
+                          let logical_pos = cursor_pos.to_logical::<f64>(scale_factor);
+                          let logical_size = size.to_logical::<f64>(scale_factor);
+                          
+                          let logical_x = logical_pos.x;
+                          let logical_y = logical_pos.y;
+                          
+                          // Position menu such that it stays on screen relative to cursor
+                          let win_x = if logical_x > logical_size.width { logical_x - logical_size.width } else { logical_x };
+                          let win_y = if logical_y > logical_size.height { logical_y - logical_size.height } else { logical_y + 10.0 };
+                          
+                          window.set_position(tauri::LogicalPosition::new(win_x, win_y)).unwrap();
+                          TRAY_MENU_SHOWN_AT.store(current_millis(), std::sync::atomic::Ordering::SeqCst);
+                          window.show().unwrap();
+                          window.set_focus().unwrap();
+                          let _ = window.emit("request-tray-sync", ());
+                      }
+                  }
+                  TrayIconEvent::Click {
+                      button: MouseButton::Left,
+                      button_state: MouseButtonState::Up,
+                      ..
+                  } => {
+                      let app = tray.app_handle();
+                      if let Some(window) = app.get_webview_window("main") {
+                          let is_visible = window.is_visible().unwrap_or(false);
+                          if is_visible {
+                              window.hide().unwrap();
+                              let _ = window.emit("window-visibility-change", false);
+                          } else {
+                              window.show().unwrap();
+                              let _ = window.unminimize();
+                              window.set_focus().unwrap();
+                              let _ = window.emit("window-visibility-change", true);
+                              #[cfg(target_os = "windows")]
+                              {
+                                  unsafe { crate::taskbar::setup_taskbar_buttons(&window); }
+                              }
                           }
                       }
                   }
-              }
-              _ => {}
-          })
-          .build(app)?;
+                  _ => {}
+              })
+              .build(app)?;
+      }
       
       if cfg!(debug_assertions) {
         app.handle().plugin(
