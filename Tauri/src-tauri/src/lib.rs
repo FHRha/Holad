@@ -3,6 +3,7 @@ mod audio_session;
 mod updater;
 mod discord_rpc;
 pub mod audio;
+pub mod media_controls;
 use std::sync::Mutex;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState, TrayIconEvent};
@@ -384,13 +385,54 @@ fn current_millis() -> u64 {
         .unwrap_or(0)
 }
 
+#[cfg(target_os = "android")]
+fn init_media_session_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    tauri::plugin::Builder::new("mediaSession")
+        .setup(|app, api| {
+            #[cfg(target_os = "android")]
+            {
+                api.register_android_plugin("com.holad.app", "MediaSessionPlugin")?;
+            }
+            Ok(())
+        })
+        .build()
+}
+
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "C" fn Java_com_holad_app_MainActivity_initNdkContext(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    context: jni::objects::JObject,
+) {
+    if let Ok(vm) = env.get_java_vm() {
+        let vm_ptr = vm.get_java_vm_pointer() as *mut std::ffi::c_void;
+        if let Ok(global_context) = env.new_global_ref(context) {
+            let ctx_ptr = global_context.as_raw() as *mut std::ffi::c_void;
+            // Prevent dropping global ref
+            std::mem::forget(global_context);
+            unsafe {
+                ndk_context::initialize_android_context(vm_ptr, ctx_ptr);
+            }
+            log::info!("[Rust Audio] Successfully initialized ndk_context with JavaVM and Activity Context!");
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  let builder = tauri::Builder::default()
+  #[allow(unused_mut)]
+  let mut builder = tauri::Builder::default()
     .manage(AppConfig {
         close_to_tray: Mutex::new(true),
     })
-    .manage(audio::AudioService::new());
+    .manage(audio::AudioService::new())
+    .manage(media_controls::DesktopMediaService::new());
+
+  #[cfg(target_os = "android")]
+  {
+      builder = builder.plugin(init_media_session_plugin());
+  }
 
   #[cfg(not(any(target_os = "android", target_os = "ios")))]
   let builder = builder
@@ -434,12 +476,24 @@ pub fn run() {
         audio::audio_pause,
         audio::audio_seek,
         audio::audio_set_volume,
-        audio::audio_get_state
+        audio::audio_get_state,
+        audio::audio_crossfade,
+        media_controls::desktop_media_set_metadata,
+        media_controls::desktop_media_set_state
     ])
     .setup(|app| {
       discord_rpc::init();
       let is_autostart = std::env::args().any(|arg| arg == "--autostart");
       
+      #[cfg(any(target_os = "windows", target_os = "linux"))]
+      {
+          if let Some(main_window) = app.get_webview_window("main") {
+              if let Some(service) = app.try_state::<media_controls::DesktopMediaService>() {
+                  service.init(&app.handle().clone(), &main_window);
+              }
+          }
+      }
+
       #[cfg(target_os = "windows")]
       {
           if let Some(window) = app.get_webview_window("main") {

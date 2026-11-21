@@ -1,0 +1,17 @@
+{
+  "default": null,
+  "permission": [
+    {
+      "identifier": "mediaSession",
+      "description": "MediaSession plugin commands",
+      "commands": {
+        "allow": [
+          "mediaSession:setMetadata",
+          "mediaSession:setPlaybackState",
+          "mediaSession:stop"
+        ],
+        "deny": []
+      }
+    }
+  ]
+}

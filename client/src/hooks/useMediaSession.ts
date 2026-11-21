@@ -21,11 +21,17 @@ export function useMediaSession() {
     if (!isFinite(duration) || duration <= 0) return;
     const safePosition = Math.max(0, Math.min(position, duration));
     const safeRate = isFinite(playbackRate) && playbackRate > 0 ? playbackRate : 1;
+    const isCurrentlyPlaying = usePlayerStore.getState().isPlaying;
 
     try {
       if (isTauri()) {
         invoke('plugin:mediaSession|setPlaybackState', {
-          isPlaying: usePlayerStore.getState().isPlaying,
+          isPlaying: isCurrentlyPlaying,
+          position: safePosition,
+          playbackRate: safeRate
+        }).catch(() => {});
+        invoke('desktop_media_set_state', {
+          isPlaying: isCurrentlyPlaying,
           position: safePosition,
           playbackRate: safeRate
         }).catch(() => {});
@@ -81,11 +87,20 @@ export function useMediaSession() {
       };
 
       if (isTauri()) {
+        const audioState = useAudioStore.getState();
+        const effectiveDuration = currentTrack.duration || audioState.duration || 0;
         invoke('plugin:mediaSession|setMetadata', {
           title: metadata.title,
           artist: metadata.artist,
           album: metadata.album,
-          duration: currentTrack.duration || 0,
+          duration: effectiveDuration,
+          artwork: coverUrl || null
+        }).catch(() => {});
+        invoke('desktop_media_set_metadata', {
+          title: metadata.title,
+          artist: metadata.artist,
+          album: metadata.album,
+          duration: effectiveDuration,
           artwork: coverUrl || null
         }).catch(() => {});
       }
@@ -133,6 +148,11 @@ export function useMediaSession() {
     } else {
       if (isTauri()) {
         invoke('plugin:mediaSession|stop').catch(() => {});
+        invoke('desktop_media_set_state', {
+          isPlaying: false,
+          position: 0,
+          playbackRate: 0
+        }).catch(() => {});
       }
       if (Capacitor.isNativePlatform()) {
         MediaSession.setMetadata({ title: '', artist: '', album: '' });
@@ -143,37 +163,8 @@ export function useMediaSession() {
   }, [currentTrack, setIsPlaying, nextTrack, prevTrack]);
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
     let isSubscribed = true;
     const handles: PluginListenerHandle[] = [];
-
-    const setupListeners = async () => {
-      try {
-        const events: Array<{ event: string; handler: () => void }> = [
-          { event: 'play', handler: () => { setIsPlaying(true); const engine = getAudioEngine(); if (engine) engine.resume().catch(() => {}); } },
-          { event: 'pause', handler: () => { setIsPlaying(false); const engine = getAudioEngine(); if (engine) engine.pause(); } },
-          { event: 'playpause', handler: () => { const playing = !usePlayerStore.getState().isPlaying; setIsPlaying(playing); const engine = getAudioEngine(); if (engine) { if (playing) engine.resume().catch(() => {}); else engine.pause(); } } },
-          { event: 'nexttrack', handler: () => nextTrack() },
-          { event: 'previoustrack', handler: () => prevTrack() },
-        ];
-
-        for (const { event, handler } of events) {
-          if (typeof (MediaSession as any).addListener === 'function') {
-            const handle = await (MediaSession as any).addListener(event, handler);
-            if (!isSubscribed) {
-              if (handle && typeof handle.remove === 'function') handle.remove();
-            } else {
-              handles.push(handle);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[MediaSession] Failed to attach native listeners:', err);
-      }
-    };
-
-    setupListeners();
 
     // Direct DOM CustomEvent fallbacks emitted by native evaluateJavascript
     const onDirectPlay = () => {
@@ -190,10 +181,10 @@ export function useMediaSession() {
     window.addEventListener('holad:mediasession:pause', onDirectPause);
 
     let unlistenTauriMedia: (() => void) | undefined;
+    let unlistenTauriPluginMedia: (() => void) | undefined;
     if (isTauri()) {
       import('@tauri-apps/api/event').then(({ listen }) => {
-        listen<{ action: string; seekTime?: number }>('mediaAction', (event) => {
-          const payload = event.payload;
+        const handleAction = (payload: { action: string; seekTime?: number }) => {
           if (!payload) return;
           switch (payload.action) {
             case 'play':
@@ -202,6 +193,16 @@ export function useMediaSession() {
             case 'pause':
               onDirectPause();
               break;
+            case 'toggle':
+            case 'playpause': {
+              const playing = usePlayerStore.getState().isPlaying;
+              if (playing) {
+                onDirectPause();
+              } else {
+                onDirectPlay();
+              }
+              break;
+            }
             case 'previoustrack':
               prevTrack();
               break;
@@ -228,16 +229,57 @@ export function useMediaSession() {
               break;
             }
           }
+        };
+
+        listen<{ action: string; seekTime?: number }>('mediaAction', (event) => {
+          handleAction(event.payload);
         }).then(unlisten => {
           if (!isSubscribed) unlisten();
           else unlistenTauriMedia = unlisten;
         }).catch(() => {});
+
+        listen<{ action: string; seekTime?: number }>('mediaSession:mediaAction', (event) => {
+          handleAction(event.payload);
+        }).then(unlisten => {
+          if (!isSubscribed) unlisten();
+          else unlistenTauriPluginMedia = unlisten;
+        }).catch(() => {});
       }).catch(() => {});
+    }
+
+    if (Capacitor.isNativePlatform()) {
+      const setupListeners = async () => {
+        try {
+          const events: Array<{ event: string; handler: () => void }> = [
+            { event: 'play', handler: () => { setIsPlaying(true); const engine = getAudioEngine(); if (engine) engine.resume().catch(() => {}); } },
+            { event: 'pause', handler: () => { setIsPlaying(false); const engine = getAudioEngine(); if (engine) engine.pause(); } },
+            { event: 'playpause', handler: () => { const playing = !usePlayerStore.getState().isPlaying; setIsPlaying(playing); const engine = getAudioEngine(); if (engine) { if (playing) engine.resume().catch(() => {}); else engine.pause(); } } },
+            { event: 'nexttrack', handler: () => nextTrack() },
+            { event: 'previoustrack', handler: () => prevTrack() },
+          ];
+
+          for (const { event, handler } of events) {
+            if (typeof (MediaSession as any).addListener === 'function') {
+              const handle = await (MediaSession as any).addListener(event, handler);
+              if (!isSubscribed) {
+                if (handle && typeof handle.remove === 'function') handle.remove();
+              } else {
+                handles.push(handle);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('[MediaSession] Failed to attach native listeners:', err);
+        }
+      };
+
+      setupListeners();
     }
 
     return () => {
       isSubscribed = false;
       if (unlistenTauriMedia) unlistenTauriMedia();
+      if (unlistenTauriPluginMedia) unlistenTauriPluginMedia();
       window.removeEventListener('holad:mediasession:play', onDirectPlay);
       window.removeEventListener('holad:mediasession:pause', onDirectPause);
       handles.forEach((handle) => {
@@ -266,10 +308,16 @@ export function useMediaSession() {
       const audioState = useAudioStore.getState();
       const duration = audioState.duration || currentTrack?.duration || 0;
       const position = duration > 0 ? (audioState.progress / 100) * duration : 0;
+      const rate = shouldReportPlaying ? 1.0 : 0.0;
       invoke('plugin:mediaSession|setPlaybackState', {
         isPlaying: shouldReportPlaying,
         position,
-        playbackRate: 1.0
+        playbackRate: rate
+      }).catch(() => {});
+      invoke('desktop_media_set_state', {
+        isPlaying: shouldReportPlaying,
+        position,
+        playbackRate: rate
       }).catch(() => {});
     }
 

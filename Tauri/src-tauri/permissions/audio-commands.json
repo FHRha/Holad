@@ -1,0 +1,23 @@
+{
+  "default": null,
+  "permission": [
+    {
+      "identifier": "audio-commands",
+      "description": "Audio engine commands",
+      "commands": {
+        "allow": [
+          "audio_load",
+          "audio_play",
+          "audio_pause",
+          "audio_seek",
+          "audio_crossfade",
+          "audio_set_volume",
+          "audio_get_state",
+          "desktop_media_set_metadata",
+          "desktop_media_set_state"
+        ],
+        "deny": []
+      }
+    }
+  ]
+}

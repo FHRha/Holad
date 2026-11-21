@@ -21,6 +21,8 @@
     },
     "core:path:default",
     "core:app:default",
-    "autostart:default"
+    "autostart:default",
+    "audio-commands",
+    "mediaSession"
   ]
 }
