@@ -49,20 +49,9 @@ pub struct AudioPlayer {
 
 impl AudioPlayer {
     pub fn new() -> Self {
-        let sink = match DeviceSinkBuilder::open_default_sink() {
-            Ok(mut s) => {
-                s.log_on_drop(false);
-                Some(s)
-            }
-            Err(e) => {
-                log::warn!("Audio output default sink init warning: {:?}", e);
-                None
-            }
-        };
-
         Self {
-            sink: Mutex::new(sink),
-            player: Mutex::new(None),
+            sink: Mutex::new(None),
+player: Mutex::new(None),
             meta: Mutex::new(PlaybackMetadata {
                 url: String::new(),
                 duration: 0.0,
