@@ -17,6 +17,7 @@ import { jamSocket } from '../api/socket';
 import { useHoladStore } from '../store/holadStore';
 import { useSocialStore } from '../store/socialStore';
 import { useDemoStore } from '../store/demoStore';
+import { getAudioEngine } from '../audio/AudioEngine';
 import type { Track } from '../types';
 
 const applyServerPlaybackState = (
@@ -121,6 +122,14 @@ const applyServerPlaybackState = (
   setTimeout(() => {
     useHoladStore.getState().setIsApplyingRemoteState(false);
   }, 50);
+
+  // Guarantee audio engine is cleanly paused on server state application
+  try {
+    const engine = getAudioEngine();
+    if (engine && typeof engine.pause === 'function') {
+      engine.pause();
+    }
+  } catch {}
 
   const activeTrack = mappedTracks[targetIndex];
   const trackDur = activeTrack?.duration || 0;

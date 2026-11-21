@@ -29,7 +29,9 @@ export function useMediaSession() {
           isPlaying: isCurrentlyPlaying,
           position: safePosition,
           playbackRate: safeRate
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn('[MediaSession] plugin:mediaSession|setPlaybackState failed:', err);
+        });
         invoke('desktop_media_set_state', {
           isPlaying: isCurrentlyPlaying,
           position: safePosition,
@@ -95,7 +97,9 @@ export function useMediaSession() {
           album: metadata.album,
           duration: effectiveDuration,
           artwork: coverUrl || null
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn('[MediaSession] plugin:mediaSession|setMetadata failed:', err);
+        });
         invoke('desktop_media_set_metadata', {
           title: metadata.title,
           artist: metadata.artist,
@@ -313,7 +317,9 @@ export function useMediaSession() {
         isPlaying: shouldReportPlaying,
         position,
         playbackRate: rate
-      }).catch(() => {});
+      }).catch((err) => {
+        console.warn('[MediaSession] plugin:mediaSession|setPlaybackState failed:', err);
+      });
       invoke('desktop_media_set_state', {
         isPlaying: shouldReportPlaying,
         position,

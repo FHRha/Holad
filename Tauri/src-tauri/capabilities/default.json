@@ -23,6 +23,7 @@
     "core:app:default",
     "autostart:default",
     "audio-commands",
-    "mediaSession"
+    "app-commands",
+    "mediaSession:default"
   ]
 }

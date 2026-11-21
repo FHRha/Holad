@@ -94,6 +94,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     override fun onCreate() {
         super.onCreate()
+        Log.i("MediaService", "MediaService onCreate called")
         instance = this
         audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
@@ -221,6 +222,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.i("MediaService", "MediaService onStartCommand: action=${intent?.action}")
         MediaButtonReceiver.handleIntent(mediaSession, intent)
 
         // Always satisfy the Foreground Service contract immediately when started
@@ -388,6 +390,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         durationMs: Long,
         artworkUrl: String?
     ) {
+        Log.i("MediaService", "updateMetadata: title='$title', artist='$artist', duration=${durationMs}ms")
         currentTitle = title
         currentArtist = artist
         currentAlbum = album
@@ -413,6 +416,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         positionMs: Long,
         speed: Float = 1.0f
     ) {
+        Log.i("MediaService", "updatePlaybackState: isPlaying=$isPlaying, pos=${positionMs}ms, speed=$speed")
         val wasPlaying = isPlayingState
         isPlayingState = isPlaying
         currentPositionMs = positionMs
@@ -568,6 +572,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
                 startForeground(NOTIFICATION_ID, notification)
             }
             isForegroundService = true
+            Log.i("MediaService", "startForegroundInternal succeeded! (isForegroundService=true)")
         } catch (e: Exception) {
             Log.e("MediaService", "startForeground failed, falling back to notify()", e)
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

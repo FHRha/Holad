@@ -50,6 +50,7 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            Log.i("MediaSessionPlugin", "MediaService connected successfully via ServiceConnection!")
             val binder = service as? MediaService.LocalBinder
             val svc = binder?.getService()
             mediaService = svc
@@ -64,12 +65,14 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+            Log.w("MediaSessionPlugin", "MediaService disconnected from ServiceConnection")
             mediaService?.setMediaActionListener(null)
             mediaService = null
         }
     }
 
     init {
+        Log.i("MediaSessionPlugin", "MediaSessionPlugin instantiated! Starting bindMediaService...")
         bindMediaService()
     }
 
@@ -78,6 +81,7 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
             val intent = Intent(activity, MediaService::class.java)
             activity.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
             isBound = true
+            Log.i("MediaSessionPlugin", "bindService initiated successfully")
         } catch (e: Exception) {
             Log.e("MediaSessionPlugin", "Failed to bind MediaService", e)
         }
@@ -93,6 +97,7 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
     }
 
     override fun onMediaAction(action: String, extras: Long?) {
+        Log.i("MediaSessionPlugin", "onMediaAction received: action=$action, extras=$extras")
         val payload = JSObject().apply {
             put("action", action)
             if (extras != null) {
@@ -111,6 +116,8 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
         val durationMs = ((args.duration ?: 0.0) * 1000).toLong()
         val artworkUrl = args.artwork
 
+        Log.i("MediaSessionPlugin", "setMetadata command: title='$title', artist='$artist', duration=${durationMs}ms, artwork=$artworkUrl")
+
         pendingTitle = title
         pendingArtist = artist
         pendingAlbum = album
@@ -128,6 +135,8 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
         val positionMs = ((args.position ?: 0.0) * 1000).toLong()
         val speed = args.playbackRate ?: 1.0f
 
+        Log.i("MediaSessionPlugin", "setPlaybackState command: isPlaying=$isPlaying, position=${positionMs}ms, speed=$speed")
+
         pendingIsPlaying = isPlaying
         pendingPositionMs = positionMs
         pendingSpeed = speed
@@ -136,6 +145,7 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
             try {
                 val intent = Intent(activity, MediaService::class.java)
                 ContextCompat.startForegroundService(activity, intent)
+                Log.i("MediaSessionPlugin", "ContextCompat.startForegroundService invoked for MediaService")
             } catch (e: Exception) {
                 Log.e("MediaSessionPlugin", "Failed to startForegroundService", e)
             }
@@ -147,6 +157,7 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
 
     @Command
     fun stop(invoke: Invoke) {
+        Log.i("MediaSessionPlugin", "stop command invoked")
         pendingTitle = null
         pendingIsPlaying = false
         mediaService?.handleStop()

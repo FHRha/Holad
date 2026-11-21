@@ -288,8 +288,19 @@ export class TauriAudioBackend implements IAudioEngine {
             const errMsg = String(e?.message || e || '');
             const fallbackTrack = this.currentTrack || usePlayerStore.getState().queue[usePlayerStore.getState().currentIndex];
             if (fallbackTrack && (errMsg.includes('No audio loaded') || errMsg.includes('empty') || errMsg.includes('not loaded'))) {
-                console.log('[TauriAudioBackend] Fallback: reloading track in Rust engine via playTrack:', fallbackTrack.title || fallbackTrack.id);
-                await this.playTrack(fallbackTrack, { startTime: this.currentTime, autoplay: true });
+                let startPos = this.currentTime;
+                if (startPos <= 0) {
+                    const savedTime = localStorage.getItem('holad_time');
+                    const savedTrack = localStorage.getItem('holad_track');
+                    if (savedTime && (!savedTrack || savedTrack === fallbackTrack.id)) {
+                        const parsed = parseFloat(savedTime);
+                        if (!isNaN(parsed) && parsed > 0) {
+                            startPos = parsed;
+                        }
+                    }
+                }
+                console.log('[TauriAudioBackend] Fallback: reloading track in Rust engine via playTrack:', fallbackTrack.title || fallbackTrack.id, 'at pos:', startPos);
+                await this.playTrack(fallbackTrack, { startTime: startPos, autoplay: true });
                 return;
             }
             throw e;
@@ -306,18 +317,14 @@ export class TauriAudioBackend implements IAudioEngine {
             if (errMsg.includes('No audio loaded')) {
                 const store = usePlayerStore.getState();
                 const isCurrentlyPlaying = this.isPlaying || store.isPlaying;
-                if (isCurrentlyPlaying) {
-                    const fallbackTrack = this.currentTrack || store.queue[store.currentIndex];
-                    if (fallbackTrack) {
-                        console.log('[TauriAudioBackend] Fallback: loading track upon seek error (playing):', fallbackTrack.title || fallbackTrack.id);
-                        try {
-                            await this.playTrack(fallbackTrack, { startTime: safePos, autoplay: true });
-                        } catch (err) {
-                            console.error('[TauriAudioBackend] Failed fallback seek playTrack:', err);
-                        }
+                const fallbackTrack = this.currentTrack || store.queue[store.currentIndex];
+                if (fallbackTrack) {
+                    console.log(`[TauriAudioBackend] Preloading standby track upon seek error (autoplay: ${isCurrentlyPlaying}):`, fallbackTrack.title || fallbackTrack.id);
+                    try {
+                        await this.playTrack(fallbackTrack, { startTime: safePos, autoplay: isCurrentlyPlaying });
+                    } catch (err) {
+                        console.error('[TauriAudioBackend] Failed fallback seek playTrack:', err);
                     }
-                } else {
-                    console.log(`[TauriAudioBackend] Seek requested while paused and no audio loaded - saved target position: ${safePos}s without starting playback.`);
                 }
             }
         });

@@ -426,7 +426,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const isMidTransition = engineRef.current.isTransitioning();
 
     const snapshot = useHoladStore.getState().snapshot;
-    const shouldTransferPlay = didDeviceBecomeActive && snapshot && snapshot.trackId === currentTrack.id && snapshot.isPlaying;
+    const isHydrated = usePlayerStore.getState().isSessionHydrated;
+    const shouldTransferPlay = isHydrated && didDeviceBecomeActive && snapshot && snapshot.trackId === currentTrack.id && snapshot.isPlaying;
 
     if ((isPlayingStore || shouldTransferPlay) && isActiveDevice && !isSpeakerDj) {
       if (shouldTransferPlay && !isPlayingStore) {
@@ -487,7 +488,18 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       engineRef.current.setDeckTrackId?.(activeDeckIdx as 0 | 1, currentTrack.id);
       (engineRef.current as any).setCurrentTrack?.(currentTrack);
 
-      const targetPosSec = initialPosition > 0 ? initialPosition / 1000 : 0;
+      let targetPosSec = initialPosition > 0 ? initialPosition / 1000 : 0;
+      if (targetPosSec <= 0 && currentTrack?.id) {
+        const savedTrack = localStorage.getItem('holad_track');
+        const savedTime = localStorage.getItem('holad_time');
+        if (savedTrack === currentTrack.id && savedTime) {
+          const parsed = parseFloat(savedTime);
+          if (!isNaN(parsed) && parsed > 0) {
+            targetPosSec = parsed;
+          }
+        }
+      }
+
       if (targetPosSec > 0) {
         const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
         useAudioStore.getState().setDuration(dur);
@@ -503,6 +515,14 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
 
       if (isNativeAudio) {
+        scheduleIdle(() => {
+          if (!usePlayerStore.getState().isPlaying) {
+            engineRef.current.playTrack(
+              { ...currentTrack, streamUrl: audioSrc },
+              { startTime: targetPosSec, autoplay: false, immediate: true }
+            ).catch(() => {});
+          }
+        });
         return;
       }
 
@@ -581,16 +601,22 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     useEffect(() => {
       if (!currentTrack) return;
   
-      if (isPlaying && isActiveDevice && !isSpeakerDj) {
-        triggerAudioSessionSync();
-        engineRef.current.resume().then(() => {
+      const isHydrated = usePlayerStore.getState().isSessionHydrated;
+
+      if (isPlaying && isActiveDevice && !isSpeakerDj && isHydrated) {
+        if (!prevIsPlayingRef.current) {
           triggerAudioSessionSync();
-        }).catch((e) => {
-          console.error('Playback resume error:', e);
-        });
-      } else if (!isPlaying && prevIsPlayingRef.current) {
-        flushPositionToLocalStorage(true);
-        flushPlaybackProgressToServer(true);
+          engineRef.current.resume().then(() => {
+            triggerAudioSessionSync();
+          }).catch((e) => {
+            console.error('Playback resume error:', e);
+          });
+        }
+      } else if (!isPlaying) {
+        if (prevIsPlayingRef.current) {
+          flushPositionToLocalStorage(true);
+          flushPlaybackProgressToServer(true);
+        }
         engineRef.current.pause();
       } else if (isPlaying && (!isActiveDevice || isSpeakerDj)) {
         engineRef.current.pause();

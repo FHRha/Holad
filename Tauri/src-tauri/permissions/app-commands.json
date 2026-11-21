@@ -1,0 +1,32 @@
+{
+  "default": null,
+  "permission": [
+    {
+      "identifier": "app-commands",
+      "description": "Desktop and app management commands",
+      "commands": {
+        "allow": [
+          "update_taskbar_state",
+          "init_taskbar_buttons",
+          "is_autostart_launch",
+          "set_close_to_tray",
+          "quit_app",
+          "show_main_window",
+          "set_tray_menu_size",
+          "set_app_icon",
+          "set_app_language",
+          "sync_audio_session",
+          "get_audio_output_device",
+          "open_downloads_folder",
+          "get_music_download_dir",
+          "set_music_download_dir",
+          "download_and_install_update",
+          "set_discord_client_id",
+          "set_discord_rpc_enabled",
+          "update_discord_activity"
+        ],
+        "deny": []
+      }
+    }
+  ]
+}
