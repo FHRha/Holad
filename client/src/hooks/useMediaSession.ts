@@ -7,6 +7,8 @@ import { useIsActiveDevice } from './useIsActiveDevice';
 import { useWindowVisibility, getIsWindowVisible } from './useWindowVisibility';
 import { getCoverArtUrl } from '../api/subsonic';
 import { getAudioEngine } from '../audio/AudioEngine';
+import { isTauri } from '../utils/StorageManager';
+import { invoke } from '@tauri-apps/api/core';
 
 export function useMediaSession() {
   const currentTrack = usePlayerStore(state => state.queue[state.currentIndex]);
@@ -21,6 +23,13 @@ export function useMediaSession() {
     const safeRate = isFinite(playbackRate) && playbackRate > 0 ? playbackRate : 1;
 
     try {
+      if (isTauri()) {
+        invoke('plugin:mediaSession|setPlaybackState', {
+          isPlaying: usePlayerStore.getState().isPlaying,
+          position: safePosition,
+          playbackRate: safeRate
+        }).catch(() => {});
+      }
       if (Capacitor.isNativePlatform()) {
         MediaSession.setPositionState({
           duration,
@@ -71,6 +80,16 @@ export function useMediaSession() {
         ] : []
       };
 
+      if (isTauri()) {
+        invoke('plugin:mediaSession|setMetadata', {
+          title: metadata.title,
+          artist: metadata.artist,
+          album: metadata.album,
+          duration: currentTrack.duration || 0,
+          artwork: coverUrl || null
+        }).catch(() => {});
+      }
+
       if (Capacitor.isNativePlatform()) {
         MediaSession.setMetadata(metadata);
         
@@ -112,6 +131,9 @@ export function useMediaSession() {
         }
       }
     } else {
+      if (isTauri()) {
+        invoke('plugin:mediaSession|stop').catch(() => {});
+      }
       if (Capacitor.isNativePlatform()) {
         MediaSession.setMetadata({ title: '', artist: '', album: '' });
       } else if ('mediaSession' in navigator) {
@@ -167,8 +189,55 @@ export function useMediaSession() {
     window.addEventListener('holad:mediasession:play', onDirectPlay);
     window.addEventListener('holad:mediasession:pause', onDirectPause);
 
+    let unlistenTauriMedia: (() => void) | undefined;
+    if (isTauri()) {
+      import('@tauri-apps/api/event').then(({ listen }) => {
+        listen<{ action: string; seekTime?: number }>('mediaAction', (event) => {
+          const payload = event.payload;
+          if (!payload) return;
+          switch (payload.action) {
+            case 'play':
+              onDirectPlay();
+              break;
+            case 'pause':
+              onDirectPause();
+              break;
+            case 'previoustrack':
+              prevTrack();
+              break;
+            case 'nexttrack':
+              nextTrack();
+              break;
+            case 'seekto':
+              if (typeof payload.seekTime === 'number' && !isNaN(payload.seekTime)) {
+                handleSeek(payload.seekTime);
+              }
+              break;
+            case 'duck': {
+              const eng = getAudioEngine();
+              if (eng && typeof (eng as any).setVolume === 'function') {
+                (eng as any).setVolume(0.2);
+              }
+              break;
+            }
+            case 'unduck': {
+              const eng = getAudioEngine();
+              if (eng && typeof (eng as any).setVolume === 'function') {
+                (eng as any).setVolume(1.0);
+              }
+              break;
+            }
+          }
+        }).then(unlisten => {
+          if (!isSubscribed) unlisten();
+          else unlistenTauriMedia = unlisten;
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+
     return () => {
       isSubscribed = false;
+      if (unlistenTauriMedia) unlistenTauriMedia();
       window.removeEventListener('holad:mediasession:play', onDirectPlay);
       window.removeEventListener('holad:mediasession:pause', onDirectPause);
       handles.forEach((handle) => {
@@ -192,6 +261,17 @@ export function useMediaSession() {
     // When minimized/in tray on a remote device, always report 'paused' so wallpapers and SMTC stay idle
     const shouldReportPlaying = isPlaying && (isActiveDevice || isWindowVisible);
     const state = shouldReportPlaying ? 'playing' : 'paused';
+
+    if (isTauri()) {
+      const audioState = useAudioStore.getState();
+      const duration = audioState.duration || currentTrack?.duration || 0;
+      const position = duration > 0 ? (audioState.progress / 100) * duration : 0;
+      invoke('plugin:mediaSession|setPlaybackState', {
+        isPlaying: shouldReportPlaying,
+        position,
+        playbackRate: 1.0
+      }).catch(() => {});
+    }
 
     if (Capacitor.isNativePlatform()) {
       MediaSession.setPlaybackState({ playbackState: state });
