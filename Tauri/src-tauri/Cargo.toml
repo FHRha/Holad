@@ -27,11 +27,6 @@ custom-protocol = ["tauri/custom-protocol"]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri = { version = "2.11.3", features = ["custom-protocol", "protocol-asset", "tray-icon", "image-png"] }
-
-[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
-tauri = { version = "2.11.3", features = ["custom-protocol", "protocol-asset", "image-png"] }
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-shell = "2.3.5"
@@ -40,6 +35,14 @@ tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
 ureq = { version = "2.10", features = ["tls"] }
 sha2 = "0.10"
+rodio = { version = "0.23", default-features = false, features = ["playback", "symphonia-all"] }
+symphonia = { version = "0.5.5", features = ["all"] }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri = { version = "2.11.3", features = ["custom-protocol", "protocol-asset", "tray-icon", "image-png"] }
+
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri = { version = "2.11.3", features = ["custom-protocol", "protocol-asset", "image-png"] }
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61.3", features = [
     "Win32_UI_Shell",

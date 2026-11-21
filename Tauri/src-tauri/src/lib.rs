@@ -2,6 +2,7 @@ mod taskbar;
 mod audio_session;
 mod updater;
 mod discord_rpc;
+pub mod audio;
 use std::sync::Mutex;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri::tray::{TrayIconBuilder, MouseButton, MouseButtonState, TrayIconEvent};
@@ -388,7 +389,8 @@ pub fn run() {
   let builder = tauri::Builder::default()
     .manage(AppConfig {
         close_to_tray: Mutex::new(true),
-    });
+    })
+    .manage(audio::AudioService::new());
 
   #[cfg(not(any(target_os = "android", target_os = "ios")))]
   let builder = builder
@@ -426,7 +428,13 @@ pub fn run() {
         updater::download_and_install_update,
         discord_rpc::set_discord_rpc_enabled,
         discord_rpc::set_discord_client_id,
-        discord_rpc::update_discord_activity
+        discord_rpc::update_discord_activity,
+        audio::audio_load,
+        audio::audio_play,
+        audio::audio_pause,
+        audio::audio_seek,
+        audio::audio_set_volume,
+        audio::audio_get_state
     ])
     .setup(|app| {
       discord_rpc::init();

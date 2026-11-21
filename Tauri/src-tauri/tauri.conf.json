@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Holad",
   "version": "2.0.0-localtest",
-  "identifier": "com.holad.desktop",
+  "identifier": "com.holad.app",
   "build": {
     "frontendDist": "../../client/dist",
     "devUrl": "http://localhost:4000",
@@ -36,6 +36,7 @@
         "enable": true,
         "scope": [
           "$DOWNLOAD/Holad/**",
+          "$APPDATA/com.holad.app/**",
           "$APPDATA/com.holad.desktop/**",
           "$APPDATA/Holad/**",
           "$TEMP/holad_icons/**"
