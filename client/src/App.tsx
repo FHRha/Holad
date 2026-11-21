@@ -74,8 +74,37 @@ export const preloadMobileViews = () => {
 
 export const isMobileDevice = () => {
   if (typeof window === 'undefined') return false;
-  if (isTauri()) return false;
-  return isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+  // 1. Capacitor native mobile
+  if (isCapacitor()) return true;
+
+  // 2. User-Agent string check (Android, iPhone, iPad, iPod, or Mobile)
+  const ua = typeof navigator !== 'undefined' ? (navigator.userAgent || '') : '';
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+
+  // 3. User-Agent Data platform check (Android / iOS / etc.)
+  const platform = typeof navigator !== 'undefined' ? ((navigator as any)?.userAgentData?.platform || navigator.platform || '') : '';
+  if (/Android|iPhone|iPad|iPod/i.test(platform)) return true;
+
+  // 4. Tauri on Android:
+  // If running inside Tauri and device has Android indicators or touch coarse pointer
+  if (isTauri()) {
+    if (/Android/i.test(ua) || /Android/i.test(platform)) return true;
+    if (typeof window.matchMedia === 'function') {
+      if (window.matchMedia('(pointer: coarse) and (hover: none)').matches) return true;
+      if (window.matchMedia('(max-width: 768px)').matches) return true;
+    }
+  }
+
+  // 5. Screen width / media query check (<= 768px)
+  if (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 768px)').matches) {
+    return true;
+  }
+  if (window.innerWidth <= 768) {
+    return true;
+  }
+
+  return false;
 };
 
 function LegacyHoladRedirect() {
@@ -194,8 +223,33 @@ function MainAppContent() {
     const handleResize = () => {
       setIsMobile(isMobileDevice());
     };
+    handleResize();
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+
+    let mql: MediaQueryList | null = null;
+    if (typeof window.matchMedia === 'function') {
+      try {
+        mql = window.matchMedia('(max-width: 768px)');
+        if (mql.addEventListener) {
+          mql.addEventListener('change', handleResize);
+        } else if ((mql as any).addListener) {
+          (mql as any).addListener(handleResize);
+        }
+      } catch {}
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+      if (mql) {
+        if (mql.removeEventListener) {
+          mql.removeEventListener('change', handleResize);
+        } else if ((mql as any).removeListener) {
+          (mql as any).removeListener(handleResize);
+        }
+      }
+    };
   }, []);
 
   const theme = useSettingsStore(state => state.theme);

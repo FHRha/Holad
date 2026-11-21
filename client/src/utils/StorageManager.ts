@@ -22,10 +22,23 @@ export const isCapacitor = () => {
   return cap.isNative === true;
 };
 
-// Check if running on mobile client (Capacitor or mobile browser)
+// Check if running on mobile client (Capacitor, Tauri on Android, or mobile browser)
 export const isMobileClient = (): boolean => {
   if (typeof window === 'undefined') return false;
-  return !isTauri() && (isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+  if (isCapacitor()) return true;
+  const ua = navigator.userAgent || '';
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+  const platform = ((navigator as any)?.userAgentData?.platform || navigator.platform || '');
+  if (/Android|iPhone|iPad|iPod/i.test(platform)) return true;
+  if (isTauri()) {
+    if (/Android/i.test(ua) || /Android/i.test(platform)) return true;
+    if (typeof window.matchMedia === 'function') {
+      if (window.matchMedia('(pointer: coarse) and (hover: none)').matches) return true;
+      if (window.matchMedia('(max-width: 768px)').matches) return true;
+    }
+  }
+  if (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 768px)').matches) return true;
+  return window.innerWidth <= 768;
 };
 
 export class StorageManager {

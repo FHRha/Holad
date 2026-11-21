@@ -4,14 +4,8 @@ import { useUIStore } from '../../store/uiStore';
 import { usePlayerStore } from '../../store/playerStore';
 import FullScreenPlayerUI from './FullScreenPlayerUI';
 import MobilePlayerUI from '../player/MobilePlayerUI';
-import { isTauri, isCapacitor } from '../../utils/StorageManager';
 import { getBasePath, isJamPath } from '../../utils/basePath';
-
-const isMobileDevice = () => {
-  if (typeof window === 'undefined') return false;
-  if (isTauri()) return false;
-  return isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 900;
-};
+import { isMobileDevice } from '../../App';
 
 export default function NowPlayingModal() {
   const isNowPlayingOpen = useUIStore(state => state.isNowPlayingOpen);

@@ -6,7 +6,9 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -36,11 +38,28 @@ class MediaSessionPlugin(private val activity: AppCompatActivity) : Plugin(activ
     private var mediaService: MediaService? = null
     private var isBound: Boolean = false
 
+    private var pendingTitle: String? = null
+    private var pendingArtist: String? = null
+    private var pendingAlbum: String? = null
+    private var pendingDurationMs: Long = 0L
+    private var pendingArtworkUrl: String? = null
+    private var pendingIsPlaying: Boolean = false
+    private var pendingPositionMs: Long = 0L
+    private var pendingSpeed: Float = 1.0f
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as? MediaService.LocalBinder
-            mediaService = binder?.getService()
-            mediaService?.setMediaActionListener(this@MediaSessionPlugin)
+            val svc = binder?.getService()
+            mediaService = svc
+            svc?.setMediaActionListener(this@MediaSessionPlugin)
+
+            if (pendingTitle != null) {
+                svc?.updateMetadata(pendingTitle ?: "", pendingArtist ?: "", pendingAlbum ?: "", pendingDurationMs, pendingArtworkUrl)
+            }
+            if (pendingIsPlaying || pendingPositionMs > 0) {
+                svc?.updatePlaybackState(pendingIsPlaying, pendingPositionMs, pendingSpeed)
+            }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -58,7 +77,9 @@ class MediaSessionPlugin(private val activity: AppCompatActivity) : Plugin(activ
             val intent = Intent(activity, MediaService::class.java)
             activity.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
             isBound = true
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.e("MediaSessionPlugin", "Failed to bind MediaService", e)
+        }
     }
 
     override fun onDestroy(activity: AppCompatActivity) {
@@ -74,7 +95,7 @@ class MediaSessionPlugin(private val activity: AppCompatActivity) : Plugin(activ
         val payload = JSObject().apply {
             put("action", action)
             if (extras != null) {
-                put("seekTime", extras / 1000.0) // Return in seconds
+                put("seekTime", extras / 1000.0)
             }
         }
         trigger("mediaAction", payload)
@@ -89,6 +110,12 @@ class MediaSessionPlugin(private val activity: AppCompatActivity) : Plugin(activ
         val durationMs = ((args.duration ?: 0.0) * 1000).toLong()
         val artworkUrl = args.artwork
 
+        pendingTitle = title
+        pendingArtist = artist
+        pendingAlbum = album
+        pendingDurationMs = durationMs
+        pendingArtworkUrl = artworkUrl
+
         mediaService?.updateMetadata(title, artist, album, durationMs, artworkUrl)
         invoke.resolve()
     }
@@ -100,12 +127,27 @@ class MediaSessionPlugin(private val activity: AppCompatActivity) : Plugin(activ
         val positionMs = ((args.position ?: 0.0) * 1000).toLong()
         val speed = args.playbackRate ?: 1.0f
 
+        pendingIsPlaying = isPlaying
+        pendingPositionMs = positionMs
+        pendingSpeed = speed
+
+        if (isPlaying) {
+            try {
+                val intent = Intent(activity, MediaService::class.java)
+                ContextCompat.startForegroundService(activity, intent)
+            } catch (e: Exception) {
+                Log.e("MediaSessionPlugin", "Failed to startForegroundService", e)
+            }
+        }
+
         mediaService?.updatePlaybackState(isPlaying, positionMs, speed)
         invoke.resolve()
     }
 
     @Command
     fun stop(invoke: Invoke) {
+        pendingTitle = null
+        pendingIsPlaying = false
         mediaService?.handleStop()
         invoke.resolve()
     }

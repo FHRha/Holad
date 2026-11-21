@@ -41,8 +41,34 @@ export default function MainContent() {
 
   useEffect(() => {
     const handleResize = () => setIsMobile(isMobileDevice());
+    handleResize();
+
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+
+    let mql: MediaQueryList | null = null;
+    if (typeof window.matchMedia === 'function') {
+      try {
+        mql = window.matchMedia('(max-width: 768px)');
+        if (mql.addEventListener) {
+          mql.addEventListener('change', handleResize);
+        } else if ((mql as any).addListener) {
+          (mql as any).addListener(handleResize);
+        }
+      } catch {}
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+      if (mql) {
+        if (mql.removeEventListener) {
+          mql.removeEventListener('change', handleResize);
+        } else if ((mql as any).removeListener) {
+          (mql as any).removeListener(handleResize);
+        }
+      }
+    };
   }, []);
 
   const { isOffline } = useNetworkStatus();
@@ -119,7 +145,10 @@ export default function MainContent() {
     return <div className="flex-1 flex items-center justify-center text-secondary">{t('common.loading_music')}</div>;
   }
 
-  if (isMobile) {
+  // On mobile UA, Android WebView, or screen <= 768px, always render MobileMainContent
+  const effectiveIsMobile = isMobile || isMobileDevice();
+
+  if (effectiveIsMobile) {
     return <MobileMainContent albums={albums} recentTracks={recentTracks} frequentAlbums={frequentAlbums} genres={genres} />;
   }
 

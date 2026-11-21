@@ -1,13 +1,13 @@
 import type { StateCreator } from 'zustand';
 import type { PlayerState } from '../playerStore';
-import { isTauri, isCapacitor } from '../../utils/StorageManager';
+import { isCapacitor } from '../../utils/StorageManager';
 import { useHoladStore } from '../holadStore';
 import { flushPendingQueueSync } from './queueSlice';
 import { isClientOffline } from '../../utils/networkStatus';
 
 const isMobileClient = (): boolean => {
   if (typeof window === 'undefined') return false;
-  return !isTauri() && (isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+  return isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
 };
 
 export interface PlaybackSlice {
