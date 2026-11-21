@@ -14,6 +14,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
   const [lrcLines, setLrcLines] = useState<LyricLine[]>([]);
   const [loadingLyrics, setLoadingLyrics] = useState(false);
   const [isUserScrolled, setIsUserScrolled] = useState(false);
+  const [activeLyricIndex, setActiveLyricIndex] = useState(-1);
   
   const isAutoScrolling = useRef(false);
   const autoScrollTimeoutRef = useRef<number | null>(null);
@@ -26,6 +27,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       setLyricsText(null);
       setLrcLines([]);
       activeLyricIndexRef.current = -1;
+      setActiveLyricIndex(-1);
       
       getLyricsBySongId(currentTrack.id).then(structuredLine => {
         if (structuredLine && structuredLine.length > 0) {
@@ -71,31 +73,26 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
 
   const handleUserScroll = () => {
     if (isAutoScrolling.current) {
-      if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
-      autoScrollTimeoutRef.current = setTimeout(() => {
-        isAutoScrolling.current = false;
-      }, 200) as unknown as number;
-    } else {
-      setIsUserScrolled(true);
-      isUserScrolledRef.current = true;
-      
-      if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current);
-      
-      if (usePlayerStore.getState().isPlaying) {
-        userScrollTimeoutRef.current = setTimeout(() => {
-          setIsUserScrolled(false);
-          isUserScrolledRef.current = false;
-          
-          if (lyricsContainerRef.current) {
-            const targetIndex = Math.max(0, activeLyricIndexRef.current);
-            const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
-            if (activeElement) {
-              scrollToActiveElement(activeElement);
-            }
-          }
-        }, 5000) as unknown as number;
-      }
+      // Programmatic auto-scroll is in progress; ignore the resulting scroll events
+      return;
     }
+    setIsUserScrolled(true);
+    isUserScrolledRef.current = true;
+    
+    if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current);
+    
+    userScrollTimeoutRef.current = setTimeout(() => {
+      setIsUserScrolled(false);
+      isUserScrolledRef.current = false;
+      
+      if (lyricsContainerRef.current) {
+        const targetIndex = Math.max(0, activeLyricIndexRef.current);
+        const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
+        if (activeElement) {
+          scrollToActiveElement(activeElement);
+        }
+      }
+    }, 4000) as unknown as number;
   };
 
   const scrollToActiveElement = (activeElement: HTMLElement) => {
@@ -118,7 +115,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     
     autoScrollTimeoutRef.current = setTimeout(() => {
       isAutoScrolling.current = false;
-    }, 600) as unknown as number;
+    }, 800) as unknown as number;
   };
 
   // Karaoke Loop
@@ -169,34 +166,60 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       if (newIndex !== lastActiveIndex) {
         lastActiveIndex = newIndex;
         activeLyricIndexRef.current = newIndex;
+        setActiveLyricIndex(newIndex);
         
         if (lyricsContainerRef.current) {
           const targetIndex = Math.max(0, newIndex);
           const activeElement = lyricsContainerRef.current.children[targetIndex] as HTMLElement;
           
+          const classesToRemove = [
+            'text-primary',
+            'text-secondary/70',
+            'text-secondary/50',
+            'text-white/40',
+            'text-white/30',
+            'text-white/60',
+            'text-white/80',
+            'hover:text-secondary',
+            'hover:text-white/50',
+            'hover:text-foreground/50',
+            'text-primary/40',
+            'text-primary/70',
+            'scale-105',
+            'scale-110',
+            'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]',
+            '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]'
+          ];
+          
           // Direct DOM manipulation for lyric classes
           Array.from(lyricsContainerRef.current.children).forEach((child, idx) => {
             const isSectionHeader = child.textContent?.trim().startsWith('[') || child.textContent?.trim().startsWith('(');
+            child.classList.remove(...classesToRemove);
             
             if (idx === newIndex && newIndex >= 0) {
               child.classList.add('text-primary', 'scale-105', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
-              child.classList.remove('text-white/40', 'text-white/30', 'hover:text-white/50', 'text-primary/40', 'text-primary/70', 'scale-110', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]');
             } else if (idx < newIndex) {
-              child.classList.remove('text-primary', 'scale-105', 'scale-110', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'text-white/30', 'hover:text-white/50', 'text-primary/70');
               if (isSectionHeader) {
                 child.classList.add('text-primary/40');
               } else {
-                child.classList.add('text-white/40');
+                child.classList.add('text-secondary/70');
               }
             } else {
-              child.classList.remove('text-primary', 'scale-105', 'scale-110', '[text-shadow:0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'drop-shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]', 'text-white/40', 'text-primary/40');
               if (isSectionHeader) {
                 child.classList.add('text-primary/70');
               } else {
-                child.classList.add('text-white/30', 'hover:text-white/50');
+                child.classList.add('text-secondary/50', 'hover:text-secondary');
               }
             }
           });
+
+          if (activeElement && !isUserScrolledRef.current && newIndex >= 0) {
+            scrollToActiveElement(activeElement);
+          }
+        }
+      }
+      rafId = requestAnimationFrame(updateCurrentLyric);
+    };
 
           if (activeElement && !isUserScrolledRef.current && newIndex >= 0) {
             scrollToActiveElement(activeElement);
@@ -278,6 +301,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     lyricsText,
     lrcLines,
     loadingLyrics,
+    activeLyricIndex,
     activeLyricIndexRef,
     isUserScrolled,
     lyricsContainerRef,

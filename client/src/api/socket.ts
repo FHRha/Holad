@@ -676,6 +676,12 @@ class JamSocketService {
         }
 
         if (isPlaying) {
+          const isHydrated = usePlayerStore.getState().isSessionHydrated;
+          const playActionId = usePlayerStore.getState().playActionId;
+          if (!isHydrated || playActionId === 0) {
+            usePlayerStore.setState({ isPlaying: false });
+            return;
+          }
           if (engine.getState() !== 'playing') {
             engine.resume().catch((e: any) => console.error("Playback prevented", e));
           }

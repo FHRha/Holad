@@ -275,6 +275,11 @@ export class TauriAudioBackend implements IAudioEngine {
     }
 
     public async resume(): Promise<void> {
+        const store = usePlayerStore.getState();
+        if (!store.isPlaying && !this.isPlaying) {
+            console.log('[TauriAudioBackend] Skipping resume() because player is paused in store');
+            return;
+        }
         this.isPlaying = true;
         try {
             console.log('[TauriAudioBackend] Resuming playback via audio_play');
@@ -287,7 +292,7 @@ export class TauriAudioBackend implements IAudioEngine {
             console.warn('[TauriAudioBackend] audio_play resume error:', e);
             const errMsg = String(e?.message || e || '');
             const fallbackTrack = this.currentTrack || usePlayerStore.getState().queue[usePlayerStore.getState().currentIndex];
-            if (fallbackTrack && (errMsg.includes('No audio loaded') || errMsg.includes('empty') || errMsg.includes('not loaded'))) {
+            if (fallbackTrack && usePlayerStore.getState().isPlaying && (errMsg.includes('No audio loaded') || errMsg.includes('empty') || errMsg.includes('not loaded'))) {
                 let startPos = this.currentTime;
                 if (startPos <= 0) {
                     const savedTime = localStorage.getItem('holad_time');

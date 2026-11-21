@@ -58,7 +58,8 @@ export function useMediaSession() {
 
   const handleSeek = (targetSeconds: number) => {
     const state = useAudioStore.getState();
-    const duration = state.duration || (currentTrack ? currentTrack.duration : 0) || 1;
+    const cur = usePlayerStore.getState().queue[usePlayerStore.getState().currentIndex];
+    const duration = state.duration || (cur ? cur.duration : 0) || (currentTrack ? currentTrack.duration : 0) || 1;
     const clampedTime = Math.max(0, Math.min(duration, targetSeconds));
     const newVal = duration > 0 ? clampedTime / duration : 0;
 
@@ -188,6 +189,63 @@ export function useMediaSession() {
       const engine = getAudioEngine();
       if (engine) engine.pause();
     };
+
+    const handleAction = (payload: { action: string; seekTime?: number }) => {
+      if (!payload) return;
+      switch (payload.action) {
+        case 'play':
+          onDirectPlay();
+          break;
+        case 'pause':
+        case 'stop':
+          onDirectPause();
+          break;
+        case 'toggle':
+        case 'playpause': {
+          const playing = usePlayerStore.getState().isPlaying;
+          if (playing) {
+            onDirectPause();
+          } else {
+            onDirectPlay();
+          }
+          break;
+        }
+        case 'previoustrack':
+          prevTrack();
+          break;
+        case 'nexttrack':
+          nextTrack();
+          break;
+        case 'seekto':
+          if (typeof payload.seekTime === 'number' && !isNaN(payload.seekTime)) {
+            handleSeek(payload.seekTime);
+          }
+          break;
+        case 'duck': {
+          const eng = getAudioEngine();
+          if (eng && typeof (eng as any).setVolume === 'function') {
+            (eng as any).setVolume(0.2);
+          }
+          break;
+        }
+        case 'unduck': {
+          const eng = getAudioEngine();
+          if (eng && typeof (eng as any).setVolume === 'function') {
+            (eng as any).setVolume(1.0);
+          }
+          break;
+        }
+      }
+    };
+
+    const onDirectActionEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<{ action: string; seekTime?: number }>;
+      if (customEvent && customEvent.detail) {
+        handleAction(customEvent.detail);
+      }
+    };
+
+    window.addEventListener('holad:mediasession:action', onDirectActionEvent);
     window.addEventListener('holad:mediasession:play', onDirectPlay);
     window.addEventListener('holad:mediasession:pause', onDirectPause);
 
@@ -195,53 +253,6 @@ export function useMediaSession() {
     let unlistenTauriPluginMedia: (() => void) | undefined;
     if (isTauri()) {
       import('@tauri-apps/api/event').then(({ listen }) => {
-        const handleAction = (payload: { action: string; seekTime?: number }) => {
-          if (!payload) return;
-          switch (payload.action) {
-            case 'play':
-              onDirectPlay();
-              break;
-            case 'pause':
-              onDirectPause();
-              break;
-            case 'toggle':
-            case 'playpause': {
-              const playing = usePlayerStore.getState().isPlaying;
-              if (playing) {
-                onDirectPause();
-              } else {
-                onDirectPlay();
-              }
-              break;
-            }
-            case 'previoustrack':
-              prevTrack();
-              break;
-            case 'nexttrack':
-              nextTrack();
-              break;
-            case 'seekto':
-              if (typeof payload.seekTime === 'number' && !isNaN(payload.seekTime)) {
-                handleSeek(payload.seekTime);
-              }
-              break;
-            case 'duck': {
-              const eng = getAudioEngine();
-              if (eng && typeof (eng as any).setVolume === 'function') {
-                (eng as any).setVolume(0.2);
-              }
-              break;
-            }
-            case 'unduck': {
-              const eng = getAudioEngine();
-              if (eng && typeof (eng as any).setVolume === 'function') {
-                (eng as any).setVolume(1.0);
-              }
-              break;
-            }
-          }
-        };
-
         listen<{ action: string; seekTime?: number }>('mediaAction', (event) => {
           handleAction(event.payload);
         }).then(unlisten => {
@@ -291,6 +302,7 @@ export function useMediaSession() {
       isSubscribed = false;
       if (unlistenTauriMedia) unlistenTauriMedia();
       if (unlistenTauriPluginMedia) unlistenTauriPluginMedia();
+      window.removeEventListener('holad:mediasession:action', onDirectActionEvent);
       window.removeEventListener('holad:mediasession:play', onDirectPlay);
       window.removeEventListener('holad:mediasession:pause', onDirectPause);
       handles.forEach((handle) => {

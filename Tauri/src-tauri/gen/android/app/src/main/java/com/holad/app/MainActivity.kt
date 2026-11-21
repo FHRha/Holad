@@ -37,7 +37,13 @@ class MainActivity : TauriActivity() {
 
   override fun onResume() {
     super.onResume()
+    MediaService.setAppInForeground(true)
     checkNotificationPermission()
+  }
+
+  override fun onPause() {
+    super.onPause()
+    MediaService.setAppInForeground(false)
   }
 
   private fun checkNotificationPermission() {

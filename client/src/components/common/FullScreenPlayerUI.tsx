@@ -160,6 +160,7 @@ export default function FullScreenPlayerUI({
     lyricsText,
     lrcLines,
     loadingLyrics,
+    activeLyricIndex,
     activeLyricIndexRef,
     isUserScrolled,
     lyricsContainerRef,
@@ -371,8 +372,8 @@ export default function FullScreenPlayerUI({
                 ) : lrcLines.length > 0 ? (
                   <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[350px] pb-[350px] w-full transform-gpu">
                     {lrcLines.map((line, idx) => {
-                      const isActive = idx === activeLyricIndexRef.current;
-                      const isPast = idx < activeLyricIndexRef.current;
+                      const isActive = idx === activeLyricIndex;
+                      const isPast = idx < activeLyricIndex;
                       
                       if (line.isInterlude) {
                         return (

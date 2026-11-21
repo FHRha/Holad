@@ -427,9 +427,15 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
     const snapshot = useHoladStore.getState().snapshot;
     const isHydrated = usePlayerStore.getState().isSessionHydrated;
-    const shouldTransferPlay = isHydrated && didDeviceBecomeActive && snapshot && snapshot.trackId === currentTrack.id && snapshot.isPlaying;
+    const isExplicitUserPlay = playActionId > 0;
+    const shouldTransferPlay = isHydrated && didDeviceBecomeActive && isExplicitUserPlay && snapshot && snapshot.trackId === currentTrack.id && snapshot.isPlaying;
 
-    if ((isPlayingStore || shouldTransferPlay) && isActiveDevice && !isSpeakerDj) {
+    // A track should only be actively played if the user explicitly commanded playback (playActionId > 0)
+    // or if the engine was already physically playing across track changes (wasPlayingEngine),
+    // or if this is an explicit device handover.
+    const isActivelyPlaying = (isPlayingStore && (wasPlayingEngine || isExplicitUserPlay)) || shouldTransferPlay;
+
+    if (isActivelyPlaying && isActiveDevice && !isSpeakerDj) {
       if (shouldTransferPlay && !isPlayingStore) {
         setIsPlaying(true);
       }
@@ -515,6 +521,18 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
 
       if (isNativeAudio) {
+        // Preload track in native audio backend paused in standby without autoplay
+        scheduleIdle(() => {
+          engineRef.current.playTrack(
+            { ...currentTrack, streamUrl: audioSrc },
+            {
+              startTime: targetPosSec,
+              autoplay: false,
+              immediate: true,
+              crossfade: false,
+            }
+          ).catch(() => {});
+        });
         return;
       }
 
@@ -594,8 +612,10 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       if (!currentTrack) return;
   
       const isHydrated = usePlayerStore.getState().isSessionHydrated;
+      const playActionId = usePlayerStore.getState().playActionId;
+      const hasUserTriggeredPlayback = playActionId > 0 || prevIsPlayingRef.current;
 
-      if (isPlaying && isActiveDevice && !isSpeakerDj && isHydrated) {
+      if (isPlaying && isActiveDevice && !isSpeakerDj && isHydrated && hasUserTriggeredPlayback) {
         if (!prevIsPlayingRef.current) {
           triggerAudioSessionSync();
           engineRef.current.resume().then(() => {
@@ -610,11 +630,11 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
           flushPlaybackProgressToServer(true);
         }
         engineRef.current.pause();
-      } else if (isPlaying && (!isActiveDevice || isSpeakerDj)) {
+      } else if (isPlaying && (!isActiveDevice || isSpeakerDj || !hasUserTriggeredPlayback)) {
         engineRef.current.pause();
       }
       prevIsPlayingRef.current = isPlaying;
-    }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, flushPlaybackProgressToServer]);
+    }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, flushPlaybackProgressToServer, playActionId]);
 
   
 

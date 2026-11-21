@@ -44,6 +44,15 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
 
         var instance: MediaService? = null
             private set
+
+        var isAppInForeground: Boolean = true
+            private set
+
+        fun setAppInForeground(inForeground: Boolean) {
+            Log.i("MediaService", "setAppInForeground: inForeground=$inForeground")
+            isAppInForeground = inForeground
+            instance?.handleForegroundStateChange(inForeground)
+        }
     }
 
     interface MediaActionListener {
@@ -152,26 +161,32 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
             setMediaButtonReceiver(mbrPendingIntent)
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() {
+                    Log.i("MediaService", "MediaSessionCompat.Callback.onPlay")
                     handlePlay()
                 }
 
                 override fun onPause() {
+                    Log.i("MediaService", "MediaSessionCompat.Callback.onPause")
                     handlePause()
                 }
 
                 override fun onSkipToNext() {
+                    Log.i("MediaService", "MediaSessionCompat.Callback.onSkipToNext")
                     handleNext()
                 }
 
                 override fun onSkipToPrevious() {
+                    Log.i("MediaService", "MediaSessionCompat.Callback.onSkipToPrevious")
                     handlePrevious()
                 }
 
                 override fun onStop() {
+                    Log.i("MediaService", "MediaSessionCompat.Callback.onStop")
                     handleStop()
                 }
 
                 override fun onSeekTo(pos: Long) {
+                    Log.i("MediaService", "MediaSessionCompat.Callback.onSeekTo: pos=$pos")
                     handleSeekTo(pos)
                 }
 
@@ -182,6 +197,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
                         @Suppress("DEPRECATION")
                         mediaButtonEvent?.getParcelableExtra(Intent.EXTRA_KEY_EVENT)
                     }
+                    Log.i("MediaService", "onMediaButtonEvent: keyCode=${keyEvent?.keyCode}, action=${keyEvent?.action}")
                     if (keyEvent != null && keyEvent.action == KeyEvent.ACTION_DOWN) {
                         when (keyEvent.keyCode) {
                             KeyEvent.KEYCODE_MEDIA_PLAY -> {
@@ -257,6 +273,10 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
 
         // Always satisfy the Foreground Service contract immediately when started
         startForegroundInternal()
+        if (isAppInForeground) {
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            isForegroundService = false
+        }
 
         intent?.action?.let { action ->
             when (action) {
@@ -381,6 +401,24 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         }
     }
 
+    fun handleForegroundStateChange(inForeground: Boolean) {
+        if (inForeground) {
+            Log.i("MediaService", "handleForegroundStateChange(true): app is in foreground, removing notification from shade")
+            if (isForegroundService) {
+                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+                isForegroundService = false
+            } else {
+                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.cancel(NOTIFICATION_ID)
+            }
+        } else {
+            Log.i("MediaService", "handleForegroundStateChange(false): app moved to background, isPlayingState=$isPlayingState")
+            if (isPlayingState) {
+                startForegroundInternal()
+            }
+        }
+    }
+
     // --- Internal Action Dispatchers ---
 
     fun handlePlay() {
@@ -483,14 +521,18 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         mediaSession?.setPlaybackState(playbackState)
 
         if (isPlaying) {
-            if (!isForegroundService || !wasPlaying) {
-                startForegroundInternal()
+            if (!isAppInForeground) {
+                if (!isForegroundService || !wasPlaying) {
+                    startForegroundInternal()
+                }
             }
         } else {
             if (wasPlaying || isForegroundService) {
                 ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
                 isForegroundService = false
-                refreshNotification()
+                if (!isAppInForeground) {
+                    refreshNotification()
+                }
             }
         }
     }
@@ -537,31 +579,22 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
             piFlags
         )
 
-        // Actions
-        val prevPendingIntent = PendingIntent.getService(
+        // Actions using MediaButtonReceiver to bypass Android 8+ background service limits
+        val prevPendingIntent = MediaButtonReceiver.buildMediaButtonPendingIntent(
             this,
-            1,
-            Intent(this, MediaService::class.java).setAction(ACTION_PREVIOUS),
-            piFlags
+            PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
         )
-        val playPauseAction = if (isPlayingState) ACTION_PAUSE else ACTION_PLAY
-        val playPausePendingIntent = PendingIntent.getService(
+        val playPausePendingIntent = MediaButtonReceiver.buildMediaButtonPendingIntent(
             this,
-            2,
-            Intent(this, MediaService::class.java).setAction(playPauseAction),
-            piFlags
+            PlaybackStateCompat.ACTION_PLAY_PAUSE
         )
-        val nextPendingIntent = PendingIntent.getService(
+        val nextPendingIntent = MediaButtonReceiver.buildMediaButtonPendingIntent(
             this,
-            3,
-            Intent(this, MediaService::class.java).setAction(ACTION_NEXT),
-            piFlags
+            PlaybackStateCompat.ACTION_SKIP_TO_NEXT
         )
-        val stopPendingIntent = PendingIntent.getService(
+        val stopPendingIntent = MediaButtonReceiver.buildMediaButtonPendingIntent(
             this,
-            4,
-            Intent(this, MediaService::class.java).setAction(ACTION_STOP),
-            piFlags
+            PlaybackStateCompat.ACTION_STOP
         )
 
         val playPauseIcon = if (isPlayingState) R.drawable.ic_pause else R.drawable.ic_play
@@ -633,6 +666,9 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
     }
 
     private fun refreshNotification() {
+        if (isAppInForeground) {
+            return
+        }
         val notification = buildNotification()
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, notification)

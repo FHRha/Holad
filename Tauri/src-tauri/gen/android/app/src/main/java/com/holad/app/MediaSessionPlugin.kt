@@ -8,6 +8,7 @@ import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import android.webkit.WebView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import app.tauri.annotation.Command
@@ -76,6 +77,14 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
         bindMediaService()
     }
 
+    private var webView: WebView? = null
+
+    override fun load(webView: WebView) {
+        super.load(webView)
+        this.webView = webView
+        Log.i("MediaSessionPlugin", "load called with webView: $webView")
+    }
+
     private fun bindMediaService() {
         try {
             val intent = Intent(activity, MediaService::class.java)
@@ -105,6 +114,22 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
             }
         }
         trigger("mediaAction", payload)
+
+        val seekArg = if (extras != null) "${extras / 1000.0}" else "undefined"
+        val js = """
+            (function() {
+                try {
+                    window.dispatchEvent(new CustomEvent('holad:mediasession:action', { detail: { action: '$action', seekTime: $seekArg } }));
+                    if ('$action' === 'play') window.dispatchEvent(new CustomEvent('holad:mediasession:play'));
+                    if ('$action' === 'pause') window.dispatchEvent(new CustomEvent('holad:mediasession:pause'));
+                } catch (e) {
+                    console.error('[MediaSessionPlugin] eval error:', e);
+                }
+            })();
+        """.trimIndent()
+        activity.runOnUiThread {
+            webView?.evaluateJavascript(js, null)
+        }
     }
 
     @Command
@@ -142,7 +167,7 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
         pendingPositionMs = positionMs
         pendingSpeed = speed
 
-        if (isPlaying) {
+        if (isPlaying && !MediaService.isAppInForeground) {
             try {
                 val intent = Intent(activity, MediaService::class.java).apply {
                     putExtra("extra_title", pendingTitle)

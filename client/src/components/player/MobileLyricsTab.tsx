@@ -20,6 +20,7 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
     lyricsText,
     lrcLines,
     loadingLyrics,
+    activeLyricIndex,
     activeLyricIndexRef,
     isUserScrolled,
     lyricsContainerRef,
@@ -51,8 +52,8 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
           ) : lrcLines.length > 0 ? (
             <div ref={lyricsContainerRef} className="flex flex-col gap-6 pt-[30vh] pb-[30vh] w-full transform-gpu">
               {lrcLines.map((line, idx) => {
-                const isLyricActive = idx === activeLyricIndexRef.current;
-                const isPast = idx < activeLyricIndexRef.current;
+                const isLyricActive = idx === activeLyricIndex;
+                const isPast = idx < activeLyricIndex;
                 
                 if (line.isInterlude) {
                   return (

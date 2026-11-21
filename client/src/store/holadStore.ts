@@ -483,11 +483,12 @@ export const useHoladStore = create<HoladState>((set, get) => {
         }
 
         if (isPassive) {
+          const wasHydrated = playerStore.isSessionHydrated;
           usePlayerStore.setState({
             queue: mappedQueue,
             originalQueue: mappedQueue,
             currentIndex: targetIndex,
-            isPlaying: snapshot.isPlaying,
+            isPlaying: wasHydrated ? snapshot.isPlaying : false,
             isSessionHydrated: true,
           });
 
