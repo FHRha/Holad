@@ -95,9 +95,13 @@ const applyServerPlaybackState = (
   }
 
   if (targetIndex === -1) {
-    targetIndex = typeof serverState.current_index === 'number' ? serverState.current_index : 0;
-    if (targetIndex < 0 || targetIndex >= mappedTracks.length) {
-      targetIndex = 0;
+    if (!serverQueueExists && typeof currentStore.currentIndex === 'number' && currentStore.currentIndex >= 0 && currentStore.currentIndex < mappedTracks.length) {
+      targetIndex = currentStore.currentIndex;
+    } else {
+      targetIndex = typeof serverState.current_index === 'number' ? serverState.current_index : 0;
+      if (targetIndex < 0 || targetIndex >= mappedTracks.length) {
+        targetIndex = mappedTracks.length > 0 ? 0 : -1;
+      }
     }
   }
 

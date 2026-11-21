@@ -35,6 +35,7 @@ export interface PlayTrackOptions {
     startTime?: number;
     immediate?: boolean;
     transitionDuration?: number;
+    crossfade?: boolean;
 }
 
 export interface BufferedRange {
@@ -94,15 +95,24 @@ export interface IAudioEngine {
     seek(positionSeconds: number): void;
     setVolume(volume: number, isMobile?: boolean): void;
     setVolumeMultiplier(multiplier: number): void;
+    setPlaybackRate(rate: number): void;
+    setLoop(loop: boolean): void;
     setSinkId?(sinkId: string): Promise<void>;
     updateSettings(settings: Partial<AudioEngineSettings>): void;
     preloadNextTrack(track: any): Promise<void>;
     getDeck(index: number): IAudioDeck | undefined;
     getActiveDeckIndex(): number;
-    getActiveTrackId?(): string | null;
+    getActiveTrackId(): string | null;
     setDeckTrackId?(deckIndex: 0 | 1, trackId: string | null): void;
     getWebAudioPipeline(): IWebAudioPipeline | undefined;
     getBufferedPercent?(knownDuration?: number): number;
+    getCurrentTime(): number;
+    getDuration(): number;
+    getState(): AudioState;
+    isTransitioning(): boolean;
+    getAnalyserNode(): AnalyserNode | undefined;
+    on(event: string, listener: (...args: any[]) => void): void;
+    off(event: string, listener: (...args: any[]) => void): void;
     destroy(): void;
 }
 

@@ -13,7 +13,7 @@ set "PATH=%NDK_ROOT%\toolchains\llvm\prebuilt\windows-x86_64\bin;%PATH%"
 cd /d "%~dp0src-tauri" || exit /b 1
 
 echo Building release for aarch64-linux-android with custom-protocol...
-cargo build --release --target aarch64-linux-android --features custom-protocol || exit /b 1
+cargo build --release --target aarch64-linux-android --features custom-protocol -j 4 || exit /b 1
 
 echo Copying libholad_lib.so to Android jniLibs...
 set "DEST_DIR=%~dp0src-tauri\gen\android\app\src\main\jniLibs\arm64-v8a"

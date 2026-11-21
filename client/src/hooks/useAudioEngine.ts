@@ -11,7 +11,8 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useTrackSource } from './useTrackSource';
 import { isTauri, isCapacitor } from '../utils/StorageManager';
 import { invoke } from '@tauri-apps/api/core';
-import { AudioEngine } from '../audio/AudioEngine';
+import type { IAudioEngine } from '../audio/types';
+import { getAudioEngine } from '../audio/AudioEngine';
 import { useSocialStore } from '../store/socialStore';
 import { jamSocket } from '../api/socket';
 import { isJamPath } from '../utils/basePath';
@@ -66,8 +67,19 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
   const { src: audioSrc, trackId: srcTrackId, isLoading: srcLoading, isAvailable } = useTrackSource(currentTrack);
 
+  const audioBackend = useSettingsStore(s => s.audioBackend);
   const [activeIndex, setActiveIndex] = useState<0 | 1>(0);
-  const engineRef = useRef<AudioEngine>(AudioEngine.getInstance());
+  const engineRef = useRef<IAudioEngine>(getAudioEngine());
+  const prevBackendRef = useRef(audioBackend);
+
+  useEffect(() => {
+    if (prevBackendRef.current !== audioBackend) {
+      prevBackendRef.current = audioBackend;
+      engineRef.current = getAudioEngine();
+      isInitializedRef.current = false;
+    }
+  }, [audioBackend]);
+
   const isInitializedRef = useRef<boolean>(false);
   const prevIsPlayingRef = useRef<boolean>(isPlaying);
 
@@ -231,9 +243,13 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
   // Initialize AudioEngine with dual elements
   useEffect(() => {
-    const el0 = audioRefs[0].current;
-    const el1 = audioRefs[1].current;
-    if (el0 && el1 && !isInitializedRef.current) {
+    if (isTauri() && audioBackend !== 'web') {
+      isInitializedRef.current = true;
+      return;
+    }
+    const el0 = audioRefs[0]?.current;
+    const el1 = audioRefs[1]?.current;
+    if (el0 && el1 && (!isInitializedRef.current || audioBackend === 'web')) {
       engineRef.current.initialize([el0, el1]);
       isInitializedRef.current = true;
       setAudioElement(el0);
@@ -256,7 +272,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       el0.addEventListener('seeked', onSeeked);
       el1.addEventListener('seeked', onSeeked);
     }
-  }, [audioRefs, setAudioElement]);
+  }, [audioRefs, setAudioElement, audioBackend]);
 
   // Sync settings with AudioEngine
   const settings = useSettingsStore();
@@ -321,15 +337,15 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const { vol, multiplier, isMobile } = getScaledVolume();
     engineRef.current.setVolume(vol, isMobile);
     engineRef.current.setVolumeMultiplier(multiplier);
-  }, [getScaledVolume, volume, mobileVolume, volumeMultiplier]);
+  }, [getScaledVolume, volume, mobileVolume, volumeMultiplier, audioBackend]);
 
   useEffect(() => {
     engineRef.current.setPlaybackRate(playbackRate);
-  }, [playbackRate]);
+  }, [playbackRate, audioBackend]);
 
   useEffect(() => {
     engineRef.current.setLoop(repeatMode === 'one');
-  }, [repeatMode]);
+  }, [repeatMode, audioBackend]);
 
   // Preload next track
   const preloadUpcomingTrack = useCallback(() => {
@@ -417,12 +433,15 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         setIsPlaying(true);
       }
 
+      const isNativeAudio = isTauri() && audioBackend !== 'web';
       const activeDeckIdx = engineRef.current.getActiveDeckIndex();
       const shouldCrossfade = isCrossfade && wasPlayingEngine && !didDeviceBecomeActive && !isMidTransition;
-      const nextDeckIdx = (shouldCrossfade ? (1 - activeDeckIdx) : activeDeckIdx) as 0 | 1;
+      const nextDeckIdx = (!isNativeAudio && shouldCrossfade ? (1 - activeDeckIdx) : activeDeckIdx) as 0 | 1;
       setActiveIndex(nextDeckIdx);
-      const targetEl = audioRefs[nextDeckIdx]?.current;
-      if (targetEl) setAudioElement(targetEl);
+      if (!isNativeAudio) {
+        const targetEl = audioRefs[nextDeckIdx]?.current;
+        if (targetEl) setAudioElement(targetEl);
+      }
 
       let startTimeSec = initialPosition > 0 ? initialPosition / 1000 : 0;
       if (shouldTransferPlay) {
@@ -439,12 +458,15 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
           startTime: startTimeSec,
           immediate: !shouldCrossfade,
           transitionDuration: durationSec,
+          crossfade: shouldCrossfade,
         }
       ).then(() => {
         const newActiveIdx = engineRef.current.getActiveDeckIndex();
         setActiveIndex(newActiveIdx as 0 | 1);
-        const newEl = audioRefs[newActiveIdx]?.current;
-        if (newEl) setAudioElement(newEl);
+        if (!isNativeAudio) {
+          const newEl = audioRefs[newActiveIdx]?.current;
+          if (newEl) setAudioElement(newEl);
+        }
         triggerAudioSessionSync();
       }).catch((e) => {
         console.warn('Track playback initiation error:', e);
@@ -454,12 +476,16 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         setInitialPosition(0);
       }
     } else {
+      const isNativeAudio = isTauri() && audioBackend !== 'web';
       const activeDeckIdx = engineRef.current.getActiveDeckIndex();
       setActiveIndex(activeDeckIdx as 0 | 1);
-      const activeEl = audioRefs[activeDeckIdx]?.current;
-      if (activeEl) setAudioElement(activeEl);
+      if (!isNativeAudio) {
+        const activeEl = audioRefs[activeDeckIdx]?.current;
+        if (activeEl) setAudioElement(activeEl);
+      }
 
-      engineRef.current.setDeckTrackId(activeDeckIdx as 0 | 1, currentTrack.id);
+      engineRef.current.setDeckTrackId?.(activeDeckIdx as 0 | 1, currentTrack.id);
+      (engineRef.current as any).setCurrentTrack?.(currentTrack);
 
       const targetPosSec = initialPosition > 0 ? initialPosition / 1000 : 0;
       if (targetPosSec > 0) {
@@ -475,16 +501,22 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         return;
       }
 
+      if (isNativeAudio) {
+        return;
+      }
+
       // Defer loading standby audio stream when paused to idle callback so critical page rendering (FCP, LCP, fonts) has 100% network priority
       const preloadAudioSrc = audioSrc.includes('/api/stream/') && !audioSrc.includes('preloadChunk=')
         ? `${audioSrc}&preloadChunk=262144`
         : audioSrc;
-      const deck = engineRef.current.getActiveDeck();
-      scheduleIdle(() => {
-        deck.load(preloadAudioSrc, targetPosSec, 'metadata').catch(() => {});
-      });
+      const deck = (engineRef.current as any).getActiveDeck?.();
+      if (deck) {
+        scheduleIdle(() => {
+          deck.load(preloadAudioSrc, targetPosSec, 'metadata').catch(() => {});
+        });
+      }
     }
-  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition, setIsPlaying, playActionId, isAvailable]);
+  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition, setIsPlaying, playActionId, isAvailable, audioBackend]);
 
   // Handle async initialPosition restoring for the first track
   useEffect(() => {
@@ -497,15 +529,20 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       const dur = currentTrack.duration && currentTrack.duration > 0 ? currentTrack.duration : 1;
       if (!isPlaying) {
         if (isActiveDevice) {
-          const deck = engineRef.current.getActiveDeck();
-          deck.seek(posSec, dur);
+          const isNativeAudio = isTauri() && audioBackend !== 'web';
+          const deck = (engineRef.current as any).getActiveDeck?.();
+          if (deck) {
+            deck.seek(posSec, dur);
+          } else if (isNativeAudio) {
+            engineRef.current.seek(posSec);
+          }
         }
         useAudioStore.getState().setDuration(dur);
         useAudioStore.getState().setProgress((posSec / dur) * 100);
       }
       setInitialPosition(0);
     }
-  }, [initialPosition, currentTrack, audioSrc, srcLoading, isPlaying, isActiveDevice, setInitialPosition]);
+  }, [initialPosition, currentTrack, audioSrc, srcLoading, isPlaying, isActiveDevice, setInitialPosition, audioBackend]);
 
   const previousTrackIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -601,6 +638,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
   // Unlock audio context safely on first user gesture without premature playback
   useEffect(() => {
+    if (isTauri() && audioBackend !== 'web') return;
     const handleInteraction = () => {
       engineRef.current.getWebAudioPipeline()?.unlockContext();
       // Force unlock HTML Audio elements on mobile by playing and immediately pausing them
@@ -631,7 +669,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       document.removeEventListener('pointerdown', handleInteraction);
       document.removeEventListener('keydown', handleInteraction);
     };
-  }, []);
+  }, [audioBackend, audioRefs]);
 
   const currentTrackRef = useRef(currentTrack);
   useEffect(() => {
@@ -764,13 +802,13 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       if (engine.isTransitioning()) return;
       if (crossfadeTriggeredRef.current === currentTrack.id) return;
 
-      const deck = engine.getActiveDeck();
-      const currentTime = deck.getCurrentTime();
+      const deck = (engine as any).getActiveDeck?.();
+      const currentTime = deck ? deck.getCurrentTime() : engine.getCurrentTime();
       const engDur = engine.getDuration();
       const actualDur = (engDur > 0 && isFinite(engDur)) ? engDur : (currentTrack.duration || 0);
 
       // Защита от преждевременного EOF / обрыва сетевого стрима при переключении аудиоустройств
-      if (actualDur > 3 && currentTime < actualDur - 2.5) {
+      if (deck && actualDur > 3 && currentTime < actualDur - 2.5) {
         console.warn(`[AudioEngine] Premature stream end detected at ${currentTime.toFixed(1)}s / ${actualDur.toFixed(1)}s. Recovering stream instead of skipping track.`);
         deck.load(audioSrc, currentTime, 'auto').then(() => {
           if (usePlayerStore.getState().isPlaying) {
@@ -810,7 +848,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       engine.off('requestPreload', handleRequestPreload);
       engine.off('progress', handleProgress);
     };
-  }, [currentTrack, isActiveDevice, duration, role, sleepTimer, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer, flushPositionToLocalStorage, audioSrc]);
+  }, [currentTrack, isActiveDevice, duration, role, sleepTimer, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer, flushPositionToLocalStorage, audioSrc, audioBackend]);
 
   // Holad Syncing: only broadcast if there are multiple devices in the room (remote controller/listener)
   const holadDevices = useHoladStore(s => s.devices);

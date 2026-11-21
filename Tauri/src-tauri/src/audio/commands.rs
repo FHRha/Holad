@@ -32,7 +32,9 @@ impl AudioService {
             .name("holad-audio-ticker".to_string())
             .spawn(move || {
                 let mut last_status = PlaybackStatus::Idle;
+                let mut last_generation: u64 = 0;
                 let mut last_reported_time: f64 = -1.0;
+                let mut last_reported_buffered: f32 = -1.0;
 
                 loop {
                     std::thread::sleep(Duration::from_millis(200));
@@ -41,8 +43,12 @@ impl AudioService {
                         audio_service.player.tick_position(0.2);
                         let state = audio_service.player.get_state();
 
-                        // Detect state transition
-                        if state.status != last_status {
+                        // Detect track / generation transition
+                        if state.generation != last_generation {
+                            last_generation = state.generation;
+                            last_status = state.status;
+                            let _ = app.emit("playback-state-changed", state.clone());
+                        } else if state.status != last_status {
                             let _ = app.emit("playback-state-changed", state.clone());
                             if state.status == PlaybackStatus::Ended {
                                 let _ = app.emit("track-ended", state.clone());
@@ -56,6 +62,12 @@ impl AudioService {
                                 last_reported_time = state.current_time;
                                 let _ = app.emit("timeupdate", state.clone());
                             }
+                        }
+
+                        // Emit progress update if buffered percent changed noticeably
+                        if (state.buffered_percent - last_reported_buffered).abs() >= 1.0 {
+                            last_reported_buffered = state.buffered_percent;
+                            let _ = app.emit("playback-state-changed", state.clone());
                         }
                     }
                 }
@@ -118,6 +130,21 @@ pub fn audio_set_volume(
     volume: f32,
 ) -> Result<AudioState, String> {
     let state = service.player.set_volume(volume)?;
+    let _ = app.emit("playback-state-changed", state.clone());
+    Ok(state)
+}
+
+#[tauri::command]
+pub fn audio_crossfade(
+    app: AppHandle,
+    service: State<'_, AudioService>,
+    url: String,
+    duration_secs: Option<f64>,
+    curve: Option<String>,
+) -> Result<AudioState, String> {
+    service.start_ticker_if_needed(app.clone());
+    let dur = duration_secs.unwrap_or(2.0);
+    let state = service.player.crossfade(&url, dur, curve.as_deref())?;
     let _ = app.emit("playback-state-changed", state.clone());
     Ok(state)
 }

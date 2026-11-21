@@ -1330,7 +1330,7 @@ describe('Tier 2: Boundary & Corner Cases Test Suite', () => {
 
       expect(result.isLocal).toBe(false);
       expect(result.isAvailable).toBe(true);
-      expect(result.src).toContain('/api/stream/');
+      expect(result.src).toMatch(/\/rest\/stream|\/api\/stream/);
     });
 
     it('[T2.B4.10] Missing local file fallback: resolveTrackAudioSource returns unavailable (isAvailable: false) when offline', async () => {

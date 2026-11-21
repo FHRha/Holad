@@ -2,6 +2,9 @@ import { AudioDeck } from './AudioDeck';
 import { WebAudioPipeline } from './WebAudioPipeline';
 import { PreloadManager } from './PreloadManager';
 import { TransitionManager } from './TransitionManager';
+import { TauriAudioBackend } from './TauriAudioBackend';
+import { isTauri } from '../utils/StorageManager';
+import { useSettingsStore } from '../store/settingsStore';
 import type { AudioEngineSettings, AudioState, IAudioCore, IAudioDeck, IAudioEngine, IWebAudioPipeline, PlayTrackOptions } from './types';
 
 export class AudioEngine implements IAudioEngine, IAudioCore {
@@ -592,7 +595,16 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 }
 
-export const getAudioEngine = () => AudioEngine.getInstance();
+export const getAudioEngine = (): IAudioEngine => {
+    if (isTauri()) {
+        const backend = useSettingsStore.getState().audioBackend;
+        if (backend === 'web') {
+            return AudioEngine.getInstance();
+        }
+        return TauriAudioBackend.getInstance();
+    }
+    return AudioEngine.getInstance();
+};
 
 if (typeof window !== 'undefined') {
     (window as any).getAudioEngine = getAudioEngine;

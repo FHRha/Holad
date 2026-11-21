@@ -467,6 +467,21 @@ export const useHoladStore = create<HoladState>((set, get) => {
         const audioStore = useAudioStore.getState();
         const currentTrack = mappedQueue[targetIndex];
 
+        // If server returns empty queue, do NOT wipe local queue if we have tracks locally from cache / persistent store
+        const hasServerQueue = mappedQueue.length > 0;
+        const hasLocalQueue = playerStore.queue && playerStore.queue.length > 0;
+        if (!hasServerQueue && hasLocalQueue) {
+          console.log('[Holad] Server snapshot has empty queue; preserving local persistent queue of', playerStore.queue.length, 'tracks');
+          if (!playerStore.isSessionHydrated) {
+            playerStore.setIsSessionHydrated(true);
+          }
+          setTimeout(() => {
+            setSyncApplyingRemoteState(false);
+            set({ isApplyingRemoteState: false });
+          }, 50);
+          return;
+        }
+
         if (isPassive) {
           usePlayerStore.setState({
             queue: mappedQueue,

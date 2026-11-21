@@ -27,6 +27,10 @@ import PlayerProgressControl from './PlayerProgressControl';
 import { isTrackExcluded } from '../../utils/trackFingerprint';
 import { getBasePath, isJamPath } from '../../utils/basePath';
 import { getBakedBlurredCover } from '../../utils/blurredCoverCache';
+import { isTauri } from '../../utils/StorageManager';
+import { useSettingsStore } from '../../store/settingsStore';
+import { AudioEngine } from '../../audio/AudioEngine';
+import { TauriAudioBackend } from '../../audio/TauriAudioBackend';
 
 const MiniProgressBar = React.memo(function MiniProgressBar() {
   const progress = useAudioStore(s => s.progress);
@@ -53,6 +57,22 @@ export default function BottomPlayer() {
   const { t } = useTranslation();
   const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, excludedFingerprints, toggleTrackExclude, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, isMinimized, setIsMinimized } = usePlayerStore();
   const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
+  const audioBackend = useSettingsStore(s => s.audioBackend);
+  const shouldMountAudioElements = !isTauri() || audioBackend === 'web';
+  const prevAudioBackendRef = useRef(audioBackend);
+
+  useEffect(() => {
+    if (prevAudioBackendRef.current !== audioBackend) {
+      if (isTauri()) {
+        const prevEngine = prevAudioBackendRef.current === 'web'
+          ? AudioEngine.getInstance()
+          : TauriAudioBackend.getInstance();
+        prevEngine.pause();
+      }
+      prevAudioBackendRef.current = audioBackend;
+    }
+  }, [audioBackend]);
+
   const audioRef0 = useRef<HTMLAudioElement>(null);
   const audioRef1 = useRef<HTMLAudioElement>(null);
   const audioRefs = useMemo(() => [audioRef0, audioRef1] as [React.RefObject<HTMLAudioElement | null>, React.RefObject<HTMLAudioElement | null>], []);
@@ -434,20 +454,24 @@ export default function BottomPlayer() {
 
   return (
     <>
-      <audio
-        id="main-audio-player-0"
-        className="main-audio-player"
-        playsInline
-        preload={isPlaying ? "auto" : "none"}
-        ref={audioRef0}
-      />
-      <audio
-        id="main-audio-player-1"
-        className="main-audio-player"
-        playsInline
-        preload={isPlaying ? "auto" : "none"}
-        ref={audioRef1}
-      />
+      {shouldMountAudioElements && (
+        <>
+        <audio
+          id="main-audio-player-0"
+          className="main-audio-player"
+          playsInline
+          preload={isPlaying ? "auto" : "none"}
+          ref={audioRef0}
+        />
+        <audio
+          id="main-audio-player-1"
+          className="main-audio-player"
+          playsInline
+          preload={isPlaying ? "auto" : "none"}
+          ref={audioRef1}
+        />
+        </>
+      )}
       {DesktopPlayer}
       <AnimatePresence>
         {!isMobileExpanded && MobileMiniPlayer}

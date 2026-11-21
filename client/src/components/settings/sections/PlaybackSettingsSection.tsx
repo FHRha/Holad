@@ -12,7 +12,10 @@ import {
   Gauge,
   ChevronDown,
   DownloadCloud,
+  Cpu,
+  Globe,
 } from 'lucide-react';
+import { isTauri } from '../../../utils/StorageManager';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { usePlayerStore } from '../../../store/playerStore';
 import VolumeSlider from '../../common/VolumeSlider';
@@ -210,6 +213,97 @@ export default function PlaybackSettingsSection({
       ========================================= */}
       {showAudio && (
         <>
+          {/* Audio Engine (Tauri native only) */}
+          {isTauri() && (
+            <SettingSection
+              title={t('settings.audio_engine', 'Аудио-движок')}
+              icon={<Cpu size={16} />}
+              description={t(
+                'settings.audio_engine_desc',
+                'Выбор механизма воспроизведения аудиопотока'
+              )}
+              isMobile={isMobile}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* 1. Rust Engine (Rodio) */}
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.audioBackend === 'rust'}
+                  aria-label={t('settings.audio_engine_rust_title', 'Нативный аудио-движок (Rust)')}
+                  onClick={() => settings.setAudioBackend('rust')}
+                  className={`p-3.5 rounded-xl border text-left transition-all duration-200 flex flex-col gap-2 min-w-0 ${
+                    settings.audioBackend === 'rust'
+                      ? 'border-primary/50 bg-primary/10 shadow-sm ring-1 ring-primary/30'
+                      : 'border-border bg-foreground/[0.03] hover:border-border/80 hover:bg-foreground/[0.05]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Zap size={16} className={settings.audioBackend === 'rust' ? 'text-primary' : 'text-secondary'} />
+                      <span className={`text-sm font-semibold truncate ${settings.audioBackend === 'rust' ? 'text-primary' : 'text-foreground'}`}>
+                        {t('settings.audio_engine_rust_title', 'Нативный аудио-движок (Rust)')}
+                      </span>
+                    </div>
+                    <div
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                        settings.audioBackend === 'rust' ? 'border-primary' : 'border-border'
+                      }`}
+                    >
+                      {settings.audioBackend === 'rust' && (
+                        <div className="w-2 h-2 rounded-full bg-primary" />
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-secondary leading-relaxed">
+                    {t(
+                      'settings.audio_engine_rust_desc',
+                      'Аппаратное воспроизведение с низким потреблением энергии и фоновым режимом'
+                    )}
+                  </p>
+                </button>
+
+                {/* 2. Web Audio API */}
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.audioBackend === 'web'}
+                  aria-label={t('settings.audio_engine_web_title', 'Web Audio API')}
+                  onClick={() => settings.setAudioBackend('web')}
+                  className={`p-3.5 rounded-xl border text-left transition-all duration-200 flex flex-col gap-2 min-w-0 ${
+                    settings.audioBackend === 'web'
+                      ? 'border-primary/50 bg-primary/10 shadow-sm ring-1 ring-primary/30'
+                      : 'border-border bg-foreground/[0.03] hover:border-border/80 hover:bg-foreground/[0.05]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Globe size={16} className={settings.audioBackend === 'web' ? 'text-primary' : 'text-secondary'} />
+                      <span className={`text-sm font-semibold truncate ${settings.audioBackend === 'web' ? 'text-primary' : 'text-foreground'}`}>
+                        {t('settings.audio_engine_web_title', 'Web Audio API')}
+                      </span>
+                    </div>
+                    <div
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                        settings.audioBackend === 'web' ? 'border-primary' : 'border-border'
+                      }`}
+                    >
+                      {settings.audioBackend === 'web' && (
+                        <div className="w-2 h-2 rounded-full bg-primary" />
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-secondary leading-relaxed">
+                    {t(
+                      'settings.audio_engine_web_desc',
+                      'Браузерный движок с эквалайзером, нормализацией громкости и визуализатором'
+                    )}
+                  </p>
+                </button>
+              </div>
+            </SettingSection>
+          )}
+
           {/* Streaming Quality */}
           <SettingSection
             title={t('settings.streaming_quality', 'Качество потока (стриминга)')}

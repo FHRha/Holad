@@ -53,7 +53,8 @@ vi.mock('../../audio/AudioEngine', () => {
   return {
     AudioEngine: {
       getInstance: mockGetInstance,
-    }
+    },
+    getAudioEngine: mockGetInstance,
   };
 });
 

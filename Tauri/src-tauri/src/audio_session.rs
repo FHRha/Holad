@@ -934,6 +934,12 @@ pub mod windows_audio {
                                 let _ = app.emit("audio-becoming-noisy", ());
                             }
 
+                            // Connect check: headphones were not active, but now headphones are connected/active
+                            if !last_is_headphones && current_dev.is_headphones {
+                                log::info!("[AudioDevice] Headphones connected/detected! Emitting headphones-connected");
+                                let _ = app.emit("headphones-connected", &current_dev);
+                            }
+
                             let _ = app.emit("audio-device-changed", &current_dev);
 
                             // Capture new device's session in Windows Volume Mixer

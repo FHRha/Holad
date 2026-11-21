@@ -28,6 +28,7 @@ export type VisualizerStyle = 'classic' | 'modern' | 'wave' | 'radial' | 'peaks'
 export type StreamingQuality = 'opus-256' | 'raw' | 'opus-192' | 'opus-128' | 'mp3-320';
 export type PreloadMode = 'wifi_only' | 'always' | 'disabled';
 export type PreloadLookahead = 5 | 15 | 30;
+export type AudioBackendType = 'rust' | 'web';
 
 export interface SettingsState {
   theme: AppTheme;
@@ -122,6 +123,8 @@ export interface SettingsState {
   setEnableDiscordRpc: (enabled: boolean) => void;
   discordClientId: string;
   setDiscordClientId: (id: string) => void;
+  audioBackend: AudioBackendType;
+  setAudioBackend: (backend: AudioBackendType) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -133,6 +136,7 @@ export const useSettingsStore = create<SettingsState>()(
       visualizerStyle: 'classic',
       customColors: ['', '', ''],
       language: i18n.language || 'ru',
+      audioBackend: 'rust',
       clickAction: 'play_now',
       autoDjRepeatBehavior: 'pause_on_repeat',
       startPage: '/',
@@ -287,6 +291,7 @@ export const useSettingsStore = create<SettingsState>()(
           }).catch(() => {});
         }
       },
+      setAudioBackend: (audioBackend) => set({ audioBackend }),
     }),
     {
       name: 'holad-settings',
@@ -315,6 +320,9 @@ export const useSettingsStore = create<SettingsState>()(
           }
           if (persistedState.discordClientId === undefined) {
             persistedState.discordClientId = '';
+          }
+          if (persistedState.audioBackend === undefined) {
+            persistedState.audioBackend = 'rust';
           }
         }
         return persistedState;
