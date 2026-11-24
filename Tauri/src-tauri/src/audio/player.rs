@@ -41,6 +41,7 @@ struct PlaybackMetadata {
     volume: f32,
     status: PlaybackStatus,
     position_secs: f64,
+    start_offset_secs: f64,
     buffered_percent: f32,
     generation: u64,
     is_crossfading: bool,
@@ -63,6 +64,7 @@ impl AudioPlayer {
                 volume: 1.0,
                 status: PlaybackStatus::Idle,
                 position_secs: 0.0,
+                start_offset_secs: 0.0,
                 buffered_percent: 0.0,
                 generation: 0,
                 is_crossfading: false,
@@ -112,6 +114,7 @@ impl AudioPlayer {
             meta.status = PlaybackStatus::Loading;
             meta.buffered_percent = 0.0;
             meta.position_secs = initial_pos;
+            meta.start_offset_secs = initial_pos;
             meta.generation
         };
 
@@ -148,6 +151,12 @@ impl AudioPlayer {
             new_player.append(source);
         }
 
+        if !autoplay {
+            new_player.pause();
+        } else {
+            new_player.play();
+        }
+
         let status = if autoplay {
             PlaybackStatus::Playing
         } else {
@@ -166,6 +175,7 @@ impl AudioPlayer {
                 meta.duration = duration_secs;
                 meta.status = status;
                 meta.position_secs = initial_pos;
+                meta.start_offset_secs = initial_pos;
                 meta.buffered_percent = 100.0;
             }
         }
@@ -241,6 +251,7 @@ impl AudioPlayer {
             meta.duration = duration_secs_total;
             meta.status = PlaybackStatus::Playing;
             meta.position_secs = 0.0;
+            meta.start_offset_secs = 0.0;
             meta.buffered_percent = 100.0;
         }
 
@@ -315,8 +326,17 @@ impl AudioPlayer {
     pub fn pause(&self) -> Result<AudioState, String> {
         let player_guard = self.player.lock().unwrap();
         if let Some(ref player) = *player_guard {
+            let pos = player.get_pos().as_secs_f64();
             player.pause();
             let mut meta = self.meta.lock().unwrap();
+            if pos > 0.0 {
+                let total = meta.start_offset_secs + pos;
+                meta.position_secs = if meta.duration > 0.0 {
+                    total.min(meta.duration)
+                } else {
+                    total
+                };
+            }
             meta.status = PlaybackStatus::Paused;
             drop(meta);
             drop(player_guard);
@@ -342,6 +362,7 @@ impl AudioPlayer {
             match player.try_seek(seek_duration) {
                 Ok(_) => {
                     meta.position_secs = pos;
+                    meta.start_offset_secs = pos;
                     drop(meta);
                     drop(player_guard);
                     return Ok(self.get_state());
@@ -399,6 +420,7 @@ impl AudioPlayer {
         {
             let mut meta = self.meta.lock().unwrap();
             meta.position_secs = pos;
+            meta.start_offset_secs = pos;
             meta.duration = duration_secs;
             meta.buffered_percent = 100.0;
             if was_playing {
@@ -435,7 +457,12 @@ impl AudioPlayer {
                 let pos = player.get_pos();
                 let p = pos.as_secs_f64();
                 if p > 0.0 {
-                    p
+                    let total = meta.start_offset_secs + p;
+                    if meta.duration > 0.0 {
+                        total.min(meta.duration)
+                    } else {
+                        total
+                    }
                 } else {
                     meta.position_secs
                 }
@@ -444,13 +471,22 @@ impl AudioPlayer {
             meta.position_secs
         };
 
-        let is_playing = if let Some(ref player) = *player_guard {
+        let is_playing = if meta.status == PlaybackStatus::Paused
+            || meta.status == PlaybackStatus::Loading
+            || meta.status == PlaybackStatus::Idle
+        {
+            false
+        } else if let Some(ref player) = *player_guard {
             !player.is_paused() && !player.empty()
         } else {
             false
         };
 
-        let status = if let Some(ref player) = *player_guard {
+        let status = if meta.status == PlaybackStatus::Paused {
+            PlaybackStatus::Paused
+        } else if meta.status == PlaybackStatus::Loading {
+            PlaybackStatus::Loading
+        } else if let Some(ref player) = *player_guard {
             if player.empty() && !meta.url.is_empty() && !meta.is_crossfading {
                 PlaybackStatus::Ended
             } else if player.is_paused() {
@@ -477,13 +513,30 @@ impl AudioPlayer {
     pub fn tick_position(&self, delta_secs: f64) {
         let player_guard = self.player.lock().unwrap();
         if let Some(ref player) = *player_guard {
-            if !player.is_paused() && !player.empty() {
+            let meta_status = {
+                let meta = self.meta.lock().unwrap();
+                meta.status
+            };
+            if meta_status != PlaybackStatus::Paused
+                && meta_status != PlaybackStatus::Loading
+                && meta_status != PlaybackStatus::Idle
+                && !player.is_paused()
+                && !player.empty()
+            {
                 let mut meta = self.meta.lock().unwrap();
                 let pos = player.get_pos().as_secs_f64();
                 if pos > 0.0 {
-                    meta.position_secs = pos;
+                    let total = meta.start_offset_secs + pos;
+                    meta.position_secs = if meta.duration > 0.0 {
+                        total.min(meta.duration)
+                    } else {
+                        total
+                    };
                 } else {
                     meta.position_secs += delta_secs;
+                    if meta.duration > 0.0 && meta.position_secs > meta.duration {
+                        meta.position_secs = meta.duration;
+                    }
                 }
             }
         }

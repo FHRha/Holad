@@ -216,11 +216,11 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
                                 }
                                 return true
                             }
-                            KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                            KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
                                 handleNext()
                                 return true
                             }
-                            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                            KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_MEDIA_REWIND -> {
                                 handlePrevious()
                                 return true
                             }
@@ -230,9 +230,37 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
                             }
                         }
                     }
+                    if (keyEvent != null && keyEvent.action == KeyEvent.ACTION_UP) {
+                        when (keyEvent.keyCode) {
+                            KeyEvent.KEYCODE_MEDIA_PLAY,
+                            KeyEvent.KEYCODE_MEDIA_PAUSE,
+                            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                            KeyEvent.KEYCODE_HEADSETHOOK,
+                            KeyEvent.KEYCODE_MEDIA_NEXT,
+                            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+                            KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+                            KeyEvent.KEYCODE_MEDIA_REWIND,
+                            KeyEvent.KEYCODE_MEDIA_STOP -> return true
+                        }
+                    }
                     return super.onMediaButtonEvent(mediaButtonEvent)
                 }
             })
+
+            val actions = PlaybackStateCompat.ACTION_PLAY or
+                    PlaybackStateCompat.ACTION_PAUSE or
+                    PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                    PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                    PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                    PlaybackStateCompat.ACTION_STOP or
+                    PlaybackStateCompat.ACTION_SEEK_TO
+
+            val initialPlaybackState = PlaybackStateCompat.Builder()
+                .setActions(actions)
+                .setState(PlaybackStateCompat.STATE_NONE, 0L, 1.0f)
+                .build()
+            setPlaybackState(initialPlaybackState)
+
             isActive = true
         }
     }
@@ -422,31 +450,43 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
     // --- Internal Action Dispatchers ---
 
     fun handlePlay() {
+        Log.i("MediaService", "handlePlay invoked")
         if (!hasAudioFocus) {
             requestAudioFocus()
         }
-        actionListener?.onMediaAction("play")
+        val listener = actionListener ?: MediaSessionPlugin.instance
+        listener?.onMediaAction("play")
     }
 
     fun handlePause() {
-        actionListener?.onMediaAction("pause")
+        Log.i("MediaService", "handlePause invoked")
+        val listener = actionListener ?: MediaSessionPlugin.instance
+        listener?.onMediaAction("pause")
     }
 
     fun handlePrevious() {
-        actionListener?.onMediaAction("previoustrack")
+        Log.i("MediaService", "handlePrevious invoked")
+        val listener = actionListener ?: MediaSessionPlugin.instance
+        listener?.onMediaAction("previoustrack")
     }
 
     fun handleNext() {
-        actionListener?.onMediaAction("nexttrack")
+        Log.i("MediaService", "handleNext invoked")
+        val listener = actionListener ?: MediaSessionPlugin.instance
+        listener?.onMediaAction("nexttrack")
     }
 
     fun handleStop() {
-        actionListener?.onMediaAction("stop")
+        Log.i("MediaService", "handleStop invoked")
+        val listener = actionListener ?: MediaSessionPlugin.instance
+        listener?.onMediaAction("stop")
         stopForegroundInternal()
     }
 
     fun handleSeekTo(posMs: Long) {
-        actionListener?.onMediaAction("seekto", posMs)
+        Log.i("MediaService", "handleSeekTo invoked: posMs=$posMs")
+        val listener = actionListener ?: MediaSessionPlugin.instance
+        listener?.onMediaAction("seekto", posMs)
     }
 
     // --- Public State and Metadata API ---
@@ -579,22 +619,30 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
             piFlags
         )
 
-        // Actions using MediaButtonReceiver to bypass Android 8+ background service limits
-        val prevPendingIntent = MediaButtonReceiver.buildMediaButtonPendingIntent(
+        // Explicit PendingIntents to target MediaService directly for reliable notification actions on Android 12+
+        val prevPendingIntent = PendingIntent.getService(
             this,
-            PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+            101,
+            Intent(this, MediaService::class.java).apply { action = ACTION_PREVIOUS },
+            piFlags
         )
-        val playPausePendingIntent = MediaButtonReceiver.buildMediaButtonPendingIntent(
+        val playPausePendingIntent = PendingIntent.getService(
             this,
-            PlaybackStateCompat.ACTION_PLAY_PAUSE
+            102,
+            Intent(this, MediaService::class.java).apply { action = if (isPlayingState) ACTION_PAUSE else ACTION_PLAY },
+            piFlags
         )
-        val nextPendingIntent = MediaButtonReceiver.buildMediaButtonPendingIntent(
+        val nextPendingIntent = PendingIntent.getService(
             this,
-            PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+            103,
+            Intent(this, MediaService::class.java).apply { action = ACTION_NEXT },
+            piFlags
         )
-        val stopPendingIntent = MediaButtonReceiver.buildMediaButtonPendingIntent(
+        val stopPendingIntent = PendingIntent.getService(
             this,
-            PlaybackStateCompat.ACTION_STOP
+            104,
+            Intent(this, MediaService::class.java).apply { action = ACTION_STOP },
+            piFlags
         )
 
         val playPauseIcon = if (isPlayingState) R.drawable.ic_pause else R.drawable.ic_play

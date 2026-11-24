@@ -178,20 +178,31 @@ export function useMediaSession() {
     let isSubscribed = true;
     const handles: PluginListenerHandle[] = [];
 
+    let lastActionTime = 0;
+    let lastActionType = '';
+
     // Direct DOM CustomEvent fallbacks emitted by native evaluateJavascript
     const onDirectPlay = () => {
-      setIsPlaying(true);
+      usePlayerStore.getState().setIsPlaying(true);
       const engine = getAudioEngine();
       if (engine) engine.resume().catch(() => {});
     };
     const onDirectPause = () => {
-      setIsPlaying(false);
+      usePlayerStore.getState().setIsPlaying(false);
       const engine = getAudioEngine();
       if (engine) engine.pause();
     };
 
     const handleAction = (payload: { action: string; seekTime?: number }) => {
-      if (!payload) return;
+      if (!payload || !payload.action) return;
+      const now = Date.now();
+      // Debounce duplicate events arriving within 250ms for the same action
+      if (payload.action === lastActionType && now - lastActionTime < 250) {
+        return;
+      }
+      lastActionTime = now;
+      lastActionType = payload.action;
+
       switch (payload.action) {
         case 'play':
           onDirectPlay();
@@ -211,10 +222,10 @@ export function useMediaSession() {
           break;
         }
         case 'previoustrack':
-          prevTrack();
+          usePlayerStore.getState().prevTrack();
           break;
         case 'nexttrack':
-          nextTrack();
+          usePlayerStore.getState().nextTrack();
           break;
         case 'seekto':
           if (typeof payload.seekTime === 'number' && !isNaN(payload.seekTime)) {
@@ -245,23 +256,43 @@ export function useMediaSession() {
       }
     };
 
+    const onDirectNext = () => handleAction({ action: 'nexttrack' });
+    const onDirectPrev = () => handleAction({ action: 'previoustrack' });
+
     window.addEventListener('holad:mediasession:action', onDirectActionEvent);
     window.addEventListener('holad:mediasession:play', onDirectPlay);
     window.addEventListener('holad:mediasession:pause', onDirectPause);
+    window.addEventListener('holad:mediasession:nexttrack', onDirectNext);
+    window.addEventListener('holad:mediasession:previoustrack', onDirectPrev);
 
     let unlistenTauriMedia: (() => void) | undefined;
     let unlistenTauriPluginMedia: (() => void) | undefined;
     if (isTauri()) {
+      import('@tauri-apps/api/core').then(({ Channel, invoke }) => {
+        if (!isSubscribed) return;
+        try {
+          const channel = new Channel<{ action: string; seekTime?: number }>();
+          channel.onmessage = (payload) => {
+            if (isSubscribed) handleAction(payload);
+          };
+          invoke('plugin:mediaSession|registerMediaListener', { handler: channel }).catch(() => {
+            invoke('plugin:mediaSession|registerListener', { event: 'mediaAction', handler: channel }).catch(() => {});
+          });
+        } catch (e) {
+          console.warn('[MediaSession] channel registration error:', e);
+        }
+      }).catch(() => {});
+
       import('@tauri-apps/api/event').then(({ listen }) => {
         listen<{ action: string; seekTime?: number }>('mediaAction', (event) => {
-          handleAction(event.payload);
+          if (isSubscribed) handleAction(event.payload);
         }).then(unlisten => {
           if (!isSubscribed) unlisten();
           else unlistenTauriMedia = unlisten;
         }).catch(() => {});
 
         listen<{ action: string; seekTime?: number }>('mediaSession:mediaAction', (event) => {
-          handleAction(event.payload);
+          if (isSubscribed) handleAction(event.payload);
         }).then(unlisten => {
           if (!isSubscribed) unlisten();
           else unlistenTauriPluginMedia = unlisten;
@@ -273,11 +304,11 @@ export function useMediaSession() {
       const setupListeners = async () => {
         try {
           const events: Array<{ event: string; handler: () => void }> = [
-            { event: 'play', handler: () => { setIsPlaying(true); const engine = getAudioEngine(); if (engine) engine.resume().catch(() => {}); } },
-            { event: 'pause', handler: () => { setIsPlaying(false); const engine = getAudioEngine(); if (engine) engine.pause(); } },
-            { event: 'playpause', handler: () => { const playing = !usePlayerStore.getState().isPlaying; setIsPlaying(playing); const engine = getAudioEngine(); if (engine) { if (playing) engine.resume().catch(() => {}); else engine.pause(); } } },
-            { event: 'nexttrack', handler: () => nextTrack() },
-            { event: 'previoustrack', handler: () => prevTrack() },
+            { event: 'play', handler: () => { usePlayerStore.getState().setIsPlaying(true); const engine = getAudioEngine(); if (engine) engine.resume().catch(() => {}); } },
+            { event: 'pause', handler: () => { usePlayerStore.getState().setIsPlaying(false); const engine = getAudioEngine(); if (engine) engine.pause(); } },
+            { event: 'playpause', handler: () => { const playing = !usePlayerStore.getState().isPlaying; usePlayerStore.getState().setIsPlaying(playing); const engine = getAudioEngine(); if (engine) { if (playing) engine.resume().catch(() => {}); else engine.pause(); } } },
+            { event: 'nexttrack', handler: () => usePlayerStore.getState().nextTrack() },
+            { event: 'previoustrack', handler: () => usePlayerStore.getState().prevTrack() },
           ];
 
           for (const { event, handler } of events) {
@@ -305,6 +336,8 @@ export function useMediaSession() {
       window.removeEventListener('holad:mediasession:action', onDirectActionEvent);
       window.removeEventListener('holad:mediasession:play', onDirectPlay);
       window.removeEventListener('holad:mediasession:pause', onDirectPause);
+      window.removeEventListener('holad:mediasession:nexttrack', onDirectNext);
+      window.removeEventListener('holad:mediasession:previoustrack', onDirectPrev);
       handles.forEach((handle) => {
         try {
           if (handle && typeof handle.remove === 'function') {

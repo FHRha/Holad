@@ -161,7 +161,6 @@ export default function FullScreenPlayerUI({
     lrcLines,
     loadingLyrics,
     activeLyricIndex,
-    activeLyricIndexRef,
     isUserScrolled,
     lyricsContainerRef,
     handleUserScroll,

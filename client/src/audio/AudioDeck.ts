@@ -231,11 +231,9 @@ export class AudioDeck implements IAudioDeck {
             }
             this.setState('loading');
         
-            // Force the UI to reset immediately without false 0 emissions
+            // Update the UI if a target position is requested
             if (position > 0 || this.targetPosition > 0) {
                 this.emit('timeupdate', this.targetPosition > 0 ? this.targetPosition : position);
-            } else {
-                this.emit('timeupdate', 0);
             }
             
             await new Promise<void>((resolve, reject) => {

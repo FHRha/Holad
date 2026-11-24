@@ -389,7 +389,6 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const prevActiveDeviceRef = useRef<boolean>(isActiveDevice);
 
   const playActionId = usePlayerStore(s => s.playActionId);
-  const prevPlayActionIdRef = useRef(playActionId);
 
   useEffect(() => {
     if (!currentTrack || srcLoading || srcTrackId !== currentTrack.id) return;
@@ -406,10 +405,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const didDeviceBecomeActive = isActiveDevice && !prevActiveDeviceRef.current;
     prevActiveDeviceRef.current = isActiveDevice;
     
-    const hasPlayActionChanged = playActionId !== prevPlayActionIdRef.current;
-    prevPlayActionIdRef.current = playActionId;
-    
-    if (prevTrackIdRef.current === currentTrack.id && !didDeviceBecomeActive && !hasPlayActionChanged) return;
+    if (prevTrackIdRef.current === currentTrack.id && !didDeviceBecomeActive) return;
 
     const isAutoSkip = crossfadeTriggeredRef.current === prevTrackIdRef.current;
     crossfadeTriggeredRef.current = null;
@@ -427,13 +423,12 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
     const snapshot = useHoladStore.getState().snapshot;
     const isHydrated = usePlayerStore.getState().isSessionHydrated;
-    const isExplicitUserPlay = playActionId > 0;
-    const shouldTransferPlay = isHydrated && didDeviceBecomeActive && isExplicitUserPlay && snapshot && snapshot.trackId === currentTrack.id && snapshot.isPlaying;
+    const shouldTransferPlay = isHydrated && didDeviceBecomeActive && Boolean(snapshot && snapshot.trackId === currentTrack.id && snapshot.isPlaying);
 
     // A track should only be actively played if the user explicitly commanded playback (playActionId > 0)
     // or if the engine was already physically playing across track changes (wasPlayingEngine),
     // or if this is an explicit device handover.
-    const isActivelyPlaying = (isPlayingStore && (wasPlayingEngine || isExplicitUserPlay)) || shouldTransferPlay;
+    const isActivelyPlaying = (isPlayingStore && (wasPlayingEngine || playActionId > 0)) || shouldTransferPlay;
 
     if (isActivelyPlaying && isActiveDevice && !isSpeakerDj) {
       if (shouldTransferPlay && !isPlayingStore) {
@@ -451,11 +446,13 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
 
       let startTimeSec = initialPosition > 0 ? initialPosition / 1000 : 0;
-      if (shouldTransferPlay) {
+      if (shouldTransferPlay && snapshot) {
         const clientOffset = useHoladStore.getState().clientOffset || 0;
         const nowServer = Date.now() - clientOffset;
         const elapsedSec = ((nowServer - snapshot.timestamp) * (snapshot.playbackRate || 1)) / 1000;
         startTimeSec = (snapshot.positionMs / 1000) + Math.max(0, elapsedSec);
+        const trackDur = currentTrack.duration || 1;
+        useAudioStore.getState().setProgress(Math.min(100, (startTimeSec / trackDur) * 100));
       }
 
       triggerAudioSessionSync();
@@ -496,12 +493,16 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
       let targetPosSec = initialPosition > 0 ? initialPosition / 1000 : 0;
       if (targetPosSec <= 0 && currentTrack?.id) {
-        const savedTrack = localStorage.getItem('holad_track');
-        const savedTime = localStorage.getItem('holad_time');
-        if (savedTrack === currentTrack.id && savedTime) {
-          const parsed = parseFloat(savedTime);
-          if (!isNaN(parsed) && parsed > 0) {
-            targetPosSec = parsed;
+        if (snapshot && snapshot.trackId === currentTrack.id && snapshot.positionMs > 0) {
+          targetPosSec = snapshot.positionMs / 1000;
+        } else {
+          const savedTrack = localStorage.getItem('holad_track');
+          const savedTime = localStorage.getItem('holad_time');
+          if (savedTrack === currentTrack.id && savedTime) {
+            const parsed = parseFloat(savedTime);
+            if (!isNaN(parsed) && parsed > 0) {
+              targetPosSec = parsed;
+            }
           }
         }
       }
@@ -634,7 +635,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         engineRef.current.pause();
       }
       prevIsPlayingRef.current = isPlaying;
-    }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, flushPlaybackProgressToServer, playActionId]);
+    }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, flushPlaybackProgressToServer, playActionId, setIsPlaying]);
 
   
 
@@ -890,22 +891,12 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
     };
 
-    const handleStateChange = (state: AudioState) => {
-      const isEnginePlaying = state === 'playing';
-      const store = usePlayerStore.getState();
-      if (store.isPlaying !== isEnginePlaying) {
-        setIsPlaying(isEnginePlaying);
-      }
-    };
-
-    engine.on('statechange', handleStateChange);
     engine.on('timeupdate', handleTimeUpdate);
     engine.on('ended', handleEnded);
     engine.on('requestPreload', handleRequestPreload);
     engine.on('progress', handleProgress);
 
     return () => {
-      engine.off('statechange', handleStateChange);
       engine.off('timeupdate', handleTimeUpdate);
       engine.off('ended', handleEnded);
       engine.off('requestPreload', handleRequestPreload);
@@ -945,6 +936,16 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     let animationFrame: number | undefined;
     let lastTime = performance.now();
     let localCurrentTime = (useAudioStore.getState().progress / 100) * (currentTrack?.duration || 1);
+    const initialSnapshot = useHoladStore.getState().snapshot;
+    if (initialSnapshot && initialSnapshot.positionMs >= 0) {
+      const clientOffset = useHoladStore.getState().clientOffset || 0;
+      const nowServer = Date.now() - clientOffset;
+      const elapsedSec = initialSnapshot.isPlaying ? ((nowServer - initialSnapshot.timestamp) * (initialSnapshot.playbackRate || 1)) / 1000 : 0;
+      localCurrentTime = Math.max(0, (initialSnapshot.positionMs / 1000) + elapsedSec);
+    }
+    if (currentTrack && currentTrack.duration) {
+      setProgress((localCurrentTime / currentTrack.duration) * 100);
+    }
     let isWindowVisible = getIsWindowVisible();
 
     const socket = useHoladStore.getState().socket;

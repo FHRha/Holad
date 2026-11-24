@@ -85,6 +85,27 @@ export class TauriAudioBackend implements IAudioEngine {
 
             const handleNativeStateChange = (payload: NativeAudioState) => {
                 if (!payload) return;
+                const store = usePlayerStore.getState();
+
+                // Cold start / standby playback protection: if user has not explicitly commanded playback (playActionId === 0)
+                // and store is not playing, do not let background native events flip store.isPlaying to true!
+                if (!store.isPlaying && store.playActionId === 0) {
+                    this.isPlaying = false;
+                    this.currentTime = payload.currentTime;
+                    if (payload.duration > 0 && Math.abs(this.duration - payload.duration) > 0.5) {
+                        this.duration = payload.duration;
+                        this.emit('durationchange', this.duration);
+                    }
+                    if (typeof payload.bufferedPercent === 'number') {
+                        this.bufferedPercent = payload.bufferedPercent;
+                        this.emit('progress', this.bufferedPercent);
+                        useAudioStore.getState().setBuffered(this.bufferedPercent);
+                    }
+                    this.emit('statechange', 'paused');
+                    this.emit('pause');
+                    return;
+                }
+
                 this.isPlaying = payload.isPlaying;
                 this.currentTime = payload.currentTime;
                 if (payload.duration > 0 && Math.abs(this.duration - payload.duration) > 0.5) {
@@ -97,12 +118,7 @@ export class TauriAudioBackend implements IAudioEngine {
                     useAudioStore.getState().setBuffered(this.bufferedPercent);
                 }
 
-                // CRITICAL SYNC: Ensure playerStore.isPlaying is reactive and in sync with native Rust engine
-                const store = usePlayerStore.getState();
-                if (store.isPlaying !== payload.isPlaying) {
-                    console.log(`[TauriAudioBackend] Syncing playerStore.isPlaying: ${store.isPlaying} -> ${payload.isPlaying} (status: ${payload.status})`);
-                    usePlayerStore.setState({ isPlaying: payload.isPlaying });
-                }
+                // CRITICAL: Audio backend does not unilaterally mutate playerStore.isPlaying to avoid race-condition feedback loops with useAudioEngine
 
                 const audioState: AudioState = payload.status === 'playing'
                     ? 'playing'
@@ -248,11 +264,14 @@ export class TauriAudioBackend implements IAudioEngine {
             if (state) {
                 this.duration = state.duration || track?.duration || 0;
                 this.currentTime = state.currentTime;
-                this.isPlaying = state.isPlaying;
+                this.isPlaying = autoplay ? state.isPlaying : false;
                 const pct = typeof state.bufferedPercent === 'number' ? state.bufferedPercent : 100;
                 this.bufferedPercent = pct;
                 this.emit('progress', pct);
                 useAudioStore.getState().setBuffered(pct);
+            }
+            if (!autoplay) {
+                this.isPlaying = false;
             }
 
             this.emit('timeupdate', this.currentTime, this.activeTrackId);
@@ -275,11 +294,6 @@ export class TauriAudioBackend implements IAudioEngine {
     }
 
     public async resume(): Promise<void> {
-        const store = usePlayerStore.getState();
-        if (!store.isPlaying && !this.isPlaying) {
-            console.log('[TauriAudioBackend] Skipping resume() because player is paused in store');
-            return;
-        }
         this.isPlaying = true;
         try {
             console.log('[TauriAudioBackend] Resuming playback via audio_play');
@@ -316,14 +330,6 @@ export class TauriAudioBackend implements IAudioEngine {
         const safePos = Math.max(0, positionSeconds);
         this.currentTime = safePos;
         const store = usePlayerStore.getState();
-        const isCurrentlyPlaying = this.isPlaying || store.isPlaying;
-
-        // If player is paused and no track is playing, do NOT load audio or trigger autoplay on seek
-        if (!isCurrentlyPlaying) {
-            console.log(`[TauriAudioBackend] seek() while paused - saved currentTime: ${safePos}s without loading audio`);
-            this.emit('timeupdate', safePos, this.activeTrackId);
-            return;
-        }
 
         console.log(`[TauriAudioBackend] audio_seek to position: ${safePos}`);
         invoke<NativeAudioState>('audio_seek', { position: safePos }).catch(async (e) => {

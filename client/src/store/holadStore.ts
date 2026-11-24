@@ -535,16 +535,22 @@ export const useHoladStore = create<HoladState>((set, get) => {
             audioStore.setDuration(trackDur);
           }
 
+          const nowServer = Date.now() - get().clientOffset;
+          const elapsedSec = snapshot.isPlaying ? ((nowServer - snapshot.timestamp) * (snapshot.playbackRate || 1)) / 1000 : 0;
+          const currentPosSec = Math.max(0, (snapshot.positionMs / 1000) + elapsedSec);
+          const currentPosMs = Math.round(currentPosSec * 1000);
+
+          if (trackDur > 0) {
+            audioStore.setProgress(Math.min(100, (currentPosSec / trackDur) * 100));
+          }
+
           if (!playerStore.isSessionHydrated) {
-            if (trackDur > 0 && snapshot.positionMs > 0) {
-              audioStore.setProgress(((snapshot.positionMs / 1000) / trackDur) * 100);
-            }
             usePlayerStore.setState({
               queue: mappedQueue,
               originalQueue: mappedQueue,
               currentIndex: targetIndex,
               isPlaying: false,
-              initialPosition: snapshot.positionMs,
+              initialPosition: currentPosMs,
               isSessionHydrated: true,
             });
           } else {
@@ -552,6 +558,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
               queue: mappedQueue,
               originalQueue: mappedQueue,
               currentIndex: targetIndex,
+              initialPosition: currentPosMs,
               isSessionHydrated: true,
             });
           }

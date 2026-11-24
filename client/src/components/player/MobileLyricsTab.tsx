@@ -21,7 +21,6 @@ export default function MobileLyricsTab({ currentTrack, isActive }: MobileLyrics
     lrcLines,
     loadingLyrics,
     activeLyricIndex,
-    activeLyricIndexRef,
     isUserScrolled,
     lyricsContainerRef,
     handleUserScroll,

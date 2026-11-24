@@ -305,10 +305,6 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
     if (isConnected && !activeDeviceId) {
       useHoladStore.getState().setActiveDevice(localDeviceId);
     }
-
-    if (!isPlaying && isActiveDevice) {
-      getAudioEngine().resume().catch(() => {});
-    }
     
     setIsPlaying(!isPlaying);
   };

@@ -84,6 +84,7 @@ export const createPlaybackSlice: StateCreator<
     }
     set((s) => ({
       isPlaying,
+      playActionId: isPlaying ? s.playActionId + 1 : s.playActionId,
       hasActiveOfflinePlayback: offline ? true : s.hasActiveOfflinePlayback,
     }));
   },

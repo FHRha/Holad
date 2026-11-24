@@ -6,10 +6,11 @@ import type { LyricLine } from '../utils/lyrics';
 import { usePlayerStore, type Track } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 import { getAudioEngine } from '../audio/AudioEngine';
+import type { AudioState } from '../audio/types';
 import { subscribeWindowVisibility, getIsWindowVisible } from './useWindowVisibility';
 import { useHoladStore } from '../store/holadStore';
 
-export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTMLAudioElement | null, isActive: boolean) {
+export function useLyricsSync(currentTrack: Track | undefined, _audioElement: HTMLAudioElement | null, isActive: boolean) {
   const [lyricsText, setLyricsText] = useState<string | null>(null);
   const [lrcLines, setLrcLines] = useState<LyricLine[]>([]);
   const [loadingLyrics, setLoadingLyrics] = useState(false);
@@ -23,6 +24,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
   // Fetch lyrics when track changes
   useEffect(() => {
     if (currentTrack) {
+      // oxlint-disable-next-line
       setLoadingLyrics(true);
       setLyricsText(null);
       setLrcLines([]);
@@ -100,7 +102,7 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
     
     if (lyricsContainerRef.current) {
-      const container = lyricsContainerRef.current.closest('.overflow-y-auto') as HTMLElement;
+      const container = (lyricsContainerRef.current.closest('.overflow-y-auto') || lyricsContainerRef.current.parentElement) as HTMLElement | null;
       if (container) {
         const containerRect = container.getBoundingClientRect();
         const elementRect = activeElement.getBoundingClientRect();
@@ -126,8 +128,13 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     // oxlint-disable-next-line
     let lastActiveIndex = activeLyricIndexRef.current;
 
+    const isPlaying = () => {
+      const engine = getAudioEngine();
+      return usePlayerStore.getState().isPlaying || (engine ? engine.getState() === 'playing' : false);
+    };
+
     const updateCurrentLyric = () => {
-      if (!usePlayerStore.getState().isPlaying || !getIsWindowVisible()) {
+      if (!isPlaying() || !getIsWindowVisible()) {
         rafId = null;
         return;
       }
@@ -220,34 +227,50 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
       }
       rafId = requestAnimationFrame(updateCurrentLyric);
     };
-
-          if (activeElement && !isUserScrolledRef.current && newIndex >= 0) {
-            scrollToActiveElement(activeElement);
-          }
-        }
-      }
-      rafId = requestAnimationFrame(updateCurrentLyric);
-    };
     
-    if (usePlayerStore.getState().isPlaying && getIsWindowVisible()) {
+    if (isPlaying() && getIsWindowVisible()) {
       rafId = requestAnimationFrame(updateCurrentLyric);
     }
 
     const unsub = usePlayerStore.subscribe((state, prevState) => {
-      if (state.isPlaying && !prevState.isPlaying) {
+      const playing = state.isPlaying || (getAudioEngine()?.getState() === 'playing');
+      const prevPlaying = prevState.isPlaying;
+      if (playing && !prevPlaying) {
         if (!rafId && getIsWindowVisible()) {
           rafId = requestAnimationFrame(updateCurrentLyric);
         }
-      } else if (!state.isPlaying && prevState.isPlaying) {
-        if (rafId) {
+      } else if (!playing && prevPlaying) {
+        if (rafId && (!getAudioEngine() || getAudioEngine().getState() !== 'playing')) {
           cancelAnimationFrame(rafId);
           rafId = null;
         }
       }
     });
 
+    const engine = getAudioEngine();
+    const handleEngineState = (state: AudioState) => {
+      const playing = state === 'playing' || usePlayerStore.getState().isPlaying;
+      if (playing) {
+        if (!rafId && getIsWindowVisible()) {
+          rafId = requestAnimationFrame(updateCurrentLyric);
+        }
+      } else {
+        if (rafId && !usePlayerStore.getState().isPlaying) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+      }
+    };
+    const onEnginePlay = () => handleEngineState('playing');
+    const onEnginePause = () => handleEngineState('paused');
+
+    engine?.on('statechange', handleEngineState);
+    engine?.on('playing', onEnginePlay);
+    engine?.on('play', onEnginePlay);
+    engine?.on('pause', onEnginePause);
+
     const unsubVis = subscribeWindowVisibility((visible) => {
-      if (visible && usePlayerStore.getState().isPlaying) {
+      if (visible && isPlaying()) {
         if (!rafId) {
           rafId = requestAnimationFrame(updateCurrentLyric);
         }
@@ -258,9 +281,16 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
     });
 
     return () => {
-      if (rafId) cancelAnimationFrame(rafId);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       unsub();
       unsubVis();
+      engine?.off('statechange', handleEngineState);
+      engine?.off('playing', onEnginePlay);
+      engine?.off('play', onEnginePlay);
+      engine?.off('pause', onEnginePause);
     };
   }, [lrcLines, isActive]);
 
@@ -274,6 +304,30 @@ export function useLyricsSync(currentTrack: Track | undefined, audioElement: HTM
         scrollToActiveElement(activeElement);
       }
     }
+  }, [isActive, lrcLines.length]);
+
+  // Observe resize to keep active lyric centered on container layout shifts
+  useEffect(() => {
+    if (!lyricsContainerRef.current) return;
+    const observer = new ResizeObserver(() => {
+      if (isActive && lyricsContainerRef.current && lrcLines.length > 0 && !isUserScrolledRef.current && activeLyricIndexRef.current >= 0) {
+        const activeElement = lyricsContainerRef.current.children[activeLyricIndexRef.current] as HTMLElement;
+        if (activeElement) {
+          const container = (lyricsContainerRef.current.closest('.overflow-y-auto') || lyricsContainerRef.current.parentElement) as HTMLElement | null;
+          if (container) {
+            const containerRect = container.getBoundingClientRect();
+            const elementRect = activeElement.getBoundingClientRect();
+            const targetScroll = container.scrollTop + (elementRect.top - containerRect.top) - (containerRect.height / 2) + (elementRect.height / 2);
+            container.scrollTo({
+              top: Math.round(targetScroll),
+              behavior: 'auto'
+            });
+          }
+        }
+      }
+    });
+    observer.observe(lyricsContainerRef.current);
+    return () => observer.disconnect();
   }, [isActive, lrcLines.length]);
 
   const forceSync = () => {

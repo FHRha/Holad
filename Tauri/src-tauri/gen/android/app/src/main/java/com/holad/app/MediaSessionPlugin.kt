@@ -8,12 +8,14 @@ import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import android.view.ViewGroup
 import android.webkit.WebView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
+import app.tauri.plugin.Channel
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
@@ -34,11 +36,22 @@ class PlaybackStateArgs {
     var playbackRate: Float? = null
 }
 
+@InvokeArg
+class RegisterMediaListenerArgs {
+    lateinit var handler: Channel
+}
+
 @TauriPlugin
 class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), MediaService.MediaActionListener {
 
+    companion object {
+        var instance: MediaSessionPlugin? = null
+            private set
+    }
+
     private var mediaService: MediaService? = null
     private var isBound: Boolean = false
+    private var mediaChannel: Channel? = null
 
     private var pendingTitle: String? = null
     private var pendingArtist: String? = null
@@ -73,6 +86,7 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
     }
 
     init {
+        instance = this
         Log.i("MediaSessionPlugin", "MediaSessionPlugin instantiated! Starting bindMediaService...")
         bindMediaService()
     }
@@ -83,6 +97,35 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
         super.load(webView)
         this.webView = webView
         Log.i("MediaSessionPlugin", "load called with webView: $webView")
+    }
+
+    private fun getActiveWebView(): WebView? {
+        if (webView != null) return webView
+        try {
+            val decorView = activity.window?.decorView
+            if (decorView is ViewGroup) {
+                val found = findWebView(decorView)
+                if (found != null) {
+                    webView = found
+                    return found
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MediaSessionPlugin", "Failed to find WebView in hierarchy", e)
+        }
+        return null
+    }
+
+    private fun findWebView(group: ViewGroup): WebView? {
+        for (i in 0 until group.childCount) {
+            val child = group.getChildAt(i)
+            if (child is WebView) return child
+            if (child is ViewGroup) {
+                val nested = findWebView(child)
+                if (nested != null) return nested
+            }
+        }
+        return null
     }
 
     private fun bindMediaService() {
@@ -102,6 +145,9 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
             this.activity.unbindService(serviceConnection)
             isBound = false
         }
+        if (instance === this) {
+            instance = null
+        }
         super.onDestroy(activity)
     }
 
@@ -113,8 +159,22 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
                 put("seekTime", extras / 1000.0)
             }
         }
-        trigger("mediaAction", payload)
 
+        // 1. Deliver directly to registered Channel if available
+        try {
+            mediaChannel?.send(payload)
+        } catch (e: Exception) {
+            Log.e("MediaSessionPlugin", "Failed to send through mediaChannel", e)
+        }
+
+        // 2. Deliver via standard Tauri plugin event trigger
+        try {
+            trigger("mediaAction", payload)
+        } catch (e: Exception) {
+            Log.e("MediaSessionPlugin", "Failed to trigger mediaAction", e)
+        }
+
+        // 3. Guaranteed evaluation into WebView via post
         val seekArg = if (extras != null) "${extras / 1000.0}" else "undefined"
         val js = """
             (function() {
@@ -122,14 +182,40 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
                     window.dispatchEvent(new CustomEvent('holad:mediasession:action', { detail: { action: '$action', seekTime: $seekArg } }));
                     if ('$action' === 'play') window.dispatchEvent(new CustomEvent('holad:mediasession:play'));
                     if ('$action' === 'pause') window.dispatchEvent(new CustomEvent('holad:mediasession:pause'));
+                    if ('$action' === 'nexttrack') window.dispatchEvent(new CustomEvent('holad:mediasession:nexttrack'));
+                    if ('$action' === 'previoustrack') window.dispatchEvent(new CustomEvent('holad:mediasession:previoustrack'));
                 } catch (e) {
                     console.error('[MediaSessionPlugin] eval error:', e);
                 }
             })();
         """.trimIndent()
-        activity.runOnUiThread {
-            webView?.evaluateJavascript(js, null)
+
+        val wv = getActiveWebView()
+        if (wv != null) {
+            wv.post {
+                try {
+                    wv.evaluateJavascript(js, null)
+                } catch (e: Exception) {
+                    Log.e("MediaSessionPlugin", "evaluateJavascript post failed", e)
+                }
+            }
+        } else {
+            activity.runOnUiThread {
+                try {
+                    getActiveWebView()?.evaluateJavascript(js, null)
+                } catch (e: Exception) {
+                    Log.e("MediaSessionPlugin", "evaluateJavascript runOnUiThread failed", e)
+                }
+            }
         }
+    }
+
+    @Command
+    fun registerMediaListener(invoke: Invoke) {
+        val args = invoke.parseArgs(RegisterMediaListenerArgs::class.java)
+        mediaChannel = args.handler
+        Log.i("MediaSessionPlugin", "registerMediaListener: Channel registered successfully!")
+        invoke.resolve()
     }
 
     @Command

@@ -13,7 +13,6 @@ import { getCoverArtUrl } from '../../api/subsonic';
 import MobilePlayerUI from './MobilePlayerUI';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useAutoDj } from '../../hooks/useAutoDj';
-import { useMediaSession } from '../../hooks/useMediaSession';
 import { useNavigate } from 'react-router-dom';
 
 import { useContextMenuStore } from '../../store/contextMenuStore';
@@ -458,14 +457,14 @@ export default function BottomPlayer() {
           id="main-audio-player-0"
           className="main-audio-player"
           playsInline
-          preload={isPlaying ? "auto" : "none"}
+          preload="metadata"
           ref={audioRef0}
         />
         <audio
           id="main-audio-player-1"
           className="main-audio-player"
           playsInline
-          preload={isPlaying ? "auto" : "none"}
+          preload="metadata"
           ref={audioRef1}
         />
         </>
