@@ -17,7 +17,6 @@ impl Default for AudioService {
 
 fn emit_state(app: &AppHandle, state: &AudioState) {
     let _ = app.emit("playback-state-changed", state.clone());
-    let _ = app.emit("state-changed", state.clone());
 }
 
 impl AudioService {

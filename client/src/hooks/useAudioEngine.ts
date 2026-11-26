@@ -827,7 +827,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
           !engine.isTransitioning()
         ) {
           const remaining = actualDur - currentTime;
-          if (remaining > 0 && remaining <= effectiveCrossfade && currentTime > effectiveCrossfade) {
+          if (remaining >= 0 && remaining <= effectiveCrossfade && currentTime > 0) {
             crossfadeTriggeredRef.current = currentTrack.id;
             if (isJamSession) {
               jamSocket.trackEnded(currentTrack.id, pStore.currentIndex, pStore.repeatMode);
@@ -842,7 +842,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const handleEnded = (emittedTrackId?: string) => {
       flushPositionToLocalStorage();
       if (!currentTrack) return;
-      if (!emittedTrackId || emittedTrackId !== currentTrack.id) return;
+      if (emittedTrackId && emittedTrackId !== currentTrack.id) return;
       const pStore = usePlayerStore.getState();
       const isJamSession = Boolean(pStore.roomId);
       if (isJamSession && pStore.role !== 'host' && pStore.role !== 'cohost') return;
@@ -854,7 +854,13 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
 
       if (engine.isTransitioning()) return;
-      if (crossfadeTriggeredRef.current === currentTrack.id) return;
+      if (crossfadeTriggeredRef.current === currentTrack.id) {
+        // If nextTrack() already switched to another track in the store, don't advance again.
+        // Otherwise crossfade did not actually start/advance, so allow normal end handling.
+        const storeCurrentTrack = pStore.queue[pStore.currentIndex];
+        if (storeCurrentTrack?.id !== currentTrack.id) return;
+        crossfadeTriggeredRef.current = null;
+      }
 
       const deck = (engine as any).getActiveDeck?.();
       const currentTime = deck ? deck.getCurrentTime() : engine.getCurrentTime();

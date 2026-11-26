@@ -821,6 +821,20 @@ const validateAuthCache = new Map<string, number>();
 const validateRestAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const roomId = (req.params.roomId as string || '').trim().toLowerCase();
   req.params.roomId = roomId;
+
+  if (demoManager.isEnabled()) {
+    const demoSessionId =
+      (req.headers['x-demo-session'] as string) ||
+      (req.query.demoSessionId as string) ||
+      (req.query.sessionId as string);
+    if (demoSessionId) {
+      const session = demoManager.getSession(demoSessionId) || demoManager.findSession(demoSessionId);
+      if (session && session.guestUserId.trim().toLowerCase() === roomId) {
+        return next();
+      }
+    }
+  }
+
   let user = req.headers['x-user'] as string;
   let token = req.headers['x-token'] as string;
   let salt = req.headers['x-salt'] as string;

@@ -144,11 +144,6 @@ export class TauriAudioBackend implements IAudioEngine {
             });
             this.unlistenFns.push(unlistenState);
 
-            const unlistenStateAlias = await listen<NativeAudioState>('state-changed', (event) => {
-                handleNativeStateChange(event.payload);
-            });
-            this.unlistenFns.push(unlistenStateAlias);
-
             const unlistenEnded = await listen<NativeAudioState>('track-ended', (event) => {
                 const payload = event.payload;
                 // Protection against premature or phantom ended events from fading-out tracks

@@ -219,6 +219,10 @@ export const useProfileStore = create<ProfileState>()(
               ? (serverUpdatedAt || Date.now())
               : Math.max(serverUpdatedAt, localUpdatedAt),
           });
+
+          if (nextActive && sanitizedSlots[nextActive - 1]) {
+            applyProfileDataToSettings(sanitizedSlots[nextActive - 1]!.data);
+          }
         } catch (e) {
           console.warn('[ProfileStore] Error parsing server profiles:', e);
         }

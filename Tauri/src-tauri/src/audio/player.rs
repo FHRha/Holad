@@ -51,6 +51,7 @@ pub struct AudioPlayer {
     sink: Mutex<Option<MixerDeviceSink>>,
     player: Mutex<Option<Arc<Player>>>,
     meta: Arc<Mutex<PlaybackMetadata>>,
+    cached_bytes: Mutex<Option<(String, Vec<u8>, f64)>>,
 }
 
 impl AudioPlayer {
@@ -69,6 +70,7 @@ impl AudioPlayer {
                 generation: 0,
                 is_crossfading: false,
             })),
+            cached_bytes: Mutex::new(None),
         }
     }
 
@@ -362,7 +364,7 @@ impl AudioPlayer {
             match player.try_seek(seek_duration) {
                 Ok(_) => {
                     meta.position_secs = pos;
-                    meta.start_offset_secs = pos;
+                    meta.start_offset_secs = 0.0;
                     drop(meta);
                     drop(player_guard);
                     return Ok(self.get_state());
@@ -542,8 +544,71 @@ impl AudioPlayer {
         }
     }
 
+    fn hex_val(b: u8) -> Option<u8> {
+        match b {
+            b'0'..=b'9' => Some(b - b'0'),
+            b'a'..=b'f' => Some(b - b'a' + 10),
+            b'A'..=b'F' => Some(b - b'A' + 10),
+            _ => None,
+        }
+    }
+
+    fn percent_decode(input: &str) -> String {
+        let bytes = input.as_bytes();
+        let mut out = Vec::with_capacity(bytes.len());
+        let mut i = 0;
+        while i < bytes.len() {
+            if bytes[i] == b'%' && i + 2 < bytes.len() {
+                if let (Some(h), Some(l)) = (Self::hex_val(bytes[i + 1]), Self::hex_val(bytes[i + 2])) {
+                    out.push((h << 4) | l);
+                    i += 3;
+                    continue;
+                }
+            }
+            out.push(bytes[i]);
+            i += 1;
+        }
+        String::from_utf8_lossy(&out).into_owned()
+    }
+
+    fn strip_windows_leading_slash(path: &str) -> &str {
+        #[cfg(target_os = "windows")]
+        {
+            if path.starts_with('/') && path.len() > 2 && path.as_bytes()[2] == b':' {
+                return &path[1..];
+            }
+        }
+        path
+    }
+
+    fn resolve_local_asset_path(path_or_url: &str) -> Option<String> {
+        let stripped = path_or_url
+            .strip_prefix("http://asset.localhost/")
+            .or_else(|| path_or_url.strip_prefix("https://asset.localhost/"))
+            .or_else(|| path_or_url.strip_prefix("asset://localhost/"))?;
+
+        let decoded = Self::percent_decode(stripped);
+        let normalized = Self::strip_windows_leading_slash(&decoded).to_string();
+        Some(normalized)
+    }
+
     fn read_media(&self, path_or_url: &str) -> Result<(Vec<u8>, f64), String> {
-        let bytes = if path_or_url.starts_with("http://") || path_or_url.starts_with("https://") {
+        {
+            let cache = self.cached_bytes.lock().unwrap();
+            if let Some((ref cached_url, ref cached_data, cached_dur)) = *cache {
+                if cached_url == path_or_url {
+                    let mut meta = self.meta.lock().unwrap();
+                    meta.buffered_percent = 100.0;
+                    return Ok((cached_data.clone(), cached_dur));
+                }
+            }
+        }
+
+        let local_asset_path = Self::resolve_local_asset_path(path_or_url);
+
+        let bytes = if local_asset_path.is_none()
+            && (path_or_url.starts_with("http://") || path_or_url.starts_with("https://"))
+        {
             let resp = ureq::get(path_or_url)
                 .timeout(Duration::from_secs(30))
                 .call()
@@ -576,7 +641,7 @@ impl AudioPlayer {
                 if let Some(total) = total_len {
                     if total > 0 {
                         let pct = ((downloaded as f32 / total as f32) * 100.0).clamp(0.0, 100.0);
-                        if (pct - last_pct) >= 1.0 || pct >= 100.0 {
+                        if (pct - last_pct) >= 2.0 || pct >= 100.0 {
                             last_pct = pct;
                             let mut meta = self.meta.lock().unwrap();
                             meta.buffered_percent = pct;
@@ -593,12 +658,17 @@ impl AudioPlayer {
             data
         } else {
             // Local file or asset path
-            let clean_path = path_or_url.strip_prefix("file://").unwrap_or(path_or_url);
-            #[cfg(target_os = "windows")]
-            let clean_path = if clean_path.starts_with('/') && clean_path.len() > 2 && clean_path.as_bytes()[2] == b':' {
-                &clean_path[1..]
+            let clean_path_owned;
+            let clean_path = if let Some(ref asset_path) = local_asset_path {
+                asset_path.as_str()
             } else {
-                clean_path
+                let stripped = path_or_url.strip_prefix("file://").unwrap_or(path_or_url);
+                if stripped.contains('%') && path_or_url.starts_with("file://") {
+                    clean_path_owned = Self::percent_decode(stripped);
+                    Self::strip_windows_leading_slash(&clean_path_owned)
+                } else {
+                    Self::strip_windows_leading_slash(stripped)
+                }
             };
 
             let mut file = File::open(Path::new(clean_path))
@@ -617,6 +687,10 @@ impl AudioPlayer {
 
         // Probe duration using Symphonia
         let duration = Self::probe_duration(&bytes).unwrap_or(0.0);
+        {
+            let mut cache = self.cached_bytes.lock().unwrap();
+            *cache = Some((path_or_url.to_string(), bytes.clone(), duration));
+        }
         Ok((bytes, duration))
     }
 
@@ -704,5 +778,46 @@ mod tests {
         assert!(res_exp.is_err());
         let res_eq = player.crossfade("invalid://non-existent-url-12345", 2.0, Some("equalPower"));
         assert!(res_eq.is_err());
+    }
+
+    #[test]
+    fn test_resolve_local_asset_path_and_percent_decode() {
+        assert_eq!(
+            AudioPlayer::resolve_local_asset_path("http://asset.localhost/C%3A%2FUsers%2FMy%20Track%20%281%29.mp3"),
+            Some("C:/Users/My Track (1).mp3".to_string())
+        );
+        assert_eq!(
+            AudioPlayer::resolve_local_asset_path("https://asset.localhost/C%3A%5CMusic%5Csong.flac"),
+            Some("C:\\Music\\song.flac".to_string())
+        );
+        #[cfg(target_os = "windows")]
+        let expected_asset = Some("C:/Music/söng.mp3".to_string());
+        #[cfg(not(target_os = "windows"))]
+        let expected_asset = Some("/C:/Music/söng.mp3".to_string());
+        assert_eq!(
+            AudioPlayer::resolve_local_asset_path("asset://localhost/%2FC%3A%2FMusic%2Fs%C3%B6ng.mp3"),
+            expected_asset
+        );
+        assert_eq!(
+            AudioPlayer::resolve_local_asset_path("https://example.com/stream.mp3"),
+            None
+        );
+    }
+
+    #[test]
+    fn test_read_media_uses_cached_bytes() {
+        let player = AudioPlayer::new();
+        {
+            let mut cache = player.cached_bytes.lock().unwrap();
+            *cache = Some((
+                "https://example.com/cached.mp3".to_string(),
+                vec![1, 2, 3, 4],
+                123.45,
+            ));
+        }
+        let (bytes, dur) = player.read_media("https://example.com/cached.mp3").unwrap();
+        assert_eq!(bytes, vec![1, 2, 3, 4]);
+        assert!((dur - 123.45).abs() < 0.001);
+        assert_eq!(player.get_state().buffered_percent, 100.0);
     }
 }

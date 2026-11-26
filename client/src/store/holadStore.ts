@@ -433,13 +433,18 @@ export const useHoladStore = create<HoladState>((set, get) => {
 
         // Backward compatibility for colors/themes
         const settingsStore = useSettingsStore.getState();
-        if (state.accentColor !== undefined && state.accentColor !== settingsStore.accentColor) {
-          settingsStore.setAccentColor(state.accentColor);
-        }
-        if (state.customColors !== undefined && Array.isArray(state.customColors)) {
-          if (state.customColors[0] !== settingsStore.customColors[0]) settingsStore.setCustomColor(0, state.customColors[0]);
-          if (state.customColors[1] !== settingsStore.customColors[1]) settingsStore.setCustomColor(1, state.customColors[1]);
-          if (state.customColors[2] !== settingsStore.customColors[2]) settingsStore.setCustomColor(2, state.customColors[2]);
+        if (settingsStore.syncTheme) {
+          if (typeof state.accentColor === 'string' && state.accentColor.trim() !== '' && state.accentColor !== settingsStore.accentColor) {
+            settingsStore.setAccentColor(state.accentColor);
+          }
+          if (Array.isArray(state.customColors)) {
+            for (let i = 0; i < 3; i++) {
+              const col = state.customColors[i];
+              if (typeof col === 'string' && col.trim() !== '' && col !== settingsStore.customColors[i]) {
+                settingsStore.setCustomColor(i, col);
+              }
+            }
+          }
         }
 
         const effectiveActive = newActive !== undefined ? newActive : currentActive;
@@ -583,13 +588,18 @@ export const useHoladStore = create<HoladState>((set, get) => {
         set({ isApplyingRemoteState: true });
 
         const settingsStore = useSettingsStore.getState();
-        if (settings.accentColor !== undefined && settings.accentColor !== settingsStore.accentColor) {
-          settingsStore.setAccentColor(settings.accentColor);
-        }
-        if (settings.customColors !== undefined && Array.isArray(settings.customColors)) {
-          if (settings.customColors[0] !== settingsStore.customColors[0]) settingsStore.setCustomColor(0, settings.customColors[0]);
-          if (settings.customColors[1] !== settingsStore.customColors[1]) settingsStore.setCustomColor(1, settings.customColors[1]);
-          if (settings.customColors[2] !== settingsStore.customColors[2]) settingsStore.setCustomColor(2, settings.customColors[2]);
+        if (settingsStore.syncTheme) {
+          if (typeof settings.accentColor === 'string' && settings.accentColor.trim() !== '' && settings.accentColor !== settingsStore.accentColor) {
+            settingsStore.setAccentColor(settings.accentColor);
+          }
+          if (Array.isArray(settings.customColors)) {
+            for (let i = 0; i < 3; i++) {
+              const col = settings.customColors[i];
+              if (typeof col === 'string' && col.trim() !== '' && col !== settingsStore.customColors[i]) {
+                settingsStore.setCustomColor(i, col);
+              }
+            }
+          }
         }
 
         setTimeout(() => {

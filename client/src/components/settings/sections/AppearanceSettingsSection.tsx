@@ -164,10 +164,11 @@ export default function AppearanceSettingsSection({
       settings.setCustomColor(editingColorIndex, customHexInput);
       settings.setAccentColor(customHexInput);
       if (settings.syncTheme) {
+        const freshSettings = useSettingsStore.getState();
         pushPreferences({
-          theme: settings.theme,
+          theme: freshSettings.theme,
           accent_color: customHexInput,
-          custom_colors: JSON.stringify(settings.customColors),
+          custom_colors: JSON.stringify(freshSettings.customColors),
         });
       }
     }

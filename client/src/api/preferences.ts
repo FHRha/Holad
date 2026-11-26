@@ -1,16 +1,36 @@
 import { getHoladServerUrl } from '../utils/serverConfig';
 import { useAuthStore } from '../store/authStore';
+import { useDemoStore } from '../store/demoStore';
 
 const getHeaders = () => {
   const { user, token, salt, url } = useAuthStore.getState();
-  return {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-user': encodeURIComponent(user || ''),
     'x-token': encodeURIComponent(token || ''),
     'x-salt': encodeURIComponent(salt || ''),
     'x-url': encodeURIComponent(url || '')
   };
+  const demoSessionId =
+    useDemoStore.getState().sessionId ||
+    (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('holad_demo_session_id') : null);
+  if (demoSessionId) {
+    headers['x-demo-session'] = demoSessionId;
+  }
+  return headers;
 };
+
+function resolvePreferencesUser(): string | null {
+  const { isDemoMode, guestUserId } = useDemoStore.getState();
+  if (isDemoMode && guestUserId) {
+    return guestUserId;
+  }
+  const { user, isAuthenticated } = useAuthStore.getState();
+  if (isAuthenticated && user) {
+    return user;
+  }
+  return null;
+}
 
 export interface ServerPreferences {
   theme?: string;
@@ -22,8 +42,8 @@ export interface ServerPreferences {
 }
 
 export async function fetchPreferences(): Promise<ServerPreferences | null> {
-  const { user, isAuthenticated } = useAuthStore.getState();
-  if (!isAuthenticated || !user) return null;
+  const user = resolvePreferencesUser();
+  if (!user) return null;
 
   try {
     const res = await fetch(`${getHoladServerUrl()}/api/holad/preferences/${encodeURIComponent(user)}`, {
@@ -40,8 +60,8 @@ export async function fetchPreferences(): Promise<ServerPreferences | null> {
 let activePreferencesAbortController: AbortController | null = null;
 
 export async function pushPreferences(prefs: Partial<ServerPreferences>): Promise<boolean> {
-  const { user, isAuthenticated } = useAuthStore.getState();
-  if (!isAuthenticated || !user) return false;
+  const user = resolvePreferencesUser();
+  if (!user) return false;
 
   if (activePreferencesAbortController) {
     activePreferencesAbortController.abort();
