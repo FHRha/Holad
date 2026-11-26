@@ -288,8 +288,25 @@ function getEnv(envOverrides = {}) {
   if (ndkRoot) {
     const prebuiltHost = process.platform === 'win32' ? 'windows-x86_64' : (process.platform === 'darwin' ? 'darwin-x86_64' : 'linux-x86_64');
     const ndkBin = path.join(ndkRoot, 'toolchains', 'llvm', 'prebuilt', prebuiltHost, 'bin');
-    if (fs.existsSync(ndkBin) && env[pathKey] && !env[pathKey].includes(ndkBin)) {
-      env[pathKey] = `${ndkBin}${path.delimiter}${env[pathKey]}`;
+    if (fs.existsSync(ndkBin)) {
+      if (env[pathKey] && !env[pathKey].includes(ndkBin)) {
+        env[pathKey] = `${ndkBin}${path.delimiter}${env[pathKey]}`;
+      }
+      const clangExt = process.platform === 'win32' ? '.cmd' : '';
+      const arExt = process.platform === 'win32' ? '.exe' : '';
+      const androidClang = path.join(ndkBin, `aarch64-linux-android24-clang${clangExt}`);
+      const androidAr = path.join(ndkBin, `llvm-ar${arExt}`);
+      if (fs.existsSync(androidClang)) {
+        if (!env.CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER) {
+          env.CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER = androidClang;
+        }
+        if (!env.CC_aarch64_linux_android) {
+          env.CC_aarch64_linux_android = androidClang;
+        }
+      }
+      if (fs.existsSync(androidAr) && !env.AR_aarch64_linux_android) {
+        env.AR_aarch64_linux_android = androidAr;
+      }
     }
   }
 
