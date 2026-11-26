@@ -868,33 +868,23 @@ node dist/index.js
           // 2. Build Rust native library (aarch64-linux-android) and copy to jniLibs
           const tauriRustDir = path.join(ROOT_DIR, 'Tauri', 'src-tauri');
           const jniOutDir = path.join(tauriAndroidDir, 'app', 'src', 'main', 'jniLibs');
-          const hasCargoNdk = await checkCommand('cargo ndk --version', env);
-          if (hasCargoNdk) {
-            await runCommand(
-              'Android Rust Native Build (cargo-ndk)',
-              `cargo ndk -t arm64-v8a --platform 24 -o "${jniOutDir}" build --release --features custom-protocol`,
-              tauriRustDir,
-              env
-            );
-          } else {
-            await runCommand(
-              'Android Rust Native Build',
-              'cargo build --release --target aarch64-linux-android --features custom-protocol',
-              tauriRustDir,
-              env
-            );
+          await runCommand(
+            'Android Rust Native Build',
+            'cargo build --release --target aarch64-linux-android --features custom-protocol',
+            tauriRustDir,
+            env
+          );
 
-            const builtSo = path.join(tauriRustDir, 'target', 'aarch64-linux-android', 'release', 'libholad_lib.so');
-            const jniLibsDir = path.join(jniOutDir, 'arm64-v8a');
-            if (!fs.existsSync(builtSo)) {
-              throw new Error(`Built native library not found at ${builtSo}`);
-            }
-            if (!fs.existsSync(jniLibsDir)) {
-              fs.mkdirSync(jniLibsDir, { recursive: true });
-            }
-            fs.copyFileSync(builtSo, path.join(jniLibsDir, 'libholad_lib.so'));
-            console.log("[Android] Copied libholad_lib.so to jniLibs/arm64-v8a/");
+          const builtSo = path.join(tauriRustDir, 'target', 'aarch64-linux-android', 'release', 'libholad_lib.so');
+          const jniLibsDir = path.join(jniOutDir, 'arm64-v8a');
+          if (!fs.existsSync(builtSo)) {
+            throw new Error(`Built native library not found at ${builtSo}`);
           }
+          if (!fs.existsSync(jniLibsDir)) {
+            fs.mkdirSync(jniLibsDir, { recursive: true });
+          }
+          fs.copyFileSync(builtSo, path.join(jniLibsDir, 'libholad_lib.so'));
+          console.log("[Android] Copied libholad_lib.so to jniLibs/arm64-v8a/");
 
           // 3. Build APK via Gradle (skipping Gradle's rustBuild task since we just built it)
           const gradlew = process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew';

@@ -208,11 +208,6 @@ jobs:
         with:
           targets: aarch64-linux-android
 
-      - name: Install cargo-ndk
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-ndk
-
       - name: Setup Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
