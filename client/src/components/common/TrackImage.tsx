@@ -86,9 +86,7 @@ export default function TrackImage({ src: rawSrc, className = '', alt = '', trac
           !candidateSrc.startsWith('blob:') && 
           !candidateSrc.startsWith('data:') && 
           !candidateSrc.startsWith('asset:') && 
-          !candidateSrc.startsWith('capacitor:') && 
-          !candidateSrc.startsWith('file:') && 
-          !candidateSrc.startsWith('_capacitor_')) {
+          !candidateSrc.startsWith('file:')) {
         candidateSrc = getCoverArtUrl(candidateSrc, 300);
       }
 
@@ -96,8 +94,6 @@ export default function TrackImage({ src: rawSrc, className = '', alt = '', trac
       if (candidateSrc && (
         candidateSrc.startsWith('http://asset.localhost') ||
         candidateSrc.startsWith('asset://') ||
-        candidateSrc.startsWith('_capacitor_file_') ||
-        candidateSrc.startsWith('capacitor://') ||
         candidateSrc.startsWith('file://') ||
         candidateSrc.startsWith('blob:') ||
         candidateSrc.startsWith('data:')

@@ -5,6 +5,10 @@
 @layer base {
   :root,
   .dark {
+    --safe-area-inset-top: env(safe-area-inset-top, 0px);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-inset-left: env(safe-area-inset-left, 0px);
+    --safe-area-inset-right: env(safe-area-inset-right, 0px);
     --background: #000000;
     --foreground: #ffffff;
     --foreground-rgb: 255, 255, 255;
@@ -215,4 +219,26 @@ button, a, input, select, [role="button"] {
 ::view-transition-new(root) {
   animation-duration: 0.22s;
   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Safe area utility classes */
+.pt-safe {
+  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+}
+
+.pb-safe {
+  padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+}
+
+.pl-safe {
+  padding-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+}
+
+.pr-safe {
+  padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+}
+
+.px-safe {
+  padding-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
 }

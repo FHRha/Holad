@@ -5,9 +5,6 @@ export const isLocalMediaUrl = (url: string): boolean => {
     return (
         url.startsWith('http://asset.localhost') ||
         url.startsWith('asset://') ||
-        url.startsWith('_capacitor_file_') ||
-        url.includes('/_capacitor_file_') ||
-        url.startsWith('capacitor://') ||
         url.startsWith('file://') ||
         url.startsWith('blob:') ||
         url.startsWith('data:')

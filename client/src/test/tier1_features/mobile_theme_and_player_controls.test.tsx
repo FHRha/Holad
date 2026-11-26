@@ -122,7 +122,7 @@ describe('Mobile Theme & Player Controls Enhancement', () => {
       );
 
       // Buttons in the very bottom bar (Player, Queue, Info, Lyrics)
-      const tabButtons = container.querySelectorAll('.h-\\[72px\\] button');
+      const tabButtons = container.querySelectorAll('[class*="72px"] button');
       expect(tabButtons.length).toBe(4);
 
       // Click Queue tab (2nd button)
@@ -144,7 +144,7 @@ describe('Mobile Theme & Player Controls Enhancement', () => {
         </MemoryRouter>
       );
 
-      const tabButtons = container.querySelectorAll('.h-\\[72px\\] button');
+      const tabButtons = container.querySelectorAll('[class*="72px"] button');
 
       // Click Info tab (3rd button)
       fireEvent.click(tabButtons[2]);
@@ -161,7 +161,7 @@ describe('Mobile Theme & Player Controls Enhancement', () => {
         </MemoryRouter>
       );
 
-      const tabButtons = container.querySelectorAll('.h-\\[72px\\] button');
+      const tabButtons = container.querySelectorAll('[class*="72px"] button');
 
       // Click Lyrics tab (4th button)
       fireEvent.click(tabButtons[3]);
@@ -178,7 +178,7 @@ describe('Mobile Theme & Player Controls Enhancement', () => {
         </MemoryRouter>
       );
 
-      const tabButtons = container.querySelectorAll('.h-\\[72px\\] button');
+      const tabButtons = container.querySelectorAll('[class*="72px"] button');
 
       // Switch to Lyrics tab
       fireEvent.click(tabButtons[3]);
@@ -261,7 +261,7 @@ describe('Mobile Theme & Player Controls Enhancement', () => {
         </MemoryRouter>
       );
 
-      const tabButtons = container.querySelectorAll('.h-\\[72px\\] button');
+      const tabButtons = container.querySelectorAll('[class*="72px"] button');
       // Switch to Queue tab
       fireEvent.click(tabButtons[1]);
 

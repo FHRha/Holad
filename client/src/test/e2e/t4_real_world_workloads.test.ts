@@ -13,7 +13,8 @@ import {
 } from './harness';
 
 // oxlint-disable-next-line
-import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
+import { StorageManager } from '../../utils/StorageManager';
+import { isTauriMobile } from '../../utils/platform';
 import { handleDownload, cancelActiveDownload } from '../../utils/downloadHelper';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { clearAppCache } from '../../utils/storage';
@@ -41,10 +42,6 @@ import { createMockAudioElement } from '../mocks/mockAudio';
 import { convertFileSrc } from '@tauri-apps/api/core';
 // oxlint-disable-next-line
 import { downloadDir, join } from '@tauri-apps/api/path';
-// oxlint-disable-next-line
-import { Capacitor } from '@capacitor/core';
-// oxlint-disable-next-line
-import { Filesystem, Directory } from '@capacitor/filesystem';
 
 describe('Tier 4: Real-World Workload Scenarios', () => {
   beforeEach(() => {
@@ -310,9 +307,9 @@ describe('Tier 4: Real-World Workload Scenarios', () => {
   // Scenario 5: Mobile Sandbox Integrity & Storage Management (Medium Complexity)
   // ==========================================================================
   describe('Scenario 5: Mobile Sandbox Integrity & Storage Management', () => {
-    it('manages downloads, local URI playback, storage stats, and cache purge strictly within mobile Capacitor sandbox', async () => {
-      setPlatform('capacitor');
-      expect(isCapacitor()).toBe(true);
+    it('manages downloads, local URI playback, storage stats, and cache purge strictly within Tauri mobile appDataDir/Holad', async () => {
+      setPlatform('tauri-mobile');
+      expect(isTauriMobile()).toBe(true);
 
       // Step 1: Mobile album download
       const mobileAlbum = {
@@ -331,11 +328,11 @@ describe('Tier 4: Real-World Workload Scenarios', () => {
       expect(useDownloadStore.getState().downloads['mob-alb-1'].status).toBe('completed');
 
       // Step 2: Verify sandbox location
-      expect(await vfs.exists('DATA/Holad/albums/Mobile Beats')).toBe(true);
+      expect(await vfs.exists('C:/Users/MockUser/AppData/Roaming/Holad/Holad/albums/Mobile Beats')).toBe(true);
 
-      // Step 3: Play mobile track using _capacitor_file_:// URI
+      // Step 3: Play mobile track using asset.localhost URI
       const trackUri = await StorageManager.getLocalTrackUri('ms-1', 'Pocket Track 1', 'mob-alb-1');
-      expect(trackUri).toContain('_capacitor_file_');
+      expect(trackUri).toContain('http://asset.localhost/');
 
       const el = createMockAudioElement();
       const deck = new AudioDeck('mobile-deck', el);
@@ -350,7 +347,7 @@ describe('Tier 4: Real-World Workload Scenarios', () => {
       expect(localStorage.getItem('streamnavi-settings')).toBeNull();
 
       // Step 5: Mobile audio files remain 100% intact
-      expect(await vfs.exists('DATA/Holad/albums/Mobile Beats')).toBe(true);
+      expect(await vfs.exists('C:/Users/MockUser/AppData/Roaming/Holad/Holad/albums/Mobile Beats')).toBe(true);
 
       deck.destroy();
     });

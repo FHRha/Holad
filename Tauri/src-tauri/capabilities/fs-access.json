@@ -18,7 +18,9 @@
       "allow": [
         { "path": "$DOWNLOAD/Holad/**" },
         { "path": "$APPDATA/com.holad.desktop/**" },
+        { "path": "$APPDATA/com.holad.app/**" },
         { "path": "$APPDATA/Holad/**" },
+        { "path": "$APPDATA/**" },
         { "path": "$TEMP/holad_icons/**" }
       ]
     }

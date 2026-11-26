@@ -58,7 +58,7 @@ export default function MobileSearchOverlay() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 16 }}
           transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-          className="md:hidden fixed inset-0 z-[100] flex flex-col bg-gradient-to-b from-black via-black/95 to-primary/30 transform-gpu"
+          className="md:hidden fixed inset-0 z-[100] flex flex-col bg-gradient-to-b from-black via-black/95 to-primary/30 transform-gpu pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
         >
       <div className="flex items-center gap-2 px-3 py-3 border-b border-white/5 bg-background">
         <button 

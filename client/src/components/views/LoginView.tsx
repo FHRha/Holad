@@ -7,7 +7,7 @@ import { Server, User, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import md5 from 'md5';
 import { getHoladServerUrl } from '../../utils/serverConfig';
-import { isTauri, isCapacitor } from '../../utils/StorageManager';
+import { isTauri } from '../../utils/platform';
 import LanguageSelector from '../common/LanguageSelector';
 import ThemeSelector from '../common/ThemeSelector';
 
@@ -180,7 +180,7 @@ export default function LoginView() {
             )}
           </button>
           
-          {(isTauri() || isCapacitor()) && (
+          {isTauri() && (
             <button
               type="button"
               onClick={() => {

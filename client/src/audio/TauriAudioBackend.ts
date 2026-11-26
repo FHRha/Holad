@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { AudioEngineSettings, AudioState, IAudioDeck, IAudioEngine, IWebAudioPipeline, PlayTrackOptions } from './types';
 import { usePlayerStore } from '../store/playerStore';
@@ -12,7 +12,14 @@ export interface NativeAudioState {
     isPlaying: boolean;
     url?: string | null;
     bufferedPercent?: number;
+    generation?: number;
+    playbackRate?: number;
+    loopEnabled?: boolean;
+    compressorEnabled?: boolean;
+    outputDeviceId?: string | null;
 }
+
+const VIZ_BIN_COUNT = 128;
 
 /**
  * TauriAudioBackend - Native Rust audio playback backend for Tauri (Desktop & Android).
@@ -35,7 +42,16 @@ export class TauriAudioBackend implements IAudioEngine {
     private isTransitioningActive: boolean = false;
     private transitionTimeoutId: any = null;
     private unlistenFns: UnlistenFn[] = [];
-    // private isInitialized
+    private preloadedTrackId: string | null = null;
+    private preloadedUrl: string | null = null;
+    private preloadingTrackId: string | null = null;
+    private gaplessQueuedTrackId: string | null = null;
+    private gaplessQueuedUrl: string | null = null;
+    private queueingGaplessTrackId: string | null = null;
+    private vizFreqData: Uint8Array = new Uint8Array(VIZ_BIN_COUNT);
+    private vizTimeData: Uint8Array = new Uint8Array(VIZ_BIN_COUNT).fill(128);
+    private visualizerActive: boolean = false;
+    private analyserShim: AnalyserNode | null = null;
 
     private settings: AudioEngineSettings = {
         isCrossfadeEnabled: false,
@@ -80,6 +96,7 @@ export class TauriAudioBackend implements IAudioEngine {
                     useAudioStore.getState().setBuffered(this.bufferedPercent);
                 }
                 this.emit('timeupdate', this.currentTime, this.activeTrackId);
+                this.checkPreloadAndGapless();
             });
             this.unlistenFns.push(unlistenTime);
 
@@ -160,6 +177,58 @@ export class TauriAudioBackend implements IAudioEngine {
                 this.emit('ended', this.activeTrackId);
             });
             this.unlistenFns.push(unlistenEnded);
+
+            const unlistenTransitioned = await listen<NativeAudioState>('track-transitioned', (event) => {
+                const payload = event.payload;
+                if (!payload) return;
+
+                const pStore = usePlayerStore.getState();
+                let matchedTrack: any = null;
+                if (this.gaplessQueuedTrackId) {
+                    matchedTrack = pStore.queue.find((t: any) => t?.id === this.gaplessQueuedTrackId) || null;
+                }
+                if (!matchedTrack && payload.url) {
+                    matchedTrack = pStore.queue.find((t: any) => (t?.streamUrl || t?.src) === payload.url) || null;
+                }
+                if (!matchedTrack) {
+                    let nextIdx = pStore.currentIndex + 1;
+                    if (nextIdx >= pStore.queue.length && pStore.repeatMode === 'all') {
+                        nextIdx = 0;
+                    }
+                    if (nextIdx >= 0 && nextIdx < pStore.queue.length) {
+                        matchedTrack = pStore.queue[nextIdx];
+                    }
+                }
+
+                if (matchedTrack) {
+                    this.currentTrack = matchedTrack;
+                    this.activeTrackId = matchedTrack.id || null;
+                } else if (this.gaplessQueuedTrackId) {
+                    this.activeTrackId = this.gaplessQueuedTrackId;
+                }
+                this.activeTrackUrl = payload.url || this.gaplessQueuedUrl || this.activeTrackUrl;
+                this.currentTime = payload.currentTime ?? 0;
+                this.duration = payload.duration > 0 ? payload.duration : (matchedTrack?.duration || 0);
+                this.isPlaying = payload.isPlaying ?? true;
+
+                if (typeof payload.bufferedPercent === 'number') {
+                    this.bufferedPercent = payload.bufferedPercent;
+                    this.emit('progress', this.bufferedPercent);
+                    useAudioStore.getState().setBuffered(this.bufferedPercent);
+                }
+
+                this.preloadedTrackId = null;
+                this.preloadedUrl = null;
+                this.gaplessQueuedTrackId = null;
+                this.gaplessQueuedUrl = null;
+
+                if (this.duration > 0) {
+                    this.emit('durationchange', this.duration);
+                }
+                this.emit('timeupdate', this.currentTime, this.activeTrackId);
+                this.emit('trackTransitioned', this.activeTrackId, payload);
+            });
+            this.unlistenFns.push(unlistenTransitioned);
         } catch (err) {
             console.warn('[TauriAudioBackend] Failed to register Tauri audio event listeners:', err);
         }
@@ -198,6 +267,8 @@ export class TauriAudioBackend implements IAudioEngine {
         }
 
         this.activeTrackUrl = streamUrl;
+        this.gaplessQueuedTrackId = null;
+        this.gaplessQueuedUrl = null;
 
         const startPos = options.startTime || 0;
         const isGapless = Boolean(this.settings.isGaplessEnabled);
@@ -218,6 +289,8 @@ export class TauriAudioBackend implements IAudioEngine {
                     url: streamUrl,
                     durationSecs: crossfadeDur,
                     curve: crossfadeCurve,
+                    tensionX: this.settings.crossfadeTension?.x,
+                    tensionY: this.settings.crossfadeTension?.y,
                 });
                 console.log('[TauriAudioBackend] audio_crossfade successful, state:', state);
 
@@ -282,9 +355,22 @@ export class TauriAudioBackend implements IAudioEngine {
 
     public pause(): void {
         this.isPlaying = false;
+        this.stopVisualizer();
         console.log('[TauriAudioBackend] Pausing playback via audio_pause');
         invoke<NativeAudioState>('audio_pause').catch((e) => {
             console.warn('[TauriAudioBackend] audio_pause error:', e);
+        });
+    }
+
+    public stop(): void {
+        this.isPlaying = false;
+        this.stopVisualizer();
+        this.preloadedTrackId = null;
+        this.preloadedUrl = null;
+        this.gaplessQueuedTrackId = null;
+        this.gaplessQueuedUrl = null;
+        invoke<NativeAudioState>('audio_stop').catch((e) => {
+            console.warn('[TauriAudioBackend] audio_stop error:', e);
         });
     }
 
@@ -363,30 +449,115 @@ export class TauriAudioBackend implements IAudioEngine {
         });
     }
 
-    public setPlaybackRate(_rate: number): void {
-        // Rust audio playback currently runs at 1.0x native rate
+    public setPlaybackRate(rate: number): void {
+        const safeRate = typeof rate === 'number' && !isNaN(rate) && Number.isFinite(rate) && rate > 0 ? rate : 1.0;
+        invoke<NativeAudioState>('audio_set_playback_rate', { rate: safeRate }).catch((e) => {
+            console.warn('[TauriAudioBackend] audio_set_playback_rate error:', e);
+        });
     }
 
-    public setLoop(_loop: boolean): void {
-        // Loop handled at playerStore queue level
+    public setLoop(loop: boolean): void {
+        invoke<NativeAudioState>('audio_set_loop', { enabled: Boolean(loop) }).catch((e) => {
+            console.warn('[TauriAudioBackend] audio_set_loop error:', e);
+        });
+    }
+
+    public async setSinkId(sinkId: string): Promise<void> {
+        const deviceId = !sinkId || sinkId === 'default' ? null : sinkId;
+        await invoke<NativeAudioState>('audio_set_output_device', { deviceId });
     }
 
     public async preloadNextTrack(track: any): Promise<void> {
         if (!track) return;
-        let streamUrl = track?.streamUrl || track?.src;
-        if (!streamUrl && track?.id) {
-            try {
+        const trackId: string | null = track?.id || null;
+        if (trackId && (this.preloadedTrackId === trackId || this.preloadingTrackId === trackId)) {
+            return;
+        }
+        this.preloadingTrackId = trackId;
+
+        try {
+            let streamUrl = track?.streamUrl || track?.src;
+            if (!streamUrl && track?.id) {
                 const { resolveTrackAudioSource } = await import('../hooks/useTrackSource');
-                const resolved = await resolveTrackAudioSource(track);
+                const resolved = await resolveTrackAudioSource(track, { isPreload: true });
                 streamUrl = resolved.src;
-            } catch (err) {
-                console.warn('[TauriAudioBackend] Failed to preload track source:', err);
+            }
+            if (!streamUrl) return;
+
+            await invoke<NativeAudioState>('audio_preload', { url: streamUrl });
+            this.preloadedTrackId = trackId;
+            this.preloadedUrl = streamUrl;
+
+            if (this.settings.isGaplessEnabled && trackId && this.isWithinPreloadLookahead()) {
+                await this.queueGaplessTrack(trackId, streamUrl);
+            }
+        } catch (err) {
+            console.warn('[TauriAudioBackend] Failed to preload track:', err);
+        } finally {
+            if (this.preloadingTrackId === trackId) {
+                this.preloadingTrackId = null;
             }
         }
-        if (streamUrl && (streamUrl.startsWith('http://') || streamUrl.startsWith('https://'))) {
-            try {
-                fetch(streamUrl, { method: 'HEAD', mode: 'no-cors' }).catch(() => {});
-            } catch {}
+    }
+
+    private isWithinPreloadLookahead(): boolean {
+        if (this.duration <= 0) return false;
+        const lookahead = Math.max(
+            this.settings.preloadLookaheadSeconds ?? 15,
+            (this.settings.crossfadeDuration || 0) + 2,
+        );
+        return this.duration - this.currentTime <= lookahead;
+    }
+
+    private async queueGaplessTrack(trackId: string, streamUrl: string): Promise<void> {
+        if (this.gaplessQueuedTrackId === trackId || this.queueingGaplessTrackId === trackId) {
+            return;
+        }
+        this.queueingGaplessTrackId = trackId;
+        try {
+            await invoke<NativeAudioState>('audio_queue_gapless', { url: streamUrl });
+            this.gaplessQueuedTrackId = trackId;
+            this.gaplessQueuedUrl = streamUrl;
+        } catch (err) {
+            console.warn('[TauriAudioBackend] audio_queue_gapless error:', err);
+        } finally {
+            if (this.queueingGaplessTrackId === trackId) {
+                this.queueingGaplessTrackId = null;
+            }
+        }
+    }
+
+    private checkPreloadAndGapless(): void {
+        if (!this.settings.preloadNextTrack && !this.settings.isGaplessEnabled) return;
+        if (this.isTransitioningActive || !this.isWithinPreloadLookahead()) return;
+
+        const pStore = usePlayerStore.getState();
+        if (pStore.repeatMode === 'one') return;
+
+        let nextIdx = pStore.currentIndex + 1;
+        if (nextIdx >= pStore.queue.length) {
+            if (pStore.repeatMode === 'all') {
+                nextIdx = 0;
+            } else {
+                return;
+            }
+        }
+
+        const nextTrk = pStore.queue[nextIdx];
+        if (!nextTrk || nextTrk.id === this.activeTrackId || nextTrk.isUnavailable) return;
+
+        if (this.preloadedTrackId !== nextTrk.id && this.preloadingTrackId !== nextTrk.id) {
+            if (this.settings.preloadNextTrack) {
+                void this.preloadNextTrack(nextTrk);
+            }
+        } else if (
+            this.settings.isGaplessEnabled &&
+            this.preloadedTrackId === nextTrk.id &&
+            this.preloadedUrl &&
+            this.gaplessQueuedTrackId !== nextTrk.id &&
+            this.queueingGaplessTrackId !== nextTrk.id
+        ) {
+            void this.queueGaplessTrack(nextTrk.id, this.preloadedUrl);
         }
     }
 
@@ -394,6 +565,25 @@ export class TauriAudioBackend implements IAudioEngine {
         this.settings = { ...this.settings, ...settings };
         if (this.settings.isGaplessEnabled) {
             this.settings.isCrossfadeEnabled = false;
+        }
+
+        const hasCompressorUpdate =
+            settings.isLoudnessNormalizationEnabled !== undefined ||
+            settings.compressorThreshold !== undefined ||
+            settings.compressorRatio !== undefined ||
+            settings.compressorAttack !== undefined ||
+            settings.compressorRelease !== undefined;
+
+        if (hasCompressorUpdate) {
+            invoke<NativeAudioState>('audio_set_compressor', {
+                enabled: this.settings.isLoudnessNormalizationEnabled,
+                thresholdDb: this.settings.compressorThreshold,
+                ratio: this.settings.compressorRatio,
+                attackSecs: this.settings.compressorAttack,
+                releaseSecs: this.settings.compressorRelease,
+            }).catch((e) => {
+                console.warn('[TauriAudioBackend] audio_set_compressor error:', e);
+            });
         }
     }
 
@@ -474,11 +664,69 @@ export class TauriAudioBackend implements IAudioEngine {
         }
     }
 
-        public getAnalyserNode(): AnalyserNode | undefined {
-        return undefined;
+    private startVisualizer(): void {
+        if (this.visualizerActive) return;
+        this.visualizerActive = true;
+
+        const channel = new Channel<number[]>();
+        channel.onmessage = (packet: number[]) => {
+            if (!packet || packet.length < VIZ_BIN_COUNT * 2) return;
+            for (let i = 0; i < VIZ_BIN_COUNT; i++) {
+                this.vizFreqData[i] = packet[i] & 0xff;
+                this.vizTimeData[i] = packet[VIZ_BIN_COUNT + i] & 0xff;
+            }
+        };
+
+        invoke('audio_start_visualizer', { channel }).catch((e) => {
+            this.visualizerActive = false;
+            console.warn('[TauriAudioBackend] audio_start_visualizer error:', e);
+        });
+    }
+
+    private stopVisualizer(): void {
+        if (!this.visualizerActive) return;
+        this.visualizerActive = false;
+        this.vizFreqData.fill(0);
+        this.vizTimeData.fill(128);
+        invoke('audio_stop_visualizer').catch((e) => {
+            console.warn('[TauriAudioBackend] audio_stop_visualizer error:', e);
+        });
+    }
+
+    public getAnalyserNode(): AnalyserNode | undefined {
+        if (!this.analyserShim) {
+            this.analyserShim = {
+                frequencyBinCount: VIZ_BIN_COUNT,
+                fftSize: VIZ_BIN_COUNT * 2,
+                getByteFrequencyData: (array: Uint8Array): void => {
+                    const len = Math.min(array.length, VIZ_BIN_COUNT);
+                    for (let i = 0; i < len; i++) {
+                        array[i] = this.vizFreqData[i];
+                    }
+                },
+                getByteTimeDomainData: (array: Uint8Array): void => {
+                    const len = Math.min(array.length, VIZ_BIN_COUNT);
+                    for (let i = 0; i < len; i++) {
+                        array[i] = this.vizTimeData[i];
+                    }
+                },
+            } as unknown as AnalyserNode;
+        }
+
+        if (!this.visualizerActive && this.isPlaying) {
+            this.startVisualizer();
+        }
+
+        return this.analyserShim;
     }
 
     public destroy(): void {
+        this.stopVisualizer();
+        if (this.transitionTimeoutId) {
+            clearTimeout(this.transitionTimeoutId);
+            this.transitionTimeoutId = null;
+        }
+        invoke<NativeAudioState>('audio_stop').catch(() => {});
         this.unlistenFns.forEach((fn) => fn());
         this.unlistenFns = [];
         this.eventListeners.clear();

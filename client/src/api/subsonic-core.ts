@@ -1,6 +1,6 @@
 import { useAuthStore } from '../store/authStore';
 import { getHoladServerUrl } from '../utils/serverConfig';
-import { isTauri, isCapacitor } from '../utils/StorageManager';
+import { isTauri, isTauriDesktop, isTauriMobile } from '../utils/platform';
 
 export const getBaseUrl = () => {
   const { isAuthenticated, url } = useAuthStore.getState();
@@ -9,7 +9,7 @@ export const getBaseUrl = () => {
     return `${proxyUrl}/api/subsonic`;
   }
   
-  if (!isCapacitor() && !isTauri() && typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http:')) {
+  if (!isTauri() && typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http:')) {
     const proxyUrl = getHoladServerUrl();
     return `${proxyUrl}/api/subsonic`;
   }
@@ -32,8 +32,8 @@ export const getAuthParams = () => {
   cachedAuthUser = user;
   cachedAuthToken = token;
   let clientName = 'Holad-Web';
-  if (isTauri()) clientName = 'Holad-Desktop';
-  else if (isCapacitor()) clientName = 'Holad-Mobile';
+  if (isTauriMobile()) clientName = 'Holad-Mobile';
+  else if (isTauriDesktop()) clientName = 'Holad-Desktop';
   
   cachedAuthStr = `u=${encodeURIComponent(user)}&t=${token}&s=${salt}&v=1.16.1&c=${clientName}&f=json`;
   return cachedAuthStr;

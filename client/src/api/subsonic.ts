@@ -9,7 +9,7 @@ import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { getHoladServerUrl } from '../utils/serverConfig';
 
-import { isCapacitor, isTauri } from '../utils/StorageManager';
+import { isTauri } from '../utils/platform';
 
 export const getDownloadUrl = (id: string) => {
   return `${getBaseUrl()}/rest/download?id=${id}&${getAuthParams()}`;
@@ -41,9 +41,9 @@ export const getStreamUrl = (id: string, options?: { preloadChunk?: boolean }) =
     return `${proxyUrl}/api/stream/${id}?${formatParam}${chunkParam}`;
   }
 
-  // On native clients (Tauri or Capacitor) or when targetServerUrl is set without a web proxy,
+  // On native Tauri clients (Desktop or Mobile) or when targetServerUrl is set without a web proxy,
   // stream directly from Subsonic server to avoid WebView proxy/CORS issues or non-existent tauri.localhost streaming endpoints.
-  if ((isTauri() || isCapacitor() || (!proxyUrl || proxyUrl.includes('tauri.localhost'))) && targetServerUrl) {
+  if ((isTauri() || (!proxyUrl || proxyUrl.includes('tauri.localhost'))) && targetServerUrl) {
     return `${targetServerUrl}/rest/stream?id=${id}&${params}&${formatParam}&estimateContentLength=true`;
   }
 

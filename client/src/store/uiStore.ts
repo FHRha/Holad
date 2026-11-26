@@ -42,6 +42,8 @@ interface UIState {
   isNowPlayingOpen: boolean;
   toggleNowPlaying: () => void;
   setNowPlayingOpen: (open: boolean) => void;
+  isMobilePlayerExpanded: boolean;
+  setIsMobilePlayerExpanded: (open: boolean) => void;
   isSettingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
   isOfflineModalOpen: boolean;
@@ -95,6 +97,8 @@ export const useUIStore = create<UIState>()(
       isNowPlayingOpen: false,
       toggleNowPlaying: () => set((state) => ({ isNowPlayingOpen: !state.isNowPlayingOpen })),
       setNowPlayingOpen: (open) => set({ isNowPlayingOpen: open }),
+      isMobilePlayerExpanded: false,
+      setIsMobilePlayerExpanded: (open) => set({ isMobilePlayerExpanded: open }),
       isSettingsOpen: false,
       setSettingsOpen: (open) => set({ isSettingsOpen: open }),
       isOfflineModalOpen: false,

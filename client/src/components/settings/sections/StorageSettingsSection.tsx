@@ -13,7 +13,8 @@ import {
 import { toast } from 'sonner';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useDownloadStore } from '../../../store/downloadStore';
-import { StorageManager, isTauri, isCapacitor } from '../../../utils/StorageManager';
+import { StorageManager } from '../../../utils/StorageManager';
+import { isTauri, isTauriDesktop } from '../../../utils/platform';
 import { clearImageCache } from '../../../utils/imageCache';
 import StorageStatsBar from '../StorageStatsBar';
 import StorageLimitControl from '../StorageLimitControl';
@@ -112,13 +113,6 @@ export default function StorageSettingsSection({
           }
         } catch (e) {
           console.warn('Tauri covers folder cleanup error:', e);
-        }
-      } else if (isCapacitor()) {
-        try {
-          const { Filesystem, Directory } = await import('@capacitor/filesystem');
-          await Filesystem.rmdir({ path: 'Holad/covers', directory: Directory.Data, recursive: true });
-        } catch (e) {
-          console.warn('Capacitor covers folder cleanup error:', e);
         }
       }
 
@@ -238,7 +232,7 @@ export default function StorageSettingsSection({
       </SettingSection>
 
       {/* 3. Download Location (Desktop / Tauri) */}
-      {isTauri() && (
+      {isTauriDesktop() && (
         <SettingSection
           title={t('settings.download_location', 'Папка загрузок')}
           icon={<HardDrive size={16} />}
@@ -307,7 +301,7 @@ export default function StorageSettingsSection({
           </SettingSection>
 
           {/* Downloaded Music Grid (Native desktop/mobile) */}
-          {(isTauri() || isCapacitor()) && (
+          {isTauri() && (
             <DownloadedMusicGrid
               isMobile={isMobile}
               onRefreshRequested={refreshStats}

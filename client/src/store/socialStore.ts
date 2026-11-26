@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { isTauri, isCapacitor } from '../utils/StorageManager';
+import { isMobilePlatform } from '../utils/platform';
 import { jamSocket } from '../api/socket';
 import { useAuthStore } from './authStore';
 import { toast } from 'sonner';
@@ -95,8 +95,7 @@ export const getInitialJamAudioMode = (): JamAudioMode => {
     if (saved === 'speaker_dj' || saved === 'synced_audio') {
       return saved;
     }
-    const isMobile = !isTauri() && (isCapacitor() || (typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)));
-    return isMobile ? 'speaker_dj' : 'synced_audio';
+    return isMobilePlatform() ? 'speaker_dj' : 'synced_audio';
   }
   return 'synced_audio';
 };

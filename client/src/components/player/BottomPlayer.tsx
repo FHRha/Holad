@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import React, { useRef, useState, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Maximize2, Monitor, Smartphone, Tv2, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
@@ -55,7 +55,7 @@ export default function BottomPlayer() {
   const { openMenu } = useContextMenuStore();
   const { t } = useTranslation();
   const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, excludedFingerprints, toggleTrackExclude, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, isMinimized, setIsMinimized } = usePlayerStore();
-  const { toggleNowPlaying, isNowPlayingOpen } = useUIStore();
+  const { toggleNowPlaying, isNowPlayingOpen, isMobilePlayerExpanded, setIsMobilePlayerExpanded } = useUIStore();
   const audioBackend = useSettingsStore(s => s.audioBackend);
   const shouldMountAudioElements = !isTauri() || audioBackend === 'web';
   const prevAudioBackendRef = useRef(audioBackend);
@@ -89,7 +89,6 @@ export default function BottomPlayer() {
     }
   }, [currentTrack?.id, currentTrack?.albumId, currentTrack?.coverArt]);
 
-  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const percentTextRef = useRef<HTMLSpanElement>(null);
   const lastNonZeroVolumeRef = useRef<number>(volume > 0 ? volume : 0.5);
 
@@ -402,13 +401,13 @@ export default function BottomPlayer() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 15 }}
       transition={{ duration: 0.2 }}
-      className={`md:hidden fixed bottom-[56px] left-0 right-0 z-40 px-2 pb-2 ${isJamRoute && !isMinimized ? 'hidden' : ''}`}
+      className={`md:hidden fixed bottom-[calc(56px+env(safe-area-inset-bottom))] left-0 right-0 z-40 px-2 pb-2 ${isJamRoute && !isMinimized ? 'hidden' : ''}`}
     >
       <div 
         className="flex h-14 bg-[#121212]/40 backdrop-blur-xl border border-white/10 rounded-[16px] items-center px-3 gap-3 relative overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
         onClick={() => {
           if (isJamRoute) setIsMinimized(false);
-          else setIsMobileExpanded(true);
+          else setIsMobilePlayerExpanded(true);
         }}
       >
         <MiniProgressBar />
@@ -471,11 +470,11 @@ export default function BottomPlayer() {
       )}
       {DesktopPlayer}
       <AnimatePresence>
-        {!isMobileExpanded && MobileMiniPlayer}
+        {!isMobilePlayerExpanded && MobileMiniPlayer}
       </AnimatePresence>
       <div className="md:hidden">
         <AnimatePresence>
-          {isMobileExpanded && !isJamRoute && <MobilePlayerUI onClose={() => setIsMobileExpanded(false)} />}
+          {isMobilePlayerExpanded && !isJamRoute && <MobilePlayerUI onClose={() => setIsMobilePlayerExpanded(false)} />}
         </AnimatePresence>
       </div>
     </>

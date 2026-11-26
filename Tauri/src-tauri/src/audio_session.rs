@@ -942,6 +942,14 @@ pub mod windows_audio {
 
                             let _ = app.emit("audio-device-changed", &current_dev);
 
+                            // Recover/rebind native audio sink if default device is active
+                            {
+                                use tauri::Manager;
+                                if let Some(audio_service) = app.try_state::<crate::audio::AudioService>() {
+                                    audio_service.on_default_device_changed();
+                                }
+                            }
+
                             // Capture new device's session in Windows Volume Mixer
                             trigger_sync_burst();
 

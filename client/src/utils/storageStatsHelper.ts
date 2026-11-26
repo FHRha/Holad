@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { exists, readDir, stat } from '@tauri-apps/plugin-fs';
 import { join } from '@tauri-apps/api/path';
-import { StorageManager, isTauri, isCapacitor } from './StorageManager';
+import { StorageManager } from './StorageManager';
+import { isTauri } from './platform';
 import { getImageCacheStats } from './imageCache';
 import { useDownloadStore } from '../store/downloadStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -96,23 +97,6 @@ export async function getDirectorySize(dirPath: string): Promise<number> {
     } catch (e) {
       console.warn(`Error reading directory size in Tauri at ${dirPath}:`, e);
     }
-  } else if (isCapacitor()) {
-    try {
-      const { Filesystem, Directory } = await import('@capacitor/filesystem');
-      try {
-        const res = await Filesystem.readdir({ path: dirPath, directory: Directory.Data });
-        for (const file of res.files) {
-          const childPath = `${dirPath}/${file.name}`;
-          if (file.type === 'directory') {
-            totalBytes += await getDirectorySize(childPath);
-          } else {
-            totalBytes += file.size || 0;
-          }
-        }
-      } catch {}
-    } catch (e) {
-      console.warn(`Error reading directory size in Capacitor at ${dirPath}:`, e);
-    }
   }
 
   return totalBytes;
@@ -140,17 +124,6 @@ export async function calculateStorageStatistics(customDownloadDir?: string | nu
       diskImageBytes = coversSize;
     } catch (err) {
       console.warn('Error calculating Tauri storage sizes:', err);
-    }
-  } else if (isCapacitor()) {
-    try {
-      const tracksSize = await getDirectorySize('Holad/tracks');
-      const albumsSize = await getDirectorySize('Holad/albums');
-      const coversSize = await getDirectorySize('Holad/covers');
-
-      audioBytes = tracksSize + albumsSize;
-      diskImageBytes = coversSize;
-    } catch (err) {
-      console.warn('Error calculating Capacitor storage sizes:', err);
     }
   }
 

@@ -16,12 +16,14 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: any[]) => mockInvoke(...args),
 }));
 
-// Mock isTauri to return true
-vi.mock('../../utils/StorageManager', async (importOriginal) => {
+// Mock isTauriDesktop to return true
+vi.mock('../../utils/platform', async (importOriginal) => {
   const actual = await importOriginal<any>();
   return {
     ...actual,
     isTauri: () => true,
+    isTauriDesktop: () => true,
+    isTauriMobile: () => false,
   };
 });
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { isTauri, isCapacitor } from '../utils/StorageManager';
+import { isTauri } from '../utils/platform';
 import { useAuthStore } from '../store/authStore';
 import { useHoladStore } from '../store/holadStore';
 import { usePlayerStore } from '../store/playerStore';
@@ -103,27 +103,7 @@ export function useWindowVisibility(): boolean {
     document.addEventListener('pause', handlePause);
     document.addEventListener('resume', handleResume);
 
-    // 2. Native Capacitor mobile lifecycle (screen locked / app sent to background)
-    let unlistenCapacitor: (() => void) | null = null;
-    if (isCapacitor()) {
-      import('@capacitor/app').then(({ App }) => {
-        App.addListener('appStateChange', ({ isActive }) => {
-          const visible = Boolean(isActive);
-          setGlobalWindowVisible(visible);
-          if (visible) {
-            checkAndRestoreSockets();
-          }
-        }).then((handle) => {
-          unlistenCapacitor = () => {
-            if (handle && typeof handle.remove === 'function') {
-              handle.remove();
-            }
-          };
-        }).catch(() => {});
-      }).catch(() => {});
-    }
-
-    // 3. Native Tauri events (WM_SIZE minimize/restore and tray hide/show)
+    // 2. Native Tauri events (WM_SIZE minimize/restore and tray hide/show)
     let unlistenTauri: (() => void) | null = null;
     if (isTauri()) {
       import('@tauri-apps/api/event').then(({ listen }) => {
@@ -154,9 +134,6 @@ export function useWindowVisibility(): boolean {
       window.removeEventListener('blur', handleBlur);
       document.removeEventListener('pause', handlePause);
       document.removeEventListener('resume', handleResume);
-      if (unlistenCapacitor) {
-        unlistenCapacitor();
-      }
       if (unlistenTauri) {
         unlistenTauri();
       }

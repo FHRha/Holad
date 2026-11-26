@@ -7,7 +7,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { clearAppCache } from '../../utils/storage';
 import { useDownloadStore } from '../../store/downloadStore';
-import { isTauri, isCapacitor } from '../../utils/StorageManager';
+import { isTauri } from '../../utils/platform';
 import { openExternalLink } from '../../utils/linkHelper';
 import { useSettingsStore } from '../../store/settingsStore';
 import { usePlayerStore } from '../../store/playerStore';
@@ -28,7 +28,7 @@ export default function Sidebar() {
   const isJamGuest = isJamRoute && (role === 'listener' || role === 'cohost');
   const basePath = isJamRoute ? '/jam' : '';
   const appIcon = useSettingsStore(state => state.appIcon);
-  const isNative = isTauri() || isCapacitor();
+  const isNative = isTauri();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);

@@ -12,7 +12,8 @@ import {
   setSimulatedNetworkFailure,
 } from './harness';
 
-import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
+import { StorageManager, isTauri } from '../../utils/StorageManager';
+import { isTauriMobile, isTauriDesktop } from '../../utils/platform';
 import { handleDownload } from '../../utils/downloadHelper';
 import { getCachedImageUrl } from '../../utils/imageCache';
 import { clearAppCache } from '../../utils/storage';
@@ -30,9 +31,6 @@ import { createMockAudioElement } from '../mocks/mockAudio';
 import { convertFileSrc } from '@tauri-apps/api/core';
 // oxlint-disable-next-line
 import { downloadDir, join } from '@tauri-apps/api/path';
-import { Capacitor } from '@capacitor/core';
-// oxlint-disable-next-line
-import { Filesystem, Directory } from '@capacitor/filesystem';
 
 describe('Tier 1: Feature Coverage (Features 1 to 12)', () => {
   beforeEach(() => {
@@ -75,11 +73,11 @@ describe('Tier 1: Feature Coverage (Features 1 to 12)', () => {
       expect(assetUrl).toContain(encodeURIComponent('C:/Music/Holad/01 - Café Música & Rock (2026) #1.mp3'));
     });
 
-    it('[T1.1.4] Non-Tauri environment fallback retains valid string URI', () => {
-      setPlatform('capacitor');
-      const capUri = Capacitor.convertFileSrc('DATA/Holad/tracks/song.mp3');
-      expect(capUri).toContain('_capacitor_file_');
-      expect(capUri).toContain('song.mp3');
+    it('[T1.1.4] Tauri mobile environment retains valid asset URI', () => {
+      setPlatform('tauri-mobile');
+      const mobileUri = convertFileSrc('C:/Users/MockUser/AppData/Roaming/Holad/Holad/tracks/song.mp3');
+      expect(mobileUri).toContain('http://asset.localhost/');
+      expect(mobileUri).toContain('song.mp3');
     });
 
     it('[T1.1.5] Security scope validation permits paths within user storage and returns asset URI', async () => {
@@ -132,13 +130,13 @@ describe('Tier 1: Feature Coverage (Features 1 to 12)', () => {
       expect(savedPath).toContain('D:/CustomMusicFolder');
     });
 
-    it('[T1.2.4] Mobile environment routes to internal sandbox Directory.Data', async () => {
-      setPlatform('capacitor');
+    it('[T1.2.4] Tauri mobile environment routes to appDataDir/Holad', async () => {
+      setPlatform('tauri-mobile');
       const audioData = new Uint8Array([50, 60, 70]);
       const savedPath = await StorageManager.saveTrack('mobile_track.mp3', audioData, undefined, 'tracks');
 
-      expect(savedPath).toContain('Holad/tracks/mobile_track.mp3');
-      const exists = await vfs.exists(`DATA/${savedPath}`);
+      expect(savedPath).toContain('AppData/Roaming/Holad/Holad/tracks/mobile_track.mp3');
+      const exists = await vfs.exists(savedPath);
       expect(exists).toBe(true);
     });
 
@@ -790,53 +788,54 @@ describe('Tier 1: Feature Coverage (Features 1 to 12)', () => {
   // Feature 10: Mobile Settings Storage Tab Integration
   // ==========================================================================
   describe('Feature 10: Mobile Settings Storage Tab Integration', () => {
-    it('[T1.10.1] Platform switcher toggles to Capacitor with isCapacitor() === true and isTauri() === false', () => {
-      setPlatform('capacitor');
-      expect(isCapacitor()).toBe(true);
-      expect(isTauri()).toBe(false);
+    it('[T1.10.1] Platform switcher toggles to Tauri mobile with isTauriMobile() === true and isTauriDesktop() === false', () => {
+      setPlatform('tauri-mobile');
+      expect(isTauri()).toBe(true);
+      expect(isTauriMobile()).toBe(true);
+      expect(isTauriDesktop()).toBe(false);
     });
 
-    it('[T1.10.2] Mobile StorageManager.saveTrack writes base64 data to Directory.Data inside Holad folder', async () => {
-      setPlatform('capacitor');
+    it('[T1.10.2] Mobile StorageManager.saveTrack writes data to appDataDir/Holad folder', async () => {
+      setPlatform('tauri-mobile');
       const audioBytes = new Uint8Array([7, 8, 9, 10]);
       const saved = await StorageManager.saveTrack('mobile_sound.mp3', audioBytes, undefined, 'tracks');
 
-      expect(saved).toBe('Holad/tracks/mobile_sound.mp3');
-      expect(await vfs.exists('DATA/Holad/tracks/mobile_sound.mp3')).toBe(true);
+      expect(saved).toBe('C:/Users/MockUser/AppData/Roaming/Holad/Holad/tracks/mobile_sound.mp3');
+      expect(await vfs.exists(saved)).toBe(true);
     });
 
-    it('[T1.10.3] Mobile StorageManager.removeTrack invokes Filesystem.deleteFile in Directory.Data', async () => {
-      setPlatform('capacitor');
-      const targetPath = 'Holad/tracks/delete_mobile.mp3';
-      await vfs.writeFile(`DATA/${targetPath}`, new Uint8Array([1, 2]));
+    it('[T1.10.3] Mobile StorageManager.removeTrack removes file via Tauri fs', async () => {
+      setPlatform('tauri-mobile');
+      const targetPath = 'C:/Users/MockUser/AppData/Roaming/Holad/Holad/tracks/delete_mobile.mp3';
+      await vfs.writeFile(targetPath, new Uint8Array([1, 2]));
 
       await StorageManager.removeTrack(targetPath);
-      expect(await vfs.exists(`DATA/${targetPath}`)).toBe(false);
+      expect(await vfs.exists(targetPath)).toBe(false);
     });
 
-    it('[T1.10.4] Mobile StorageManager.removeDirectory invokes Filesystem.rmdir with recursive flag', async () => {
-      setPlatform('capacitor');
-      const dirPath = 'Holad/albums/MobileAlbum';
-      await vfs.writeFile(`DATA/${dirPath}/s1.mp3`, new Uint8Array([1, 2]));
+    it('[T1.10.4] Mobile StorageManager.removeDirectory removes directory recursively via Tauri fs', async () => {
+      setPlatform('tauri-mobile');
+      const dirPath = 'C:/Users/MockUser/AppData/Roaming/Holad/Holad/albums/MobileAlbum';
+      await vfs.writeFile(`${dirPath}/s1.mp3`, new Uint8Array([1, 2]));
 
       await StorageManager.removeDirectory(dirPath);
-      expect(await vfs.exists(`DATA/${dirPath}`)).toBe(false);
-      expect(await vfs.exists(`DATA/${dirPath}/s1.mp3`)).toBe(false);
+      expect(await vfs.exists(dirPath)).toBe(false);
+      expect(await vfs.exists(`${dirPath}/s1.mp3`)).toBe(false);
     });
 
-    it('[T1.10.5] Mobile getLocalTrackUri returns _capacitor_file_:// URI for completed downloads', async () => {
-      setPlatform('capacitor');
-      const trackId = 'cap-track-1';
-      const capPath = 'Holad/tracks/CapSong.mp3';
-      await vfs.writeFile(`DATA/${capPath}`, new Uint8Array([10, 20]));
+    it('[T1.10.5] Mobile getLocalTrackUri returns asset.localhost URI for completed downloads', async () => {
+      setPlatform('tauri-mobile');
+      const trackId = 'mobile-track-1';
+      const mobilePath = 'C:/Users/MockUser/AppData/Roaming/Holad/Holad/tracks/MobileSong.mp3';
+      await vfs.writeFile(mobilePath, new Uint8Array([10, 20]));
 
-      useDownloadStore.getState().startDownload(trackId, 'Cap Song', 'track');
-      useDownloadStore.getState().completeDownload(trackId, capPath);
+      useDownloadStore.getState().startDownload(trackId, 'Mobile Song', 'track');
+      useDownloadStore.getState().completeDownload(trackId, mobilePath);
 
-      const uri = await StorageManager.getLocalTrackUri(trackId, 'Cap Song');
+      const uri = await StorageManager.getLocalTrackUri(trackId, 'Mobile Song');
       expect(uri).not.toBeNull();
-      expect(uri).toContain('_capacitor_file_');
-      expect(uri).toContain('CapSong.mp3');
+      expect(uri).toContain('http://asset.localhost/');
+      expect(uri).toContain('MobileSong.mp3');
     });
   });
 

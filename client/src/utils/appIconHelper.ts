@@ -1,14 +1,5 @@
-import { isTauri, isCapacitor } from './StorageManager';
-import { registerPlugin } from '@capacitor/core';
+import { isTauriDesktop } from './platform';
 import { getBasePath } from './basePath';
-
-interface AppIconPluginType {
-  setAppIcon(options: { icon: string }): Promise<{ success: boolean; icon: string }>;
-}
-
-const AppIconPlugin = isCapacitor()
-  ? registerPlugin<AppIconPluginType>('AppIcon')
-  : null;
 
 export function getAssetUrl(path: string): string {
   const base = getBasePath();
@@ -45,21 +36,12 @@ export async function applyAppIcon(icon: string) {
   }
 
   // 2. Tauri: desktop window, tray, taskbar
-  if (isTauri()) {
+  if (isTauriDesktop()) {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('set_app_icon', { icon });
     } catch (e) {
       console.error('Failed to update Tauri app icon:', e);
-    }
-  }
-
-  // 3. Mobile (Capacitor / Android): launcher activity alias
-  if (isCapacitor() && AppIconPlugin) {
-    try {
-      await AppIconPlugin.setAppIcon({ icon });
-    } catch (e) {
-      console.error('Failed to update Capacitor app icon:', e);
     }
   }
 }

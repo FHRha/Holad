@@ -1,15 +1,23 @@
-use std::fs::File;
-use std::io::{BufReader, Cursor, Read};
-use std::path::Path;
+use std::collections::VecDeque;
+use std::f32::consts::FRAC_PI_2;
+use std::io::BufReader;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rodio::{Decoder, DeviceSinkBuilder, MixerDeviceSink, Player, Source};
+use rodio::cpal::traits::{DeviceTrait, HostTrait};
+use rodio::source::SeekError;
+use rodio::{ChannelCount, Decoder, DeviceSinkBuilder, MixerDeviceSink, Player, SampleRate, Source};
 use serde::{Deserialize, Serialize};
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
+use tauri::ipc::Channel;
+
+use super::dsp::{CompressorParams, CompressorSource};
+use super::stream::MediaInput;
+use super::visualizer::{VisualizerEngine, VisualizerTapSource};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -33,25 +41,175 @@ pub struct AudioState {
     pub url: Option<String>,
     pub buffered_percent: f32,
     pub generation: u64,
+    pub playback_rate: f32,
+    pub loop_enabled: bool,
+    pub compressor_enabled: bool,
+    pub output_device_id: Option<String>,
 }
 
-struct PlaybackMetadata {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioOutputDeviceInfo {
+    pub id: String,
+    pub name: String,
+    pub is_default: bool,
+}
+
+pub(crate) struct PlaybackMetadata {
+    pub(crate) url: String,
+    pub(crate) duration: f64,
+    pub(crate) volume: f32,
+    pub(crate) playback_rate: f32,
+    pub(crate) loop_enabled: bool,
+    pub(crate) status: PlaybackStatus,
+    pub(crate) position_secs: f64,
+    pub(crate) start_offset_secs: f64,
+    pub(crate) track_base_pos_secs: f64,
+    pub(crate) buffered_percent: f32,
+    pub(crate) generation: u64,
+    pub(crate) is_crossfading: bool,
+}
+
+struct ActiveTrackSource {
+    url: String,
+    input: MediaInput,
+    duration: f64,
+    cancel: Arc<AtomicBool>,
+}
+
+struct QueuedTrack {
     url: String,
     duration: f64,
-    volume: f32,
-    status: PlaybackStatus,
-    position_secs: f64,
-    start_offset_secs: f64,
-    buffered_percent: f32,
+    started: Arc<AtomicBool>,
     generation: u64,
-    is_crossfading: bool,
+    input: MediaInput,
+    cancel: Arc<AtomicBool>,
+}
+
+/// Source wrapper that sets an atomic flag on the very first sample pulled by `rodio::Player`,
+/// enabling exact 0ms gapless track transition detection.
+pub struct TrackBoundarySource<S>
+where
+    S: Source<Item = f32>,
+{
+    inner: S,
+    started: Arc<AtomicBool>,
+    notified: bool,
+}
+
+impl<S> TrackBoundarySource<S>
+where
+    S: Source<Item = f32>,
+{
+    pub fn new(inner: S, started: Arc<AtomicBool>) -> Self {
+        Self {
+            inner,
+            started,
+            notified: false,
+        }
+    }
+}
+
+impl<S> Iterator for TrackBoundarySource<S>
+where
+    S: Source<Item = f32>,
+{
+    type Item = f32;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.notified {
+            self.notified = true;
+            self.started.store(true, Ordering::Release);
+        }
+        self.inner.next()
+    }
+}
+
+impl<S> Source for TrackBoundarySource<S>
+where
+    S: Source<Item = f32>,
+{
+    fn current_span_len(&self) -> Option<usize> {
+        self.inner.current_span_len()
+    }
+
+    fn channels(&self) -> ChannelCount {
+        self.inner.channels()
+    }
+
+    fn sample_rate(&self) -> SampleRate {
+        self.inner.sample_rate()
+    }
+
+    fn total_duration(&self) -> Option<Duration> {
+        self.inner.total_duration()
+    }
+
+    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
+        self.inner.try_seek(pos)
+    }
+}
+
+/// Calculates outgoing and incoming deck gain values for a normalized time `t` in `[0.0, 1.0]`.
+/// Matches `client/src/audio/crossfade.ts` (`calculateCrossfadeGains`).
+pub fn calculate_crossfade_gains(
+    t: f32,
+    curve: &str,
+    tension_x: Option<f32>,
+    tension_y: Option<f32>,
+) -> (f32, f32) {
+    let clamped_t = t.clamp(0.0, 1.0);
+
+    if curve == "linear" {
+        return (1.0 - clamped_t, clamped_t);
+    }
+
+    let default_y = match curve {
+        "exponential" => 0.35,
+        _ => 0.707,
+    };
+
+    let xc = tension_x.unwrap_or(0.5).clamp(0.25, 0.75);
+    let yc = tension_y.unwrap_or(default_y).clamp(0.05, 0.95);
+
+    if curve == "equalPower" && (xc - 0.5).abs() < 0.005 && (yc - 0.707).abs() < 0.005 {
+        return (
+            (clamped_t * FRAC_PI_2).cos(),
+            ((1.0 - clamped_t) * FRAC_PI_2).cos(),
+        );
+    }
+
+    let denom = clamped_t * (1.0 - xc) + (1.0 - clamped_t) * xc;
+    let tau = if denom > 0.0 {
+        (clamped_t * (1.0 - xc)) / denom
+    } else {
+        clamped_t
+    };
+
+    let p = -yc.log2();
+    let in_gain = tau.powf(p).clamp(0.0, 1.0);
+    let out_gain = (1.0 - tau).powf(p).clamp(0.0, 1.0);
+
+    (out_gain, in_gain)
 }
 
 pub struct AudioPlayer {
     sink: Mutex<Option<MixerDeviceSink>>,
     player: Mutex<Option<Arc<Player>>>,
-    meta: Arc<Mutex<PlaybackMetadata>>,
-    cached_bytes: Mutex<Option<(String, Vec<u8>, f64)>>,
+    pub(crate) meta: Arc<Mutex<PlaybackMetadata>>,
+    active_source: Mutex<Option<ActiveTrackSource>>,
+    preloaded: Mutex<Option<ActiveTrackSource>>,
+    queued_tracks: Mutex<VecDeque<QueuedTrack>>,
+    selected_device_id: Mutex<Option<String>>,
+    compressor_params: Arc<CompressorParams>,
+    visualizer: VisualizerEngine,
+}
+
+impl Default for AudioPlayer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AudioPlayer {
@@ -63,14 +221,62 @@ impl AudioPlayer {
                 url: String::new(),
                 duration: 0.0,
                 volume: 1.0,
+                playback_rate: 1.0,
+                loop_enabled: false,
                 status: PlaybackStatus::Idle,
                 position_secs: 0.0,
                 start_offset_secs: 0.0,
+                track_base_pos_secs: 0.0,
                 buffered_percent: 0.0,
                 generation: 0,
                 is_crossfading: false,
             })),
-            cached_bytes: Mutex::new(None),
+            active_source: Mutex::new(None),
+            preloaded: Mutex::new(None),
+            queued_tracks: Mutex::new(VecDeque::new()),
+            selected_device_id: Mutex::new(None),
+            compressor_params: Arc::new(CompressorParams::new()),
+            visualizer: VisualizerEngine::new(),
+        }
+    }
+
+    fn open_sink_for_device(device_id: Option<&str>) -> Result<MixerDeviceSink, String> {
+        if let Some(target_id) = device_id {
+            let host = rodio::cpal::default_host();
+            if let Ok(devices) = host.output_devices() {
+                for dev in devices {
+                    let id_match = dev.id().ok().map(|id| id.to_string()).as_deref() == Some(target_id);
+                    let name_match = dev
+                        .description()
+                        .ok()
+                        .map(|d| d.name().to_string())
+                        .as_deref()
+                        == Some(target_id);
+                    if id_match || name_match {
+                        match DeviceSinkBuilder::from_device(dev).and_then(|b| b.open_stream()) {
+                            Ok(mut s) => {
+                                s.log_on_drop(false);
+                                return Ok(s);
+                            }
+                            Err(e) => {
+                                log::warn!(
+                                    "[AudioPlayer] Failed to open selected device '{}': {:?}, falling back to default",
+                                    target_id,
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        match DeviceSinkBuilder::open_default_sink() {
+            Ok(mut s) => {
+                s.log_on_drop(false);
+                Ok(s)
+            }
+            Err(e) => Err(format!("No audio output device available: {:?}", e)),
         }
     }
 
@@ -80,14 +286,82 @@ impl AudioPlayer {
             return Ok(());
         }
 
-        match DeviceSinkBuilder::open_default_sink() {
-            Ok(mut s) => {
-                s.log_on_drop(false);
-                *sink_guard = Some(s);
-                Ok(())
-            }
-            Err(e) => Err(format!("No audio output device available: {:?}", e)),
+        let dev_id = self.selected_device_id.lock().unwrap().clone();
+        let sink = Self::open_sink_for_device(dev_id.as_deref())?;
+        *sink_guard = Some(sink);
+        Ok(())
+    }
+
+    fn cancel_queued_tracks(&self) {
+        let mut queue = self.queued_tracks.lock().unwrap();
+        while let Some(q) = queue.pop_front() {
+            q.cancel.store(true, Ordering::Release);
+            q.input.cancel();
         }
+    }
+
+    fn acquire_media_input(
+        &self,
+        path_or_url: &str,
+        generation: u64,
+        meta_arc: Arc<Mutex<PlaybackMetadata>>,
+    ) -> Result<(MediaInput, f64, Arc<AtomicBool>), String> {
+        // Reuse preloaded handle if URL matches
+        {
+            let mut pre = self.preloaded.lock().unwrap();
+            if let Some(ref entry) = *pre {
+                if entry.url == path_or_url {
+                    let entry = pre.take().unwrap();
+                    if let Ok(mut meta) = meta_arc.lock() {
+                        if meta.generation == generation {
+                            meta.buffered_percent = 100.0;
+                        }
+                    }
+                    return Ok((entry.input, entry.duration, entry.cancel));
+                }
+            }
+        }
+
+        let cancel = Arc::new(AtomicBool::new(false));
+        let input = MediaInput::open(path_or_url, meta_arc, generation, Arc::clone(&cancel))?;
+        let duration = Self::probe_duration(&input).unwrap_or(0.0);
+        Ok((input, duration, cancel))
+    }
+
+    fn append_dsp_pipeline<S>(&self, player: &Player, source: S, boundary_flag: Option<Arc<AtomicBool>>)
+    where
+        S: Source<Item = f32> + Send + 'static,
+    {
+        let comp = CompressorSource::new(source, Arc::clone(&self.compressor_params));
+        let tapped = VisualizerTapSource::new(
+            comp,
+            self.visualizer.active_flag(),
+            self.visualizer.producer_handle(),
+        );
+        if let Some(flag) = boundary_flag {
+            player.append(TrackBoundarySource::new(tapped, flag));
+        } else {
+            player.append(tapped);
+        }
+    }
+
+    fn decode_and_append(
+        &self,
+        player: &Player,
+        input: MediaInput,
+        start_pos: f64,
+        boundary_flag: Option<Arc<AtomicBool>>,
+    ) -> Result<(), String> {
+        let decoder = Decoder::try_from(BufReader::new(input))
+            .map_err(|e| format!("Failed to decode audio: {:?}", e))?;
+
+        if start_pos > 0.0 {
+            let skipped = decoder.skip_duration(Duration::from_secs_f64(start_pos));
+            self.append_dsp_pipeline(player, skipped, boundary_flag);
+        } else {
+            self.append_dsp_pipeline(player, decoder, boundary_flag);
+        }
+        Ok(())
     }
 
     pub fn load_source(
@@ -97,12 +371,20 @@ impl AudioPlayer {
         position_secs: Option<f64>,
     ) -> Result<AudioState, String> {
         self.ensure_device_sink()?;
+        self.cancel_queued_tracks();
 
-        // Stop existing player
+        // Stop existing player & cancel previous HTTP stream
         {
             let mut player_guard = self.player.lock().unwrap();
             if let Some(old_player) = player_guard.take() {
                 old_player.stop();
+            }
+        }
+        {
+            let mut active = self.active_source.lock().unwrap();
+            if let Some(old_src) = active.take() {
+                old_src.cancel.store(true, Ordering::Release);
+                old_src.input.cancel();
             }
         }
 
@@ -117,15 +399,20 @@ impl AudioPlayer {
             meta.buffered_percent = 0.0;
             meta.position_secs = initial_pos;
             meta.start_offset_secs = initial_pos;
+            meta.track_base_pos_secs = 0.0;
             meta.generation
         };
 
-        // Fetch or read audio data
-        let (bytes, duration_secs) = self.read_media(path_or_url)?;
+        let (input, duration_secs, cancel) =
+            self.acquire_media_input(path_or_url, current_gen, Arc::clone(&self.meta))?;
 
-        let current_volume = {
+        let decode_handle = input
+            .clone_handle()
+            .map_err(|e| format!("Failed to clone media handle: {}", e))?;
+
+        let (current_volume, playback_rate) = {
             let meta = self.meta.lock().unwrap();
-            meta.volume
+            (meta.volume, meta.playback_rate)
         };
 
         let new_player = {
@@ -137,21 +424,10 @@ impl AudioPlayer {
         if !autoplay {
             new_player.pause();
         }
-
         new_player.set_volume(current_volume);
+        new_player.set_speed(playback_rate);
 
-        // Decode audio stream
-        let cursor = Cursor::new(bytes);
-        let source = Decoder::try_from(BufReader::new(cursor))
-            .map_err(|e| format!("Failed to decode audio: {:?}", e))?;
-
-        if initial_pos > 0.0 {
-            let seek_dur = Duration::from_secs_f64(initial_pos);
-            let skipped_source = source.skip_duration(seek_dur);
-            new_player.append(skipped_source);
-        } else {
-            new_player.append(source);
-        }
+        self.decode_and_append(&new_player, decode_handle, initial_pos, None)?;
 
         if !autoplay {
             new_player.pause();
@@ -166,6 +442,16 @@ impl AudioPlayer {
         };
 
         {
+            let mut active = self.active_source.lock().unwrap();
+            *active = Some(ActiveTrackSource {
+                url: path_or_url.to_string(),
+                input,
+                duration: duration_secs,
+                cancel,
+            });
+        }
+
+        {
             let mut player_guard = self.player.lock().unwrap();
             *player_guard = Some(Arc::new(new_player));
         }
@@ -178,8 +464,112 @@ impl AudioPlayer {
                 meta.status = status;
                 meta.position_secs = initial_pos;
                 meta.start_offset_secs = initial_pos;
-                meta.buffered_percent = 100.0;
+                meta.track_base_pos_secs = 0.0;
             }
+        }
+
+        Ok(self.get_state())
+    }
+
+    /// Preloads a track in background/handle cache without interrupting current playback.
+    pub fn preload(&self, path_or_url: &str) -> Result<AudioState, String> {
+        {
+            let pre = self.preloaded.lock().unwrap();
+            if let Some(ref existing) = *pre {
+                if existing.url == path_or_url {
+                    return Ok(self.get_state());
+                }
+            }
+        }
+
+        // Use an isolated dummy metadata arc so preloading never clobbers the playing track's buffered_percent
+        let dummy_meta = Arc::new(Mutex::new(PlaybackMetadata {
+            url: path_or_url.to_string(),
+            duration: 0.0,
+            volume: 1.0,
+            playback_rate: 1.0,
+            loop_enabled: false,
+            status: PlaybackStatus::Loading,
+            position_secs: 0.0,
+            start_offset_secs: 0.0,
+            track_base_pos_secs: 0.0,
+            buffered_percent: 0.0,
+            generation: 1,
+            is_crossfading: false,
+        }));
+
+        let cancel = Arc::new(AtomicBool::new(false));
+        let input = MediaInput::open(path_or_url, dummy_meta, 1, Arc::clone(&cancel))?;
+        let duration = Self::probe_duration(&input).unwrap_or(0.0);
+
+        let mut pre = self.preloaded.lock().unwrap();
+        if let Some(old) = pre.take() {
+            old.cancel.store(true, Ordering::Release);
+            old.input.cancel();
+        }
+        *pre = Some(ActiveTrackSource {
+            url: path_or_url.to_string(),
+            input,
+            duration,
+            cancel,
+        });
+
+        Ok(self.get_state())
+    }
+
+    /// Appends the next track directly onto the active `rodio::Player` for true 0ms gapless transition.
+    pub fn queue_gapless(&self, path_or_url: &str) -> Result<AudioState, String> {
+        let player_arc = {
+            let guard = self.player.lock().unwrap();
+            guard.clone()
+        };
+
+        let Some(player) = player_arc else {
+            return self.load_source(path_or_url, true, None);
+        };
+
+        if player.empty() {
+            return self.load_source(path_or_url, true, None);
+        }
+
+        let dummy_meta = Arc::new(Mutex::new(PlaybackMetadata {
+            url: path_or_url.to_string(),
+            duration: 0.0,
+            volume: 1.0,
+            playback_rate: 1.0,
+            loop_enabled: false,
+            status: PlaybackStatus::Loading,
+            position_secs: 0.0,
+            start_offset_secs: 0.0,
+            track_base_pos_secs: 0.0,
+            buffered_percent: 0.0,
+            generation: 1,
+            is_crossfading: false,
+        }));
+
+        let (input, duration, cancel) = self.acquire_media_input(path_or_url, 1, dummy_meta)?;
+        let decode_handle = input
+            .clone_handle()
+            .map_err(|e| format!("Failed to clone gapless handle: {}", e))?;
+
+        let next_gen = {
+            let meta = self.meta.lock().unwrap();
+            meta.generation.wrapping_add(1)
+        };
+
+        let started_flag = Arc::new(AtomicBool::new(false));
+        self.decode_and_append(&player, decode_handle, 0.0, Some(Arc::clone(&started_flag)))?;
+
+        {
+            let mut queue = self.queued_tracks.lock().unwrap();
+            queue.push_back(QueuedTrack {
+                url: path_or_url.to_string(),
+                duration,
+                started: started_flag,
+                generation: next_gen,
+                input,
+                cancel,
+            });
         }
 
         Ok(self.get_state())
@@ -190,8 +580,11 @@ impl AudioPlayer {
         path_or_url: &str,
         duration_secs: f64,
         curve: Option<&str>,
+        tension_x: Option<f32>,
+        tension_y: Option<f32>,
     ) -> Result<AudioState, String> {
         self.ensure_device_sink()?;
+        self.cancel_queued_tracks();
 
         let was_playing = {
             let player_guard = self.player.lock().unwrap();
@@ -201,7 +594,6 @@ impl AudioPlayer {
                 .unwrap_or(false)
         };
 
-        // If not currently playing or duration is negligible, fallback to normal load
         if !was_playing || duration_secs <= 0.05 {
             return self.load_source(path_or_url, true, None);
         }
@@ -214,11 +606,15 @@ impl AudioPlayer {
             meta.generation
         };
 
-        let (bytes, duration_secs_total) = self.read_media(path_or_url)?;
+        let (input, duration_secs_total, cancel) =
+            self.acquire_media_input(path_or_url, current_gen, Arc::clone(&self.meta))?;
+        let decode_handle = input
+            .clone_handle()
+            .map_err(|e| format!("Failed to clone crossfade handle: {}", e))?;
 
-        let current_volume = {
+        let (current_volume, playback_rate) = {
             let meta = self.meta.lock().unwrap();
-            meta.volume
+            (meta.volume, meta.playback_rate)
         };
 
         let new_player = {
@@ -227,23 +623,29 @@ impl AudioPlayer {
             Player::connect_new(mixer_sink.mixer())
         };
 
-        // Start new player muted and begin playback
         new_player.set_volume(0.0);
-
-        let cursor = Cursor::new(bytes);
-        let source = Decoder::try_from(BufReader::new(cursor))
-            .map_err(|e| format!("Failed to decode audio for crossfade: {:?}", e))?;
-
-        new_player.append(source);
+        new_player.set_speed(playback_rate);
+        self.decode_and_append(&new_player, decode_handle, 0.0, None)?;
         new_player.play();
 
         let new_player_arc = Arc::new(new_player);
 
-        // Swap out the active player and take old player for gradual fade-out
         let old_player_opt = {
             let mut player_guard = self.player.lock().unwrap();
             let old = player_guard.take();
             *player_guard = Some(Arc::clone(&new_player_arc));
+            old
+        };
+
+        let old_source_opt = {
+            let mut active = self.active_source.lock().unwrap();
+            let old = active.take();
+            *active = Some(ActiveTrackSource {
+                url: path_or_url.to_string(),
+                input,
+                duration: duration_secs_total,
+                cancel,
+            });
             old
         };
 
@@ -254,7 +656,7 @@ impl AudioPlayer {
             meta.status = PlaybackStatus::Playing;
             meta.position_secs = 0.0;
             meta.start_offset_secs = 0.0;
-            meta.buffered_percent = 100.0;
+            meta.track_base_pos_secs = 0.0;
         }
 
         let fade_new = Arc::clone(&new_player_arc);
@@ -266,38 +668,28 @@ impl AudioPlayer {
         std::thread::Builder::new()
             .name("holad-audio-crossfade".to_string())
             .spawn(move || {
-                let steps = (crossfade_dur * 50.0).round().max(10.0) as usize; // 50 updates per sec (20ms interval)
+                let steps = (crossfade_dur * 50.0).round().max(10.0) as usize;
                 let step_dur = Duration::from_secs_f64(crossfade_dur / steps as f64);
-                let exp_p = -0.35f32.log2(); // ~1.5146 for exponential dip (yc = 0.35)
 
                 for i in 1..=steps {
                     std::thread::sleep(step_dur);
-                    let progress = i as f32 / steps as f32; // 0.0 -> 1.0
+                    let progress = i as f32 / steps as f32;
+                    let (out_gain, in_gain) =
+                        calculate_crossfade_gains(progress, &curve_type, tension_x, tension_y);
 
-                    let (in_gain, out_gain) = match curve_type.as_str() {
-                        "linear" => (progress * target_vol, (1.0 - progress) * target_vol),
-                        "exponential" => (
-                            progress.powf(exp_p) * target_vol,
-                            (1.0 - progress).powf(exp_p) * target_vol,
-                        ),
-                        _ => {
-                            // "equalPower" default: constant acoustic energy (sine / cosine)
-                            (
-                                (progress * std::f32::consts::FRAC_PI_2).sin() * target_vol,
-                                ((1.0 - progress) * std::f32::consts::FRAC_PI_2).sin() * target_vol,
-                            )
-                        }
-                    };
-
-                    fade_new.set_volume(in_gain);
+                    fade_new.set_volume(in_gain * target_vol);
                     if let Some(ref old) = old_player_opt {
-                        old.set_volume(out_gain);
+                        old.set_volume(out_gain * target_vol);
                     }
                 }
 
                 fade_new.set_volume(target_vol);
                 if let Some(ref old) = old_player_opt {
                     old.stop();
+                }
+                if let Some(old_src) = old_source_opt {
+                    old_src.cancel.store(true, Ordering::Release);
+                    old_src.input.cancel();
                 }
 
                 if let Ok(mut meta) = meta_arc.lock() {
@@ -332,7 +724,7 @@ impl AudioPlayer {
             player.pause();
             let mut meta = self.meta.lock().unwrap();
             if pos > 0.0 {
-                let total = meta.start_offset_secs + pos;
+                let total = (meta.start_offset_secs + pos - meta.track_base_pos_secs).max(0.0);
                 meta.position_secs = if meta.duration > 0.0 {
                     total.min(meta.duration)
                 } else {
@@ -348,6 +740,38 @@ impl AudioPlayer {
         }
     }
 
+    pub fn stop(&self) -> Result<AudioState, String> {
+        self.cancel_queued_tracks();
+
+        {
+            let mut player_guard = self.player.lock().unwrap();
+            if let Some(old_player) = player_guard.take() {
+                old_player.stop();
+            }
+        }
+        {
+            let mut active = self.active_source.lock().unwrap();
+            if let Some(old_src) = active.take() {
+                old_src.cancel.store(true, Ordering::Release);
+                old_src.input.cancel();
+            }
+        }
+        {
+            let mut meta = self.meta.lock().unwrap();
+            meta.generation = meta.generation.wrapping_add(1);
+            meta.url.clear();
+            meta.duration = 0.0;
+            meta.status = PlaybackStatus::Idle;
+            meta.position_secs = 0.0;
+            meta.start_offset_secs = 0.0;
+            meta.track_base_pos_secs = 0.0;
+            meta.buffered_percent = 0.0;
+            meta.is_crossfading = false;
+        }
+
+        Ok(self.get_state())
+    }
+
     pub fn seek(&self, position_secs: f64) -> Result<AudioState, String> {
         let player_guard = self.player.lock().unwrap();
         let mut meta = self.meta.lock().unwrap();
@@ -358,13 +782,14 @@ impl AudioPlayer {
         }
 
         let pos = position_secs.max(0.0);
-        let seek_duration = Duration::from_secs_f64(pos);
+        let seek_duration = Duration::from_secs_f64(meta.track_base_pos_secs + pos);
 
         if let Some(ref player) = *player_guard {
             match player.try_seek(seek_duration) {
                 Ok(_) => {
                     meta.position_secs = pos;
                     meta.start_offset_secs = 0.0;
+                    meta.track_base_pos_secs = 0.0;
                     drop(meta);
                     drop(player_guard);
                     return Ok(self.get_state());
@@ -375,7 +800,6 @@ impl AudioPlayer {
             }
         }
 
-        // Fallback: recreate player from source and skip to target duration
         drop(meta);
         drop(player_guard);
 
@@ -385,11 +809,41 @@ impl AudioPlayer {
 
     fn seek_by_reload(&self, url: &str, pos: f64) -> Result<(), String> {
         self.ensure_device_sink()?;
-        let (bytes, duration_secs) = self.read_media(url)?;
 
-        let (current_volume, was_playing) = {
+        let clone_opt = {
+            let active = self.active_source.lock().unwrap();
+            active
+                .as_ref()
+                .filter(|s| s.url == url)
+                .and_then(|s| s.input.clone_handle().ok().map(|h| (h, s.duration)))
+        };
+
+        let (decode_handle, duration_secs) = if let Some((h, dur)) = clone_opt {
+            (h, dur)
+        } else {
+            let cur_gen = self.meta.lock().unwrap().generation;
+            let (input, dur, cancel) =
+                self.acquire_media_input(url, cur_gen, Arc::clone(&self.meta))?;
+            let h = input
+                .clone_handle()
+                .map_err(|e| format!("Failed to clone handle on seek: {}", e))?;
+            let mut active = self.active_source.lock().unwrap();
+            *active = Some(ActiveTrackSource {
+                url: url.to_string(),
+                input,
+                duration: dur,
+                cancel,
+            });
+            (h, dur)
+        };
+
+        let (current_volume, playback_rate, was_playing) = {
             let meta = self.meta.lock().unwrap();
-            (meta.volume, meta.status == PlaybackStatus::Playing)
+            (
+                meta.volume,
+                meta.playback_rate,
+                meta.status == PlaybackStatus::Playing,
+            )
         };
 
         let new_player = {
@@ -399,16 +853,13 @@ impl AudioPlayer {
         };
 
         new_player.set_volume(current_volume);
-        let cursor = Cursor::new(bytes);
-        let source = Decoder::try_from(BufReader::new(cursor))
-            .map_err(|e| format!("Failed to decode audio on seek: {:?}", e))?;
-
-        let seek_dur = Duration::from_secs_f64(pos);
-        let skipped_source = source.skip_duration(seek_dur);
-        new_player.append(skipped_source);
+        new_player.set_speed(playback_rate);
+        self.decode_and_append(&new_player, decode_handle, pos, None)?;
 
         if !was_playing {
             new_player.pause();
+        } else {
+            new_player.play();
         }
 
         {
@@ -423,13 +874,13 @@ impl AudioPlayer {
             let mut meta = self.meta.lock().unwrap();
             meta.position_secs = pos;
             meta.start_offset_secs = pos;
+            meta.track_base_pos_secs = 0.0;
             meta.duration = duration_secs;
-            meta.buffered_percent = 100.0;
-            if was_playing {
-                meta.status = PlaybackStatus::Playing;
+            meta.status = if was_playing {
+                PlaybackStatus::Playing
             } else {
-                meta.status = PlaybackStatus::Paused;
-            }
+                PlaybackStatus::Paused
+            };
         }
 
         Ok(())
@@ -448,18 +899,239 @@ impl AudioPlayer {
         Ok(self.get_state())
     }
 
+    pub fn set_playback_rate(&self, rate: f32) -> Result<AudioState, String> {
+        let clamped = rate.clamp(0.25, 4.0);
+        let player_guard = self.player.lock().unwrap();
+        if let Some(ref player) = *player_guard {
+            player.set_speed(clamped);
+        }
+        let mut meta = self.meta.lock().unwrap();
+        meta.playback_rate = clamped;
+        drop(meta);
+        drop(player_guard);
+        Ok(self.get_state())
+    }
+
+    pub fn set_loop(&self, enabled: bool) -> Result<AudioState, String> {
+        let mut meta = self.meta.lock().unwrap();
+        meta.loop_enabled = enabled;
+        drop(meta);
+        Ok(self.get_state())
+    }
+
+    pub fn set_compressor_enabled(&self, enabled: bool) -> Result<AudioState, String> {
+        self.compressor_params.set_enabled(enabled);
+        Ok(self.get_state())
+    }
+
+    pub fn set_compressor_params(
+        &self,
+        enabled: Option<bool>,
+        threshold_db: Option<f32>,
+        knee_db: Option<f32>,
+        ratio: Option<f32>,
+        attack_secs: Option<f32>,
+        release_secs: Option<f32>,
+    ) -> Result<AudioState, String> {
+        if let Some(en) = enabled {
+            self.compressor_params.set_enabled(en);
+        }
+        self.compressor_params
+            .set_params(threshold_db, knee_db, ratio, attack_secs, release_secs);
+        Ok(self.get_state())
+    }
+
+    pub fn start_visualizer(&self, channel: Channel<Vec<u8>>) {
+        self.visualizer.start(channel);
+    }
+
+    pub fn stop_visualizer(&self) {
+        self.visualizer.stop();
+    }
+
+    pub fn list_output_devices(&self) -> Result<Vec<AudioOutputDeviceInfo>, String> {
+        let host = rodio::cpal::default_host();
+        let default_id = host
+            .default_output_device()
+            .and_then(|d| d.id().ok())
+            .map(|id| id.to_string());
+        let devices = host
+            .output_devices()
+            .map_err(|e| format!("Failed to enumerate output devices: {:?}", e))?;
+
+        let mut list = Vec::new();
+        for dev in devices {
+            let raw_name = dev
+                .description()
+                .map(|d| d.name().to_string())
+                .unwrap_or_else(|_| "Unknown Audio Device".to_string());
+            let id = dev
+                .id()
+                .map(|id| id.to_string())
+                .unwrap_or_else(|_| raw_name.clone());
+            let is_default = default_id.as_deref() == Some(id.as_str());
+            let clean_name = Self::clean_device_display_name(&raw_name);
+            list.push(AudioOutputDeviceInfo {
+                id,
+                name: clean_name,
+                is_default,
+            });
+        }
+        Ok(list)
+    }
+
+    fn clean_device_display_name(raw_name: &str) -> String {
+        #[cfg(target_os = "windows")]
+        {
+            let lower = raw_name.to_lowercase();
+            let is_hp = lower.contains("headphone")
+                || lower.contains("headset")
+                || lower.contains("earphone")
+                || lower.contains("наушники")
+                || lower.contains("гарнитура")
+                || lower.contains("airpods")
+                || lower.contains("buds");
+            crate::audio_session::windows_audio::format_clean_device_name(raw_name, is_hp)
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            raw_name.to_string()
+        }
+    }
+
+    pub fn is_using_default_device(&self) -> bool {
+        self.selected_device_id.lock().unwrap().is_none()
+    }
+
+    pub fn has_active_sink(&self) -> bool {
+        self.sink.lock().unwrap().is_some()
+    }
+
+    pub fn set_output_device(&self, device_id: Option<String>) -> Result<AudioState, String> {
+        {
+            let mut selected = self.selected_device_id.lock().unwrap();
+            *selected = device_id.filter(|s| !s.trim().is_empty());
+        }
+
+        if self.has_active_sink() {
+            self.recover_output_sink()?;
+        }
+
+        Ok(self.get_state())
+    }
+
+    pub fn recover_output_sink(&self) -> Result<AudioState, String> {
+        // Capture current playback state before dropping old player & sink
+        let (url, saved_pos, was_playing, should_restore) = {
+            let state = self.get_state();
+            let active_url = state.url.clone().unwrap_or_default();
+            let restore = !active_url.is_empty()
+                && (state.status == PlaybackStatus::Playing
+                    || state.status == PlaybackStatus::Paused);
+            (
+                active_url,
+                state.current_time,
+                state.status == PlaybackStatus::Playing,
+                restore,
+            )
+        };
+
+        // Drop old player first, then old sink
+        {
+            let mut player_guard = self.player.lock().unwrap();
+            if let Some(old_player) = player_guard.take() {
+                old_player.stop();
+            }
+        }
+        {
+            let mut sink_guard = self.sink.lock().unwrap();
+            *sink_guard = None;
+        }
+
+        let dev_id = self.selected_device_id.lock().unwrap().clone();
+        let new_sink = Self::open_sink_for_device(dev_id.as_deref())?;
+        {
+            let mut sink_guard = self.sink.lock().unwrap();
+            *sink_guard = Some(new_sink);
+        }
+
+        if should_restore {
+            self.seek_by_reload(&url, saved_pos)?;
+            if was_playing {
+                let _ = self.play();
+            } else {
+                let _ = self.pause();
+            }
+        }
+
+        Ok(self.get_state())
+    }
+
+    /// Checks if a queued gapless track has started playing and promotes its metadata.
+    /// Returns `true` if a gapless track transition occurred.
+    fn check_gapless_transition(&self) -> bool {
+        let mut queue = self.queued_tracks.lock().unwrap();
+        let mut transitioned = false;
+
+        while let Some(front) = queue.front() {
+            if !front.started.load(Ordering::Acquire) {
+                break;
+            }
+            let next_track = queue.pop_front().unwrap();
+            transitioned = true;
+
+            let player_pos = {
+                let player_guard = self.player.lock().unwrap();
+                player_guard
+                    .as_ref()
+                    .map(|p| p.get_pos().as_secs_f64())
+                    .unwrap_or(0.0)
+            };
+
+            {
+                let mut active = self.active_source.lock().unwrap();
+                if let Some(old_src) = active.take() {
+                    old_src.cancel.store(true, Ordering::Release);
+                    old_src.input.cancel();
+                }
+                *active = Some(ActiveTrackSource {
+                    url: next_track.url.clone(),
+                    input: next_track.input,
+                    duration: next_track.duration,
+                    cancel: next_track.cancel,
+                });
+            }
+
+            {
+                let mut meta = self.meta.lock().unwrap();
+                meta.url = next_track.url;
+                meta.duration = next_track.duration;
+                meta.generation = next_track.generation;
+                meta.position_secs = 0.0;
+                meta.start_offset_secs = 0.0;
+                meta.track_base_pos_secs = player_pos;
+                meta.buffered_percent = 100.0;
+                meta.status = PlaybackStatus::Playing;
+            }
+        }
+
+        transitioned
+    }
+
     pub fn get_state(&self) -> AudioState {
+        self.check_gapless_transition();
+
         let player_guard = self.player.lock().unwrap();
         let meta = self.meta.lock().unwrap();
+        let selected_device_id = self.selected_device_id.lock().unwrap().clone();
 
         let current_time = if let Some(ref player) = *player_guard {
             if player.empty() && meta.duration > 0.0 {
                 meta.duration
             } else {
-                let pos = player.get_pos();
-                let p = pos.as_secs_f64();
-                if p > 0.0 {
-                    let total = meta.start_offset_secs + p;
+                let pos = player.get_pos().as_secs_f64();
+                if pos > 0.0 {
+                    let total = (meta.start_offset_secs + pos - meta.track_base_pos_secs).max(0.0);
                     if meta.duration > 0.0 {
                         total.min(meta.duration)
                     } else {
@@ -506,197 +1178,79 @@ impl AudioPlayer {
             duration: meta.duration,
             volume: meta.volume,
             is_playing,
-            url: if meta.url.is_empty() { None } else { Some(meta.url.clone()) },
+            url: if meta.url.is_empty() {
+                None
+            } else {
+                Some(meta.url.clone())
+            },
             buffered_percent: meta.buffered_percent,
             generation: meta.generation,
+            playback_rate: meta.playback_rate,
+            loop_enabled: meta.loop_enabled,
+            compressor_enabled: self.compressor_params.is_enabled(),
+            output_device_id: selected_device_id,
         }
     }
 
-    pub fn tick_position(&self, delta_secs: f64) {
-        let player_guard = self.player.lock().unwrap();
-        if let Some(ref player) = *player_guard {
-            let meta_status = {
-                let meta = self.meta.lock().unwrap();
-                meta.status
-            };
-            if meta_status != PlaybackStatus::Paused
-                && meta_status != PlaybackStatus::Loading
-                && meta_status != PlaybackStatus::Idle
-                && !player.is_paused()
-                && !player.empty()
-            {
-                let mut meta = self.meta.lock().unwrap();
-                let pos = player.get_pos().as_secs_f64();
-                if pos > 0.0 {
-                    let total = meta.start_offset_secs + pos;
-                    meta.position_secs = if meta.duration > 0.0 {
-                        total.min(meta.duration)
-                    } else {
-                        total
-                    };
+    /// Advances position tracking, detects gapless transitions, and handles `loop_enabled`.
+    /// Returns `true` if a gapless track transition occurred.
+    pub fn tick_position(&self, delta_secs: f64) -> bool {
+        let transitioned = self.check_gapless_transition();
+
+        let (should_loop, loop_url) = {
+            let player_guard = self.player.lock().unwrap();
+            let mut meta = self.meta.lock().unwrap();
+
+            if let Some(ref player) = *player_guard {
+                if meta.loop_enabled
+                    && player.empty()
+                    && !meta.url.is_empty()
+                    && !meta.is_crossfading
+                    && meta.status == PlaybackStatus::Playing
+                {
+                    (true, meta.url.clone())
                 } else {
-                    meta.position_secs += delta_secs;
-                    if meta.duration > 0.0 && meta.position_secs > meta.duration {
-                        meta.position_secs = meta.duration;
-                    }
-                }
-            }
-        }
-    }
-
-    fn hex_val(b: u8) -> Option<u8> {
-        match b {
-            b'0'..=b'9' => Some(b - b'0'),
-            b'a'..=b'f' => Some(b - b'a' + 10),
-            b'A'..=b'F' => Some(b - b'A' + 10),
-            _ => None,
-        }
-    }
-
-    fn percent_decode(input: &str) -> String {
-        let bytes = input.as_bytes();
-        let mut out = Vec::with_capacity(bytes.len());
-        let mut i = 0;
-        while i < bytes.len() {
-            if bytes[i] == b'%' && i + 2 < bytes.len() {
-                if let (Some(h), Some(l)) = (Self::hex_val(bytes[i + 1]), Self::hex_val(bytes[i + 2])) {
-                    out.push((h << 4) | l);
-                    i += 3;
-                    continue;
-                }
-            }
-            out.push(bytes[i]);
-            i += 1;
-        }
-        String::from_utf8_lossy(&out).into_owned()
-    }
-
-    fn strip_windows_leading_slash(path: &str) -> &str {
-        #[cfg(target_os = "windows")]
-        {
-            if path.starts_with('/') && path.len() > 2 && path.as_bytes()[2] == b':' {
-                return &path[1..];
-            }
-        }
-        path
-    }
-
-    fn resolve_local_asset_path(path_or_url: &str) -> Option<String> {
-        let stripped = path_or_url
-            .strip_prefix("http://asset.localhost/")
-            .or_else(|| path_or_url.strip_prefix("https://asset.localhost/"))
-            .or_else(|| path_or_url.strip_prefix("asset://localhost/"))?;
-
-        let decoded = Self::percent_decode(stripped);
-        let normalized = Self::strip_windows_leading_slash(&decoded).to_string();
-        Some(normalized)
-    }
-
-    fn read_media(&self, path_or_url: &str) -> Result<(Vec<u8>, f64), String> {
-        {
-            let cache = self.cached_bytes.lock().unwrap();
-            if let Some((ref cached_url, ref cached_data, cached_dur)) = *cache {
-                if cached_url == path_or_url {
-                    let mut meta = self.meta.lock().unwrap();
-                    meta.buffered_percent = 100.0;
-                    return Ok((cached_data.clone(), cached_dur));
-                }
-            }
-        }
-
-        let local_asset_path = Self::resolve_local_asset_path(path_or_url);
-
-        let bytes = if local_asset_path.is_none()
-            && (path_or_url.starts_with("http://") || path_or_url.starts_with("https://"))
-        {
-            let resp = ureq::get(path_or_url)
-                .timeout(Duration::from_secs(30))
-                .call()
-                .map_err(|e| format!("HTTP request error for {}: {:?}", path_or_url, e))?;
-
-            let total_len: Option<u64> = resp
-                .header("content-length")
-                .and_then(|v| v.trim().parse::<u64>().ok());
-
-            let mut reader = resp.into_reader();
-            let mut data = match total_len {
-                Some(len) if len > 0 && len < 200 * 1024 * 1024 => Vec::with_capacity(len as usize),
-                _ => Vec::new(),
-            };
-
-            let mut chunk = [0u8; 64 * 1024];
-            let mut downloaded: u64 = 0;
-            let mut last_pct: f32 = 0.0;
-
-            loop {
-                let n = reader
-                    .read(&mut chunk)
-                    .map_err(|e| format!("Failed to read HTTP audio stream: {:?}", e))?;
-                if n == 0 {
-                    break;
-                }
-                data.extend_from_slice(&chunk[..n]);
-                downloaded += n as u64;
-
-                if let Some(total) = total_len {
-                    if total > 0 {
-                        let pct = ((downloaded as f32 / total as f32) * 100.0).clamp(0.0, 100.0);
-                        if (pct - last_pct) >= 2.0 || pct >= 100.0 {
-                            last_pct = pct;
-                            let mut meta = self.meta.lock().unwrap();
-                            meta.buffered_percent = pct;
+                    if meta.status != PlaybackStatus::Paused
+                        && meta.status != PlaybackStatus::Loading
+                        && meta.status != PlaybackStatus::Idle
+                        && !player.is_paused()
+                        && !player.empty()
+                    {
+                        let pos = player.get_pos().as_secs_f64();
+                        if pos > 0.0 {
+                            let total =
+                                (meta.start_offset_secs + pos - meta.track_base_pos_secs).max(0.0);
+                            meta.position_secs = if meta.duration > 0.0 {
+                                total.min(meta.duration)
+                            } else {
+                                total
+                            };
+                        } else {
+                            meta.position_secs += delta_secs * (meta.playback_rate as f64);
+                            if meta.duration > 0.0 && meta.position_secs > meta.duration {
+                                meta.position_secs = meta.duration;
+                            }
                         }
                     }
+                    (false, String::new())
                 }
-            }
-
-            {
-                let mut meta = self.meta.lock().unwrap();
-                meta.buffered_percent = 100.0;
-            }
-
-            data
-        } else {
-            // Local file or asset path
-            let clean_path_owned;
-            let clean_path = if let Some(ref asset_path) = local_asset_path {
-                asset_path.as_str()
             } else {
-                let stripped = path_or_url.strip_prefix("file://").unwrap_or(path_or_url);
-                if stripped.contains('%') && path_or_url.starts_with("file://") {
-                    clean_path_owned = Self::percent_decode(stripped);
-                    Self::strip_windows_leading_slash(&clean_path_owned)
-                } else {
-                    Self::strip_windows_leading_slash(stripped)
-                }
-            };
-
-            let mut file = File::open(Path::new(clean_path))
-                .map_err(|e| format!("Failed to open file {}: {:?}", clean_path, e))?;
-            let mut data = Vec::new();
-            file.read_to_end(&mut data)
-                .map_err(|e| format!("Failed to read file {}: {:?}", clean_path, e))?;
-
-            {
-                let mut meta = self.meta.lock().unwrap();
-                meta.buffered_percent = 100.0;
+                (false, String::new())
             }
-
-            data
         };
 
-        // Probe duration using Symphonia
-        let duration = Self::probe_duration(&bytes).unwrap_or(0.0);
-        {
-            let mut cache = self.cached_bytes.lock().unwrap();
-            *cache = Some((path_or_url.to_string(), bytes.clone(), duration));
+        if should_loop {
+            if let Err(e) = self.seek_by_reload(&loop_url, 0.0) {
+                log::warn!("[AudioPlayer] Loop restart failed: {}", e);
+            }
         }
-        Ok((bytes, duration))
+
+        transitioned
     }
 
-    fn probe_duration(bytes: &[u8]) -> Option<f64> {
-        let cursor = Cursor::new(bytes.to_vec());
-        let mss = MediaSourceStream::new(Box::new(cursor), Default::default());
+    fn probe_duration(input: &MediaInput) -> Option<f64> {
+        let cloned = input.clone_handle().ok()?;
+        let mss = MediaSourceStream::new(Box::new(cloned), Default::default());
         let hint = Hint::new();
         let format_opts = FormatOptions::default();
         let metadata_opts = MetadataOptions::default();
@@ -712,9 +1266,12 @@ impl AudioPlayer {
         Some(dur.seconds as f64 + dur.frac)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rodio::buffer::SamplesBuffer;
+    use std::num::NonZero;
 
     #[test]
     fn test_audio_state_defaults() {
@@ -726,98 +1283,99 @@ mod tests {
         assert_eq!(state.volume, 1.0);
         assert_eq!(state.buffered_percent, 0.0);
         assert_eq!(state.generation, 0);
+        assert_eq!(state.playback_rate, 1.0);
+        assert!(!state.loop_enabled);
+        assert!(state.compressor_enabled);
     }
 
     #[test]
-    fn test_audio_buffered_percent() {
-        let player = AudioPlayer::new();
-        assert_eq!(player.get_state().buffered_percent, 0.0);
-        {
-            let mut meta = player.meta.lock().unwrap();
-            meta.buffered_percent = 75.5;
-        }
-        assert_eq!(player.get_state().buffered_percent, 75.5);
-    }
-
-    #[test]
-    fn test_audio_set_volume() {
+    fn test_audio_set_volume_and_rate_and_loop() {
         let player = AudioPlayer::new();
         let res = player.set_volume(0.65).unwrap();
         assert!((res.volume - 0.65).abs() < 0.001);
+        assert_eq!(player.set_volume(4.5).unwrap().volume, 3.0);
+        assert_eq!(player.set_volume(-0.5).unwrap().volume, 0.0);
 
-        let boosted = player.set_volume(2.5).unwrap();
-        assert!((boosted.volume - 2.5).abs() < 0.001);
+        let rate = player.set_playback_rate(1.5).unwrap();
+        assert!((rate.playback_rate - 1.5).abs() < 0.001);
+        assert_eq!(player.set_playback_rate(10.0).unwrap().playback_rate, 4.0);
+        assert_eq!(player.set_playback_rate(0.01).unwrap().playback_rate, 0.25);
 
-        let clamped = player.set_volume(4.5).unwrap();
-        assert_eq!(clamped.volume, 3.0);
+        let looped = player.set_loop(true).unwrap();
+        assert!(looped.loop_enabled);
+    }
 
-        let clamped_low = player.set_volume(-0.5).unwrap();
-        assert_eq!(clamped_low.volume, 0.0);
+    #[test]
+    fn test_audio_stop_resets_state() {
+        let player = AudioPlayer::new();
+        {
+            let mut meta = player.meta.lock().unwrap();
+            meta.url = "https://example.com/song.mp3".to_string();
+            meta.status = PlaybackStatus::Playing;
+            meta.position_secs = 42.0;
+            meta.duration = 180.0;
+            meta.buffered_percent = 90.0;
+        }
+        let state = player.stop().unwrap();
+        assert_eq!(state.status, PlaybackStatus::Idle);
+        assert!(state.url.is_none());
+        assert_eq!(state.current_time, 0.0);
+        assert_eq!(state.duration, 0.0);
+        assert_eq!(state.buffered_percent, 0.0);
     }
 
     #[test]
     fn test_audio_seek_when_empty() {
         let player = AudioPlayer::new();
-        let res = player.seek(10.0);
-        assert!(res.is_err());
+        assert!(player.seek(10.0).is_err());
     }
 
     #[test]
     fn test_audio_crossfade_invalid_url() {
         let player = AudioPlayer::new();
-        let res = player.crossfade("invalid://non-existent-url-12345", 2.0, None);
-        assert!(res.is_err());
+        assert!(player
+            .crossfade("invalid://non-existent-url-12345", 2.0, None, None, None)
+            .is_err());
     }
 
     #[test]
-    fn test_audio_crossfade_curves_option() {
+    fn test_calculate_crossfade_gains_matches_ts() {
+        // Linear at midpoint
+        let (out_l, in_l) = calculate_crossfade_gains(0.5, "linear", None, None);
+        assert!((out_l - 0.5).abs() < 1e-5);
+        assert!((in_l - 0.5).abs() < 1e-5);
+
+        // Equal power at midpoint (~0.707)
+        let (out_eq, in_eq) = calculate_crossfade_gains(0.5, "equalPower", Some(0.5), Some(0.707));
+        assert!((out_eq - std::f32::consts::FRAC_1_SQRT_2).abs() < 0.002);
+        assert!((in_eq - std::f32::consts::FRAC_1_SQRT_2).abs() < 0.002);
+
+        // Custom tension (x=0.3, y=0.4): at t=0.3 both gains should equal 0.4
+        let (out_c, in_c) = calculate_crossfade_gains(0.3, "custom", Some(0.3), Some(0.4));
+        assert!((out_c - 0.4).abs() < 0.002);
+        assert!((in_c - 0.4).abs() < 0.002);
+    }
+
+    #[test]
+    fn test_track_boundary_source_sets_flag_on_first_sample() {
+        let flag = Arc::new(AtomicBool::new(false));
+        let src = SamplesBuffer::new(
+            NonZero::new(2).unwrap(),
+            NonZero::new(48000).unwrap(),
+            vec![0.1f32, 0.2f32],
+        );
+        let mut boundary = TrackBoundarySource::new(src, Arc::clone(&flag));
+        assert!(!flag.load(Ordering::Acquire));
+        assert_eq!(boundary.next(), Some(0.1));
+        assert!(flag.load(Ordering::Acquire));
+        assert_eq!(boundary.next(), Some(0.2));
+        assert_eq!(boundary.next(), None);
+    }
+
+    #[test]
+    fn test_list_output_devices_returns_ok() {
         let player = AudioPlayer::new();
-        let res_linear = player.crossfade("invalid://non-existent-url-12345", 2.0, Some("linear"));
-        assert!(res_linear.is_err());
-        let res_exp = player.crossfade("invalid://non-existent-url-12345", 2.0, Some("exponential"));
-        assert!(res_exp.is_err());
-        let res_eq = player.crossfade("invalid://non-existent-url-12345", 2.0, Some("equalPower"));
-        assert!(res_eq.is_err());
-    }
-
-    #[test]
-    fn test_resolve_local_asset_path_and_percent_decode() {
-        assert_eq!(
-            AudioPlayer::resolve_local_asset_path("http://asset.localhost/C%3A%2FUsers%2FMy%20Track%20%281%29.mp3"),
-            Some("C:/Users/My Track (1).mp3".to_string())
-        );
-        assert_eq!(
-            AudioPlayer::resolve_local_asset_path("https://asset.localhost/C%3A%5CMusic%5Csong.flac"),
-            Some("C:\\Music\\song.flac".to_string())
-        );
-        #[cfg(target_os = "windows")]
-        let expected_asset = Some("C:/Music/söng.mp3".to_string());
-        #[cfg(not(target_os = "windows"))]
-        let expected_asset = Some("/C:/Music/söng.mp3".to_string());
-        assert_eq!(
-            AudioPlayer::resolve_local_asset_path("asset://localhost/%2FC%3A%2FMusic%2Fs%C3%B6ng.mp3"),
-            expected_asset
-        );
-        assert_eq!(
-            AudioPlayer::resolve_local_asset_path("https://example.com/stream.mp3"),
-            None
-        );
-    }
-
-    #[test]
-    fn test_read_media_uses_cached_bytes() {
-        let player = AudioPlayer::new();
-        {
-            let mut cache = player.cached_bytes.lock().unwrap();
-            *cache = Some((
-                "https://example.com/cached.mp3".to_string(),
-                vec![1, 2, 3, 4],
-                123.45,
-            ));
-        }
-        let (bytes, dur) = player.read_media("https://example.com/cached.mp3").unwrap();
-        assert_eq!(bytes, vec![1, 2, 3, 4]);
-        assert!((dur - 123.45).abs() < 0.001);
-        assert_eq!(player.get_state().buffered_percent, 100.0);
+        let devices = player.list_output_devices();
+        assert!(devices.is_ok());
     }
 }

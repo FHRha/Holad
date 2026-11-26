@@ -2,7 +2,7 @@ import { X, Download, SkipForward, Loader2, AlertCircle, ExternalLink } from 'lu
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { UpdateService } from '../../services/UpdateService';
-import { isTauri, isCapacitor } from '../../utils/StorageManager';
+import { isTauri, isTauriDesktop } from '../../utils/platform';
 import { openExternalLink } from '../../utils/linkHelper';
 import { useSettingsStore } from '../../store/settingsStore';
 
@@ -52,7 +52,7 @@ export default function UpdateModal() {
     : (updateInfo.size ? (updateInfo.size / (1024 * 1024)).toFixed(1) : '');
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl border border-border overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-border bg-foreground/[0.02]">
           <h2 className="text-xl font-bold text-foreground">
@@ -154,7 +154,7 @@ export default function UpdateModal() {
           )}
 
           <div className="flex flex-col gap-3 mt-2">
-            {(isTauri() || isCapacitor()) && !isBusy && !isPermissionRequired && (
+            {isTauri() && !isBusy && !isPermissionRequired && (
               <>
                 <button 
                   onClick={() => handleUpdate('silent')}
@@ -165,7 +165,7 @@ export default function UpdateModal() {
                   {isError ? t('update.retry', 'Retry') : t('update.auto_update', 'Auto-Update')}
                 </button>
 
-                {isTauri() && !isError && (
+                {isTauriDesktop() && !isError && (
                   <button 
                     onClick={() => handleUpdate('manual')}
                     className="flex items-center justify-center gap-2.5 w-full bg-foreground/[0.05] hover:bg-foreground/[0.08] text-foreground font-semibold py-2.5 rounded-xl border border-border transition-colors"

@@ -9,7 +9,7 @@ import { pushHistoryEntry } from '../api/history';
 import { savePlaybackState } from '../api/playbackState';
 import { useSettingsStore } from '../store/settingsStore';
 import { useTrackSource } from './useTrackSource';
-import { isTauri, isCapacitor } from '../utils/StorageManager';
+import { isTauri, isMobilePlatform } from '../utils/platform';
 import { invoke } from '@tauri-apps/api/core';
 import type { IAudioEngine } from '../audio/types';
 import { getAudioEngine } from '../audio/AudioEngine';
@@ -190,27 +190,11 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       window.addEventListener('pagehide', handleUnload);
       document.addEventListener('visibilitychange', handleVisibilityChange);
   
-      let unlistenCapacitor: (() => void) | null = null;
-      if (isCapacitor()) {
-        import('@capacitor/app').then(({ App }) => {
-          App.addListener('appStateChange', ({ isActive }) => {
-            if (!isActive) {
-              handleUnload();
-            }
-          }).then((handle) => {
-            unlistenCapacitor = () => {
-              if (handle && typeof handle.remove === 'function') handle.remove();
-            };
-          }).catch(() => {});
-        }).catch(() => {});
-      }
-  
       return () => {
         window.removeEventListener('beforeunload', handleUnload);
         window.removeEventListener('pagehide', handleUnload);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         handleUnload();
-        if (unlistenCapacitor) unlistenCapacitor();
       };
     }, [flushPositionToLocalStorage, flushPlaybackProgressToServer]);
 
@@ -325,7 +309,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
   // Volume calculations and updates
   const getScaledVolume = useCallback(() => {
-    const isMobile = !isTauri() && (isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+    const isMobile = isMobilePlatform();
     const store = usePlayerStore.getState();
     const activeVol = isMobile ? store.mobileVolume : store.volume;
     const vol = typeof activeVol === 'number' ? Math.max(0, Math.min(1, activeVol)) : 1.0;
@@ -385,6 +369,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
   // Handle Track Source Changes & Playback Transitions
   const prevTrackIdRef = useRef<string | null>(null);
+  const gaplessTransitionedTrackIdRef = useRef<string | null>(null);
   const crossfadeTriggeredRef = useRef<string | null>(null);
   const prevActiveDeviceRef = useRef<boolean>(isActiveDevice);
 
@@ -406,6 +391,22 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     prevActiveDeviceRef.current = isActiveDevice;
     
     if (prevTrackIdRef.current === currentTrack.id && !didDeviceBecomeActive) return;
+
+    if (
+      gaplessTransitionedTrackIdRef.current === currentTrack.id &&
+      engineRef.current.getActiveTrackId() === currentTrack.id
+    ) {
+      gaplessTransitionedTrackIdRef.current = null;
+      prevTrackIdRef.current = currentTrack.id;
+      crossfadeTriggeredRef.current = null;
+      scheduleIdle(() => { preloadTrackAssets(currentTrack, [120, 300]).catch(() => {}); });
+      const engDur = engineRef.current.getDuration();
+      if (engDur > 0 && isFinite(engDur)) {
+        useAudioStore.getState().setDuration(engDur);
+      }
+      triggerAudioSessionSync();
+      return;
+    }
 
     const isAutoSkip = crossfadeTriggeredRef.current === prevTrackIdRef.current;
     crossfadeTriggeredRef.current = null;
@@ -897,16 +898,46 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
     };
 
+    const handleTrackTransitioned = (newTrackId?: string | null) => {
+      flushPositionToLocalStorage();
+      const pStore = usePlayerStore.getState();
+      const isJamSession = Boolean(pStore.roomId);
+      if (isJamSession && pStore.role !== 'host' && pStore.role !== 'cohost') return;
+      if (role === 'listener') return;
+      if (sleepTimer.type === 'track_end') {
+        setIsPlaying(false);
+        setSleepTimer(null);
+        return;
+      }
+
+      if (newTrackId) {
+        gaplessTransitionedTrackIdRef.current = newTrackId;
+      }
+
+      const storeCurrentTrack = pStore.queue[pStore.currentIndex];
+      if (newTrackId && storeCurrentTrack?.id === newTrackId) {
+        return;
+      }
+
+      if (isJamSession && currentTrack) {
+        jamSocket.trackEnded(currentTrack.id, pStore.currentIndex, pStore.repeatMode);
+      } else {
+        nextTrack();
+      }
+    };
+
     engine.on('timeupdate', handleTimeUpdate);
     engine.on('ended', handleEnded);
     engine.on('requestPreload', handleRequestPreload);
     engine.on('progress', handleProgress);
+    engine.on('trackTransitioned', handleTrackTransitioned);
 
     return () => {
       engine.off('timeupdate', handleTimeUpdate);
       engine.off('ended', handleEnded);
       engine.off('requestPreload', handleRequestPreload);
       engine.off('progress', handleProgress);
+      engine.off('trackTransitioned', handleTrackTransitioned);
     };
   }, [currentTrack, isActiveDevice, duration, role, sleepTimer, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, nextTrack, preloadUpcomingTrack, setDuration, setProgress, setIsPlaying, setSleepTimer, flushPositionToLocalStorage, audioSrc, audioBackend]);
 

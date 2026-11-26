@@ -6,7 +6,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { UpdateService } from '../../../services/UpdateService';
 import { openExternalLink } from '../../../utils/linkHelper';
 import { clearAppCache } from '../../../utils/storage';
-import { isTauri } from '../../../utils/StorageManager';
+import { isTauriDesktop } from '../../../utils/platform';
 import SettingSection from '../SettingSection';
 import { SettingToggle } from '../controls';
 
@@ -43,7 +43,7 @@ export default function PlatformSettingsSection({
   }, []);
 
   useEffect(() => {
-    if (isTauri() && !isMobileMode) {
+    if (isTauriDesktop() && !isMobileMode) {
       import('@tauri-apps/plugin-autostart')
         .then(async ({ isEnabled }) => {
           try {
@@ -137,7 +137,7 @@ export default function PlatformSettingsSection({
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Desktop / Tauri-only System Settings */}
-      {('__TAURI_INTERNALS__' in window) && (
+      {isTauriDesktop() && (
         <SettingSection
           title={t('settings.desktop', 'Системные параметры')}
           icon={<Monitor size={16} />}

@@ -1,4 +1,5 @@
-import { isTauri, isCapacitor, StorageManager } from './StorageManager';
+import { StorageManager } from './StorageManager';
+import { isTauri } from './platform';
 import { getDownloadUrl, getAlbumFull, getCoverArtUrl, getSong } from '../api/subsonic';
 import { join } from '@tauri-apps/api/path';
 import { useDownloadStore, isItemDownloaded } from '../store/downloadStore';
@@ -134,7 +135,7 @@ const downloadCoverArt = async (
 };
 
 export const handleDownload = async (id: string, name: string, type: 'track' | 'album' = 'track') => {
-  if (isTauri() || isCapacitor()) {
+  if (isTauri()) {
     const {
       startDownload,
       completeDownload,
@@ -206,7 +207,7 @@ export const handleDownload = async (id: string, name: string, type: 'track' | '
         let lastOverallProgress = 0;
         let totalAlbumBytes = 0;
 
-        const subDir = isTauri() ? await join('albums', safeAlbumName) : `albums/${safeAlbumName}`;
+        const subDir = await join('albums', safeAlbumName);
 
         for (const song of songs) {
           await waitIfPaused(id, signal);
@@ -276,12 +277,7 @@ export const handleDownload = async (id: string, name: string, type: 'track' | '
           return;
         }
 
-        let albumDir = '';
-        if (isTauri()) {
-          albumDir = await join(downloadDirectory || await StorageManager.getDefaultDownloadDir(), 'albums', safeAlbumName);
-        } else {
-          albumDir = `Holad/albums/${safeAlbumName}`;
-        }
+        const albumDir = await join(downloadDirectory || await StorageManager.getDefaultDownloadDir(), 'albums', safeAlbumName);
         completeDownload(id, albumDir, {
           localCoverArtUri,
           sizeBytes: totalAlbumBytes,

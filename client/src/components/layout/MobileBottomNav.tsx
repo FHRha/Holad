@@ -22,7 +22,7 @@ export default function MobileBottomNav() {
     <div 
       onPointerEnter={preloadMobileViews}
       onTouchStart={preloadMobileViews}
-      className="md:hidden flex items-center justify-around bg-background/80 backdrop-blur-md transform-gpu will-change-transform border-t border-border h-[56px] pb-[env(safe-area-inset-bottom)] px-4 z-50 rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.4)] mt-[-1px]"
+      className="md:hidden flex items-center justify-around bg-background/80 backdrop-blur-md transform-gpu will-change-transform border-t border-border h-[calc(56px+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] px-4 z-50 rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.4)] mt-[-1px]"
     >
       <NavItem to="/" icon={<Home size={26} />} label={t('sidebar.home')} end />
       <NavItem 

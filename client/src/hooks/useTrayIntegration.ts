@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { starItem, unstarItem } from '../api/subsonic';
+import { isTauriDesktop } from '../utils/platform';
 
 export function useTrayIntegration() {
   useEffect(() => {
-    if (!('__TAURI_INTERNALS__' in window)) return;
+    if (!isTauriDesktop()) return;
 
     const setupTrayListeners = async () => {
       try {

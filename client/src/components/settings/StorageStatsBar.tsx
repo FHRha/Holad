@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { RefreshCw, Music2, Image as ImageIcon, Database, HardDrive } from 'lucide-react';
 import { useStorageStats, formatBytes } from '../../utils/storageStatsHelper';
-import { isTauri, isCapacitor } from '../../utils/StorageManager';
+import { isTauri } from '../../utils/platform';
 
 interface StorageStatsBarProps {
   className?: string;
@@ -16,7 +16,7 @@ export default function StorageStatsBar({
 }: StorageStatsBarProps) {
   const { t } = useTranslation();
   const { stats, percentages, refresh, isRefreshing } = useStorageStats();
-  const isNative = isTauri() || isCapacitor();
+  const isNative = isTauri();
 
   const handleRefresh = async () => {
     await refresh();

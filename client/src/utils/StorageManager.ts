@@ -3,43 +3,9 @@ import { join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useDownloadStore } from '../store/downloadStore';
 import { findDownloadedTrackMatch } from './trackFingerprint';
-import { toast } from 'sonner';
+import { isTauri, isTauriMobile, isMobileClient } from './platform';
 
-// Check if we are running inside Tauri
-export const isTauri = () => {
-  return typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
-};
-
-// Check if we are running inside Capacitor natively
-export const isCapacitor = () => {
-  if (typeof window === 'undefined') return false;
-  const cap = (window as any).Capacitor;
-  if (!cap) return false;
-  if (typeof cap.getPlatform === 'function') {
-    const platform = cap.getPlatform();
-    return platform === 'android' || platform === 'ios';
-  }
-  return cap.isNative === true;
-};
-
-// Check if running on mobile client (Capacitor, Tauri on Android, or mobile browser)
-export const isMobileClient = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  if (isCapacitor()) return true;
-  const ua = navigator.userAgent || '';
-  if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
-  const platform = ((navigator as any)?.userAgentData?.platform || navigator.platform || '');
-  if (/Android|iPhone|iPad|iPod/i.test(platform)) return true;
-  if (isTauri()) {
-    if (/Android/i.test(ua) || /Android/i.test(platform)) return true;
-    if (typeof window.matchMedia === 'function') {
-      if (window.matchMedia('(pointer: coarse) and (hover: none)').matches) return true;
-      if (window.matchMedia('(max-width: 768px)').matches) return true;
-    }
-  }
-  if (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 768px)').matches) return true;
-  return window.innerWidth <= 768;
-};
+export { isTauri, isMobileClient };
 
 export class StorageManager {
   static async getDefaultDownloadDir(): Promise<string> {
@@ -54,6 +20,10 @@ export class StorageManager {
         // fallback
       }
       try {
+        if (isTauriMobile()) {
+          const { appDataDir } = await import('@tauri-apps/api/path');
+          return await join(await appDataDir(), 'Holad');
+        }
         const { downloadDir } = await import('@tauri-apps/api/path');
         const dDir = await downloadDir();
         return await join(dDir, 'Holad');
@@ -61,8 +31,6 @@ export class StorageManager {
         console.error('Error getting download dir:', err);
         return 'download';
       }
-    } else if (isCapacitor()) {
-      return 'Holad';
     }
     return 'download';
   }
@@ -88,53 +56,6 @@ export class StorageManager {
         return filePath;
       } catch (err) {
         console.error('Error saving track via Tauri:', err);
-        throw err;
-      }
-    } else if (isCapacitor()) {
-      try {
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        
-        // Convert array buffer to base64 safely
-        const blob = new Blob([new Uint8Array(data) as BlobPart]);
-        const base64Data = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const dataUrl = reader.result as string;
-            const base64 = dataUrl.split(',')[1];
-            resolve(base64);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-
-        const targetPath = subDir ? `Holad/${subDir}/${fileName}` : `Holad/${fileName}`;
-        const dirPath = subDir ? `Holad/${subDir}` : 'Holad';
-
-        // Ensure directory exists
-        try {
-          await Filesystem.stat({ path: dirPath, directory: Directory.Data });
-        } catch {
-          const parts = dirPath.split('/');
-          let curr = '';
-          for (const part of parts) {
-            curr = curr ? `${curr}/${part}` : part;
-            try {
-              await Filesystem.stat({ path: curr, directory: Directory.Data });
-            } catch {
-              await Filesystem.mkdir({ path: curr, directory: Directory.Data, recursive: true });
-            }
-          }
-        }
-
-        await Filesystem.writeFile({
-          path: targetPath,
-          data: base64Data,
-          directory: Directory.Data
-        });
-        console.log(`Track ${fileName} saved successfully via Capacitor fs at ${targetPath}`);
-        return targetPath;
-      } catch (err) {
-        console.error('Error saving track via Capacitor:', err);
         throw err;
       }
     } else {
@@ -167,50 +88,6 @@ export class StorageManager {
         console.error('Error saving cover art via Tauri:', err);
         throw err;
       }
-    } else if (isCapacitor()) {
-      try {
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        const blob = new Blob([new Uint8Array(data) as BlobPart]);
-        const base64Data = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const dataUrl = reader.result as string;
-            const base64 = dataUrl.split(',')[1];
-            resolve(base64);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-
-        const targetPath = defaultSubDir ? `Holad/${defaultSubDir}/${fileName}` : `Holad/${fileName}`;
-        const dirPath = defaultSubDir ? `Holad/${defaultSubDir}` : 'Holad';
-
-        try {
-          await Filesystem.stat({ path: dirPath, directory: Directory.Data });
-        } catch {
-          const parts = dirPath.split('/');
-          let curr = '';
-          for (const part of parts) {
-            curr = curr ? `${curr}/${part}` : part;
-            try {
-              await Filesystem.stat({ path: curr, directory: Directory.Data });
-            } catch {
-              await Filesystem.mkdir({ path: curr, directory: Directory.Data, recursive: true });
-            }
-          }
-        }
-
-        await Filesystem.writeFile({
-          path: targetPath,
-          data: base64Data,
-          directory: Directory.Data
-        });
-        console.log(`Cover art ${fileName} saved successfully via Capacitor fs at ${targetPath}`);
-        return targetPath;
-      } catch (err) {
-        console.error('Error saving cover art via Capacitor:', err);
-        throw err;
-      }
     } else {
       console.warn('Browser environment detected. Cover art downloading for offline use is not supported in plain web.');
       throw new Error('Not supported in browser');
@@ -221,8 +98,6 @@ export class StorageManager {
     if (!coverPathOrId) return null;
     if (coverPathOrId.startsWith('http://asset.localhost') || 
         coverPathOrId.startsWith('asset://') || 
-        coverPathOrId.startsWith('_capacitor_file_') || 
-        coverPathOrId.startsWith('capacitor://') || 
         coverPathOrId.startsWith('file://') || 
         coverPathOrId.startsWith('blob:') || 
         coverPathOrId.startsWith('data:')) {
@@ -247,43 +122,6 @@ export class StorageManager {
         if (coverPathOrId.includes('/') || coverPathOrId.includes('\\')) {
           return convertFileSrc(coverPathOrId);
         }
-      }
-    } else if (isCapacitor()) {
-      try {
-        const { Capacitor } = await import('@capacitor/core');
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        
-        try {
-          const stat = await Filesystem.stat({ path: coverPathOrId, directory: Directory.Data });
-          if (stat) {
-            const uri = await Filesystem.getUri({ path: coverPathOrId, directory: Directory.Data });
-            return Capacitor.convertFileSrc(uri.uri);
-          }
-        } catch (e: any) {
-          if (e.message && !e.message.includes('does not exist')) {
-            console.error('Storage Error (Cover Check):', e);
-            toast.error(`Storage Error: ${e.message}`);
-          }
-        }
-
-        const extensions = ['', '.jpg', '.jpeg', '.png', '.webp'];
-        for (const ext of extensions) {
-          const testPath = `Holad/covers/${coverPathOrId}${ext}`;
-          try {
-            const stat = await Filesystem.stat({ path: testPath, directory: Directory.Data });
-            if (stat) {
-              const uri = await Filesystem.getUri({ path: testPath, directory: Directory.Data });
-              return Capacitor.convertFileSrc(uri.uri);
-            }
-          } catch (e: any) {
-            if (e.message && !e.message.includes('does not exist')) {
-              console.error('Storage Error (Cover Check Extensions):', e);
-              toast.error(`Storage Error: ${e.message}`);
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Error resolving local cover URI via Capacitor:', e);
       }
     }
     return null;
@@ -330,18 +168,6 @@ export class StorageManager {
         console.error('Error removing track via Tauri:', err);
         throw err;
       }
-    } else if (isCapacitor()) {
-      try {
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        await Filesystem.deleteFile({
-          path: filePath,
-          directory: Directory.Data
-        });
-        console.log(`Track ${filePath} removed successfully via Capacitor fs`);
-      } catch (err) {
-        console.error('Error removing track via Capacitor:', err);
-        throw err;
-      }
     }
   }
 
@@ -354,19 +180,6 @@ export class StorageManager {
         }
       } catch (err) {
         console.error('Error removing directory via Tauri:', err);
-        throw err;
-      }
-    } else if (isCapacitor()) {
-      try {
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        await Filesystem.rmdir({
-          path: dirPath,
-          directory: Directory.Data,
-          recursive: true
-        });
-        console.log(`Directory ${dirPath} removed successfully via Capacitor fs`);
-      } catch (err) {
-        console.error('Error removing directory via Capacitor:', err);
         throw err;
       }
     }
@@ -476,21 +289,6 @@ export class StorageManager {
           console.warn('Error reading track via Tauri, assuming it exists to prevent playback blocking:', e);
           return convertFileSrc(trackDownload.path);
         }
-      } else if (isCapacitor()) {
-        try {
-          const { Capacitor } = await import('@capacitor/core');
-          const { Filesystem, Directory } = await import('@capacitor/filesystem');
-          const stat = await Filesystem.stat({ path: trackDownload.path, directory: Directory.Data });
-          if (stat) {
-             const uri = await Filesystem.getUri({ path: trackDownload.path, directory: Directory.Data });
-             return Capacitor.convertFileSrc(uri.uri);
-          }
-        } catch (e: any) {
-          if (e.message && !e.message.includes('does not exist')) {
-            console.error('Storage Error (Track URI):', e);
-            toast.error(`Storage Error: ${e.message}`);
-          }
-        }
       }
     }
 
@@ -514,25 +312,6 @@ export class StorageManager {
             }
           } catch (e) {
             console.error('Error resolving album local track uri:', e);
-          }
-        } else if (isCapacitor()) {
-          try {
-             const { Capacitor } = await import('@capacitor/core');
-             const { Filesystem, Directory } = await import('@capacitor/filesystem');
-             const res = await Filesystem.readdir({ path: albumDownload.path, directory: Directory.Data });
-             const matchedFile = safeTitle
-               ? res.files.find(f => f.name.startsWith(safeTitle) || f.name.includes(safeTitle))
-               : res.files[0];
-             if (matchedFile) {
-                const fullPath = `${albumDownload.path}/${matchedFile.name}`;
-                const uri = await Filesystem.getUri({ path: fullPath, directory: Directory.Data });
-                return Capacitor.convertFileSrc(uri.uri);
-             }
-          } catch (e: any) {
-            if (e.message && !e.message.includes('does not exist')) {
-              console.error('Storage Error (Track Check):', e);
-              toast.error(`Storage Error: ${e.message}`);
-            }
           }
         }
       }

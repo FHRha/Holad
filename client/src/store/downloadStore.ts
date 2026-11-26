@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { findDownloadedTrackMatch } from '../utils/trackFingerprint';
+import { isTauri } from '../utils/platform';
 
 export interface DownloadItem {
   id: string;
@@ -58,7 +59,7 @@ export const useDownloadStore = create<DownloadState>()(
       downloads: {},
       setDownloadDirectory: (dir) => {
         set({ downloadDirectory: dir });
-        if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined) {
+        if (isTauri()) {
           import('@tauri-apps/api/core').then(({ invoke }) => {
             invoke('set_music_download_dir', { path: dir }).catch(() => {});
           });
@@ -238,7 +239,7 @@ export const verifyDownloads = async () => {
   let hasChanges = false;
   const newDownloads = { ...downloads };
   
-  const { isTauri, isCapacitor } = await import('../utils/StorageManager');
+  const { isTauri } = await import('../utils/platform');
   
   for (const id in newDownloads) {
     const item = newDownloads[id];
@@ -250,15 +251,6 @@ export const verifyDownloads = async () => {
           fileExists = await exists(item.path);
         } catch (e) {
           console.warn('Tauri fs.exists failed, assuming file exists to prevent deletion:', e);
-          fileExists = true;
-        }
-      } else if (isCapacitor()) {
-        try {
-          const { Filesystem, Directory } = await import('@capacitor/filesystem');
-          const stat = await Filesystem.stat({ path: item.path, directory: Directory.Data });
-          fileExists = !!stat;
-        } catch (e) {
-          console.warn('Capacitor fs.stat failed, assuming file exists to prevent deletion:', e);
           fileExists = true;
         }
       } else {
@@ -506,9 +498,9 @@ export const useDownloadQueue = (): DownloadQueueStats => {
   return getDownloadQueueStats(downloads);
 };
 
-if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined) {
+if (isTauri()) {
   import('@tauri-apps/api/core').then(({ invoke }) => {
-    invoke<string>('get_music_download_dir')
+    Promise.resolve(invoke<string>('get_music_download_dir'))
       .then((dir) => {
         if (dir && !useDownloadStore.getState().downloadDirectory) {
           useDownloadStore.getState().setDownloadDirectory(dir);

@@ -1,5 +1,5 @@
 import { getBasePath } from './basePath';
-import { isTauri, isCapacitor } from './StorageManager';
+import { isTauri } from './platform';
 import { useAuthStore } from '../store/authStore';
 
 export const getHoladServerUrl = (): string => {
@@ -12,7 +12,7 @@ export const getHoladServerUrl = (): string => {
     return import.meta.env.VITE_SERVER_URL.replace(/\/$/, '');
   }
   
-  if (isTauri() || isCapacitor()) {
+  if (isTauri()) {
     try {
       const authUrl = useAuthStore.getState().url;
       if (authUrl) {
@@ -54,11 +54,11 @@ export const getSocketUrl = (): string => {
     }
   }
 
-  if (typeof window !== 'undefined' && window.location?.origin && !isTauri() && !isCapacitor()) {
+  if (typeof window !== 'undefined' && window.location?.origin && !isTauri()) {
     return window.location.origin;
   }
 
-  if (isTauri() || isCapacitor()) {
+  if (isTauri()) {
     try {
       const authUrl = useAuthStore.getState().url;
       if (authUrl) {
@@ -86,7 +86,7 @@ export const getSocketPath = (): string => {
     } catch {}
   }
 
-  if (isTauri() || isCapacitor()) {
+  if (isTauri()) {
     try {
       const authUrl = useAuthStore.getState().url;
       if (authUrl) {

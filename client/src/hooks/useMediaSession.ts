@@ -1,14 +1,31 @@
 import { useEffect } from 'react';
-import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
-import { MediaSession } from '@capgo/capacitor-media-session';
 import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
+import { useDownloadStore } from '../store/downloadStore';
 import { useIsActiveDevice } from './useIsActiveDevice';
 import { useWindowVisibility, getIsWindowVisible } from './useWindowVisibility';
 import { getCoverArtUrl } from '../api/subsonic';
 import { getAudioEngine } from '../audio/AudioEngine';
-import { isTauri } from '../utils/StorageManager';
+import { isTauri, isTauriDesktop, isTauriMobile } from '../utils/platform';
 import { invoke } from '@tauri-apps/api/core';
+
+function isTrackStreaming(track: any): boolean {
+  if (!track) return false;
+  const audioEl = useAudioStore.getState().audioElement;
+  const activeSrc = audioEl?.currentSrc || audioEl?.src || track.streamUrl || track.src || '';
+  if (
+    activeSrc.startsWith('file://') ||
+    activeSrc.startsWith('blob:') ||
+    activeSrc.includes('asset.localhost')
+  ) {
+    return false;
+  }
+  const downloads = useDownloadStore.getState().downloads;
+  if (downloads[track.id]?.status === 'completed') {
+    return false;
+  }
+  return true;
+}
 
 export function useMediaSession() {
   const currentTrack = usePlayerStore(state => state.queue[state.currentIndex]);
@@ -24,26 +41,23 @@ export function useMediaSession() {
     const isCurrentlyPlaying = usePlayerStore.getState().isPlaying;
 
     try {
-      if (isTauri()) {
+      if (isTauriMobile()) {
+        const playerState = usePlayerStore.getState();
+        const activeTrack = playerState.queue[playerState.currentIndex] || currentTrack;
         invoke('plugin:mediaSession|setPlaybackState', {
           isPlaying: isCurrentlyPlaying,
           position: safePosition,
-          playbackRate: safeRate
+          playbackRate: safeRate,
+          isStreaming: isTrackStreaming(activeTrack)
         }).catch((err) => {
           console.warn('[MediaSession] plugin:mediaSession|setPlaybackState failed:', err);
         });
+      } else if (isTauriDesktop()) {
         invoke('desktop_media_set_state', {
           isPlaying: isCurrentlyPlaying,
           position: safePosition,
           playbackRate: safeRate
         }).catch(() => {});
-      }
-      if (Capacitor.isNativePlatform()) {
-        MediaSession.setPositionState({
-          duration,
-          playbackRate: safeRate,
-          position: safePosition
-        });
       } else if ('mediaSession' in navigator && navigator.mediaSession.setPositionState) {
         navigator.mediaSession.setPositionState({
           duration,
@@ -96,7 +110,7 @@ export function useMediaSession() {
         ] : []
       };
 
-      if (isTauri()) {
+      if (isTauriMobile()) {
         const audioState = useAudioStore.getState();
         const effectiveDuration = currentTrack.duration || audioState.duration || 0;
         invoke('plugin:mediaSession|setMetadata', {
@@ -108,6 +122,9 @@ export function useMediaSession() {
         }).catch((err) => {
           console.warn('[MediaSession] plugin:mediaSession|setMetadata failed:', err);
         });
+      } else if (isTauriDesktop()) {
+        const audioState = useAudioStore.getState();
+        const effectiveDuration = currentTrack.duration || audioState.duration || 0;
         invoke('desktop_media_set_metadata', {
           title: metadata.title,
           artist: metadata.artist,
@@ -115,30 +132,6 @@ export function useMediaSession() {
           duration: effectiveDuration,
           artwork: coverUrl || null
         }).catch(() => {});
-      }
-
-      if (Capacitor.isNativePlatform()) {
-        MediaSession.setMetadata(metadata);
-        
-        MediaSession.setActionHandler({ action: 'play' }, () => {
-          setIsPlaying(true);
-          const engine = getAudioEngine();
-          if (engine) engine.resume().catch(() => {});
-        });
-        MediaSession.setActionHandler({ action: 'pause' }, () => {
-          setIsPlaying(false);
-          const engine = getAudioEngine();
-          if (engine) engine.pause();
-        });
-        MediaSession.setActionHandler({ action: 'previoustrack' }, () => prevTrack());
-        MediaSession.setActionHandler({ action: 'nexttrack' }, () => nextTrack());
-        MediaSession.setActionHandler({ action: 'seekbackward' }, () => handleSeekOffset(-30));
-        MediaSession.setActionHandler({ action: 'seekforward' }, () => handleSeekOffset(30));
-        MediaSession.setActionHandler({ action: 'seekto' }, (details) => {
-          if (details && typeof details.seekTime === 'number' && !isNaN(details.seekTime)) {
-            handleSeek(details.seekTime);
-          }
-        });
       } else if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata(metadata);
         navigator.mediaSession.setActionHandler('play', () => setIsPlaying(true));
@@ -158,16 +151,14 @@ export function useMediaSession() {
         }
       }
     } else {
-      if (isTauri()) {
+      if (isTauriMobile()) {
         invoke('plugin:mediaSession|stop').catch(() => {});
+      } else if (isTauriDesktop()) {
         invoke('desktop_media_set_state', {
           isPlaying: false,
           position: 0,
           playbackRate: 0
         }).catch(() => {});
-      }
-      if (Capacitor.isNativePlatform()) {
-        MediaSession.setMetadata({ title: '', artist: '', album: '' });
       } else if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = null;
       }
@@ -176,7 +167,6 @@ export function useMediaSession() {
 
   useEffect(() => {
     let isSubscribed = true;
-    const handles: PluginListenerHandle[] = [];
 
     let lastActionTime = 0;
     let lastActionType = '';
@@ -267,7 +257,7 @@ export function useMediaSession() {
 
     let unlistenTauriMedia: (() => void) | undefined;
     let unlistenTauriPluginMedia: (() => void) | undefined;
-    if (isTauri()) {
+    if (isTauriMobile()) {
       import('@tauri-apps/api/core').then(({ Channel, invoke }) => {
         if (!isSubscribed) return;
         try {
@@ -282,7 +272,9 @@ export function useMediaSession() {
           console.warn('[MediaSession] channel registration error:', e);
         }
       }).catch(() => {});
+    }
 
+    if (isTauri()) {
       import('@tauri-apps/api/event').then(({ listen }) => {
         listen<{ action: string; seekTime?: number }>('mediaAction', (event) => {
           if (isSubscribed) handleAction(event.payload);
@@ -291,42 +283,15 @@ export function useMediaSession() {
           else unlistenTauriMedia = unlisten;
         }).catch(() => {});
 
-        listen<{ action: string; seekTime?: number }>('mediaSession:mediaAction', (event) => {
-          if (isSubscribed) handleAction(event.payload);
-        }).then(unlisten => {
-          if (!isSubscribed) unlisten();
-          else unlistenTauriPluginMedia = unlisten;
-        }).catch(() => {});
-      }).catch(() => {});
-    }
-
-    if (Capacitor.isNativePlatform()) {
-      const setupListeners = async () => {
-        try {
-          const events: Array<{ event: string; handler: () => void }> = [
-            { event: 'play', handler: () => { usePlayerStore.getState().setIsPlaying(true); const engine = getAudioEngine(); if (engine) engine.resume().catch(() => {}); } },
-            { event: 'pause', handler: () => { usePlayerStore.getState().setIsPlaying(false); const engine = getAudioEngine(); if (engine) engine.pause(); } },
-            { event: 'playpause', handler: () => { const playing = !usePlayerStore.getState().isPlaying; usePlayerStore.getState().setIsPlaying(playing); const engine = getAudioEngine(); if (engine) { if (playing) engine.resume().catch(() => {}); else engine.pause(); } } },
-            { event: 'nexttrack', handler: () => usePlayerStore.getState().nextTrack() },
-            { event: 'previoustrack', handler: () => usePlayerStore.getState().prevTrack() },
-          ];
-
-          for (const { event, handler } of events) {
-            if (typeof (MediaSession as any).addListener === 'function') {
-              const handle = await (MediaSession as any).addListener(event, handler);
-              if (!isSubscribed) {
-                if (handle && typeof handle.remove === 'function') handle.remove();
-              } else {
-                handles.push(handle);
-              }
-            }
-          }
-        } catch (err) {
-          console.warn('[MediaSession] Failed to attach native listeners:', err);
+        if (isTauriMobile()) {
+          listen<{ action: string; seekTime?: number }>('mediaSession:mediaAction', (event) => {
+            if (isSubscribed) handleAction(event.payload);
+          }).then(unlisten => {
+            if (!isSubscribed) unlisten();
+            else unlistenTauriPluginMedia = unlisten;
+          }).catch(() => {});
         }
-      };
-
-      setupListeners();
+      }).catch(() => {});
     }
 
     return () => {
@@ -338,13 +303,6 @@ export function useMediaSession() {
       window.removeEventListener('holad:mediasession:pause', onDirectPause);
       window.removeEventListener('holad:mediasession:nexttrack', onDirectNext);
       window.removeEventListener('holad:mediasession:previoustrack', onDirectPrev);
-      handles.forEach((handle) => {
-        try {
-          if (handle && typeof handle.remove === 'function') {
-            handle.remove();
-          }
-        } catch {}
-      });
     };
   }, [setIsPlaying, nextTrack, prevTrack]);
 
@@ -360,7 +318,7 @@ export function useMediaSession() {
     const shouldReportPlaying = isPlaying && (isActiveDevice || isWindowVisible);
     const state = shouldReportPlaying ? 'playing' : 'paused';
 
-    if (isTauri()) {
+    if (isTauriMobile()) {
       const audioState = useAudioStore.getState();
       const duration = audioState.duration || currentTrack?.duration || 0;
       const position = duration > 0 ? (audioState.progress / 100) * duration : 0;
@@ -368,24 +326,20 @@ export function useMediaSession() {
       invoke('plugin:mediaSession|setPlaybackState', {
         isPlaying: shouldReportPlaying,
         position,
-        playbackRate: rate
+        playbackRate: rate,
+        isStreaming: isTrackStreaming(currentTrack)
       }).catch((err) => {
         console.warn('[MediaSession] plugin:mediaSession|setPlaybackState failed:', err);
       });
+    } else if (isTauriDesktop()) {
+      const audioState = useAudioStore.getState();
+      const duration = audioState.duration || currentTrack?.duration || 0;
+      const position = duration > 0 ? (audioState.progress / 100) * duration : 0;
+      const rate = shouldReportPlaying ? 1.0 : 0.0;
       invoke('desktop_media_set_state', {
         isPlaying: shouldReportPlaying,
         position,
         playbackRate: rate
-      }).catch(() => {});
-    }
-
-    if (Capacitor.isNativePlatform()) {
-      MediaSession.setPlaybackState({ playbackState: state });
-      import('@capacitor/core').then(({ registerPlugin }) => {
-        const AudioDevice = registerPlugin<any>('AudioDevice');
-        if (AudioDevice && typeof AudioDevice.notifyPlaybackState === 'function') {
-          AudioDevice.notifyPlaybackState({ state }).catch(() => {});
-        }
       }).catch(() => {});
     } else if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = state;

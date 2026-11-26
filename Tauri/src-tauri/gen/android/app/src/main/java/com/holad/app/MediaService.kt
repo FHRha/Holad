@@ -14,9 +14,12 @@ import android.graphics.Bitmap
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.net.wifi.WifiManager
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
+import android.os.SystemClock
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -48,6 +51,44 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         var isAppInForeground: Boolean = true
             private set
 
+        @Volatile
+        var lastBluetoothAclConnectedTime: Long = 0L
+
+        @Volatile
+        var lastHeadphonesPauseTime: Long = 0L
+
+        @Volatile
+        var wasPlayingBeforeHeadphonesPause: Boolean = false
+
+        @Volatile
+        var isHeadphonesActive: Boolean = false
+
+        fun isBluetoothConnecting(): Boolean {
+            val now = SystemClock.uptimeMillis()
+            if (wasPlayingBeforeHeadphonesPause && (now - lastHeadphonesPauseTime <= 45_000L)) {
+                Log.d("MediaService", "isBluetoothConnecting: false (in-ear wear detection resume window active: ${now - lastHeadphonesPauseTime}ms)")
+                return false
+            }
+            val connecting = (now - lastBluetoothAclConnectedTime < 3_000L)
+            if (connecting) {
+                Log.i("MediaService", "isBluetoothConnecting: true (cold connection grace period active)")
+            }
+            return connecting
+        }
+
+        fun markPlaybackStarted() {
+            wasPlayingBeforeHeadphonesPause = false
+            lastHeadphonesPauseTime = 0L
+        }
+
+        fun markPlaybackPaused() {
+            if (isHeadphonesActive) {
+                lastHeadphonesPauseTime = SystemClock.uptimeMillis()
+                wasPlayingBeforeHeadphonesPause = true
+                Log.i("MediaService", "markPlaybackPaused: in-ear wear detection window opened for 45s")
+            }
+        }
+
         fun setAppInForeground(inForeground: Boolean) {
             Log.i("MediaService", "setAppInForeground: inForeground=$inForeground")
             isAppInForeground = inForeground
@@ -72,6 +113,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
     private var currentDurationMs: Long = 0L
     private var currentPositionMs: Long = 0L
     private var isPlayingState: Boolean = false
+    private var isStreamingState: Boolean = true
     private var playbackSpeed: Float = 1.0f
 
     private var hasAudioFocus: Boolean = false
@@ -80,15 +122,21 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     private var actionListener: MediaActionListener? = null
     private var lastMediaButtonTime: Long = 0L
-    private var wakeLock: android.os.PowerManager.WakeLock? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
 
     private val noisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (AudioManager.ACTION_AUDIO_BECOMING_NOISY == intent?.action) {
                 // Headphone unplugged / bluetooth disconnected
+                markPlaybackPaused()
                 if (isPlayingState) {
-                    updatePlaybackState(false, currentPositionMs, 0f)
+                    updatePlaybackState(false, currentPositionMs, 0f, isStreamingState)
                 }
+                // Short 10s grace wake so JS/WebView can process the pause cleanly
+                try {
+                    wakeLock?.acquire(10_000L)
+                } catch (_: Exception) {}
                 handlePause()
             }
         }
@@ -106,8 +154,20 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         Log.i("MediaService", "MediaService onCreate called")
         instance = this
         audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-        val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
-        wakeLock = pm?.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "holad:MediaServiceWakeLock")
+        val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "holad:MediaServiceWakeLock")?.apply {
+            setReferenceCounted(false)
+        }
+        val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        val wifiMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+        } else {
+            @Suppress("DEPRECATION")
+            WifiManager.WIFI_MODE_FULL_HIGH_PERF
+        }
+        wifiLock = wm?.createWifiLock(wifiMode, "holad:MediaServiceWifiLock")?.apply {
+            setReferenceCounted(false)
+        }
 
         createNotificationChannel()
         initMediaSession()
@@ -116,9 +176,8 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (wakeLock?.isHeld == true) {
-            try { wakeLock?.release() } catch (_: Exception) {}
-        }
+        releaseWakeLock()
+        releaseWifiLock()
         unregisterNoisyReceiver()
         abandonAudioFocus()
         mediaSession?.isActive = false
@@ -162,6 +221,10 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() {
                     Log.i("MediaService", "MediaSessionCompat.Callback.onPlay")
+                    if (isBluetoothConnecting()) {
+                        Log.i("MediaService", "Blocked spurious onPlay() during Bluetooth cold connection grace period")
+                        return
+                    }
                     handlePlay()
                 }
 
@@ -201,6 +264,10 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
                     if (keyEvent != null && keyEvent.action == KeyEvent.ACTION_DOWN) {
                         when (keyEvent.keyCode) {
                             KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                                if (isBluetoothConnecting()) {
+                                    Log.i("MediaService", "Blocked spurious KEYCODE_MEDIA_PLAY during Bluetooth cold connection")
+                                    return true
+                                }
                                 handlePlay()
                                 return true
                             }
@@ -209,10 +276,18 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
                                 return true
                             }
                             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_HEADSETHOOK -> {
-                                val now = android.os.SystemClock.elapsedRealtime()
+                                val now = SystemClock.elapsedRealtime()
                                 if (now - lastMediaButtonTime > 250) {
                                     lastMediaButtonTime = now
-                                    if (isPlayingState) handlePause() else handlePlay()
+                                    if (isPlayingState) {
+                                        handlePause()
+                                    } else {
+                                        if (isBluetoothConnecting()) {
+                                            Log.i("MediaService", "Blocked spurious play/pause during Bluetooth cold connection")
+                                            return true
+                                        }
+                                        handlePlay()
+                                    }
                                 }
                                 return true
                             }
@@ -331,7 +406,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
                     this,
                     noisyReceiver,
                     filter,
-                    ContextCompat.RECEIVER_NOT_EXPORTED
+                    ContextCompat.RECEIVER_EXPORTED
                 )
                 isNoisyReceiverRegistered = true
             } catch (e: Exception) {
@@ -478,6 +553,9 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     fun handleStop() {
         Log.i("MediaService", "handleStop invoked")
+        isPlayingState = false
+        releaseWakeLock()
+        releaseWifiLock()
         val listener = actionListener ?: MediaSessionPlugin.instance
         listener?.onMediaAction("stop")
         stopForegroundInternal()
@@ -519,26 +597,76 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         refreshNotification()
     }
 
+    private fun acquireWakeLock() {
+        try {
+            if (wakeLock?.isHeld != true) {
+                wakeLock?.acquire()
+            }
+        } catch (e: Exception) {
+            Log.w("MediaService", "Failed to acquire WakeLock", e)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (e: Exception) {
+            Log.w("MediaService", "Failed to release WakeLock", e)
+        }
+    }
+
+    private fun acquireWifiLock() {
+        try {
+            if (wifiLock?.isHeld != true) {
+                wifiLock?.acquire()
+            }
+        } catch (e: Exception) {
+            Log.w("MediaService", "Failed to acquire WifiLock", e)
+        }
+    }
+
+    private fun releaseWifiLock() {
+        try {
+            if (wifiLock?.isHeld == true) {
+                wifiLock?.release()
+            }
+        } catch (e: Exception) {
+            Log.w("MediaService", "Failed to release WifiLock", e)
+        }
+    }
+
     fun updatePlaybackState(
         isPlaying: Boolean,
         positionMs: Long,
-        speed: Float = 1.0f
+        speed: Float = 1.0f,
+        isStreaming: Boolean = true
     ) {
-        Log.i("MediaService", "updatePlaybackState: isPlaying=$isPlaying, pos=${positionMs}ms, speed=$speed")
+        Log.i("MediaService", "updatePlaybackState: isPlaying=$isPlaying, pos=${positionMs}ms, speed=$speed, isStreaming=$isStreaming")
         val wasPlaying = isPlayingState
         isPlayingState = isPlaying
+        isStreamingState = isStreaming
         currentPositionMs = positionMs
         playbackSpeed = if (speed > 0f) speed else 1.0f
 
         if (isPlaying) {
-            if (wakeLock?.isHeld == true) {
-                try { wakeLock?.release() } catch (_: Exception) {}
+            markPlaybackStarted()
+            acquireWakeLock()
+            if (isStreaming) {
+                acquireWifiLock()
+            } else {
+                releaseWifiLock()
             }
             if (!hasAudioFocus) {
                 requestAudioFocus()
             }
         } else {
-            try { wakeLock?.acquire(45_000L) } catch (_: Exception) {}
+            if (wasPlaying) {
+                markPlaybackPaused()
+            }
+            releaseWakeLock()
+            releaseWifiLock()
             if (!resumeOnFocusGain) {
                 abandonAudioFocus()
             }

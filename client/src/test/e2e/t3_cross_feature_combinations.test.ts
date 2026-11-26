@@ -15,7 +15,7 @@ import {
 } from './harness';
 
 // oxlint-disable-next-line
-import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
+import { StorageManager } from '../../utils/StorageManager';
 import { handleDownload, cancelActiveDownload } from '../../utils/downloadHelper';
 // oxlint-disable-next-line
 import { getCachedImageUrl } from '../../utils/imageCache';
@@ -45,10 +45,6 @@ import { createMockAudioElement } from '../mocks/mockAudio';
 import { convertFileSrc } from '@tauri-apps/api/core';
 // oxlint-disable-next-line
 import { downloadDir, join } from '@tauri-apps/api/path';
-// oxlint-disable-next-line
-import { Capacitor } from '@capacitor/core';
-// oxlint-disable-next-line
-import { Filesystem, Directory } from '@capacitor/filesystem';
 
 describe('Tier 3: Cross-Feature Combinations & Subsystem Interactions', () => {
   beforeEach(() => {
@@ -340,21 +336,21 @@ describe('Tier 3: Cross-Feature Combinations & Subsystem Interactions', () => {
   // ==========================================================================
   // [T3.C8] Mobile Sandbox Migration + Directory Traversal Isolation
   // ==========================================================================
-  it('[T3.C8] Mobile Sandbox Migration + Directory Traversal Isolation ensures Capacitor Filesystem operations remain strictly sandboxed in Directory.Data', async () => {
-    setPlatform('capacitor');
+  it('[T3.C8] Mobile Sandbox Migration + Directory Traversal Isolation ensures Tauri mobile operations remain strictly in appDataDir/Holad', async () => {
+    setPlatform('tauri-mobile');
 
     // 1. Save mobile track in subfolder
     const data = new Uint8Array([5, 6, 7, 8]);
     const savedPath = await StorageManager.saveTrack('sandboxed_song.mp3', data, undefined, 'albums/MobileAlbum');
-    expect(savedPath).toBe('Holad/albums/MobileAlbum/sandboxed_song.mp3');
+    expect(savedPath).toBe('C:/Users/MockUser/AppData/Roaming/Holad/Holad/albums/MobileAlbum/sandboxed_song.mp3');
 
-    // 2. Verify physical file is located strictly inside DATA/Holad/... in VFS
-    expect(await vfs.exists('DATA/Holad/albums/MobileAlbum/sandboxed_song.mp3')).toBe(true);
+    // 2. Verify physical file is located strictly inside appDataDir/Holad/... in VFS
+    expect(await vfs.exists(savedPath)).toBe(true);
 
     // 3. Delete directory and verify child unlinking
-    await StorageManager.removeDirectory('Holad/albums/MobileAlbum');
-    expect(await vfs.exists('DATA/Holad/albums/MobileAlbum/sandboxed_song.mp3')).toBe(false);
-    expect(await vfs.exists('DATA/Holad/albums/MobileAlbum')).toBe(false);
+    await StorageManager.removeDirectory('C:/Users/MockUser/AppData/Roaming/Holad/Holad/albums/MobileAlbum');
+    expect(await vfs.exists(savedPath)).toBe(false);
+    expect(await vfs.exists('C:/Users/MockUser/AppData/Roaming/Holad/Holad/albums/MobileAlbum')).toBe(false);
   });
 
   // ==========================================================================
@@ -632,13 +628,13 @@ describe('Tier 3: Cross-Feature Combinations & Subsystem Interactions', () => {
     expect(tauriUri).toContain('http://asset.localhost/');
 
     // 2. Mobile Mode
-    setPlatform('capacitor');
-    const mobileTrack = 'Holad/tracks/MobileSong.mp3';
-    await vfs.writeFile(`DATA/${mobileTrack}`, new Uint8Array([1, 2]));
+    setPlatform('tauri-mobile');
+    const mobileTrack = 'C:/Users/MockUser/AppData/Roaming/Holad/Holad/tracks/MobileSong.mp3';
+    await vfs.writeFile(mobileTrack, new Uint8Array([1, 2]));
     useDownloadStore.getState().startDownload('m-switch-1', 'MobileSong', 'track');
     useDownloadStore.getState().completeDownload('m-switch-1', mobileTrack);
 
-    const capUri = await StorageManager.getLocalTrackUri('m-switch-1', 'MobileSong');
-    expect(capUri).toContain('_capacitor_file_');
+    const mobileUri = await StorageManager.getLocalTrackUri('m-switch-1', 'MobileSong');
+    expect(mobileUri).toContain('http://asset.localhost/');
   });
 });

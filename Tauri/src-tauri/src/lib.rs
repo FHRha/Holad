@@ -248,6 +248,13 @@ fn get_music_download_dir(app: tauri::AppHandle) -> String {
         }
     }
 
+    #[cfg(target_os = "android")]
+    {
+        if let Ok(data_dir) = app.path().app_data_dir() {
+            return data_dir.join("Holad").to_string_lossy().to_string();
+        }
+    }
+
     if let Ok(download_dir) = app.path().download_dir() {
         download_dir.join("Holad").to_string_lossy().to_string()
     } else {
@@ -388,10 +395,23 @@ fn current_millis() -> u64 {
 #[cfg(target_os = "android")]
 fn init_media_session_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri::plugin::Builder::new("mediaSession")
-        .setup(|app, api| {
+        .setup(|_app, api| {
             #[cfg(target_os = "android")]
             {
                 api.register_android_plugin("com.holad.app", "MediaSessionPlugin")?;
+            }
+            Ok(())
+        })
+        .build()
+}
+
+#[cfg(target_os = "android")]
+fn init_apk_updater_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    tauri::plugin::Builder::new("apkUpdater")
+        .setup(|_app, api| {
+            #[cfg(target_os = "android")]
+            {
+                api.register_android_plugin("com.holad.app", "ApkUpdaterPlugin")?;
             }
             Ok(())
         })
@@ -431,7 +451,9 @@ pub fn run() {
 
   #[cfg(target_os = "android")]
   {
-      builder = builder.plugin(init_media_session_plugin());
+      builder = builder
+          .plugin(init_media_session_plugin())
+          .plugin(init_apk_updater_plugin());
   }
 
   #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -472,12 +494,23 @@ pub fn run() {
         discord_rpc::set_discord_client_id,
         discord_rpc::update_discord_activity,
         audio::audio_load,
+        audio::audio_preload,
+        audio::audio_queue_gapless,
         audio::audio_play,
         audio::audio_pause,
+        audio::audio_stop,
         audio::audio_seek,
         audio::audio_set_volume,
+        audio::audio_set_playback_rate,
+        audio::audio_set_loop,
+        audio::audio_set_compressor,
+        audio::audio_start_visualizer,
+        audio::audio_stop_visualizer,
         audio::audio_get_state,
         audio::audio_crossfade,
+        audio::audio_list_output_devices,
+        audio::audio_set_output_device,
+        audio::audio_recover_output_sink,
         media_controls::desktop_media_set_metadata,
         media_controls::desktop_media_set_state
     ])

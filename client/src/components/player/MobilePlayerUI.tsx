@@ -463,7 +463,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
           onClose();
         }
       }}
-      className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] transform-gpu will-change-transform"
+      className="fixed inset-0 h-[100dvh] w-full bg-background flex flex-col text-foreground overflow-hidden z-[100] transform-gpu will-change-transform pt-[env(safe-area-inset-top)]"
     >
       {!isListenerPage && (
         <div 
@@ -547,7 +547,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
       {isWide ? (
         /* Dual-Column Foldable / Tablet Split-View Layout (Benchmark: Galaxy Z Fold unfolded >= 600px) */
         <LayoutGroup id="fold-player-controls">
-          <div className="relative z-10 flex-1 flex flex-row items-stretch justify-center w-full max-w-5xl mx-auto px-6 py-2 gap-8 min-h-0 overflow-visible">
+          <div className="relative z-10 flex-1 flex flex-row items-stretch justify-center w-full max-w-5xl mx-auto pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] py-2 gap-8 min-h-0 overflow-visible">
             
             {/* Left Column: Fixed Cover, Header, and Adaptive Bottom Control Slot */}
             <div className="w-[44%] max-w-[380px] h-full flex flex-col justify-between shrink-0 py-2 overflow-visible relative z-10">
@@ -705,7 +705,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
         </LayoutGroup>
       ) : (
         /* Single-Column Classical Mobile Layout (< 600px) */
-        <div className={`relative z-10 flex-1 flex flex-col items-center justify-between w-full max-w-md mx-auto min-h-0 ${activeTab === 'player' ? 'px-6 pb-6 overflow-y-auto hide-scrollbar' : 'px-0 pb-0 overflow-hidden'}`}>
+        <div className={`relative z-10 flex-1 flex flex-col items-center justify-between w-full max-w-md mx-auto min-h-0 ${activeTab === 'player' ? 'pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] pb-6 overflow-y-auto hide-scrollbar' : 'pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-0 overflow-hidden'}`}>
           {activeTab === 'player' ? (
             <motion.div
               key="player-tab-single"
@@ -770,7 +770,7 @@ export default function MobilePlayerUI({ onClose }: { onClose: () => void }) {
 
       {/* Bottom Navigation Bar with Spring Layout Pill */}
       <div 
-        className="relative z-10 w-full h-[72px] flex-shrink-0 bg-background/40 backdrop-blur-md transform-gpu will-change-transform border-t border-border flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]"
+        className="relative z-10 w-full h-[calc(72px+env(safe-area-inset-bottom))] flex-shrink-0 bg-background/40 backdrop-blur-md transform-gpu will-change-transform border-t border-border flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]"
       >
         <button 
           onClick={() => handleTabChange('player')} 

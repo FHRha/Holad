@@ -15,7 +15,7 @@ import {
 } from './harness';
 
 // oxlint-disable-next-line
-import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
+import { StorageManager, isTauri } from '../../utils/StorageManager';
 import { handleDownload, cancelActiveDownload } from '../../utils/downloadHelper';
 import { getCachedImageUrl } from '../../utils/imageCache';
 // oxlint-disable-next-line
@@ -42,10 +42,6 @@ import { createMockAudioElement } from '../mocks/mockAudio';
 import { convertFileSrc } from '@tauri-apps/api/core';
 // oxlint-disable-next-line
 import { downloadDir, join } from '@tauri-apps/api/path';
-// oxlint-disable-next-line
-import { Capacitor } from '@capacitor/core';
-// oxlint-disable-next-line
-import { Filesystem, Directory } from '@capacitor/filesystem';
 
 describe('Tier 2: Boundary & Corner Cases Test Suite', () => {
   beforeEach(() => {
@@ -74,16 +70,16 @@ describe('Tier 2: Boundary & Corner Cases Test Suite', () => {
       expect(stat.isFile).toBe(true);
     });
 
-    it('[T2.B1.02] 0-byte audio file saving in Capacitor mode creates valid base64 representation in Directory.Data', async () => {
-      setPlatform('capacitor');
+    it('[T2.B1.02] 0-byte audio file saving in Tauri mobile mode creates valid empty file in appDataDir/Holad', async () => {
+      setPlatform('tauri-mobile');
       const emptyBuffer = new Uint8Array(0);
       const savedPath = await StorageManager.saveTrack('empty_mobile.mp3', emptyBuffer, undefined, 'tracks');
 
-      expect(savedPath).toBe('Holad/tracks/empty_mobile.mp3');
-      const exists = await vfs.exists(`DATA/${savedPath}`);
+      expect(savedPath).toBe('C:/Users/MockUser/AppData/Roaming/Holad/Holad/tracks/empty_mobile.mp3');
+      const exists = await vfs.exists(savedPath);
       expect(exists).toBe(true);
 
-      const stat = await vfs.stat(`DATA/${savedPath}`);
+      const stat = await vfs.stat(savedPath);
       expect(stat.size).toBe(0);
     });
 

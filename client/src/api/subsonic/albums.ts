@@ -1,7 +1,7 @@
 import { buildUrl, fetchWithRetry, getAuthParams } from '../subsonic-core';
 import { getHoladServerUrl } from '../../utils/serverConfig';
 import { useAuthStore } from '../../store/authStore';
-import { isCapacitor } from '../../utils/StorageManager';
+import { isTauriMobile } from '../../utils/platform';
 
 export const fetchAlbums = async (offset = 0, size = 50, type: string = 'alphabeticalByName') => {
   const url = buildUrl('getAlbumList2', { type, size: size.toString(), offset: offset.toString() });
@@ -43,7 +43,7 @@ export const getCoverArtUrl = (id?: string | null, size?: number): string => {
     return '';
   }
 
-  if (id.startsWith('data:') || id.startsWith('blob:') || id.startsWith('asset://') || id.startsWith('capacitor://') || id.startsWith('file://')) {
+  if (id.startsWith('data:') || id.startsWith('blob:') || id.startsWith('asset://') || id.startsWith('file://')) {
     return id;
   }
   if ((id.startsWith('http://') || id.startsWith('https://')) && !id.includes('/api/cover/') && !id.includes('getCoverArt')) {
@@ -80,7 +80,7 @@ export const getCoverArtUrl = (id?: string | null, size?: number): string => {
   }
 
   // On mobile (Capacitor), fetch directly from Subsonic if authenticated
-  if (isCapacitor() && isAuthenticated && url && user && token && salt) {
+  if (isTauriMobile() && isAuthenticated && url && user && token && salt) {
     const auth = getAuthParams();
     return `${url.replace(/\/$/, '')}/rest/getCoverArt?id=${encodeURIComponent(rawId)}&size=${normalizedSize}&${auth}`;
   }

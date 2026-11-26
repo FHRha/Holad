@@ -279,7 +279,7 @@ const { vfs: vfsInstance, mockState: mockStateInstance } = vi.hoisted(() => {
   const vfsInstance = new VirtualFileSystem();
 
   const mockStateInstance = {
-    platform: 'tauri' as 'tauri' | 'capacitor' | 'web',
+    platform: 'tauri' as 'tauri' | 'tauri-mobile' | 'web',
     online: true,
     songs: new Map<string, MockSongItem>(),
     albums: new Map<string, MockAlbumItem>(),
@@ -378,105 +378,6 @@ vi.mock('@tauri-apps/plugin-autostart', () => ({
 // ============================================================================
 // 3. Capacitor Module Mocks
 // ============================================================================
-
-export const Directory = {
-  Data: 'DATA',
-  Documents: 'DOCUMENTS',
-  Cache: 'CACHE',
-  External: 'EXTERNAL',
-  ExternalStorage: 'EXTERNAL_STORAGE',
-  Library: 'LIBRARY',
-} as const;
-
-vi.mock('@capacitor/filesystem', () => {
-  const resolveCapPath = (path: string, directory?: string) => {
-    const normPath = path.replace(/\\/g, '/').replace(/^\/+/, '');
-    if (directory) {
-      return `${directory}/${normPath}`;
-    }
-    return normPath;
-  };
-
-  return {
-    Directory: {
-      Data: 'DATA',
-      Documents: 'DOCUMENTS',
-      Cache: 'CACHE',
-      External: 'EXTERNAL',
-      ExternalStorage: 'EXTERNAL_STORAGE',
-      Library: 'LIBRARY',
-    },
-    Filesystem: {
-      writeFile: vi.fn(async (options: { path: string; data: string; directory?: string; recursive?: boolean }) => {
-        const fullPath = resolveCapPath(options.path, options.directory);
-        await vfs.writeFile(fullPath, options.data);
-        return { uri: `_capacitor_file_://${fullPath}` };
-      }),
-      readFile: vi.fn(async (options: { path: string; directory?: string }) => {
-        const fullPath = resolveCapPath(options.path, options.directory);
-        const data = await vfs.readFile(fullPath);
-        // Return base64 representation
-        let binary = '';
-        for (let i = 0; i < data.length; i++) {
-          binary += String.fromCharCode(data[i]);
-        }
-        return { data: btoa(binary) };
-      }),
-      stat: vi.fn(async (options: { path: string; directory?: string }) => {
-        const fullPath = resolveCapPath(options.path, options.directory);
-        const s = await vfs.stat(fullPath);
-        return {
-          type: s.isDirectory ? 'directory' : 'file',
-          size: s.size,
-          mtime: s.mtime,
-          uri: `_capacitor_file_://${fullPath}`,
-        };
-      }),
-      mkdir: vi.fn(async (options: { path: string; directory?: string; recursive?: boolean }) => {
-        const fullPath = resolveCapPath(options.path, options.directory);
-        await vfs.mkdir(fullPath, { recursive: options.recursive ?? true });
-      }),
-      deleteFile: vi.fn(async (options: { path: string; directory?: string }) => {
-        const fullPath = resolveCapPath(options.path, options.directory);
-        await vfs.remove(fullPath);
-      }),
-      rmdir: vi.fn(async (options: { path: string; directory?: string; recursive?: boolean }) => {
-        const fullPath = resolveCapPath(options.path, options.directory);
-        await vfs.remove(fullPath, { recursive: options.recursive ?? true });
-      }),
-      readdir: vi.fn(async (options: { path: string; directory?: string }) => {
-        const fullPath = resolveCapPath(options.path, options.directory);
-        const entries = await vfs.readDir(fullPath);
-        return {
-          files: entries.map(e => ({
-            name: e.name,
-            type: e.isDirectory ? ('directory' as const) : ('file' as const),
-            size: e.size || 0,
-            mtime: Date.now(),
-            uri: `_capacitor_file_://${fullPath}/${e.name}`,
-          })),
-        };
-      }),
-      getUri: vi.fn(async (options: { path: string; directory?: string }) => {
-        const fullPath = resolveCapPath(options.path, options.directory);
-        return { uri: fullPath };
-      }),
-    },
-  };
-});
-
-vi.mock('@capacitor/core', () => ({
-  Capacitor: {
-    convertFileSrc: vi.fn((filePath: string) => {
-      if (!filePath) return '';
-      const clean = filePath.replace(/^file:\/\//, '');
-      return `_capacitor_file_://${clean.replace(/^\/+/, '')}`;
-    }),
-    isNativePlatform: vi.fn(() => mockState.platform === 'capacitor'),
-    getPlatform: vi.fn(() => (mockState.platform === 'capacitor' ? 'android' : 'web')),
-    isPluginAvailable: vi.fn(() => true),
-  },
-}));
 
 // ============================================================================
 // 4. Subsonic API Mock & Chunked ReadableStream Simulator
@@ -758,27 +659,27 @@ export function setupFetchMock(): void {
 // 5. Platform & Network State Switchers
 // ============================================================================
 
-export function setPlatform(platform: 'tauri' | 'capacitor' | 'web'): void {
+export function setPlatform(platform: 'tauri' | 'tauri-mobile' | 'web'): void {
   mockState.platform = platform;
   if (typeof window !== 'undefined') {
     if (platform === 'tauri') {
       (window as any).__TAURI_INTERNALS__ = { plugins: {} };
-      delete (window as any).Capacitor;
-    } else if (platform === 'capacitor') {
-      delete (window as any).__TAURI_INTERNALS__;
-      (window as any).Capacitor = {
-        convertFileSrc: (path: string) => {
-          if (!path) return '';
-          const clean = path.replace(/^file:\/\//, '');
-          return `_capacitor_file_://${clean.replace(/^\/+/, '')}`;
-        },
-        isNativePlatform: () => true,
-        getPlatform: () => 'android',
-        isPluginAvailable: () => true,
-      };
+      if (typeof navigator !== 'undefined') {
+        Object.defineProperty(navigator, 'userAgent', { configurable: true, value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Holad-Desktop' });
+        Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Win32' });
+      }
+    } else if (platform === 'tauri-mobile') {
+      (window as any).__TAURI_INTERNALS__ = { plugins: {} };
+      if (typeof navigator !== 'undefined') {
+        Object.defineProperty(navigator, 'userAgent', { configurable: true, value: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Holad-Mobile' });
+        Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Linux armv8l' });
+      }
     } else {
       delete (window as any).__TAURI_INTERNALS__;
-      delete (window as any).Capacitor;
+      if (typeof navigator !== 'undefined') {
+        Object.defineProperty(navigator, 'userAgent', { configurable: true, value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' });
+        Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Win32' });
+      }
     }
   }
 }

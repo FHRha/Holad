@@ -1,13 +1,6 @@
-import { isCapacitor, isTauri } from '../utils/StorageManager';
+import { isMobileClient, isTauriDesktop, isTauriMobile } from '../utils/platform';
 
-/**
- * Checks whether the current environment is running on a mobile client
- * (mobile web or mobile Capacitor app, excluding desktop Tauri app).
- */
-export const isMobileClient = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  return isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
-};
+export { isMobileClient };
 
 /**
  * Retrieves the device ID from localStorage or sessionStorage if available.
@@ -66,12 +59,12 @@ export function getDeviceName(): string {
   if (typeof navigator === 'undefined') return 'Holad Web Client';
   const ua = navigator.userAgent;
   
-  if (ua.includes('Holad-Mobile') || (isTauri() && /Android/i.test(ua))) {
+  if (ua.includes('Holad-Mobile') || isTauriMobile()) {
     const os = /Android/.test(ua) ? 'Android' : /iOS|iPhone|iPad/.test(ua) ? 'iOS' : 'Android';
     return `Holad App on ${os}`;
   }
   
-  if (ua.includes('Holad-Desktop') || isTauri()) {
+  if (ua.includes('Holad-Desktop') || isTauriDesktop()) {
     const os = /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'Desktop';
     return `Holad Desktop on ${os}`;
   }

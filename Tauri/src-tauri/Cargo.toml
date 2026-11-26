@@ -37,6 +37,8 @@ ureq = { version = "2.10", features = ["tls"] }
 sha2 = "0.10"
 rodio = { version = "0.23", default-features = false, features = ["playback", "symphonia-all"] }
 symphonia = { version = "0.5.5", features = ["all"] }
+rustfft = "6.2"
+ringbuf = "0.4"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri = { version = "2.11.3", features = ["custom-protocol", "protocol-asset", "tray-icon", "image-png"] }

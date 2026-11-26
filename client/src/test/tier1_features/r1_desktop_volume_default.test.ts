@@ -4,7 +4,7 @@ import { WebAudioPipeline } from '../../audio/WebAudioPipeline';
 import { AudioEngine } from '../../audio/AudioEngine';
 import { createMockAudioElement } from '../mocks/mockAudio';
 import { resetAllStores, createMockTrack } from '../helpers/testUtils';
-import { isTauri, isCapacitor } from '../../utils/StorageManager';
+import { isMobilePlatform } from '../../utils/platform';
 
 describe('Tier 1 - R1: Desktop Volume Default & Platform Multiplier', () => {
   let originalUserAgent: string;
@@ -21,7 +21,6 @@ describe('Tier 1 - R1: Desktop Volume Default & Platform Multiplier', () => {
       configurable: true,
     });
     delete (window as any).__TAURI_INTERNALS__;
-    delete (window as any).Capacitor;
     vi.restoreAllMocks();
   });
 
@@ -33,7 +32,7 @@ describe('Tier 1 - R1: Desktop Volume Default & Platform Multiplier', () => {
       configurable: true,
     });
 
-    const isMobile = !isTauri() && (isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+    const isMobile = isMobilePlatform();
     expect(isMobile).toBe(false);
 
     // Verify desktop volume multiplier default contract (0.20)
@@ -52,7 +51,7 @@ describe('Tier 1 - R1: Desktop Volume Default & Platform Multiplier', () => {
       configurable: true,
     });
 
-    const isMobile = !isTauri() && (isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+    const isMobile = isMobilePlatform();
     expect(isMobile).toBe(true);
 
     const mobileDefaultMultiplier = isMobile ? 1.0 : 0.2;

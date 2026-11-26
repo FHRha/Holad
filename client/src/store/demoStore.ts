@@ -4,7 +4,7 @@ import { useAuthStore } from './authStore';
 import { usePlayerStore } from './playerStore';
 import { useHoladStore } from './holadStore';
 import { useSocialStore } from './socialStore';
-import { isTauri, isCapacitor } from '../utils/StorageManager';
+import { isTauri } from '../utils/platform';
 
 interface DemoState {
   isDemoMode: boolean;
@@ -25,7 +25,7 @@ interface DemoState {
 
 export const useDemoStore = create<DemoState>((set, get) => ({
   isDemoMode: false,
-  isCheckingDemo: typeof window !== 'undefined' && !isTauri() && !isCapacitor(),
+  isCheckingDemo: typeof window !== 'undefined' && !isTauri(),
   isPoolExhausted: false,
   retryAfter: 60,
   sessionId: null,
@@ -39,7 +39,7 @@ export const useDemoStore = create<DemoState>((set, get) => ({
 
   checkDemoSession: async () => {
     // Only web client supports demo mode (desktop/mobile always use direct login)
-    if (isTauri() || isCapacitor()) {
+    if (isTauri()) {
       set({ isCheckingDemo: false });
       return { isDemo: false, success: false };
     }

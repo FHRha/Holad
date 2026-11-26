@@ -1,8 +1,7 @@
 import { toast } from 'sonner';
-import { isTauri, isCapacitor } from '../utils/StorageManager';
+import { isTauri, isTauriDesktop, isTauriMobile } from '../utils/platform';
 import { useUIStore, type UpdateProgress } from '../store/uiStore';
 import { openExternalLink } from '../utils/linkHelper';
-import { ApkUpdaterPlugin } from '../utils/apkUpdaterHelper';
 import { getHoladServerUrl } from '../utils/serverConfig';
 import { useSettingsStore } from '../store/settingsStore';
 import i18n from '../i18n';
@@ -86,7 +85,7 @@ export function compareVersions(v1: string, v2: string): number {
 }
 
 function getPlatform(): 'windows' | 'linux' | 'android' | 'other' {
-    if (isCapacitor()) return 'android';
+    if (isTauriMobile()) return 'android';
     const ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '').toLowerCase();
     const plat = (typeof navigator !== 'undefined' ? (navigator as any).platform || '' : '').toLowerCase();
     if (ua.includes('android')) return 'android';
@@ -128,18 +127,6 @@ export class UpdateService {
                 }
             } catch (e) {
                 console.warn('Could not read Tauri app version:', e);
-            }
-        }
-
-        if (isCapacitor()) {
-            try {
-                const { App } = await import('@capacitor/app');
-                const info = await App.getInfo();
-                if (info?.version && info.version !== '0.0.0') {
-                    return info.version;
-                }
-            } catch (e) {
-                console.warn('Could not read Capacitor app version:', e);
             }
         }
 
@@ -360,7 +347,7 @@ export class UpdateService {
             return;
         }
 
-        if (isTauri()) {
+        if (isTauriDesktop()) {
             try {
                 useUIStore.getState().setUpdateProgress({
                     stage: 'downloading',
@@ -396,7 +383,14 @@ export class UpdateService {
                 });
                 toast.error(errorStr);
             }
-        } else if (isCapacitor() && ApkUpdaterPlugin) {
+        } else if (isTauriMobile()) {
+            let unlistenTauri: (() => void) | undefined;
+            const onApkProgress = (event: Event) => {
+                const customEvent = event as CustomEvent<UpdateProgress>;
+                if (customEvent?.detail) {
+                    useUIStore.getState().setUpdateProgress(customEvent.detail);
+                }
+            };
             try {
                 useUIStore.getState().setUpdateProgress({
                     stage: 'downloading',
@@ -405,28 +399,35 @@ export class UpdateService {
                     total: info.size || 0
                 });
 
-                const listener = await ApkUpdaterPlugin.addListener('update-download-progress', (event) => {
-                    useUIStore.getState().setUpdateProgress(event);
-                });
+                window.addEventListener('holad:apkdownloadprogress', onApkProgress);
 
-                const res = await ApkUpdaterPlugin.downloadAndInstall({
+                const { listen } = await import('@tauri-apps/api/event');
+                const { invoke } = await import('@tauri-apps/api/core');
+
+                unlistenTauri = await listen<UpdateProgress>('update-download-progress', (event) => {
+                    if (event.payload) {
+                        useUIStore.getState().setUpdateProgress(event.payload);
+                    }
+                }).catch(() => undefined);
+
+                const res = await invoke<{ stage?: string; filePath?: string }>('plugin:apkUpdater|downloadAndInstall', {
                     url: info.downloadUrl,
-                    fileName: info.fileName || 'Holad-Update.apk'
+                    fileName: info.fileName,
+                    sha256: info.expectedSha256 || null
                 });
 
-                if (res.stage === 'permission_required') {
+                if (res?.stage === 'permission_required') {
+                    const prev = useUIStore.getState().updateInfo?.progress;
                     useUIStore.getState().setUpdateProgress({
                         stage: 'permission_required',
                         percent: 100,
-                        downloaded: info.size || 0,
-                        total: info.size || 0,
-                        filePath: res.filePath
+                        downloaded: prev?.downloaded || info.size || 0,
+                        total: prev?.total || info.size || 0,
+                        filePath: res.filePath || prev?.filePath
                     });
                 }
-
-                await listener.remove();
             } catch (err: any) {
-                console.error('Android update error:', err);
+                console.error('Mobile update error:', err);
                 const errorStr = typeof err === 'string' ? err : err?.message || 'Update failed';
                 useUIStore.getState().setUpdateProgress({
                     stage: 'error',
@@ -436,6 +437,9 @@ export class UpdateService {
                     error: errorStr
                 });
                 toast.error(errorStr);
+            } finally {
+                window.removeEventListener('holad:apkdownloadprogress', onApkProgress);
+                if (unlistenTauri) unlistenTauri();
             }
         } else {
             openExternalLink(info.downloadUrl);
@@ -443,14 +447,41 @@ export class UpdateService {
     }
 
     static async requestInstallPermission() {
-        if (isCapacitor() && ApkUpdaterPlugin) {
-            await ApkUpdaterPlugin.openInstallSettings();
+        if (isTauriMobile()) {
+            try {
+                const { invoke } = await import('@tauri-apps/api/core');
+                await invoke('plugin:apkUpdater|openInstallSettings');
+            } catch (err: any) {
+                console.error('Failed to open install settings:', err);
+                const errorStr = typeof err === 'string' ? err : err?.message || 'Failed to open install settings';
+                toast.error(errorStr);
+            }
         }
     }
 
     static async installDownloadedApk(filePath: string) {
-        if (isCapacitor() && ApkUpdaterPlugin) {
-            await ApkUpdaterPlugin.installApk({ filePath });
+        if (isTauriMobile()) {
+            try {
+                const { invoke } = await import('@tauri-apps/api/core');
+                const res = await invoke<{ stage?: string; filePath?: string }>('plugin:apkUpdater|installApk', {
+                    filePath
+                });
+                if (res?.stage === 'permission_required') {
+                    const info = useUIStore.getState().updateInfo;
+                    const prev = info?.progress;
+                    useUIStore.getState().setUpdateProgress({
+                        stage: 'permission_required',
+                        percent: 100,
+                        downloaded: prev?.downloaded || info?.size || 0,
+                        total: prev?.total || info?.size || 0,
+                        filePath: res.filePath || filePath
+                    });
+                }
+            } catch (err: any) {
+                console.error('Failed to install APK:', err);
+                const errorStr = typeof err === 'string' ? err : err?.message || 'Failed to install APK';
+                toast.error(errorStr);
+            }
         }
     }
 }

@@ -116,8 +116,6 @@ export class LRUImageMemoryManager {
       originalUrl.startsWith('blob:') ||
       originalUrl.startsWith('http://asset.localhost') ||
       originalUrl.startsWith('asset://') ||
-      originalUrl.startsWith('_capacitor_file_') ||
-      originalUrl.startsWith('capacitor://') ||
       originalUrl.startsWith('file://')
     ) {
       return originalUrl;

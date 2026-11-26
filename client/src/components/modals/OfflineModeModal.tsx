@@ -43,7 +43,7 @@ export default function OfflineModeModal({ isOpen = true, onClose, onToggleOffli
 
   return (
     <div 
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-200 p-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-200 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
       onClick={onClose}
       data-testid="offline-mode-modal"
     >

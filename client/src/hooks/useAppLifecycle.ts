@@ -3,9 +3,12 @@ import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 import { useHoladStore } from '../store/holadStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { useUIStore } from '../store/uiStore';
+import { useContextMenuStore } from '../store/contextMenuStore';
 import { getAudioEngine } from '../audio/AudioEngine';
-import { App } from '@capacitor/app';
-import { isCapacitor, isTauri } from '../utils/StorageManager';
+import { isTauriDesktop, isTauriMobile } from '../utils/platform';
+import { networkManager } from '../utils/networkStatus';
+import { checkAndRestoreSockets } from './useWindowVisibility';
 
 export function useAppLifecycle() {
   useEffect(() => {
@@ -89,22 +92,8 @@ export function useAppLifecycle() {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    let capacitorListener: any = null;
-    if (isCapacitor()) {
-      App.addListener('appStateChange', ({ isActive }: any) => {
-        if (!isActive) {
-          handleExit(false);
-        } else {
-          import('../utils/networkStatus').then(m => m.networkManager.checkConnection()).catch(() => {});
-          import('./useWindowVisibility').then(m => m.checkAndRestoreSockets()).catch(() => {});
-        }
-      }).then((listener: any) => {
-        capacitorListener = listener;
-      });
-    }
-
     let unlistenTauri: (() => void) | null = null;
-    if (isTauri()) {
+    if (isTauriDesktop()) {
       import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
         getCurrentWindow().onCloseRequested(() => {
           const closeToTray = useSettingsStore.getState().closeToTray;
@@ -115,10 +104,87 @@ export function useAppLifecycle() {
       });
     }
 
+    const onMobileAppStateChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ isActive?: boolean }>)?.detail;
+      if (!detail || typeof detail.isActive !== 'boolean') return;
+      if (!detail.isActive) {
+        handleExit(false);
+      } else {
+        networkManager.checkConnection().catch(() => {});
+        checkAndRestoreSockets();
+      }
+    };
+
+    const onMobileBackButton = () => {
+      const ctxMenu = useContextMenuStore.getState();
+      if (ctxMenu.isOpen) {
+        ctxMenu.closeMenu();
+        return;
+      }
+
+      const ui = useUIStore.getState();
+      if (ui.isMobilePlayerExpanded) {
+        ui.setIsMobilePlayerExpanded(false);
+        return;
+      }
+
+      if (ui.unignoreModal.isOpen) {
+        ui.closeUnignoreModal();
+        return;
+      }
+      if (ui.isUpdateModalOpen) {
+        const stage = ui.updateInfo?.progress?.stage;
+        if (stage !== 'downloading' && stage !== 'installing') {
+          ui.setUpdateModalOpen(false);
+        }
+        return;
+      }
+      if (ui.isOfflineModalOpen) {
+        ui.setOfflineModalOpen(false);
+        return;
+      }
+      if (ui.isSettingsOpen) {
+        ui.setSettingsOpen(false);
+        return;
+      }
+      if (ui.isPlaylistModalOpen) {
+        ui.setPlaylistModalOpen(false);
+        return;
+      }
+      if (ui.isJamModalOpen) {
+        ui.setIsJamModalOpen(false);
+        return;
+      }
+      if (ui.isSearchOpen) {
+        ui.setSearchOpen(false);
+        return;
+      }
+      if (ui.isNowPlayingOpen) {
+        ui.setNowPlayingOpen(false);
+        return;
+      }
+
+      const pathname = window.location.pathname;
+      if (pathname !== '/' && pathname !== '' && window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+
+      import('@tauri-apps/api/core')
+        .then(({ invoke }) => invoke('plugin:mediaSession|moveToBackground'))
+        .catch(() => {});
+    };
+
+    if (isTauriMobile()) {
+      window.addEventListener('holad:appstatechange', onMobileAppStateChange);
+      window.addEventListener('holad:backbutton', onMobileBackButton);
+    }
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      if (capacitorListener && typeof capacitorListener.remove === 'function') {
-        capacitorListener.remove();
+      if (isTauriMobile()) {
+        window.removeEventListener('holad:appstatechange', onMobileAppStateChange);
+        window.removeEventListener('holad:backbutton', onMobileBackButton);
       }
       if (unlistenTauri) {
         unlistenTauri();

@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Image as ImageIcon, Database, Trash2, Check, Loader2 } from 'lucide-react';
 import { clearAppCache } from '../../utils/storage';
-import { StorageManager, isTauri, isCapacitor } from '../../utils/StorageManager';
+import { StorageManager } from '../../utils/StorageManager';
+import { isTauri } from '../../utils/platform';
 import { useDownloadStore } from '../../store/downloadStore';
 import { deleteDownloadedItem } from '../../utils/downloadHelper';
 import { clearImageCache } from '../../utils/imageCache';
-import { toast } from 'sonner';
 
 interface StorageDangerZoneProps {
   isMobile?: boolean;
@@ -52,19 +52,6 @@ export default function StorageDangerZone({
             }
           } catch (e) {
             console.warn('Tauri covers folder cleanup error:', e);
-          }
-        } else if (isCapacitor()) {
-          try {
-            const { Filesystem, Directory } = await import('@capacitor/filesystem');
-            try {
-              await Filesystem.rmdir({ path: 'Holad/covers', directory: Directory.Data, recursive: true });
-            } catch (e: any) {
-              if (e.message && !e.message.includes('does not exist')) {
-                toast.error(t('settings.storage_error', { defaultValue: 'Storage Error' }) + ': ' + e.message);
-              }
-            }
-          } catch (e) {
-            console.warn('Capacitor covers folder cleanup error:', e);
           }
         }
 
@@ -139,18 +126,6 @@ export default function StorageDangerZone({
             if (await exists(albumsDir)) await remove(albumsDir, { recursive: true });
           } catch (e) {
             console.warn('Tauri root folder cleanup error:', e);
-          }
-        } else if (isCapacitor()) {
-          try {
-            const { Filesystem, Directory } = await import('@capacitor/filesystem');
-            try { await Filesystem.rmdir({ path: 'Holad/tracks', directory: Directory.Data, recursive: true }); } catch (e: any) {
-              if (e.message && !e.message.includes('does not exist')) toast.error(t('settings.storage_error', { defaultValue: 'Storage Error' }) + ': ' + e.message);
-            }
-            try { await Filesystem.rmdir({ path: 'Holad/albums', directory: Directory.Data, recursive: true }); } catch (e: any) {
-              if (e.message && !e.message.includes('does not exist')) toast.error(t('settings.storage_error', { defaultValue: 'Storage Error' }) + ': ' + e.message);
-            }
-          } catch (e) {
-            console.warn('Capacitor root folder cleanup error:', e);
           }
         }
 
@@ -255,7 +230,7 @@ export default function StorageDangerZone({
             </button>
           </div>
 
-          {(isTauri() || isCapacitor()) && (
+          {isTauri() && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-background/60 border border-red-500/20">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-red-500/10 text-red-400 flex-shrink-0">

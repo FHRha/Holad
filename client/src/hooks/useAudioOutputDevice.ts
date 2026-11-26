@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { isCapacitor, isTauri } from '../utils/StorageManager';
+import { isTauri, isTauriDesktop, isTauriMobile, isMobilePlatform } from '../utils/platform';
 import { usePlayerStore } from '../store/playerStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAudioStore } from '../store/audioStore';
@@ -8,16 +8,13 @@ import { isJamPath } from '../utils/basePath';
 import { savePlaybackState } from '../api/playbackState';
 import { getAudioEngine } from '../audio/AudioEngine';
 
+export { isMobilePlatform };
+
 export interface AudioOutputDevice {
   name: string;
   type: 'bluetooth' | 'wired' | 'speaker' | 'remote' | 'default';
   isHeadphones: boolean;
 }
-
-export const isMobilePlatform = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  return !isTauri() && (isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
-};
 
 let globalOutputDevice: AudioOutputDevice = {
   name: '',
@@ -136,7 +133,6 @@ export function getAudioOutputDevice(): AudioOutputDevice {
 
 let lastHeadphonesDisconnectedAt: number | null = null;
 let isHeadphonesDisconnectPause = false;
-let nativeAudioDevicePlugin: any = null;
 
 export function getLastHeadphonesDisconnectedAt(): number | null {
   return lastHeadphonesDisconnectedAt;
@@ -227,19 +223,6 @@ export function handleHeadphonesConnected() {
       engine.resume().catch(() => {});
     }
   }
-
-  if (isCapacitor()) {
-    if (nativeAudioDevicePlugin && typeof nativeAudioDevicePlugin.releaseWakeLock === 'function') {
-      nativeAudioDevicePlugin.releaseWakeLock().catch(() => {});
-    } else {
-      import('@capacitor/core').then(({ registerPlugin }) => {
-        const AudioDevice = registerPlugin<any>('AudioDevice');
-        if (AudioDevice && typeof AudioDevice.releaseWakeLock === 'function') {
-          AudioDevice.releaseWakeLock().catch(() => {});
-        }
-      }).catch(() => {});
-    }
-  }
 }
 
 let isInitialized = false;
@@ -251,85 +234,67 @@ export function initAudioDeviceManager(): void {
 
   const cleanups: (() => void)[] = [];
 
-  // 1. Android Capacitor Native Bridge
-  if (isCapacitor()) {
-    import('@capacitor/core').then(({ registerPlugin }) => {
-      const AudioDevice = registerPlugin<any>('AudioDevice');
-      if (AudioDevice) {
-        nativeAudioDevicePlugin = AudioDevice;
-        AudioDevice.getOutputDevice()
-          .then((res: any) => {
-            if (res && res.name) {
-              updateGlobalDevice({
-                name: res.name,
-                type: res.type || 'speaker',
-                isHeadphones: Boolean(res.isHeadphones)
-              });
-            }
-          })
-          .catch(() => {});
-
-        AudioDevice.addListener('audioBecomingNoisy', () => {
-          handleHeadphonesDisconnected();
-        }).then((handle: any) => {
-          cleanups.push(() => {
-            if (handle && typeof handle.remove === 'function') handle.remove();
-          });
-        }).catch(() => {});
-
-        AudioDevice.addListener('headphonesConnected', () => {
-          handleHeadphonesConnected();
-        }).then((handle: any) => {
-          cleanups.push(() => {
-            if (handle && typeof handle.remove === 'function') handle.remove();
-          });
-        }).catch(() => {});
-
-        AudioDevice.addListener('outputDeviceChanged', (res: any) => {
-          if (res && res.name) {
-            const wasHeadphones = globalOutputDevice.isHeadphones;
-            const isHp = Boolean(res.isHeadphones);
-            updateGlobalDevice({
-              name: res.name,
-              type: res.type || 'speaker',
-              isHeadphones: isHp
-            });
-            if (wasHeadphones && !isHp && usePlayerStore.getState().isPlaying) {
-              handleHeadphonesDisconnected();
-            } else if (!wasHeadphones && isHp) {
-              handleHeadphonesConnected();
-            }
-          }
-        }).then((handle: any) => {
-          cleanups.push(() => {
-            if (handle && typeof handle.remove === 'function') handle.remove();
-          });
-        }).catch(() => {});
-      }
-    }).catch(() => {});
-  }
-
-  // 2. DOM Custom Event fallback (sent directly by Android WebView)
+  // 1. DOM Custom Event fallback (sent directly by Android WebView)
   const onDomNoisy = () => {
     handleHeadphonesDisconnected();
   };
   const onDomConnected = () => {
     handleHeadphonesConnected();
   };
+  const onDomOutputDeviceChanged = (event: Event) => {
+    const detail = (event as CustomEvent<any>)?.detail;
+    if (!detail) return;
+    const wasHeadphones = globalOutputDevice.isHeadphones;
+    const isHp = Boolean(detail.isHeadphones ?? detail.is_headphones);
+    updateGlobalDevice({
+      name: cleanRawDeviceLabel(detail.name || ''),
+      type: detail.type || detail.device_type || 'speaker',
+      isHeadphones: isHp
+    });
+    if (wasHeadphones && !isHp && usePlayerStore.getState().isPlaying) {
+      handleHeadphonesDisconnected();
+    } else if (!wasHeadphones && isHp) {
+      handleHeadphonesConnected();
+    }
+  };
   if (typeof window !== 'undefined') {
     window.addEventListener('holad:audiobecomingnoisy', onDomNoisy);
     window.addEventListener('holad:headphonesconnected', onDomConnected);
+    window.addEventListener('holad:outputdevicechanged', onDomOutputDeviceChanged);
     cleanups.push(() => {
       window.removeEventListener('holad:audiobecomingnoisy', onDomNoisy);
       window.removeEventListener('holad:headphonesconnected', onDomConnected);
+      window.removeEventListener('holad:outputdevicechanged', onDomOutputDeviceChanged);
     });
   }
 
-  // Helper to query and update web & desktop devices
+  // Helper to query and update web, desktop & mobile devices
   const updateDevices = async () => {
     const wasHeadphones = globalOutputDevice.isHeadphones;
 
-    if (isTauri()) {
+    if (isTauriMobile()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const nativeDev = await invoke<any>('plugin:mediaSession|getOutputDevice');
+        if (nativeDev && nativeDev.name) {
+          const rawLabel = cleanRawDeviceLabel(nativeDev.name);
+          const isHp = Boolean(nativeDev.isHeadphones ?? nativeDev.is_headphones);
+          updateGlobalDevice({
+            name: rawLabel,
+            type: nativeDev.type || nativeDev.device_type || 'speaker',
+            isHeadphones: isHp
+          });
+          if (wasHeadphones && !isHp && usePlayerStore.getState().isPlaying) {
+            handleHeadphonesDisconnected();
+          } else if (!wasHeadphones && isHp) {
+            handleHeadphonesConnected();
+          }
+          return;
+        }
+      } catch {
+        // Fallback below
+      }
+    } else if (isTauriDesktop()) {
       try {
         const { invoke } = await import('@tauri-apps/api/core');
         const nativeDev = await invoke<any>('get_audio_output_device');
@@ -347,6 +312,32 @@ export function initAudioDeviceManager(): void {
             handleHeadphonesConnected();
           }
           return;
+        }
+      } catch {
+        // Fallback to audio_list_output_devices or mediaDevices below
+      }
+
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const devices = await invoke<any[]>('audio_list_output_devices');
+        if (Array.isArray(devices) && devices.length > 0) {
+          const active = devices.find((d) => d.is_default) || devices[0];
+          if (active && active.name) {
+            const rawLabel = cleanRawDeviceLabel(active.name);
+            const isBt = isBluetoothLabel(rawLabel);
+            const isHp = isHeadphonesLabel(rawLabel);
+            updateGlobalDevice({
+              name: rawLabel,
+              type: isBt ? 'bluetooth' : (isHp ? 'wired' : 'speaker'),
+              isHeadphones: isHp
+            });
+            if (wasHeadphones && !isHp && usePlayerStore.getState().isPlaying) {
+              handleHeadphonesDisconnected();
+            } else if (!wasHeadphones && isHp) {
+              handleHeadphonesConnected();
+            }
+            return;
+          }
         }
       } catch {
         // Fallback to mediaDevices below
@@ -469,7 +460,6 @@ export function cleanupAudioDeviceManager(): void {
   isInitialized = false;
   lastHeadphonesDisconnectedAt = null;
   isHeadphonesDisconnectPause = false;
-  nativeAudioDevicePlugin = null;
 }
 
 export function useAudioOutputDevice(): AudioOutputDevice {

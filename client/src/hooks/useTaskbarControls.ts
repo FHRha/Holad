@@ -4,7 +4,7 @@ import { useIsActiveDevice } from './useIsActiveDevice';
 import { useWindowVisibility } from './useWindowVisibility';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { isTauri } from '../utils/StorageManager';
+import { isTauriDesktop } from '../utils/platform';
 
 export function useTaskbarControls() {
   const { isPlaying, nextTrack, prevTrack } = usePlayerStore();
@@ -15,7 +15,7 @@ export function useTaskbarControls() {
 
   // Initialize native taskbar buttons once mounted
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauriDesktop()) return;
     invoke('init_taskbar_buttons').catch((err) =>
       console.warn('Failed to init taskbar buttons:', err)
     );
@@ -23,8 +23,8 @@ export function useTaskbarControls() {
 
   // Listen to native Windows Thumbar events
   useEffect(() => {
-    // Only runs in Tauri
-    if (!isTauri()) return;
+    // Only runs on Tauri desktop
+    if (!isTauriDesktop()) return;
 
     const unlisten = listen<string>('taskbar-action', (event) => {
       const action = event.payload;
@@ -46,7 +46,7 @@ export function useTaskbarControls() {
 
   // Update native taskbar when isPlaying changes
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauriDesktop()) return;
 
     const shouldShowPlaying = isPlaying && (isActiveDevice || isWindowVisible);
 

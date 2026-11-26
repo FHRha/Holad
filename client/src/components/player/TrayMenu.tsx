@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Play, Pause, SkipBack, SkipForward, Heart, Maximize2, X, Music, Ban } from 'lucide-react';
 import { getCoverArtUrl } from '../../api/subsonic';
 import { useSettingsStore } from '../../store/settingsStore';
+import { isTauriDesktop } from '../../utils/platform';
 
 const hexToRgb = (hex: string) => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -82,7 +83,7 @@ export default function TrayMenu() {
   }, [accentColor]);
 
   useEffect(() => {
-    if (!('__TAURI_INTERNALS__' in window)) return;
+    if (!isTauriDesktop()) return;
 
     let unlisten: any;
     const setup = async () => {
@@ -108,7 +109,7 @@ export default function TrayMenu() {
 
   // Dynamically resize window to fit content perfectly
   useEffect(() => {
-    if (!('__TAURI_INTERNALS__' in window)) return;
+    if (!isTauriDesktop()) return;
     const adjustSize = async () => {
        try {
          const { invoke } = await import('@tauri-apps/api/core');
@@ -125,7 +126,7 @@ export default function TrayMenu() {
   }, [currentTrack]);
 
   const handleAction = async (action: string) => {
-    if ('__TAURI_INTERNALS__' in window) {
+    if (isTauriDesktop()) {
       try {
         const { emit } = await import('@tauri-apps/api/event');
         await emit('tray-control', action);
@@ -136,14 +137,14 @@ export default function TrayMenu() {
   };
 
   const quitApp = async () => {
-    if ('__TAURI_INTERNALS__' in window) {
+    if (isTauriDesktop()) {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('quit_app');
     }
   };
 
   const showApp = async () => {
-    if ('__TAURI_INTERNALS__' in window) {
+    if (isTauriDesktop()) {
       try {
         const { invoke } = await import('@tauri-apps/api/core');
         await invoke('show_main_window');

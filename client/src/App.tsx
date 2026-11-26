@@ -29,7 +29,8 @@ import { useSettingsStore } from './store/settingsStore';
 import { useUIStore } from './store/uiStore';
 import { useDemoStore } from './store/demoStore';
 import { useEffect, useState, lazy, Suspense } from 'react';
-import { isTauri, isCapacitor, StorageManager } from './utils/StorageManager';
+import { StorageManager } from './utils/StorageManager';
+import { isTauri, isTauriDesktop, isMobileClient } from './utils/platform';
 import { getCoverArtUrl } from './api/subsonic';
 import { applyAppIcon } from './utils/appIconHelper';
 import ServerConnectionView from './components/views/ServerConnectionView';
@@ -73,40 +74,7 @@ export const preloadMobileViews = () => {
   void import('./components/views/PlaylistsView');
 };
 
-export const isMobileDevice = () => {
-  if (typeof window === 'undefined') return false;
-
-  // 1. Capacitor native mobile
-  if (isCapacitor()) return true;
-
-  // 2. User-Agent string check (Android, iPhone, iPad, iPod, or Mobile)
-  const ua = typeof navigator !== 'undefined' ? (navigator.userAgent || '') : '';
-  if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
-
-  // 3. User-Agent Data platform check (Android / iOS / etc.)
-  const platform = typeof navigator !== 'undefined' ? ((navigator as any)?.userAgentData?.platform || navigator.platform || '') : '';
-  if (/Android|iPhone|iPad|iPod/i.test(platform)) return true;
-
-  // 4. Tauri on Android:
-  // If running inside Tauri and device has Android indicators or touch coarse pointer
-  if (isTauri()) {
-    if (/Android/i.test(ua) || /Android/i.test(platform)) return true;
-    if (typeof window.matchMedia === 'function') {
-      if (window.matchMedia('(pointer: coarse) and (hover: none)').matches) return true;
-      if (window.matchMedia('(max-width: 768px)').matches) return true;
-    }
-  }
-
-  // 5. Screen width / media query check (<= 768px)
-  if (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 768px)').matches) {
-    return true;
-  }
-  if (window.innerWidth <= 768) {
-    return true;
-  }
-
-  return false;
-};
+export const isMobileDevice = isMobileClient;
 
 function LegacyHoladRedirect() {
   const loc = useLocation();
@@ -166,7 +134,7 @@ function MainAppContent() {
   
   // oxlint-disable-next-line
   useEffect(() => {
-    if ('__TAURI_INTERNALS__' in window) {
+    if (isTauriDesktop()) {
       const initTauri = async () => {
         try {
           const { invoke } = await import('@tauri-apps/api/core');
@@ -564,8 +532,8 @@ function AppContent() {
   return <MainAppContent />;
 }
 
-// Global event listener for Tauri to prevent F5/Ctrl+R reload
-if (isTauri()) {
+// Global event listener for Tauri desktop to prevent F5/Ctrl+R reload
+if (isTauriDesktop()) {
   document.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'F5' || (e.ctrlKey && e.key.toLowerCase() === 'r')) {
       e.preventDefault();
@@ -594,7 +562,7 @@ function App() {
   }, []);
   const [serverUrlSet, setServerUrlSet] = useState(!!localStorage.getItem('holadServerUrl'));
   const isHostedOnBackend = 
-    (!isTauri() && !isCapacitor()) ||
+    !isTauri() ||
     window.location.pathname.toLowerCase().includes('/holad') || 
     isJamPath();
   const needsServerUrl = !serverUrlSet && !isHostedOnBackend;

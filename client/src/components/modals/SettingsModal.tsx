@@ -9,6 +9,7 @@ import { usePlayerStore } from '../../store/playerStore';
 import Dropdown from '../common/Dropdown';
 import FlagIcon from '../common/FlagIcon';
 import { pushPreferences } from '../../api/preferences';
+import { isTauriDesktop } from '../../utils/platform';
 import SettingSection from '../settings/SettingSection';
 import SettingsProfilesSection from '../settings/SettingsProfilesSection';
 import {
@@ -50,7 +51,7 @@ export default function SettingsModal({
   }, [isJamGuest, activeTab]);
 
   useEffect(() => {
-    if (isModalOpen && '__TAURI_INTERNALS__' in window) {
+    if (isModalOpen && isTauriDesktop()) {
       import('@tauri-apps/plugin-autostart')
         .then(async ({ isEnabled }) => {
           try {
@@ -113,7 +114,7 @@ export default function SettingsModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
           onClick={handleClose}
         >
           <motion.div

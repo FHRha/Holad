@@ -1,4 +1,3 @@
-import { isCapacitor } from './StorageManager';
 import { useHoladStore } from '../store/holadStore';
 
 type NetworkListener = (online: boolean) => void;
@@ -22,23 +21,6 @@ class NetworkStatusManager {
         if (!this.isTesting) {
           this.setOnline(false);
         }
-      });
-    }
-
-    if (isCapacitor()) {
-      import('@capacitor/network').then(({ Network }) => {
-        Network.getStatus().then((status) => {
-          if (!this.isTesting) {
-            this.setOnline(status.connected);
-          }
-        });
-        Network.addListener('networkStatusChange', (status) => {
-          if (!this.isTesting) {
-            this.setOnline(status.connected);
-          }
-        });
-      }).catch(err => {
-        console.error('Failed to initialize @capacitor/network', err);
       });
     }
   }

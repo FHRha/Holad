@@ -1,4 +1,4 @@
-import { isTauri, isCapacitor } from './StorageManager';
+import { isTauri } from './platform';
 
 declare global {
   interface Window {
@@ -13,8 +13,8 @@ declare global {
  * - /Holad/ subpath: "/Holad"
  */
 export function getBasePath(): string {
-  // Desktop (Tauri) and Mobile (Capacitor) run locally in their own webview
-  if (isTauri() || isCapacitor()) {
+  // Native Tauri apps (Desktop & Mobile) run locally in their own webview
+  if (isTauri()) {
     return '';
   }
 

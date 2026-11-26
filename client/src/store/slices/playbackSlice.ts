@@ -1,14 +1,9 @@
 import type { StateCreator } from 'zustand';
 import type { PlayerState } from '../playerStore';
-import { isCapacitor } from '../../utils/StorageManager';
+import { isMobilePlatform } from '../../utils/platform';
 import { useHoladStore } from '../holadStore';
 import { flushPendingQueueSync } from './queueSlice';
 import { isClientOffline } from '../../utils/networkStatus';
-
-const isMobileClient = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  return isCapacitor() || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
-};
 
 export interface PlaybackSlice {
   isPlaying: boolean;
@@ -43,7 +38,7 @@ export const createPlaybackSlice: StateCreator<
   isPlaying: false,
   volume: 0.5,
   mobileVolume: 1.0,
-  volumeMultiplier: isMobileClient() ? 1.0 : 0.5,
+  volumeMultiplier: isMobilePlatform() ? 1.0 : 0.5,
   initialPosition: 0,
   repeatMode: 'none',
   playbackRate: 1,

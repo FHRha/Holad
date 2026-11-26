@@ -6,7 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import { useIsActiveDevice } from './useIsActiveDevice';
 import { getAuthParams } from '../api/subsonic-core';
 import { invoke } from '@tauri-apps/api/core';
-import { isTauri } from '../utils/StorageManager';
+import { isTauriDesktop } from '../utils/platform';
 
 export interface DiscordActivity {
   title: string;
@@ -119,19 +119,19 @@ export function useDiscordRpc() {
 
   // 1. Sync enableDiscordRpc toggle with backend
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauriDesktop()) return;
     invoke('set_discord_rpc_enabled', { enabled: enableDiscordRpc }).catch(() => {});
   }, [enableDiscordRpc]);
 
   // 2. Sync discordClientId with backend
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauriDesktop()) return;
     invoke('set_discord_client_id', { clientId: discordClientId?.trim() || '' }).catch(() => {});
   }, [discordClientId]);
 
   // 3. Broadcast track and playback changes to Discord
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauriDesktop()) return;
 
     if (!enableDiscordRpc || !currentTrack || !isActiveDevice || !isPlaying || isSeeking) {
       if (lastKeyRef.current !== 'cleared') {
