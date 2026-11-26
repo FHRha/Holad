@@ -720,6 +720,10 @@ export class TauriAudioBackend implements IAudioEngine {
         return this.analyserShim;
     }
 
+    public releaseAnalyser(): void {
+        this.stopVisualizer();
+    }
+
     public destroy(): void {
         this.stopVisualizer();
         if (this.transitionTimeoutId) {

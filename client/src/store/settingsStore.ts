@@ -125,6 +125,8 @@ export interface SettingsState {
   setDiscordClientId: (id: string) => void;
   audioBackend: AudioBackendType;
   setAudioBackend: (backend: AudioBackendType) => void;
+  audioOutputDeviceId: string;
+  setAudioOutputDeviceId: (deviceId: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -137,6 +139,7 @@ export const useSettingsStore = create<SettingsState>()(
       customColors: ['', '', ''],
       language: i18n.language || 'ru',
       audioBackend: 'rust',
+      audioOutputDeviceId: 'default',
       clickAction: 'play_now',
       autoDjRepeatBehavior: 'pause_on_repeat',
       startPage: '/',
@@ -292,6 +295,7 @@ export const useSettingsStore = create<SettingsState>()(
         }
       },
       setAudioBackend: (audioBackend) => set({ audioBackend }),
+      setAudioOutputDeviceId: (audioOutputDeviceId) => set({ audioOutputDeviceId }),
     }),
     {
       name: 'holad-settings',
@@ -323,6 +327,9 @@ export const useSettingsStore = create<SettingsState>()(
           }
           if (persistedState.audioBackend === undefined) {
             persistedState.audioBackend = 'rust';
+          }
+          if (persistedState.audioOutputDeviceId === undefined) {
+            persistedState.audioOutputDeviceId = 'default';
           }
         }
         return persistedState;

@@ -133,8 +133,22 @@ class ApkUpdaterPlugin(private val activity: Activity) : Plugin(activity) {
                 return
             }
 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                !activity.packageManager.canRequestPackageInstalls()
+            ) {
+                invoke.resolve(JSObject().apply {
+                    put("stage", "permission_required")
+                    put("filePath", file.absolutePath)
+                })
+                return
+            }
+
             launchInstaller(file)
-            invoke.resolve(JSObject().apply { put("success", true) })
+            invoke.resolve(JSObject().apply {
+                put("success", true)
+                put("stage", "installing")
+                put("filePath", file.absolutePath)
+            })
         } catch (e: Exception) {
             invoke.reject("Failed to trigger APK installation: ${e.message}", e)
         }
@@ -166,6 +180,14 @@ class ApkUpdaterPlugin(private val activity: Activity) : Plugin(activity) {
         }
 
         val expectedSha256 = args.sha256?.trim()?.lowercase(Locale.ROOT)?.takeIf { it.isNotEmpty() }
+        if (!BuildConfig.DEBUG && expectedSha256 == null) {
+            invoke.reject("Security error: SHA-256 checksum is required for release APK updates")
+            return
+        }
+        if (expectedSha256 != null && !Regex("^[a-f0-9]{64}$").matches(expectedSha256)) {
+            invoke.reject("Security error: invalid SHA-256 checksum format")
+            return
+        }
         val finalFileName = fileName
 
         Thread {
@@ -216,6 +238,11 @@ class ApkUpdaterPlugin(private val activity: Activity) : Plugin(activity) {
                             }
                         }
                         output.flush()
+
+                        if (!BuildConfig.DEBUG && expectedSha256 == null) {
+                            destFile.delete()
+                            throw SecurityException("SHA-256 checksum is required for release APK updates")
+                        }
 
                         if (expectedSha256 != null) {
                             val actualSha256 = computeSha256(destFile)

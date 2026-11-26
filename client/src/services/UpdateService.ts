@@ -288,10 +288,16 @@ export class UpdateService {
                     );
                     if (sumsAsset?.browser_download_url) {
                         try {
-                            const sumsRes = await fetch(sumsAsset.browser_download_url);
-                            if (sumsRes.ok) {
-                                const sumsContent = await sumsRes.text();
-                                expectedSha256 = parseSha256Sums(sumsContent, fileName);
+                            const sumsController = new AbortController();
+                            const sumsTimeout = setTimeout(() => sumsController.abort(), 8000);
+                            try {
+                                const sumsRes = await fetch(sumsAsset.browser_download_url, { signal: sumsController.signal });
+                                if (sumsRes.ok) {
+                                    const sumsContent = await sumsRes.text();
+                                    expectedSha256 = parseSha256Sums(sumsContent, fileName);
+                                }
+                            } finally {
+                                clearTimeout(sumsTimeout);
                             }
                         } catch (e) {
                             console.warn('[UpdateService] Failed to fetch or parse SHA256SUMS:', e);
@@ -410,10 +416,33 @@ export class UpdateService {
                     }
                 }).catch(() => undefined);
 
+                let expectedSha256 = info.expectedSha256;
+                if (!expectedSha256 && info.downloadUrl && info.fileName) {
+                    try {
+                        const lastSlash = info.downloadUrl.lastIndexOf('/');
+                        if (lastSlash > 0) {
+                            const sumsUrl = `${info.downloadUrl.slice(0, lastSlash + 1)}SHA256SUMS`;
+                            const sumsController = new AbortController();
+                            const sumsTimeout = setTimeout(() => sumsController.abort(), 8000);
+                            try {
+                                const sumsRes = await fetch(sumsUrl, { signal: sumsController.signal });
+                                if (sumsRes.ok) {
+                                    const sumsContent = await sumsRes.text();
+                                    expectedSha256 = parseSha256Sums(sumsContent, info.fileName);
+                                }
+                            } finally {
+                                clearTimeout(sumsTimeout);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('[UpdateService] Fallback SHA256SUMS fetch failed:', e);
+                    }
+                }
+
                 const res = await invoke<{ stage?: string; filePath?: string }>('plugin:apkUpdater|downloadAndInstall', {
                     url: info.downloadUrl,
                     fileName: info.fileName,
-                    sha256: info.expectedSha256 || null
+                    sha256: expectedSha256 || null
                 });
 
                 if (res?.stage === 'permission_required') {

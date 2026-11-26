@@ -72,7 +72,7 @@ export default function DeleteDownloadsModal({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       <div className="bg-card w-full max-w-2xl h-[85vh] rounded-2xl shadow-2xl border border-white/10 flex flex-col m-4 overflow-hidden">
         
         <div className="p-5 border-b border-white/10 flex items-center justify-between bg-background/50 shrink-0">

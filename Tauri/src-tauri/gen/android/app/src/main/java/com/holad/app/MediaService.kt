@@ -527,7 +527,10 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
     fun handlePlay() {
         Log.i("MediaService", "handlePlay invoked")
         if (!hasAudioFocus) {
-            requestAudioFocus()
+            if (!requestAudioFocus()) {
+                Log.w("MediaService", "handlePlay: AudioFocus denied (e.g. active phone call), aborting play")
+                return
+            }
         }
         val listener = actionListener ?: MediaSessionPlugin.instance
         listener?.onMediaAction("play")
@@ -644,22 +647,27 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         isStreaming: Boolean = true
     ) {
         Log.i("MediaService", "updatePlaybackState: isPlaying=$isPlaying, pos=${positionMs}ms, speed=$speed, isStreaming=$isStreaming")
+        var effectiveIsPlaying = isPlaying
+        if (effectiveIsPlaying && !hasAudioFocus) {
+            if (!requestAudioFocus()) {
+                Log.w("MediaService", "updatePlaybackState: AudioFocus denied, refusing STATE_PLAYING")
+                effectiveIsPlaying = false
+            }
+        }
+
         val wasPlaying = isPlayingState
-        isPlayingState = isPlaying
+        isPlayingState = effectiveIsPlaying
         isStreamingState = isStreaming
         currentPositionMs = positionMs
         playbackSpeed = if (speed > 0f) speed else 1.0f
 
-        if (isPlaying) {
+        if (effectiveIsPlaying) {
             markPlaybackStarted()
             acquireWakeLock()
             if (isStreaming) {
                 acquireWifiLock()
             } else {
                 releaseWifiLock()
-            }
-            if (!hasAudioFocus) {
-                requestAudioFocus()
             }
         } else {
             if (wasPlaying) {
@@ -672,7 +680,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
             }
         }
 
-        val state = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
+        val state = if (effectiveIsPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         val actions = PlaybackStateCompat.ACTION_PLAY or
                 PlaybackStateCompat.ACTION_PAUSE or
                 PlaybackStateCompat.ACTION_PLAY_PAUSE or
@@ -688,7 +696,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
 
         mediaSession?.setPlaybackState(playbackState)
 
-        if (isPlaying) {
+        if (effectiveIsPlaying) {
             if (!isAppInForeground) {
                 if (!isForegroundService || !wasPlaying) {
                     startForegroundInternal()

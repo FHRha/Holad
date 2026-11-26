@@ -58,7 +58,9 @@ export function useTrayIntegration() {
             case 'ignore': {
               const currentTrack = state.queue[state.currentIndex];
               if (currentTrack) {
-                // Here we would call the ban API or ignore logic
+                if (!state.excludedTrackIds.includes(currentTrack.id)) {
+                  state.toggleTrackExclude(currentTrack.id, currentTrack);
+                }
                 state.nextTrack();
               }
               break;

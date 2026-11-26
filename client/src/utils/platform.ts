@@ -9,6 +9,7 @@
 
 const MOBILE_UA_REGEX = /Android|iPhone|iPad|iPod|Mobile/i;
 const MOBILE_PLATFORM_REGEX = /Android|iPhone|iPad|iPod/i;
+const DESKTOP_OS_REGEX = /Windows|Macintosh|Mac OS X|Linux/i;
 const ANDROID_REGEX = /Android/i;
 
 function getUserAgent(): string {
@@ -48,8 +49,13 @@ export function isTauriAndroid(): boolean {
 export function isTauriMobile(): boolean {
   if (!isTauri()) return false;
   if (isTauriAndroid()) return true;
-  if (MOBILE_UA_REGEX.test(getUserAgent())) return true;
-  if (MOBILE_PLATFORM_REGEX.test(getNavigatorPlatform())) return true;
+  const ua = getUserAgent();
+  const plat = getNavigatorPlatform();
+  if (MOBILE_UA_REGEX.test(ua)) return true;
+  if (MOBILE_PLATFORM_REGEX.test(plat)) return true;
+  if ((DESKTOP_OS_REGEX.test(ua) || DESKTOP_OS_REGEX.test(plat)) && !ANDROID_REGEX.test(ua) && !ANDROID_REGEX.test(plat)) {
+    return false;
+  }
   return hasCoarsePointer();
 }
 

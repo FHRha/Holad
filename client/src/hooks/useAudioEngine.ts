@@ -9,7 +9,7 @@ import { pushHistoryEntry } from '../api/history';
 import { savePlaybackState } from '../api/playbackState';
 import { useSettingsStore } from '../store/settingsStore';
 import { useTrackSource } from './useTrackSource';
-import { isTauri, isMobilePlatform } from '../utils/platform';
+import { isTauri, isTauriDesktop, isMobilePlatform } from '../utils/platform';
 import { invoke } from '@tauri-apps/api/core';
 import type { IAudioEngine } from '../audio/types';
 import { getAudioEngine } from '../audio/AudioEngine';
@@ -77,6 +77,17 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       prevBackendRef.current = audioBackend;
       engineRef.current = getAudioEngine();
       isInitializedRef.current = false;
+    }
+  }, [audioBackend]);
+
+  // Apply saved audio output device on startup/backend switch for Tauri Desktop
+  useEffect(() => {
+    if (!isTauriDesktop() || audioBackend === 'web') return;
+    const savedDeviceId = useSettingsStore.getState().audioOutputDeviceId;
+    if (savedDeviceId && savedDeviceId !== 'default') {
+      engineRef.current.setSinkId?.(savedDeviceId).catch((err) => {
+        console.warn('[useAudioEngine] Failed to apply saved audioOutputDeviceId:', err);
+      });
     }
   }, [audioBackend]);
 

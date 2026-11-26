@@ -321,7 +321,7 @@ export function initAudioDeviceManager(): void {
         const { invoke } = await import('@tauri-apps/api/core');
         const devices = await invoke<any[]>('audio_list_output_devices');
         if (Array.isArray(devices) && devices.length > 0) {
-          const active = devices.find((d) => d.is_default) || devices[0];
+          const active = devices.find((d) => d.isDefault || d.is_default) || devices[0];
           if (active && active.name) {
             const rawLabel = cleanRawDeviceLabel(active.name);
             const isBt = isBluetoothLabel(rawLabel);

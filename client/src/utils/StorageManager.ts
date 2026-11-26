@@ -7,7 +7,106 @@ import { isTauri, isTauriMobile, isMobileClient } from './platform';
 
 export { isTauri, isMobileClient };
 
+const ANDROID_STORAGE_MIGRATED_KEY = 'holad_android_storage_migrated_v1';
+
+function guessAudioMimeType(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  switch (ext) {
+    case 'mp3': return 'audio/mpeg';
+    case 'flac': return 'audio/flac';
+    case 'm4a':
+    case 'aac': return 'audio/mp4';
+    case 'ogg': return 'audio/ogg';
+    case 'opus': return 'audio/opus';
+    case 'wav': return 'audio/wav';
+    case 'wma': return 'audio/x-ms-wma';
+    case 'alac': return 'audio/alac';
+    default: return 'audio/*';
+  }
+}
+
 export class StorageManager {
+  private static migrationPromise: Promise<void> | null = null;
+
+  static async requestStoragePermissions(): Promise<boolean> {
+    if (!isTauriMobile()) return true;
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const res = await invoke<{ granted?: boolean }>('plugin:storage|requestStoragePermissions');
+      return Boolean(res?.granted);
+    } catch (err) {
+      console.warn('Error requesting Android storage permissions:', err);
+      return false;
+    }
+  }
+
+  static async migrateLegacyDownloads(): Promise<void> {
+    if (!isTauriMobile()) return;
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(ANDROID_STORAGE_MIGRATED_KEY) === '1') {
+      return;
+    }
+    if (this.migrationPromise) {
+      return this.migrationPromise;
+    }
+
+    this.migrationPromise = (async () => {
+      try {
+        await this.requestStoragePermissions();
+        const { invoke } = await import('@tauri-apps/api/core');
+        const res = await invoke<{
+          migratedCount?: number;
+          migratedTracks?: Array<{ oldPath: string; newPath: string }>;
+        }>('plugin:storage|migrateLegacyDownloads');
+
+        const migratedTracks = Array.isArray(res?.migratedTracks) ? res.migratedTracks : [];
+        if (migratedTracks.length > 0) {
+          const pathMap = new Map<string, string>();
+          for (const entry of migratedTracks) {
+            if (entry?.oldPath && entry?.newPath) {
+              pathMap.set(entry.oldPath, entry.newPath);
+              pathMap.set(entry.oldPath.replace(/^file:\/\//, ''), entry.newPath);
+            }
+          }
+
+          const store = useDownloadStore.getState();
+          for (const [id, item] of Object.entries(store.downloads)) {
+            if (!item) continue;
+            const updates: Record<string, any> = {};
+            if (item.path) {
+              const cleanPath = item.path.replace(/^file:\/\//, '');
+              const mapped = pathMap.get(item.path) || pathMap.get(cleanPath);
+              if (mapped) {
+                updates.path = mapped;
+              }
+            }
+            if (item.localCoverArtUri) {
+              for (const [oldP, newP] of pathMap.entries()) {
+                if (item.localCoverArtUri === oldP || item.localCoverArtUri.endsWith(oldP)) {
+                  updates.localCoverArtUri = convertFileSrc(newP);
+                  break;
+                }
+              }
+            }
+            if (Object.keys(updates).length > 0) {
+              store.updateItem(id, updates);
+            }
+          }
+          console.log(`[StorageManager] Migrated ${migratedTracks.length} legacy Android download files.`);
+        }
+
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(ANDROID_STORAGE_MIGRATED_KEY, '1');
+        }
+      } catch (err) {
+        console.warn('[StorageManager] Legacy Android download migration failed:', err);
+      } finally {
+        this.migrationPromise = null;
+      }
+    })();
+
+    return this.migrationPromise;
+  }
+
   static async getDefaultDownloadDir(): Promise<string> {
     if (isTauri()) {
       try {
@@ -21,6 +120,15 @@ export class StorageManager {
       }
       try {
         if (isTauriMobile()) {
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            const publicDir = await invoke<{ path?: string }>('plugin:storage|getPublicMusicDir');
+            if (publicDir?.path && publicDir.path.trim().length > 0) {
+              return publicDir.path.trim();
+            }
+          } catch {
+            // fallback to appDataDir
+          }
           const { appDataDir } = await import('@tauri-apps/api/path');
           return await join(await appDataDir(), 'Holad');
         }
@@ -38,6 +146,38 @@ export class StorageManager {
   static async saveTrack(fileName: string, data: ArrayBuffer | Uint8Array, targetDir?: string, subDir?: string): Promise<string> {
     if (isTauri()) {
       try {
+        const uint8Array = data instanceof Uint8Array ? data : new Uint8Array(data);
+
+        if (isTauriMobile() && !targetDir) {
+          await this.requestStoragePermissions();
+          try {
+            const { appDataDir } = await import('@tauri-apps/api/path');
+            const { invoke } = await import('@tauri-apps/api/core');
+            const tmpDir = await join(await appDataDir(), 'Holad', '.tmp');
+            if (!await exists(tmpDir)) {
+              await mkdir(tmpDir, { recursive: true });
+            }
+            const tmpFile = await join(tmpDir, `${Date.now()}_${fileName}`);
+            await writeFile(tmpFile, uint8Array);
+            try {
+              const normalizedSubDir = subDir ? subDir.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '') : '';
+              const relativePath = normalizedSubDir ? `${normalizedSubDir}/${fileName}` : fileName;
+              const res = await invoke<{ path: string; uri: string }>('plugin:storage|savePublicAudio', {
+                sourcePath: tmpFile,
+                relativePath,
+                title: fileName.replace(/\.[^.]+$/, ''),
+                mimeType: guessAudioMimeType(fileName)
+              });
+              console.log(`Track ${fileName} saved to public Music/Holad at ${res.path}`);
+              return res.path;
+            } finally {
+              await remove(tmpFile).catch(() => {});
+            }
+          } catch (mobileErr) {
+            console.warn('Public MediaStore save failed, falling back to app directory:', mobileErr);
+          }
+        }
+
         let baseDir = targetDir || await this.getDefaultDownloadDir();
         if (subDir) {
           baseDir = await join(baseDir, subDir);
@@ -49,7 +189,6 @@ export class StorageManager {
           await mkdir(baseDir, { recursive: true });
         }
 
-        const uint8Array = data instanceof Uint8Array ? data : new Uint8Array(data);
         const filePath = await join(baseDir, fileName);
         await writeFile(filePath, uint8Array);
         console.log(`Track ${fileName} saved successfully at ${filePath}`);
@@ -69,7 +208,15 @@ export class StorageManager {
     const defaultSubDir = subDir !== undefined ? subDir : 'covers';
     if (isTauri()) {
       try {
-        let baseDir = customDir || await this.getDefaultDownloadDir();
+        let baseDir = customDir;
+        if (!baseDir) {
+          if (isTauriMobile()) {
+            const { appDataDir } = await import('@tauri-apps/api/path');
+            baseDir = await join(await appDataDir(), 'Holad');
+          } else {
+            baseDir = await this.getDefaultDownloadDir();
+          }
+        }
         if (defaultSubDir) {
           baseDir = await join(baseDir, defaultSubDir);
         }
@@ -109,12 +256,19 @@ export class StorageManager {
         if (await exists(coverPathOrId)) {
           return convertFileSrc(coverPathOrId);
         }
-        const defaultDir = await this.getDefaultDownloadDir();
+        const candidateDirs: string[] = [];
+        if (isTauriMobile()) {
+          const { appDataDir } = await import('@tauri-apps/api/path');
+          candidateDirs.push(await join(await appDataDir(), 'Holad'));
+        }
+        candidateDirs.push(await this.getDefaultDownloadDir());
         const extensions = ['', '.jpg', '.jpeg', '.png', '.webp'];
-        for (const ext of extensions) {
-          const testPath = await join(defaultDir, 'covers', `${coverPathOrId}${ext}`);
-          if (await exists(testPath)) {
-            return convertFileSrc(testPath);
+        for (const dir of candidateDirs) {
+          for (const ext of extensions) {
+            const testPath = await join(dir, 'covers', `${coverPathOrId}${ext}`);
+            if (await exists(testPath)) {
+              return convertFileSrc(testPath);
+            }
           }
         }
       } catch (e) {
@@ -160,6 +314,14 @@ export class StorageManager {
   static async removeTrack(filePath: string): Promise<void> {
     if (isTauri()) {
       try {
+        if (isTauriMobile()) {
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('plugin:storage|deletePublicAudio', { path: filePath });
+          } catch (mobileErr) {
+            console.warn('Failed to delete public audio via StoragePlugin, falling back to fs.remove:', mobileErr);
+          }
+        }
         if (await exists(filePath)) {
           await remove(filePath);
           console.log(`Track ${filePath} removed successfully via Tauri`);
@@ -319,4 +481,8 @@ export class StorageManager {
 
     return null;
   }
+}
+
+if (typeof window !== 'undefined' && isTauriMobile()) {
+  void StorageManager.migrateLegacyDownloads();
 }

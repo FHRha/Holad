@@ -112,6 +112,7 @@ export interface IAudioEngine {
     getState(): AudioState;
     isTransitioning(): boolean;
     getAnalyserNode(): AnalyserNode | undefined;
+    releaseAnalyser?(): void;
     on(event: string, listener: (...args: any[]) => void): void;
     off(event: string, listener: (...args: any[]) => void): void;
     destroy(): void;
@@ -153,6 +154,7 @@ export interface IAudioCore {
     getAudioContext?(): AudioContext | undefined;
     getMediaElementSource?(): MediaElementAudioSourceNode | undefined;
     getAnalyserNode?(): AnalyserNode | undefined;
+    releaseAnalyser?(): void;
 
     off(event: string, listener: (...args: any[]) => void): void;
     

@@ -8,7 +8,10 @@
         "allow": [
           "mediaSession:setMetadata",
           "mediaSession:setPlaybackState",
-          "mediaSession:stop"
+          "mediaSession:stop",
+          "mediaSession:registerMediaListener",
+          "mediaSession:getOutputDevice",
+          "mediaSession:moveToBackground"
         ],
         "deny": []
       }

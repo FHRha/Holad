@@ -25,6 +25,7 @@ export default function AudioVisualizer() {
 
   const visualizerStyle = useSettingsStore(s => s.visualizerStyle);
   const setVisualizerStyle = useSettingsStore(s => s.setVisualizerStyle);
+  const audioBackend = useSettingsStore(s => s.audioBackend);
 
   const activeDeviceId = useHoladStore(s => s.activeDeviceId);
 
@@ -86,8 +87,9 @@ export default function AudioVisualizer() {
     return () => {
       engine.destroy();
       engineRef.current = null;
+      audioCtxEngine.releaseAnalyser?.();
     };
-  }, [audioElement]);
+  }, [audioElement, audioBackend]);
 
   useEffect(() => {
     if (engineRef.current) {

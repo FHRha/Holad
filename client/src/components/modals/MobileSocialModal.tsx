@@ -123,7 +123,7 @@ export default function MobileSocialModal({ isOpen, onClose, defaultTab = 'frien
       
       <div 
         ref={menuRef}
-        className="fixed z-[9999] bottom-0 left-0 right-0 bg-[#161616] border-t border-white/10 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.6)] overflow-hidden pb-6 animate-in slide-in-from-bottom-full duration-300 md:hidden flex flex-col will-change-transform"
+        className="fixed z-[9999] bottom-0 left-0 right-0 bg-[#161616] border-t border-white/10 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.6)] overflow-hidden pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] animate-in slide-in-from-bottom-full duration-300 md:hidden flex flex-col will-change-transform"
         style={{ 
           maxHeight: '90vh',
           height: '88vh'

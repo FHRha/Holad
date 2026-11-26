@@ -63,8 +63,11 @@ fn show_main_window(app: tauri::AppHandle) {
     }
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 const WINDOW_WAVE_DARK: &[u8] = include_bytes!("../icons/window_wave_dark.png");
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 const WINDOW_WAVE_LIGHT: &[u8] = include_bytes!("../icons/window_wave_light.png");
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 const WINDOW_CASSETTE: &[u8] = include_bytes!("../icons/window_cassette.png");
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -419,6 +422,19 @@ fn init_apk_updater_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R>
 }
 
 #[cfg(target_os = "android")]
+fn init_storage_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    tauri::plugin::Builder::new("storage")
+        .setup(|_app, api| {
+            #[cfg(target_os = "android")]
+            {
+                api.register_android_plugin("com.holad.app", "StoragePlugin")?;
+            }
+            Ok(())
+        })
+        .build()
+}
+
+#[cfg(target_os = "android")]
 #[no_mangle]
 pub extern "C" fn Java_com_holad_app_MainActivity_initNdkContext(
     mut env: jni::JNIEnv,
@@ -453,7 +469,8 @@ pub fn run() {
   {
       builder = builder
           .plugin(init_media_session_plugin())
-          .plugin(init_apk_updater_plugin());
+          .plugin(init_apk_updater_plugin())
+          .plugin(init_storage_plugin());
   }
 
   #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -468,7 +485,10 @@ pub fn run() {
             let _ = window.unminimize();
             let _ = window.set_focus();
         }
-    }));
+    }))
+    .plugin(tauri_plugin_deep_link::init())
+    .plugin(tauri_plugin_window_state::Builder::default().build())
+    .plugin(tauri_plugin_global_shortcut::Builder::new().build());
 
   builder
     .plugin(tauri_plugin_fs::init())
@@ -516,6 +536,11 @@ pub fn run() {
     ])
     .setup(|app| {
       discord_rpc::init();
+      if let Ok(cache_dir) = app.path().app_cache_dir() {
+          if let Some(audio_service) = app.try_state::<audio::AudioService>() {
+              audio_service.set_cache_dir(cache_dir.join("audio_cache"));
+          }
+      }
       let is_autostart = std::env::args().any(|arg| arg == "--autostart");
       
       #[cfg(any(target_os = "windows", target_os = "linux"))]

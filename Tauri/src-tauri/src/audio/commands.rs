@@ -28,6 +28,10 @@ impl AudioService {
         }
     }
 
+    pub fn set_cache_dir(&self, dir: std::path::PathBuf) {
+        self.player.set_cache_dir(dir);
+    }
+
     pub fn on_default_device_changed(&self) {
         if self.player.is_using_default_device() && self.player.has_active_sink() {
             if let Err(e) = self.player.recover_output_sink() {

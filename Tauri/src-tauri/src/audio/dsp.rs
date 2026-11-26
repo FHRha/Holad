@@ -6,8 +6,8 @@ use rodio::source::SeekError;
 use rodio::{ChannelCount, SampleRate, Source};
 
 /// Lock-free atomic parameters for the Dynamics Compressor.
-/// Defaults match `WebAudioPipeline.ts` (`threshold = -18 dB`, `knee = 30 dB`,
-/// `ratio = 3.0`, `attack = 0.003 s`, `release = 0.25 s`).
+/// Defaults match `settingsStore.ts` (`enabled = false`, `threshold = -24 dB`,
+/// `knee = 30 dB`, `ratio = 12.0`, `attack = 0.003 s`, `release = 0.25 s`).
 pub struct CompressorParams {
     pub enabled: AtomicBool,
     pub threshold_db: AtomicU32,
@@ -26,10 +26,10 @@ impl Default for CompressorParams {
 impl CompressorParams {
     pub fn new() -> Self {
         Self {
-            enabled: AtomicBool::new(true),
-            threshold_db: AtomicU32::new((-18.0f32).to_bits()),
+            enabled: AtomicBool::new(false),
+            threshold_db: AtomicU32::new((-24.0f32).to_bits()),
             knee_db: AtomicU32::new(30.0f32.to_bits()),
-            ratio: AtomicU32::new(3.0f32.to_bits()),
+            ratio: AtomicU32::new(12.0f32.to_bits()),
             attack_secs: AtomicU32::new(0.003f32.to_bits()),
             release_secs: AtomicU32::new(0.25f32.to_bits()),
         }

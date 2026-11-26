@@ -16,6 +16,7 @@ import { useAppInitialization } from './hooks/useAppInitialization';
 import { useDocumentTitle } from './hooks/useDocumentTitle';
 import { useTaskbarControls } from './hooks/useTaskbarControls';
 import { useTrayIntegration } from './hooks/useTrayIntegration';
+import { useDesktopIntegrations } from './hooks/useDesktopIntegrations';
 import { useWindowVisibility } from './hooks/useWindowVisibility';
 import { useAudioOutputDevice, initAudioDeviceManager } from './hooks/useAudioOutputDevice';
 import { useMediaSession } from './hooks/useMediaSession';
@@ -123,6 +124,8 @@ function MainAppContent() {
   useTaskbarControls();
   // oxlint-disable-next-line
   useTrayIntegration();
+  // oxlint-disable-next-line
+  useDesktopIntegrations();
   // oxlint-disable-next-line
   useWindowVisibility();
   // oxlint-disable-next-line

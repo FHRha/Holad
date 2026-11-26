@@ -110,4 +110,13 @@ class MainActivity : TauriActivity() {
       ActivityCompat.requestPermissions(this, needed.toTypedArray(), PERMISSION_REQUEST_CODE)
     }
   }
+
+  override fun onRequestPermissionsResult(
+    requestCode: Int,
+    permissions: Array<out String>,
+    grantResults: IntArray
+  ) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    StoragePlugin.onRequestPermissionsResult(requestCode, permissions, grantResults)
+  }
 }

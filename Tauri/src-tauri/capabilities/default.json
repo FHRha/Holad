@@ -21,9 +21,10 @@
     },
     "core:path:default",
     "core:app:default",
-    "autostart:default",
     "audio-commands",
     "app-commands",
-    "mediaSession:default"
+    "mediaSession:default",
+    "apkUpdater:default",
+    "storage:default"
   ]
 }

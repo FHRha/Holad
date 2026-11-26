@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::f32::consts::FRAC_PI_2;
 use std::io::BufReader;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -16,7 +17,7 @@ use symphonia::core::probe::Hint;
 use tauri::ipc::Channel;
 
 use super::dsp::{CompressorParams, CompressorSource};
-use super::stream::MediaInput;
+use super::stream::{MediaInput, StreamCache};
 use super::visualizer::{VisualizerEngine, VisualizerTapSource};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -199,7 +200,7 @@ pub struct AudioPlayer {
     player: Mutex<Option<Arc<Player>>>,
     pub(crate) meta: Arc<Mutex<PlaybackMetadata>>,
     active_source: Mutex<Option<ActiveTrackSource>>,
-    preloaded: Mutex<Option<ActiveTrackSource>>,
+    stream_cache: Mutex<StreamCache>,
     queued_tracks: Mutex<VecDeque<QueuedTrack>>,
     selected_device_id: Mutex<Option<String>>,
     compressor_params: Arc<CompressorParams>,
@@ -214,6 +215,10 @@ impl Default for AudioPlayer {
 
 impl AudioPlayer {
     pub fn new() -> Self {
+        Self::with_cache_dir(None)
+    }
+
+    pub fn with_cache_dir(cache_dir: Option<PathBuf>) -> Self {
         Self {
             sink: Mutex::new(None),
             player: Mutex::new(None),
@@ -232,12 +237,16 @@ impl AudioPlayer {
                 is_crossfading: false,
             })),
             active_source: Mutex::new(None),
-            preloaded: Mutex::new(None),
+            stream_cache: Mutex::new(StreamCache::new(cache_dir)),
             queued_tracks: Mutex::new(VecDeque::new()),
             selected_device_id: Mutex::new(None),
             compressor_params: Arc::new(CompressorParams::new()),
             visualizer: VisualizerEngine::new(),
         }
+    }
+
+    pub fn set_cache_dir(&self, dir: PathBuf) {
+        self.stream_cache.lock().unwrap().set_cache_dir(dir);
     }
 
     fn open_sink_for_device(device_id: Option<&str>) -> Result<MixerDeviceSink, String> {
@@ -300,31 +309,49 @@ impl AudioPlayer {
         }
     }
 
+    fn cancel_source_if_incomplete(src: &ActiveTrackSource) {
+        let already_complete = match &src.input {
+            MediaInput::Local { .. } => true,
+            MediaInput::Progressive(stream) => stream.is_finished_ok(),
+        };
+        if !already_complete {
+            src.cancel.store(true, Ordering::Release);
+            src.input.cancel();
+        }
+    }
+
     fn acquire_media_input(
         &self,
         path_or_url: &str,
         generation: u64,
         meta_arc: Arc<Mutex<PlaybackMetadata>>,
     ) -> Result<(MediaInput, f64, Arc<AtomicBool>), String> {
-        // Reuse preloaded handle if URL matches
-        {
-            let mut pre = self.preloaded.lock().unwrap();
-            if let Some(ref entry) = *pre {
-                if entry.url == path_or_url {
-                    let entry = pre.take().unwrap();
-                    if let Ok(mut meta) = meta_arc.lock() {
-                        if meta.generation == generation {
-                            meta.buffered_percent = 100.0;
-                        }
-                    }
-                    return Ok((entry.input, entry.duration, entry.cancel));
+        // Reuse cached RAM or disk handle if URL matches
+        if let Some((input, mut duration, cancel)) = self.stream_cache.lock().unwrap().get(path_or_url) {
+            if duration <= 0.0 {
+                duration = Self::probe_duration(&input).unwrap_or(0.0);
+            }
+            if let Ok(mut meta) = meta_arc.lock() {
+                if meta.generation == generation {
+                    meta.buffered_percent = 100.0;
                 }
             }
+            return Ok((input, duration, cancel));
         }
 
         let cancel = Arc::new(AtomicBool::new(false));
         let input = MediaInput::open(path_or_url, meta_arc, generation, Arc::clone(&cancel))?;
         let duration = Self::probe_duration(&input).unwrap_or(0.0);
+
+        if let Ok(cached_handle) = input.clone_handle() {
+            self.stream_cache.lock().unwrap().insert(
+                path_or_url.to_string(),
+                cached_handle,
+                duration,
+                Arc::clone(&cancel),
+            );
+        }
+
         Ok((input, duration, cancel))
     }
 
@@ -383,8 +410,7 @@ impl AudioPlayer {
         {
             let mut active = self.active_source.lock().unwrap();
             if let Some(old_src) = active.take() {
-                old_src.cancel.store(true, Ordering::Release);
-                old_src.input.cancel();
+                Self::cancel_source_if_incomplete(&old_src);
             }
         }
 
@@ -471,14 +497,12 @@ impl AudioPlayer {
         Ok(self.get_state())
     }
 
-    /// Preloads a track in background/handle cache without interrupting current playback.
+    /// Preloads a track in the 3-track RAM/disk cache without interrupting current playback.
     pub fn preload(&self, path_or_url: &str) -> Result<AudioState, String> {
         {
-            let pre = self.preloaded.lock().unwrap();
-            if let Some(ref existing) = *pre {
-                if existing.url == path_or_url {
-                    return Ok(self.get_state());
-                }
+            let mut cache = self.stream_cache.lock().unwrap();
+            if cache.contains_ram(path_or_url) || cache.get(path_or_url).is_some() {
+                return Ok(self.get_state());
             }
         }
 
@@ -502,17 +526,12 @@ impl AudioPlayer {
         let input = MediaInput::open(path_or_url, dummy_meta, 1, Arc::clone(&cancel))?;
         let duration = Self::probe_duration(&input).unwrap_or(0.0);
 
-        let mut pre = self.preloaded.lock().unwrap();
-        if let Some(old) = pre.take() {
-            old.cancel.store(true, Ordering::Release);
-            old.input.cancel();
-        }
-        *pre = Some(ActiveTrackSource {
-            url: path_or_url.to_string(),
+        self.stream_cache.lock().unwrap().insert(
+            path_or_url.to_string(),
             input,
             duration,
             cancel,
-        });
+        );
 
         Ok(self.get_state())
     }
@@ -752,8 +771,7 @@ impl AudioPlayer {
         {
             let mut active = self.active_source.lock().unwrap();
             if let Some(old_src) = active.take() {
-                old_src.cancel.store(true, Ordering::Release);
-                old_src.input.cancel();
+                Self::cancel_source_if_incomplete(&old_src);
             }
         }
         {
@@ -789,7 +807,6 @@ impl AudioPlayer {
                 Ok(_) => {
                     meta.position_secs = pos;
                     meta.start_offset_secs = 0.0;
-                    meta.track_base_pos_secs = 0.0;
                     drop(meta);
                     drop(player_guard);
                     return Ok(self.get_state());
@@ -1091,8 +1108,7 @@ impl AudioPlayer {
             {
                 let mut active = self.active_source.lock().unwrap();
                 if let Some(old_src) = active.take() {
-                    old_src.cancel.store(true, Ordering::Release);
-                    old_src.input.cancel();
+                    Self::cancel_source_if_incomplete(&old_src);
                 }
                 *active = Some(ActiveTrackSource {
                     url: next_track.url.clone(),
@@ -1285,7 +1301,7 @@ mod tests {
         assert_eq!(state.generation, 0);
         assert_eq!(state.playback_rate, 1.0);
         assert!(!state.loop_enabled);
-        assert!(state.compressor_enabled);
+        assert!(!state.compressor_enabled);
     }
 
     #[test]

@@ -1,17 +1,44 @@
 fn main() {
   tauri_build::try_build(
-    tauri_build::Attributes::new().plugin(
-      "mediaSession",
-      tauri_build::InlinedPlugin::new()
-        .commands(&[
-          "setMetadata",
-          "set_metadata",
-          "setPlaybackState",
-          "set_playback_state",
-          "stop",
-        ])
-        .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
-    ),
+    tauri_build::Attributes::new()
+      .plugin(
+        "mediaSession",
+        tauri_build::InlinedPlugin::new()
+          .commands(&[
+            "setMetadata",
+            "set_metadata",
+            "setPlaybackState",
+            "set_playback_state",
+            "stop",
+            "registerMediaListener",
+            "getOutputDevice",
+            "moveToBackground",
+          ])
+          .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
+      )
+      .plugin(
+        "apkUpdater",
+        tauri_build::InlinedPlugin::new()
+          .commands(&[
+            "canInstall",
+            "openInstallSettings",
+            "installApk",
+            "downloadAndInstall",
+          ])
+          .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
+      )
+      .plugin(
+        "storage",
+        tauri_build::InlinedPlugin::new()
+          .commands(&[
+            "requestStoragePermissions",
+            "savePublicAudio",
+            "deletePublicAudio",
+            "migrateLegacyDownloads",
+            "getPublicMusicDir",
+          ])
+          .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
+      ),
   )
   .expect("failed to run tauri-build");
 }

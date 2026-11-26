@@ -1,0 +1,20 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop",
+  "description": "enables desktop-only plugin permissions",
+  "platforms": [
+    "linux",
+    "macOS",
+    "windows"
+  ],
+  "windows": [
+    "main",
+    "tray_menu"
+  ],
+  "permissions": [
+    "autostart:default",
+    "deep-link:default",
+    "window-state:default",
+    "global-shortcut:default"
+  ]
+}
