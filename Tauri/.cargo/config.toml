@@ -1,6 +1,0 @@
-[target.aarch64-linux-android]
-linker = "C:/rust/linker_proxy.cmd"
-rustflags = [
-    "-L", "C:/Users/8FEE~1/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/aarch64-linux-android/lib",
-    "-L", "C:/Users/8FEE~1/AppData/Local/Android/Sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/windows-x86_64/lib/clang/18/lib/linux/aarch64"
-]

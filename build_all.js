@@ -294,17 +294,17 @@ function getEnv(envOverrides = {}) {
       }
       const clangExt = process.platform === 'win32' ? '.cmd' : '';
       const exeExt = process.platform === 'win32' ? '.exe' : '';
-      const androidClang = path.join(ndkBin, `aarch64-linux-android24-clang${clangExt}`);
-      const androidClangXx = path.join(ndkBin, `aarch64-linux-android24-clang++${clangExt}`);
+      const androidClang = path.join(ndkBin, `aarch64-linux-android26-clang${clangExt}`);
+      const androidClangXx = path.join(ndkBin, `aarch64-linux-android26-clang++${clangExt}`);
       const androidAr = path.join(ndkBin, `llvm-ar${exeExt}`);
       const androidRanlib = path.join(ndkBin, `llvm-ranlib${exeExt}`);
-      if (fs.existsSync(androidClang)) {
-        if (!env.CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER) {
-          env.CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER = androidClang;
-        }
-        if (!env.CC_aarch64_linux_android) {
-          env.CC_aarch64_linux_android = androidClang;
-        }
+      if (process.platform === 'win32' && fs.existsSync('C:\\rust\\linker_proxy.cmd') && !env.CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER) {
+        env.CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER = 'C:\\rust\\linker_proxy.cmd';
+      } else if (fs.existsSync(androidClang) && !env.CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER) {
+        env.CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER = androidClang;
+      }
+      if (fs.existsSync(androidClang) && !env.CC_aarch64_linux_android) {
+        env.CC_aarch64_linux_android = androidClang;
       }
       if (fs.existsSync(androidClangXx) && !env.CXX_aarch64_linux_android) {
         env.CXX_aarch64_linux_android = androidClangXx;
@@ -314,6 +314,29 @@ function getEnv(envOverrides = {}) {
       }
       if (fs.existsSync(androidRanlib) && !env.RANLIB_aarch64_linux_android) {
         env.RANLIB_aarch64_linux_android = androidRanlib;
+      }
+      // Ensure -laaudio (API 26) and -lunwind (clang rt) are found on both Linux CI and Windows proxy
+      const prebuiltDir = path.join(ndkRoot, 'toolchains', 'llvm', 'prebuilt', prebuiltHost);
+      const rustFlags = [];
+      const clangBase = path.join(prebuiltDir, 'lib', 'clang');
+      if (fs.existsSync(clangBase)) {
+        try {
+          const clangVers = fs.readdirSync(clangBase).sort().reverse();
+          for (const ver of clangVers) {
+            const candidate = path.join(clangBase, ver, 'lib', 'linux', 'aarch64');
+            if (fs.existsSync(candidate)) {
+              rustFlags.push('-L', candidate.replace(/\\/g, '/'));
+              break;
+            }
+          }
+        } catch (e) {}
+      }
+      const sysrootApi26 = path.join(prebuiltDir, 'sysroot', 'usr', 'lib', 'aarch64-linux-android', '26');
+      if (fs.existsSync(sysrootApi26)) {
+        rustFlags.push('-L', sysrootApi26.replace(/\\/g, '/'));
+      }
+      if (rustFlags.length > 0 && !env.CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS) {
+        env.CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS = rustFlags.join(' ');
       }
     }
   }

@@ -9,6 +9,14 @@ set "CARGO_HOME=C:\rust\cargo"
 set "RUSTUP_HOME=C:\rust\rustup"
 set "NDK_ROOT=C:\Users\8FEE~1\AppData\Local\Android\Sdk\ndk\27.2.12479018"
 set "PATH=%NDK_ROOT%\toolchains\llvm\prebuilt\windows-x86_64\bin;%PATH%"
+if exist "C:\rust\linker_proxy.cmd" (
+    set "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=C:\rust\linker_proxy.cmd"
+) else (
+    set "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=%NDK_ROOT%\toolchains\llvm\prebuilt\windows-x86_64\bin\aarch64-linux-android26-clang.cmd"
+)
+set "CC_aarch64_linux_android=%NDK_ROOT%\toolchains\llvm\prebuilt\windows-x86_64\bin\aarch64-linux-android26-clang.cmd"
+set "CXX_aarch64_linux_android=%NDK_ROOT%\toolchains\llvm\prebuilt\windows-x86_64\bin\aarch64-linux-android26-clang++.cmd"
+set "CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS=-L C:/Users/8FEE~1/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/aarch64-linux-android/lib -L %NDK_ROOT:\=/%/toolchains/llvm/prebuilt/windows-x86_64/lib/clang/18/lib/linux/aarch64 -L %NDK_ROOT:\=/%/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/lib/aarch64-linux-android/26"
 
 cd /d "%~dp0src-tauri" || exit /b 1
 
