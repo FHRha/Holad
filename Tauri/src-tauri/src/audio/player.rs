@@ -363,6 +363,7 @@ impl AudioPlayer {
         let tapped = VisualizerTapSource::new(
             comp,
             self.visualizer.active_flag(),
+            self.visualizer.gain_handle(),
             self.visualizer.producer_handle(),
         );
         if let Some(flag) = boundary_flag {
@@ -905,6 +906,7 @@ impl AudioPlayer {
 
     pub fn set_volume(&self, volume: f32) -> Result<AudioState, String> {
         let clamped = volume.clamp(0.0, 3.0);
+        self.visualizer.set_gain(clamped);
         let player_guard = self.player.lock().unwrap();
         if let Some(ref player) = *player_guard {
             player.set_volume(clamped);

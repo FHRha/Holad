@@ -12,7 +12,7 @@ export default {
         foreground: 'rgba(var(--foreground-rgb), <alpha-value>)',
         card: 'var(--card)',
         primary: 'rgba(var(--color-primary-rgb), <alpha-value>)',
-        secondary: 'var(--secondary)', // light gray text
+        secondary: 'rgba(var(--secondary-rgb), <alpha-value>)', // light gray text
         accent: 'var(--accent)', // hover background
         muted: 'var(--muted)',
         border: 'var(--border)',

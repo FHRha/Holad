@@ -159,7 +159,14 @@ export class TauriAudioBackend implements IAudioEngine {
 
             const unlistenEnded = await listen<NativeAudioState>('track-ended', (event) => {
                 const payload = event.payload;
-                // Protection against premature or phantom ended events from fading-out tracks
+                // Protection against premature or phantom ended events from fading-out tracks or when paused
+                if (!this.isPlaying) {
+                    console.log('[TauriAudioBackend] Ignoring track-ended while paused/stopped');
+                    return;
+                }
+                if (payload?.status && payload.status !== 'ended') {
+                    return;
+                }
                 if (this.isTransitioningActive) {
                     console.log('[TauriAudioBackend] Ignoring track-ended during active crossfade transition');
                     return;
@@ -167,6 +174,10 @@ export class TauriAudioBackend implements IAudioEngine {
                 const currentUrl = this.activeTrackUrl || this.currentTrack?.streamUrl || this.currentTrack?.src;
                 if (payload?.url && currentUrl && payload.url !== currentUrl) {
                     console.log(`[TauriAudioBackend] Ignoring track-ended from previous track URL: "${payload.url}" (active: "${currentUrl}")`);
+                    return;
+                }
+                if (this.duration > 3 && this.currentTime < this.duration - 2.5) {
+                    console.warn(`[TauriAudioBackend] Ignoring premature track-ended at ${this.currentTime.toFixed(1)}s / ${this.duration.toFixed(1)}s`);
                     return;
                 }
                 this.isPlaying = false;
@@ -423,10 +434,15 @@ export class TauriAudioBackend implements IAudioEngine {
         this.emit('timeupdate', safePos, this.activeTrackId);
     }
 
+    private getEffectiveVolume(): number {
+        // Quadratic perceptual curve matches previous Web Audio (masterGain * element.volume) scaling
+        return Math.pow(this.volume, 2) * this.volumeMultiplier;
+    }
+
     public setVolume(volume: number, _isMobile: boolean = false): void {
         const safeVol = typeof volume === 'number' && !isNaN(volume) && Number.isFinite(volume) ? volume : 1.0;
         this.volume = Math.max(0, Math.min(1, safeVol));
-        const effectiveVol = this.volume * this.volumeMultiplier;
+        const effectiveVol = this.getEffectiveVolume();
         invoke<NativeAudioState>('audio_set_volume', { volume: effectiveVol }).catch((e) => {
             console.warn('[TauriAudioBackend] audio_set_volume error:', e);
         });
@@ -435,7 +451,7 @@ export class TauriAudioBackend implements IAudioEngine {
     public setVolumeMultiplier(multiplier: number): void {
         const safeMul = typeof multiplier === 'number' && !isNaN(multiplier) && Number.isFinite(multiplier) ? multiplier : 1.0;
         this.volumeMultiplier = Math.max(0, safeMul);
-        const effectiveVol = this.volume * this.volumeMultiplier;
+        const effectiveVol = this.getEffectiveVolume();
         invoke<NativeAudioState>('audio_set_volume', { volume: effectiveVol }).catch((e) => {
             console.warn('[TauriAudioBackend] audio_set_volume error:', e);
         });

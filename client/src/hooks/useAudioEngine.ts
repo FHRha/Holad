@@ -907,6 +907,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       if (!currentTrack) return;
       if (emittedTrackId && emittedTrackId !== currentTrack.id) return;
       const pStore = usePlayerStore.getState();
+      if (!pStore.isPlaying) return;
       const isJamSession = Boolean(pStore.roomId);
       if (isJamSession && pStore.role !== 'host' && pStore.role !== 'cohost') return;
       if (role === 'listener') return;
@@ -930,14 +931,16 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       const engDur = engine.getDuration();
       const actualDur = (engDur > 0 && isFinite(engDur)) ? engDur : (currentTrack.duration || 0);
 
-      // Защита от преждевременного EOF / обрыва сетевого стрима при переключении аудиоустройств
-      if (deck && actualDur > 3 && currentTime < actualDur - 2.5) {
+      // Защита от преждевременного EOF / обрыва сетевого стрима при переключении аудиоустройств или паузе
+      if (actualDur > 3 && currentTime < actualDur - 2.5) {
         console.warn(`[AudioEngine] Premature stream end detected at ${currentTime.toFixed(1)}s / ${actualDur.toFixed(1)}s. Recovering stream instead of skipping track.`);
-        deck.load(audioSrc, currentTime, 'auto').then(() => {
-          if (usePlayerStore.getState().isPlaying) {
-            deck.play().catch(() => {});
-          }
-        }).catch(() => {});
+        if (deck) {
+          deck.load(audioSrc, currentTime, 'auto').then(() => {
+            if (usePlayerStore.getState().isPlaying) {
+              deck.play().catch(() => {});
+            }
+          }).catch(() => {});
+        }
         return;
       }
       
@@ -963,6 +966,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     const handleTrackTransitioned = (newTrackId?: string | null) => {
       flushPositionToLocalStorage();
       const pStore = usePlayerStore.getState();
+      if (!pStore.isPlaying) return;
       const isJamSession = Boolean(pStore.roomId);
       if (isJamSession && pStore.role !== 'host' && pStore.role !== 'cohost') return;
       if (role === 'listener') return;

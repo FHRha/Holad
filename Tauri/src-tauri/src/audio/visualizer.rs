@@ -1,5 +1,5 @@
 use std::f32::consts::PI;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -17,7 +17,7 @@ pub const BIN_COUNT: usize = FFT_SIZE / 2;
 const RINGBUF_CAPACITY: usize = 4096;
 const SMOOTHING: f32 = 0.8;
 const MIN_DB: f32 = -100.0;
-const MAX_DB: f32 = -30.0;
+const MAX_DB: f32 = -12.0;
 
 /// Audio `Source` wrapper that taps decoded audio, downmixes frames to mono,
 /// and pushes samples into a lock-free ring buffer when the visualizer is active.
@@ -27,6 +27,7 @@ where
 {
     inner: S,
     active: Arc<AtomicBool>,
+    gain_bits: Arc<AtomicU32>,
     producer: Arc<Mutex<HeapProd<f32>>>,
     channels: usize,
     ch_accum: f32,
@@ -37,11 +38,17 @@ impl<S> VisualizerTapSource<S>
 where
     S: Source<Item = f32>,
 {
-    pub fn new(inner: S, active: Arc<AtomicBool>, producer: Arc<Mutex<HeapProd<f32>>>) -> Self {
+    pub fn new(
+        inner: S,
+        active: Arc<AtomicBool>,
+        gain_bits: Arc<AtomicU32>,
+        producer: Arc<Mutex<HeapProd<f32>>>,
+    ) -> Self {
         let channels = inner.channels().get().max(1) as usize;
         Self {
             inner,
             active,
+            gain_bits,
             producer,
             channels,
             ch_accum: 0.0,
@@ -64,7 +71,8 @@ where
             self.ch_accum += sample;
             self.ch_idx += 1;
             if self.ch_idx >= self.channels {
-                let mono = self.ch_accum / (self.channels as f32);
+                let gain = f32::from_bits(self.gain_bits.load(Ordering::Relaxed));
+                let mono = (self.ch_accum / (self.channels as f32)) * gain;
                 self.ch_accum = 0.0;
                 self.ch_idx = 0;
 
@@ -189,6 +197,7 @@ pub fn compute_fft_packet(
 /// Manages the lock-free audio tap ring buffer and background FFT worker thread.
 pub struct VisualizerEngine {
     active: Arc<AtomicBool>,
+    gain_bits: Arc<AtomicU32>,
     producer: Arc<Mutex<HeapProd<f32>>>,
     channel: Arc<Mutex<Option<Channel<Vec<u8>>>>>,
     worker: Mutex<Option<JoinHandle<()>>>,
@@ -206,6 +215,7 @@ impl VisualizerEngine {
         let (prod, cons) = rb.split();
 
         let active = Arc::new(AtomicBool::new(false));
+        let gain_bits = Arc::new(AtomicU32::new(1.0f32.to_bits()));
         let producer = Arc::new(Mutex::new(prod));
         let channel = Arc::new(Mutex::new(None));
 
@@ -221,6 +231,7 @@ impl VisualizerEngine {
 
         Self {
             active,
+            gain_bits,
             producer,
             channel,
             worker: Mutex::new(Some(handle)),
@@ -229,6 +240,15 @@ impl VisualizerEngine {
 
     pub fn active_flag(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.active)
+    }
+
+    pub fn gain_handle(&self) -> Arc<AtomicU32> {
+        Arc::clone(&self.gain_bits)
+    }
+
+    pub fn set_gain(&self, gain: f32) {
+        self.gain_bits
+            .store(gain.clamp(0.0, 3.0).to_bits(), Ordering::Relaxed);
     }
 
     pub fn producer_handle(&self) -> Arc<Mutex<HeapProd<f32>>> {
@@ -342,11 +362,12 @@ mod tests {
         let rb = HeapRb::<f32>::new(64);
         let (prod, mut cons) = rb.split();
         let active = Arc::new(AtomicBool::new(true));
+        let gain_bits = Arc::new(AtomicU32::new(1.0f32.to_bits()));
         let prod_arc = Arc::new(Mutex::new(prod));
 
         let input = vec![0.8f32, 0.2f32, -0.6f32, 0.2f32];
         let src = SamplesBuffer::new(NonZero::new(2).unwrap(), NonZero::new(48000).unwrap(), input.clone());
-        let tap = VisualizerTapSource::new(src, Arc::clone(&active), prod_arc);
+        let tap = VisualizerTapSource::new(src, Arc::clone(&active), gain_bits, prod_arc);
         let out: Vec<f32> = tap.collect();
 
         assert_eq!(out, input);
@@ -361,11 +382,12 @@ mod tests {
         let rb = HeapRb::<f32>::new(64);
         let (prod, mut cons) = rb.split();
         let active = Arc::new(AtomicBool::new(false));
+        let gain_bits = Arc::new(AtomicU32::new(1.0f32.to_bits()));
         let prod_arc = Arc::new(Mutex::new(prod));
 
         let input = vec![0.5f32, 0.5f32];
         let src = SamplesBuffer::new(NonZero::new(2).unwrap(), NonZero::new(48000).unwrap(), input);
-        let tap = VisualizerTapSource::new(src, active, prod_arc);
+        let tap = VisualizerTapSource::new(src, active, gain_bits, prod_arc);
         let _: Vec<f32> = tap.collect();
 
         assert!(cons.try_pop().is_none());
@@ -387,9 +409,9 @@ mod tests {
         let packet = compute_fft_packet(&time_window, &mut smoothed_mag, fft.as_ref(), &hann);
         assert_eq!(packet.len(), 256);
 
-        // Frequency bin 16 should be bright (255, since 0 dB * 0.2 = -14 dB > -30 dB)
+        // Frequency bin 16 should be bright (~232 on first smoothed Hann frame in [-100, -12] dB)
         // while distant bin 64 should be 0.
-        assert_eq!(packet[16], 255);
+        assert!(packet[16] >= 200);
         assert_eq!(packet[64], 0);
     }
 }

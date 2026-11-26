@@ -371,10 +371,12 @@ pub fn remove_user_data() {
     if let Ok(app_data) = std::env::var("APPDATA") {
         let _ = std::fs::remove_dir_all(PathBuf::from(&app_data).join("Holad"));
         let _ = std::fs::remove_dir_all(PathBuf::from(&app_data).join("com.holad.desktop"));
+        let _ = std::fs::remove_dir_all(PathBuf::from(&app_data).join("com.holad.app"));
     }
     if let Ok(local_data) = std::env::var("LOCALAPPDATA") {
         let _ = std::fs::remove_dir_all(PathBuf::from(&local_data).join("Holad"));
         let _ = std::fs::remove_dir_all(PathBuf::from(&local_data).join("com.holad.desktop"));
+        let _ = std::fs::remove_dir_all(PathBuf::from(&local_data).join("com.holad.app"));
     }
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let _ = hkcu.delete_subkey_all(r"Software\Holad");

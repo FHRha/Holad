@@ -578,6 +578,66 @@ pub extern "C" fn Java_com_holad_app_MainActivity_initNdkContext(
     }
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn ensure_tray_menu_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
+    if let Some(w) = app.get_webview_window("tray_menu") {
+        return Some(w);
+    }
+
+    let builder = tauri::WebviewWindowBuilder::new(
+        app,
+        "tray_menu",
+        tauri::WebviewUrl::App("/#tray".into()),
+    )
+    .title("Holad (Tray Menu)")
+    .inner_size(320.0, 450.0)
+    .resizable(false)
+    .decorations(false)
+    .transparent(true)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .shadow(false)
+    .visible(false);
+
+    #[cfg(target_os = "windows")]
+    let builder = builder.background_color(tauri::window::Color(0, 0, 0, 0));
+
+    match builder.build() {
+        Ok(w) => Some(w),
+        Err(e) => {
+            log::error!("Failed to create tray_menu window: {:?}", e);
+            None
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn force_foreground_window(window: &tauri::WebviewWindow) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow,
+    };
+
+    if let Ok(hwnd_raw) = window.hwnd() {
+        let hwnd = HWND(hwnd_raw.0 as _);
+        unsafe {
+            let fg_hwnd = GetForegroundWindow();
+            let cur_tid = GetCurrentThreadId();
+            let fg_tid = if !fg_hwnd.0.is_null() {
+                GetWindowThreadProcessId(fg_hwnd, None)
+            } else {
+                0
+            };
+            let attached = fg_tid != 0 && fg_tid != cur_tid && AttachThreadInput(fg_tid, cur_tid, true).as_bool();
+            let _ = SetForegroundWindow(hwnd);
+            if attached {
+                let _ = AttachThreadInput(fg_tid, cur_tid, false);
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   #[allow(unused_mut)]
@@ -610,7 +670,11 @@ pub fn run() {
         }
     }))
     .plugin(tauri_plugin_deep_link::init())
-    .plugin(tauri_plugin_window_state::Builder::default().build())
+    .plugin(
+        tauri_plugin_window_state::Builder::default()
+            .with_denylist(&["tray_menu"])
+            .build(),
+    )
     .plugin(tauri_plugin_global_shortcut::Builder::new().build());
 
   builder
@@ -709,6 +773,8 @@ pub fn run() {
           let initial_tray_icon = tauri::image::Image::from_bytes(TRAY_WAVE_DARK)
               .unwrap_or_else(|_| app.default_window_icon().unwrap().clone());
 
+          let _tray_menu_prewarm = ensure_tray_menu_window(app.handle());
+
           let _tray = TrayIconBuilder::with_id("main")
               .icon(initial_tray_icon)
               .on_tray_icon_event(|tray, event| match event {
@@ -719,42 +785,16 @@ pub fn run() {
                       ..
                   } => {
                       let app = tray.app_handle();
-                      let window = if let Some(w) = app.get_webview_window("tray_menu") {
-                          w
-                      } else {
-                          let builder = tauri::WebviewWindowBuilder::new(
-                              app,
-                              "tray_menu",
-                              tauri::WebviewUrl::App("/#tray".into()),
-                          )
-                          .title("Holad (Tray Menu)")
-                          .inner_size(320.0, 450.0)
-                          .resizable(false)
-                          .decorations(false)
-                          .transparent(true)
-                          .always_on_top(true)
-                          .skip_taskbar(true)
-                          .shadow(false)
-                          .visible(false);
-
-                          #[cfg(target_os = "windows")]
-                          let builder = builder.background_color(tauri::window::Color(0, 0, 0, 0));
-
-                          match builder.build() {
-                              Ok(w) => w,
-                              Err(e) => {
-                                  log::error!("Failed to create tray_menu window: {:?}", e);
-                                  return;
-                              }
-                          }
+                      let Some(window) = ensure_tray_menu_window(app) else {
+                          return;
                       };
 
                       let is_visible = window.is_visible().unwrap_or(false);
                       if is_visible {
-                          window.hide().unwrap();
+                          let _ = window.hide();
                       } else {
                           let _ = window.set_shadow(false);
-                          let size = window.outer_size().unwrap();
+                          let size = window.outer_size().unwrap_or(tauri::PhysicalSize::new(320, 450));
                           
                           #[cfg(target_os = "windows")]
                           let cursor_pos = {
@@ -780,10 +820,12 @@ pub fn run() {
                           let win_x = if logical_x > logical_size.width { logical_x - logical_size.width } else { logical_x };
                           let win_y = if logical_y > logical_size.height { logical_y - logical_size.height } else { logical_y + 10.0 };
                           
-                          window.set_position(tauri::LogicalPosition::new(win_x, win_y)).unwrap();
+                          let _ = window.set_position(tauri::LogicalPosition::new(win_x, win_y));
                           TRAY_MENU_SHOWN_AT.store(current_millis(), std::sync::atomic::Ordering::SeqCst);
-                          window.show().unwrap();
-                          window.set_focus().unwrap();
+                          let _ = window.show();
+                          #[cfg(target_os = "windows")]
+                          force_foreground_window(&window);
+                          let _ = window.set_focus();
                           let _ = window.emit("request-tray-sync", ());
                       }
                   }
@@ -843,8 +885,7 @@ pub fn run() {
             tauri::WindowEvent::Focused(false) if window.label() == "tray_menu" => {
                 let now = current_millis();
                 let shown_at = TRAY_MENU_SHOWN_AT.load(std::sync::atomic::Ordering::SeqCst);
-                // Игнорируем потерю фокуса в первые 500 мс после открытия (защита от кражи фокуса панелью задач Windows)
-                if now.saturating_sub(shown_at) > 500 {
+                if now.saturating_sub(shown_at) > 150 {
                     let _ = window.hide();
                 }
             }
