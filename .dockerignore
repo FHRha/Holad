@@ -4,7 +4,6 @@ node_modules
 artifacts
 dist
 Tauri
-Capacitor
 e2e
 scratch
 *.sqlite
