@@ -648,24 +648,26 @@ node dist/index.js
           } catch (e) {}
         }
 
-        let tauriBuildCmd = 'npx --yes @tauri-apps/cli build';
+        await ensureDependencies('Tauri CLI Install', path.join(ROOT_DIR, 'Tauri'));
+        const tauriCli = `${pnpmCmd} exec tauri`;
+        let tauriBuildCmd = `${tauriCli} build`;
         const currentVer = getAppVersion();
         if (process.env.TAURI_BUNDLES) {
-          tauriBuildCmd = `npx --yes @tauri-apps/cli build --bundles ${process.env.TAURI_BUNDLES}`;
+          tauriBuildCmd = `${tauriCli} build --bundles ${process.env.TAURI_BUNDLES}`;
         } else if (process.platform === 'win32') {
           if (currentVer && currentVer.includes('-')) {
             console.log(`[Tauri] Pre-release version detected (${currentVer}). Building application binary (custom installer will package setup.exe).`);
-            tauriBuildCmd = 'npx --yes @tauri-apps/cli build --no-bundle';
+            tauriBuildCmd = `${tauriCli} build --no-bundle`;
           } else {
             console.log(`[Tauri] Stable release detected (${currentVer}). Packaging WiX MSI bundle (custom installer will package setup.exe).`);
-            tauriBuildCmd = 'npx --yes @tauri-apps/cli build --bundles msi';
+            tauriBuildCmd = `${tauriCli} build --bundles msi`;
           }
         } else if (process.platform === 'linux') {
           if (currentVer && currentVer.includes('-')) {
             console.log(`[Tauri] Pre-release version detected (${currentVer}). Packaging deb and appimage bundles (skipping rpm which forbids hyphens in version).`);
-            tauriBuildCmd = 'npx --yes @tauri-apps/cli build --bundles deb,appimage';
+            tauriBuildCmd = `${tauriCli} build --bundles deb,appimage`;
           } else {
-            tauriBuildCmd = 'npx --yes @tauri-apps/cli build --bundles deb,appimage';
+            tauriBuildCmd = `${tauriCli} build --bundles deb,appimage`;
           }
         }
         await runCommand('Tauri Build', tauriBuildCmd, path.join(ROOT_DIR, 'Tauri'));
@@ -906,7 +908,7 @@ node dist/index.js
           const gradleTask = hasKeystore
             ? 'assembleArm64Release -x rustBuildArm64Release'
             : 'assembleArm64Debug -x rustBuildArm64Debug';
-          const daemonFlag = '--no-daemon';
+          const daemonFlag = '--no-daemon --build-cache';
           await runCommand('Android APK Build', `${gradlew} ${gradleTask} ${daemonFlag} -q`.trim(), tauriAndroidDir, env);
           // Ensure Gradle daemon doesn't linger in RAM
           await runCommand('Stop Gradle Daemon', `${gradlew} --stop`, tauriAndroidDir, env).catch(() => {});
