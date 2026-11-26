@@ -293,9 +293,11 @@ function getEnv(envOverrides = {}) {
         env[pathKey] = `${ndkBin}${path.delimiter}${env[pathKey]}`;
       }
       const clangExt = process.platform === 'win32' ? '.cmd' : '';
-      const arExt = process.platform === 'win32' ? '.exe' : '';
+      const exeExt = process.platform === 'win32' ? '.exe' : '';
       const androidClang = path.join(ndkBin, `aarch64-linux-android24-clang${clangExt}`);
-      const androidAr = path.join(ndkBin, `llvm-ar${arExt}`);
+      const androidClangXx = path.join(ndkBin, `aarch64-linux-android24-clang++${clangExt}`);
+      const androidAr = path.join(ndkBin, `llvm-ar${exeExt}`);
+      const androidRanlib = path.join(ndkBin, `llvm-ranlib${exeExt}`);
       if (fs.existsSync(androidClang)) {
         if (!env.CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER) {
           env.CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER = androidClang;
@@ -304,8 +306,14 @@ function getEnv(envOverrides = {}) {
           env.CC_aarch64_linux_android = androidClang;
         }
       }
+      if (fs.existsSync(androidClangXx) && !env.CXX_aarch64_linux_android) {
+        env.CXX_aarch64_linux_android = androidClangXx;
+      }
       if (fs.existsSync(androidAr) && !env.AR_aarch64_linux_android) {
         env.AR_aarch64_linux_android = androidAr;
+      }
+      if (fs.existsSync(androidRanlib) && !env.RANLIB_aarch64_linux_android) {
+        env.RANLIB_aarch64_linux_android = androidRanlib;
       }
     }
   }
@@ -360,8 +368,8 @@ function runCommand(taskName, command, cwd, envOverrides = {}) {
           console.log(output);
           console.log(`::endgroup::`);
           const lines = output.trim().split('\n');
-          const tail = lines.slice(-40).join('\n');
-          console.error('\n--- Failure Summary (Last 40 lines) ---');
+          const tail = lines.slice(-100).join('\n');
+          console.error('\n--- Failure Summary (Last 100 lines) ---');
           console.error(tail);
         } else {
           console.error(output);
@@ -857,23 +865,34 @@ node dist/index.js
 
           // 2. Build Rust native library (aarch64-linux-android) and copy to jniLibs
           const tauriRustDir = path.join(ROOT_DIR, 'Tauri', 'src-tauri');
-          await runCommand(
-            'Android Rust Native Build',
-            'cargo build --release --target aarch64-linux-android --features custom-protocol -j 4',
-            tauriRustDir,
-            env
-          );
+          const jniOutDir = path.join(tauriAndroidDir, 'app', 'src', 'main', 'jniLibs');
+          const hasCargoNdk = await checkCommand('cargo ndk --version', env);
+          if (hasCargoNdk) {
+            await runCommand(
+              'Android Rust Native Build (cargo-ndk)',
+              `cargo ndk -t arm64-v8a -p 24 -o "${jniOutDir}" build --release --features custom-protocol`,
+              tauriRustDir,
+              env
+            );
+          } else {
+            await runCommand(
+              'Android Rust Native Build',
+              'cargo build --release --target aarch64-linux-android --features custom-protocol',
+              tauriRustDir,
+              env
+            );
 
-          const builtSo = path.join(tauriRustDir, 'target', 'aarch64-linux-android', 'release', 'libholad_lib.so');
-          const jniLibsDir = path.join(tauriAndroidDir, 'app', 'src', 'main', 'jniLibs', 'arm64-v8a');
-          if (!fs.existsSync(builtSo)) {
-            throw new Error(`Built native library not found at ${builtSo}`);
+            const builtSo = path.join(tauriRustDir, 'target', 'aarch64-linux-android', 'release', 'libholad_lib.so');
+            const jniLibsDir = path.join(jniOutDir, 'arm64-v8a');
+            if (!fs.existsSync(builtSo)) {
+              throw new Error(`Built native library not found at ${builtSo}`);
+            }
+            if (!fs.existsSync(jniLibsDir)) {
+              fs.mkdirSync(jniLibsDir, { recursive: true });
+            }
+            fs.copyFileSync(builtSo, path.join(jniLibsDir, 'libholad_lib.so'));
+            console.log("[Android] Copied libholad_lib.so to jniLibs/arm64-v8a/");
           }
-          if (!fs.existsSync(jniLibsDir)) {
-            fs.mkdirSync(jniLibsDir, { recursive: true });
-          }
-          fs.copyFileSync(builtSo, path.join(jniLibsDir, 'libholad_lib.so'));
-          console.log("[Android] Copied libholad_lib.so to jniLibs/arm64-v8a/");
 
           // 3. Build APK via Gradle (skipping Gradle's rustBuild task since we just built it)
           const gradlew = process.platform === 'win32' ? '.\\gradlew.bat' : './gradlew';
