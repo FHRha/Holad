@@ -4,30 +4,10 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  '@capgo/capacitor-media-session':
-    hash: 2f8e4aa901149fe2659f94ee8d74048f6a183fff3187da27fbe02f19aa88cc26
-    path: patches/@capgo__capacitor-media-session.patch
-
 importers:
 
   .:
     dependencies:
-      '@capacitor/app':
-        specifier: ^8.1.1
-        version: 8.1.1(@capacitor/core@8.4.2)
-      '@capacitor/core':
-        specifier: ^8.4.2
-        version: 8.4.2
-      '@capacitor/filesystem':
-        specifier: ^8.1.2
-        version: 8.1.2(@capacitor/core@8.4.2)
-      '@capacitor/network':
-        specifier: ^8.0.1
-        version: 8.0.1(@capacitor/core@8.4.2)
-      '@capgo/capacitor-media-session':
-        specifier: ^8.0.29
-        version: 8.0.29(patch_hash=2f8e4aa901149fe2659f94ee8d74048f6a183fff3187da27fbe02f19aa88cc26)(@capacitor/core@8.4.2)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -189,32 +169,6 @@ packages:
   '@bramus/specificity@2.4.2':
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
     hasBin: true
-
-  '@capacitor/app@8.1.1':
-    resolution: {integrity: sha512-xM2ZTX5jK60tFtmjsmJv+Cdj1Qsb6NcavkqmdEnCPQBeya9oKhamZJxYOnQNj1ZvcJM7sWfG6BEtSLx42pisbA==}
-    peerDependencies:
-      '@capacitor/core': '>=8.0.0'
-
-  '@capacitor/core@8.4.2':
-    resolution: {integrity: sha512-fQPRb3JXRaU2pnufDUvqOjhsrYxDQeFRZyaj/sHydIUxD2NxOGHKMpmKUdI+U4OOmKuGZyvRpi7TSJU+7Bjbmg==}
-
-  '@capacitor/filesystem@8.1.2':
-    resolution: {integrity: sha512-doaaMfGoFR2hWU6aV6u83I+5ZsGyJVq+Gz4r9lMpJzUKMm1eMu0hLnFdV1aXZlU9FlK/RndFrVD8oRZfNOqWgQ==}
-    peerDependencies:
-      '@capacitor/core': '>=8.0.0'
-
-  '@capacitor/network@8.0.1':
-    resolution: {integrity: sha512-9xK/FHFmzKGanB6BdoSZOzXk8vF0OFVQSQ4PAsIrzAzLuXHryO317qy8dcHVpgxYeuZq2noI0My9z1DvVDi/9w==}
-    peerDependencies:
-      '@capacitor/core': '>=8.0.0'
-
-  '@capacitor/synapse@1.0.4':
-    resolution: {integrity: sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw==}
-
-  '@capgo/capacitor-media-session@8.0.29':
-    resolution: {integrity: sha512-6oOarjYS79iBdpPqa/48h77y8PfGXJJMyGC+898FUKW2l5wQoO0LPz0ZaC5FWDqDl7IbZSYF1uH6Z4aNQV7qKw==}
-    peerDependencies:
-      '@capacitor/core': '>=8.0.0'
 
   '@csstools/color-helpers@6.1.1':
     resolution: {integrity: sha512-gLNsunvwf3mCi5u5o46/Z/JcJMnhbHSaZ69rkgPzNM3J4s8hWwpPUQB6/tt0EDFyCiWzxANlx+2LJwpYj4zS1w==}
@@ -1609,29 +1563,6 @@ snapshots:
   '@bramus/specificity@2.4.2':
     dependencies:
       css-tree: 3.2.1
-
-  '@capacitor/app@8.1.1(@capacitor/core@8.4.2)':
-    dependencies:
-      '@capacitor/core': 8.4.2
-
-  '@capacitor/core@8.4.2':
-    dependencies:
-      tslib: 2.8.1
-
-  '@capacitor/filesystem@8.1.2(@capacitor/core@8.4.2)':
-    dependencies:
-      '@capacitor/core': 8.4.2
-      '@capacitor/synapse': 1.0.4
-
-  '@capacitor/network@8.0.1(@capacitor/core@8.4.2)':
-    dependencies:
-      '@capacitor/core': 8.4.2
-
-  '@capacitor/synapse@1.0.4': {}
-
-  '@capgo/capacitor-media-session@8.0.29(patch_hash=2f8e4aa901149fe2659f94ee8d74048f6a183fff3187da27fbe02f19aa88cc26)(@capacitor/core@8.4.2)':
-    dependencies:
-      '@capacitor/core': 8.4.2
 
   '@csstools/color-helpers@6.1.1': {}
 

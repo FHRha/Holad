@@ -1,5 +1,2 @@
 packages:
   - '.'
-
-patchedDependencies:
-  '@capgo/capacitor-media-session': patches/@capgo__capacitor-media-session.patch
