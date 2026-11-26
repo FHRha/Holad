@@ -192,10 +192,11 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
     }
 
     private fun dispatchCustomEvent(eventName: String, detailJson: String? = null) {
+        val safeEventName = JSONObject.quote(eventName)
         val js = if (detailJson != null) {
-            "(function(){try{window.dispatchEvent(new CustomEvent('$eventName',{detail:$detailJson}));}catch(e){console.error('[$TAG] event error:',e);}})();"
+            "(function(){try{window.dispatchEvent(new CustomEvent($safeEventName,{detail:$detailJson}));}catch(e){console.error('[$TAG] event error:',e);}})();"
         } else {
-            "(function(){try{window.dispatchEvent(new CustomEvent('$eventName'));}catch(e){console.error('[$TAG] event error:',e);}})();"
+            "(function(){try{window.dispatchEvent(new CustomEvent($safeEventName));}catch(e){console.error('[$TAG] event error:',e);}})();"
         }
         evaluateJs(js)
     }
@@ -714,15 +715,17 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
             Log.e(TAG, "Failed to trigger mediaAction", e)
         }
 
+        val safeAction = JSONObject.quote(action)
         val seekArg = if (extras != null) "${extras / 1000.0}" else "undefined"
         val js = """
             (function() {
                 try {
-                    window.dispatchEvent(new CustomEvent('holad:mediasession:action', { detail: { action: '$action', seekTime: $seekArg } }));
-                    if ('$action' === 'play') window.dispatchEvent(new CustomEvent('holad:mediasession:play'));
-                    if ('$action' === 'pause') window.dispatchEvent(new CustomEvent('holad:mediasession:pause'));
-                    if ('$action' === 'nexttrack') window.dispatchEvent(new CustomEvent('holad:mediasession:nexttrack'));
-                    if ('$action' === 'previoustrack') window.dispatchEvent(new CustomEvent('holad:mediasession:previoustrack'));
+                    var actionName = $safeAction;
+                    window.dispatchEvent(new CustomEvent('holad:mediasession:action', { detail: { action: actionName, seekTime: $seekArg } }));
+                    if (actionName === 'play') window.dispatchEvent(new CustomEvent('holad:mediasession:play'));
+                    if (actionName === 'pause') window.dispatchEvent(new CustomEvent('holad:mediasession:pause'));
+                    if (actionName === 'nexttrack') window.dispatchEvent(new CustomEvent('holad:mediasession:nexttrack'));
+                    if (actionName === 'previoustrack') window.dispatchEvent(new CustomEvent('holad:mediasession:previoustrack'));
                 } catch (e) {
                     console.error('[MediaSessionPlugin] eval error:', e);
                 }

@@ -52,6 +52,65 @@ interface DownloadState {
   resetStuckDownloads: () => void;
 }
 
+export interface DownloadProgressEntry {
+  progress: number;
+  bytesDownloaded?: number;
+  totalBytes?: number;
+  currentTrackName?: string;
+}
+
+interface DownloadProgressState {
+  progressById: Record<string, DownloadProgressEntry>;
+  setProgress: (id: string, progress: number, bytesDownloaded?: number, totalBytes?: number) => void;
+  setCurrentTrack: (id: string, trackName: string) => void;
+  clearProgress: (id: string) => void;
+  clearManyProgress: (ids: string[]) => void;
+  clearAllProgress: () => void;
+}
+
+export const useDownloadProgressStore = create<DownloadProgressState>((set) => ({
+  progressById: {},
+  setProgress: (id, progress, bytesDownloaded, totalBytes) => set((state) => ({
+    progressById: {
+      ...state.progressById,
+      [id]: {
+        ...state.progressById[id],
+        progress,
+        ...(bytesDownloaded !== undefined ? { bytesDownloaded } : {}),
+        ...(totalBytes !== undefined ? { totalBytes } : {}),
+      },
+    },
+  })),
+  setCurrentTrack: (id, trackName) => set((state) => ({
+    progressById: {
+      ...state.progressById,
+      [id]: {
+        ...state.progressById[id],
+        progress: state.progressById[id]?.progress ?? 0,
+        currentTrackName: trackName,
+      },
+    },
+  })),
+  clearProgress: (id) => set((state) => {
+    if (!(id in state.progressById)) return state;
+    const next = { ...state.progressById };
+    delete next[id];
+    return { progressById: next };
+  }),
+  clearManyProgress: (ids) => set((state) => {
+    let changed = false;
+    const next = { ...state.progressById };
+    for (const id of ids) {
+      if (id in next) {
+        delete next[id];
+        changed = true;
+      }
+    }
+    return changed ? { progressById: next } : state;
+  }),
+  clearAllProgress: () => set({ progressById: {} }),
+}));
+
 export const useDownloadStore = create<DownloadState>()(
   persist(
     (set, get) => ({
@@ -65,38 +124,44 @@ export const useDownloadStore = create<DownloadState>()(
           });
         }
       },
-      startDownload: (id, name, type, coverArt, extra) => set((state) => ({
-        downloads: {
-          ...state.downloads,
-          [id]: {
-            id,
-            name,
-            type,
-            coverArt,
-            status: 'downloading',
-            progress: 0,
-            path: '',
-            timestamp: Date.now(),
-            ...extra
+      startDownload: (id, name, type, coverArt, extra) => {
+        useDownloadProgressStore.getState().clearProgress(id);
+        set((state) => ({
+          downloads: {
+            ...state.downloads,
+            [id]: {
+              id,
+              name,
+              type,
+              coverArt,
+              status: 'downloading',
+              progress: 0,
+              path: '',
+              timestamp: Date.now(),
+              ...extra
+            }
           }
-        }
-      })),
-      queueDownload: (id, name, type, coverArt, extra) => set((state) => ({
-        downloads: {
-          ...state.downloads,
-          [id]: {
-            id,
-            name,
-            type,
-            coverArt,
-            status: 'queued',
-            progress: 0,
-            path: '',
-            timestamp: Date.now(),
-            ...extra
+        }));
+      },
+      queueDownload: (id, name, type, coverArt, extra) => {
+        useDownloadProgressStore.getState().clearProgress(id);
+        set((state) => ({
+          downloads: {
+            ...state.downloads,
+            [id]: {
+              id,
+              name,
+              type,
+              coverArt,
+              status: 'queued',
+              progress: 0,
+              path: '',
+              timestamp: Date.now(),
+              ...extra
+            }
           }
-        }
-      })),
+        }));
+      },
       pauseDownload: (id) => set((state) => {
         if (!state.downloads[id]) return state;
         return {
@@ -115,29 +180,22 @@ export const useDownloadStore = create<DownloadState>()(
           }
         };
       }),
-      cancelDownload: (id) => set((state) => {
-        if (!state.downloads[id]) return state;
-        return {
-          downloads: {
-            ...state.downloads,
-            [id]: { ...state.downloads[id], status: 'cancelled' }
-          }
-        };
-      }),
-      updateProgress: (id, progress, bytesDownloaded, totalBytes) => set((state) => {
-        if (!state.downloads[id]) return state;
-        return {
-          downloads: {
-            ...state.downloads,
-            [id]: {
-              ...state.downloads[id],
-              progress,
-              ...(bytesDownloaded !== undefined ? { bytesDownloaded } : {}),
-              ...(totalBytes !== undefined ? { totalBytes } : {})
+      cancelDownload: (id) => {
+        useDownloadProgressStore.getState().clearProgress(id);
+        set((state) => {
+          if (!state.downloads[id]) return state;
+          return {
+            downloads: {
+              ...state.downloads,
+              [id]: { ...state.downloads[id], status: 'cancelled' }
             }
-          }
-        };
-      }),
+          };
+        });
+      },
+      updateProgress: (id, progress, bytesDownloaded, totalBytes) => {
+        if (!get().downloads[id]) return;
+        useDownloadProgressStore.getState().setProgress(id, progress, bytesDownloaded, totalBytes);
+      },
       updateItem: (id, updates) => set((state) => {
         if (!state.downloads[id]) return state;
         return {
@@ -147,44 +205,48 @@ export const useDownloadStore = create<DownloadState>()(
           }
         };
       }),
-      updateCurrentTrack: (id, trackName) => set((state) => {
-        if (!state.downloads[id]) return state;
-        return {
-          downloads: {
-            ...state.downloads,
-            [id]: { ...state.downloads[id], currentTrackName: trackName }
-          }
-        };
-      }),
-      completeDownload: (id, path, extra) => set((state) => {
-        if (!state.downloads[id]) return state;
-        return {
-          downloads: {
-            ...state.downloads,
-            [id]: {
-              ...state.downloads[id],
-              status: 'completed',
-              progress: 100,
-              path,
-              ...extra
+      updateCurrentTrack: (id, trackName) => {
+        if (!get().downloads[id]) return;
+        useDownloadProgressStore.getState().setCurrentTrack(id, trackName);
+      },
+      completeDownload: (id, path, extra) => {
+        useDownloadProgressStore.getState().clearProgress(id);
+        set((state) => {
+          if (!state.downloads[id]) return state;
+          return {
+            downloads: {
+              ...state.downloads,
+              [id]: {
+                ...state.downloads[id],
+                status: 'completed',
+                progress: 100,
+                path,
+                ...extra
+              }
             }
-          }
-        };
-      }),
-      errorDownload: (id, error) => set((state) => {
-        if (!state.downloads[id]) return state;
-        return {
-          downloads: {
-            ...state.downloads,
-            [id]: { ...state.downloads[id], status: 'error', error }
-          }
-        };
-      }),
-      removeDownload: (id) => set((state) => {
-        const newDownloads = { ...state.downloads };
-        delete newDownloads[id];
-        return { downloads: newDownloads };
-      }),
+          };
+        });
+      },
+      errorDownload: (id, error) => {
+        useDownloadProgressStore.getState().clearProgress(id);
+        set((state) => {
+          if (!state.downloads[id]) return state;
+          return {
+            downloads: {
+              ...state.downloads,
+              [id]: { ...state.downloads[id], status: 'error', error }
+            }
+          };
+        });
+      },
+      removeDownload: (id) => {
+        useDownloadProgressStore.getState().clearProgress(id);
+        set((state) => {
+          const newDownloads = { ...state.downloads };
+          delete newDownloads[id];
+          return { downloads: newDownloads };
+        });
+      },
       aliasDownloadId: (sourceId, targetId) => set((state) => {
         if (!state.downloads[sourceId] || state.downloads[targetId]) return state;
         const source = state.downloads[sourceId];
@@ -199,32 +261,49 @@ export const useDownloadStore = create<DownloadState>()(
           }
         };
       }),
-      clearHistory: () => set((state) => {
-        // Only clear completed/error/cancelled/paused ones, keep downloading/queued ones
-        const newDownloads = { ...state.downloads };
-        for (const key in newDownloads) {
-          if (newDownloads[key].status !== 'downloading' && newDownloads[key].status !== 'queued') {
-            delete newDownloads[key];
+      clearHistory: () => {
+        const clearedIds: string[] = [];
+        set((state) => {
+          // Only clear completed/error/cancelled/paused ones, keep downloading/queued ones
+          const newDownloads = { ...state.downloads };
+          for (const key in newDownloads) {
+            if (newDownloads[key].status !== 'downloading' && newDownloads[key].status !== 'queued') {
+              clearedIds.push(key);
+              delete newDownloads[key];
+            }
           }
+          return { downloads: newDownloads };
+        });
+        if (clearedIds.length > 0) {
+          useDownloadProgressStore.getState().clearManyProgress(clearedIds);
         }
-        return { downloads: newDownloads };
-      }),
+      },
       getDownloadedTracks: () => {
         return Object.values(get().downloads).filter(d => d.type === 'track' && d.status === 'completed');
       },
       getDownloadedAlbums: () => {
         return Object.values(get().downloads).filter(d => d.type === 'album' && d.status === 'completed');
       },
-      resetStuckDownloads: () => set((state) => {
-        const newDownloads = { ...state.downloads };
-        for (const key in newDownloads) {
-          if (newDownloads[key].status === 'downloading' || newDownloads[key].status === 'queued') {
-            newDownloads[key].status = 'error';
-            newDownloads[key].error = 'Download interrupted';
+      resetStuckDownloads: () => {
+        const resetIds: string[] = [];
+        set((state) => {
+          const newDownloads = { ...state.downloads };
+          for (const key in newDownloads) {
+            if (newDownloads[key].status === 'downloading' || newDownloads[key].status === 'queued') {
+              resetIds.push(key);
+              newDownloads[key] = {
+                ...newDownloads[key],
+                status: 'error',
+                error: 'Download interrupted',
+              };
+            }
           }
+          return { downloads: newDownloads };
+        });
+        if (resetIds.length > 0) {
+          useDownloadProgressStore.getState().clearManyProgress(resetIds);
         }
-        return { downloads: newDownloads };
-      })
+      }
     }),
     {
       name: 'download-storage',
@@ -466,7 +545,10 @@ export interface DownloadQueueStats {
   overallProgress: number;
 }
 
-export const getDownloadQueueStats = (downloads: Record<string, DownloadItem>): DownloadQueueStats => {
+export const getDownloadQueueStats = (
+  downloads: Record<string, DownloadItem>,
+  progressById: Record<string, DownloadProgressEntry> = useDownloadProgressStore.getState().progressById
+): DownloadQueueStats => {
   const items = Object.values(downloads || {});
   const activeItems = items.filter(d => d.status === 'downloading');
   const pausedItems = items.filter(d => d.status === 'paused');
@@ -479,7 +561,10 @@ export const getDownloadQueueStats = (downloads: Record<string, DownloadItem>): 
   
   let overallProgress = 0;
   if (activeDownloadsCount > 0) {
-    const totalProgress = [...activeItems, ...pausedItems].reduce((acc, item) => acc + (item.progress || 0), 0);
+    const totalProgress = [...activeItems, ...pausedItems].reduce(
+      (acc, item) => acc + (progressById[item.id]?.progress ?? item.progress ?? 0),
+      0
+    );
     overallProgress = Math.round(totalProgress / activeDownloadsCount);
   }
 
@@ -495,7 +580,8 @@ export const getDownloadQueueStats = (downloads: Record<string, DownloadItem>): 
 
 export const useDownloadQueue = (): DownloadQueueStats => {
   const downloads = useDownloadStore(state => state.downloads);
-  return getDownloadQueueStats(downloads);
+  const progressById = useDownloadProgressStore(state => state.progressById);
+  return getDownloadQueueStats(downloads, progressById);
 };
 
 if (isTauri()) {

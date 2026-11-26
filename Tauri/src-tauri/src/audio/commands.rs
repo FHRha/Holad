@@ -1,5 +1,8 @@
+use std::fs::File;
+use std::io::{BufWriter, Read, Write};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -185,8 +188,11 @@ pub fn audio_set_volume(
     service: State<'_, AudioService>,
     volume: f32,
 ) -> Result<AudioState, String> {
+    let prev_status = service.player.get_state().status;
     let state = service.player.set_volume(volume)?;
-    emit_state(&app, &state);
+    if state.status != prev_status {
+        emit_state(&app, &state);
+    }
     Ok(state)
 }
 
@@ -196,8 +202,11 @@ pub fn audio_set_playback_rate(
     service: State<'_, AudioService>,
     rate: f32,
 ) -> Result<AudioState, String> {
+    let prev_status = service.player.get_state().status;
     let state = service.player.set_playback_rate(rate)?;
-    emit_state(&app, &state);
+    if state.status != prev_status {
+        emit_state(&app, &state);
+    }
     Ok(state)
 }
 
@@ -207,8 +216,11 @@ pub fn audio_set_loop(
     service: State<'_, AudioService>,
     enabled: bool,
 ) -> Result<AudioState, String> {
+    let prev_status = service.player.get_state().status;
     let state = service.player.set_loop(enabled)?;
-    emit_state(&app, &state);
+    if state.status != prev_status {
+        emit_state(&app, &state);
+    }
     Ok(state)
 }
 
@@ -223,6 +235,7 @@ pub fn audio_set_compressor(
     attack_secs: Option<f32>,
     release_secs: Option<f32>,
 ) -> Result<AudioState, String> {
+    let prev_status = service.player.get_state().status;
     let state = service.player.set_compressor_params(
         enabled,
         threshold_db,
@@ -231,7 +244,9 @@ pub fn audio_set_compressor(
         attack_secs,
         release_secs,
     )?;
-    emit_state(&app, &state);
+    if state.status != prev_status {
+        emit_state(&app, &state);
+    }
     Ok(state)
 }
 
@@ -300,4 +315,128 @@ pub fn audio_recover_output_sink(
     let state = service.player.recover_output_sink()?;
     emit_state(&app, &state);
     Ok(state)
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadProgressPayload {
+    pub downloaded: u64,
+    pub total: Option<u64>,
+}
+
+fn allowed_download_dirs(app: &AppHandle) -> Vec<PathBuf> {
+    let mut allowed = Vec::new();
+    if let Ok(d) = app.path().app_data_dir() {
+        allowed.push(d);
+    }
+    if let Ok(d) = app.path().app_cache_dir() {
+        allowed.push(d);
+    }
+    if let Ok(d) = app.path().download_dir() {
+        allowed.push(d.join("Holad"));
+    }
+    let music_dir = PathBuf::from(crate::resolve_music_download_dir(app));
+    if !music_dir.as_os_str().is_empty() {
+        allowed.push(music_dir);
+    }
+    allowed
+}
+
+/// Streams an HTTP/HTTPS file in 64 KB chunks directly to `dest_path`, emitting
+/// throttled progress updates over the Tauri IPC `Channel`.
+#[tauri::command]
+pub fn download_file_to_path(
+    app: AppHandle,
+    url: String,
+    dest_path: String,
+    channel: Channel<DownloadProgressPayload>,
+) -> Result<(), String> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("Only http:// and https:// URLs are supported".to_string());
+    }
+
+    let trimmed_dest = dest_path.trim();
+    if trimmed_dest.is_empty() {
+        return Err("Destination path cannot be empty".to_string());
+    }
+
+    let dest = PathBuf::from(trimmed_dest);
+    let normalized_dest = crate::normalize_path_for_check(&dest)?;
+    if crate::is_os_system_path(&normalized_dest) {
+        return Err("Access to system directory is restricted".to_string());
+    }
+
+    let allowed = allowed_download_dirs(&app);
+    if !crate::is_path_within_any(&normalized_dest, &allowed) {
+        return Err("Destination path is outside allowed Holad directories".to_string());
+    }
+
+    let parent = normalized_dest
+        .parent()
+        .ok_or_else(|| "Destination path must have a parent directory".to_string())?;
+    if !parent.exists() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
+    }
+
+    let canonical_parent = parent
+        .canonicalize()
+        .map_err(|e| format!("Failed to resolve parent dir: {}", e))?;
+    if !crate::is_path_within_any(&canonical_parent, &allowed) {
+        return Err("Resolved parent directory is outside allowed Holad directories".to_string());
+    }
+
+    let file_name = normalized_dest
+        .file_name()
+        .ok_or_else(|| "Destination path must include a file name".to_string())?;
+    let safe_dest = canonical_parent.join(file_name);
+
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(Duration::from_secs(30))
+        .timeout_read(Duration::from_secs(30))
+        .build();
+    let resp = agent
+        .get(&url)
+        .call()
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    let total: Option<u64> = resp
+        .header("content-length")
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .filter(|&len| len > 0);
+
+    let file = File::create(&safe_dest).map_err(|e| format!("Failed to create file: {}", e))?;
+    let mut writer = BufWriter::new(file);
+    let mut reader = resp.into_reader();
+    let mut chunk = [0u8; 64 * 1024];
+    let mut downloaded: u64 = 0;
+    let mut last_emit = Instant::now();
+    let mut last_emit_bytes: u64 = 0;
+
+    loop {
+        let n = reader
+            .read(&mut chunk)
+            .map_err(|e| format!("Failed to read response stream: {}", e))?;
+        if n == 0 {
+            writer
+                .flush()
+                .map_err(|e| format!("Failed to flush file: {}", e))?;
+            let _ = channel.send(DownloadProgressPayload { downloaded, total });
+            break;
+        }
+
+        writer
+            .write_all(&chunk[..n])
+            .map_err(|e| format!("Failed to write file: {}", e))?;
+        downloaded = downloaded.saturating_add(n as u64);
+
+        if last_emit.elapsed() >= Duration::from_millis(250)
+            || downloaded.saturating_sub(last_emit_bytes) >= 256 * 1024
+        {
+            let _ = channel.send(DownloadProgressPayload { downloaded, total });
+            last_emit = Instant::now();
+            last_emit_bytes = downloaded;
+        }
+    }
+
+    Ok(())
 }

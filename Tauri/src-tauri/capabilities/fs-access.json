@@ -13,6 +13,7 @@
     "fs:allow-write-file",
     "fs:allow-copy-file",
     "fs:allow-rename",
+    "fs:allow-stat",
     {
       "identifier": "fs:scope",
       "allow": [
@@ -20,7 +21,6 @@
         { "path": "$APPDATA/com.holad.desktop/**" },
         { "path": "$APPDATA/com.holad.app/**" },
         { "path": "$APPDATA/Holad/**" },
-        { "path": "$APPDATA/**" },
         { "path": "$TEMP/holad_icons/**" }
       ]
     }

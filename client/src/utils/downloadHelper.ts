@@ -34,6 +34,20 @@ const waitIfPaused = async (id: string, signal?: AbortSignal) => {
 
 
 
+const createThrottledProgressUpdater = (
+  updateProgress: (id: string, progress: number, bytesDownloaded?: number, totalBytes?: number) => void,
+  intervalMs = 250
+) => {
+  let lastEmitTime = 0;
+  return (id: string, progress: number, bytesDownloaded?: number, totalBytes?: number) => {
+    const now = Date.now();
+    if (progress >= 100 || now - lastEmitTime >= intervalMs) {
+      lastEmitTime = now;
+      updateProgress(id, progress, bytesDownloaded, totalBytes);
+    }
+  };
+};
+
 const downloadSingleFile = async (
   url: string,
   name: string,
@@ -41,8 +55,30 @@ const downloadSingleFile = async (
   downloadDirectory?: string | null,
   subDir?: string,
   signal?: AbortSignal,
-  checkPause?: () => Promise<void>
+  checkPause?: () => Promise<void>,
+  preferredExt?: string
 ): Promise<{ filePath: string; sizeBytes: number }> => {
+  const safeName = name.replace(/[/\\?%*:|"<>]/g, '-');
+  const normalizedExt = preferredExt
+    ? (preferredExt.startsWith('.') ? preferredExt : `.${preferredExt}`)
+    : '.mp3';
+
+  if (isTauri()) {
+    if (checkPause) await checkPause();
+    if (signal?.aborted) throw new Error('Aborted');
+    const nativeResult = await StorageManager.downloadTrackToDisk(
+      url,
+      `${safeName}${normalizedExt}`,
+      onProgress,
+      downloadDirectory || undefined,
+      subDir,
+      signal
+    );
+    if (nativeResult) {
+      return nativeResult;
+    }
+  }
+
   const response = await fetch(url, { signal });
   if (!response.ok) {
     throw new Error('Failed to fetch file');
@@ -101,7 +137,6 @@ const downloadSingleFile = async (
     // default remains .mp3
   }
 
-  const safeName = name.replace(/[/\\?%*:|"<>]/g, '-');
   const finalFileName = `${safeName}${ext}`;
 
   const filePath = await StorageManager.saveTrack(finalFileName, data, downloadDirectory || undefined, subDir);
@@ -140,11 +175,12 @@ export const handleDownload = async (id: string, name: string, type: 'track' | '
       startDownload,
       completeDownload,
       errorDownload,
-      updateProgress,
+      updateProgress: rawUpdateProgress,
       updateCurrentTrack,
       downloadDirectory,
       updateItem
     } = useDownloadStore.getState();
+    const updateProgress = createThrottledProgressUpdater(rawUpdateProgress, 250);
 
     const abortController = new AbortController();
     activeAbortControllers.set(id, abortController);
@@ -231,7 +267,8 @@ export const handleDownload = async (id: string, name: string, type: 'track' | '
               downloadDirectory,
               subDir,
               signal,
-              () => waitIfPaused(id, signal)
+              () => waitIfPaused(id, signal),
+              song.suffix
             );
 
             completedSongs++;
@@ -345,7 +382,8 @@ export const handleDownload = async (id: string, name: string, type: 'track' | '
           downloadDirectory,
           'tracks',
           signal,
-          () => waitIfPaused(id, signal)
+          () => waitIfPaused(id, signal),
+          track.suffix
         );
 
         if (signal.aborted) {

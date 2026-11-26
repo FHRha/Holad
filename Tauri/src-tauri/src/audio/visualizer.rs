@@ -117,37 +117,39 @@ pub fn build_hann_window() -> [f32; FFT_SIZE] {
     win
 }
 
-/// Computes a 256-byte visualizer packet:
+/// Computes a 256-byte visualizer packet into caller-provided `fft_scratch` and `packet` buffers:
 /// - bytes `0..128`: FFT magnitude spectrum scaled from `[-100, -30] dB` into `0..=255`
 /// - bytes `128..256`: time-domain waveform scaled from `[-1.0, 1.0]` into `0..=255`
-pub fn compute_fft_packet(
+pub fn compute_fft_packet_into(
     time_window: &[f32; FFT_SIZE],
     smoothed_mag: &mut [f32; BIN_COUNT],
     fft: &dyn Fft<f32>,
     hann: &[f32; FFT_SIZE],
-) -> Vec<u8> {
-    let mut fft_buf: Vec<Complex<f32>> = time_window
-        .iter()
-        .zip(hann.iter())
-        .map(|(&s, &w)| Complex::new(s * w, 0.0))
-        .collect();
+    fft_scratch: &mut [Complex<f32>],
+    packet: &mut Vec<u8>,
+) {
+    debug_assert_eq!(fft_scratch.len(), FFT_SIZE);
 
-    fft.process(&mut fft_buf);
+    for (dst, (&s, &w)) in fft_scratch.iter_mut().zip(time_window.iter().zip(hann.iter())) {
+        *dst = Complex::new(s * w, 0.0);
+    }
 
-    let mut packet = Vec::with_capacity(FFT_SIZE);
+    fft.process(fft_scratch);
+
+    packet.clear();
     let db_range = MAX_DB - MIN_DB;
 
-    for i in 0..BIN_COUNT {
+    for (i, smoothed) in smoothed_mag.iter_mut().enumerate() {
         let scale = if i == 0 {
             FFT_SIZE as f32
         } else {
             (FFT_SIZE as f32) * 0.5
         };
-        let mag = fft_buf[i].norm() / scale;
-        smoothed_mag[i] = SMOOTHING * smoothed_mag[i] + (1.0 - SMOOTHING) * mag;
+        let mag = fft_scratch[i].norm() / scale;
+        *smoothed = SMOOTHING * *smoothed + (1.0 - SMOOTHING) * mag;
 
-        let db = if smoothed_mag[i] > 1e-10 {
-            20.0 * smoothed_mag[i].log10()
+        let db = if *smoothed > 1e-10 {
+            20.0 * smoothed.log10()
         } else {
             -120.0
         };
@@ -160,7 +162,27 @@ pub fn compute_fft_packet(
         let norm = (s.clamp(-1.0, 1.0) * 0.5 + 0.5).clamp(0.0, 1.0);
         packet.push((norm * 255.0).round() as u8);
     }
+}
 
+/// Computes a 256-byte visualizer packet:
+/// - bytes `0..128`: FFT magnitude spectrum scaled from `[-100, -30] dB` into `0..=255`
+/// - bytes `128..256`: time-domain waveform scaled from `[-1.0, 1.0]` into `0..=255`
+pub fn compute_fft_packet(
+    time_window: &[f32; FFT_SIZE],
+    smoothed_mag: &mut [f32; BIN_COUNT],
+    fft: &dyn Fft<f32>,
+    hann: &[f32; FFT_SIZE],
+) -> Vec<u8> {
+    let mut fft_scratch = vec![Complex::new(0.0f32, 0.0f32); FFT_SIZE];
+    let mut packet = Vec::with_capacity(FFT_SIZE);
+    compute_fft_packet_into(
+        time_window,
+        smoothed_mag,
+        fft,
+        hann,
+        &mut fft_scratch,
+        &mut packet,
+    );
     packet
 }
 
@@ -247,6 +269,8 @@ impl VisualizerEngine {
         let hann = build_hann_window();
         let mut time_window = [0.0f32; FFT_SIZE];
         let mut smoothed_mag = [0.0f32; BIN_COUNT];
+        let mut fft_scratch = vec![Complex::new(0.0f32, 0.0f32); FFT_SIZE];
+        let mut packet = Vec::with_capacity(FFT_SIZE);
 
         loop {
             if !active.load(Ordering::Acquire) {
@@ -284,11 +308,18 @@ impl VisualizerEngine {
                 }
             }
 
-            let packet = compute_fft_packet(&time_window, &mut smoothed_mag, fft.as_ref(), &hann);
+            compute_fft_packet_into(
+                &time_window,
+                &mut smoothed_mag,
+                fft.as_ref(),
+                &hann,
+                &mut fft_scratch,
+                &mut packet,
+            );
 
             if let Ok(guard) = channel.lock() {
                 if let Some(ref ch) = *guard {
-                    let _ = ch.send(packet);
+                    let _ = ch.send(packet.clone());
                 }
             }
 

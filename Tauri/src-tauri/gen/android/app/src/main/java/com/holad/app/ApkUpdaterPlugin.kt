@@ -162,8 +162,8 @@ class ApkUpdaterPlugin(private val activity: Activity) : Plugin(activity) {
             invoke.reject("URL parameter must be provided")
             return
         }
-        if (!urlString.startsWith("http://") && !urlString.startsWith("https://")) {
-            invoke.reject("Invalid URL protocol. Only HTTP and HTTPS are allowed.")
+        if (!isAllowedDownloadUrl(urlString)) {
+            invoke.reject("Disallowed update URL: download is only permitted from official GitHub releases over HTTPS.")
             return
         }
 
@@ -379,12 +379,34 @@ class ApkUpdaterPlugin(private val activity: Activity) : Plugin(activity) {
         }
     }
 
+    private fun isAllowedDownloadUrl(urlString: String): Boolean {
+        if (!urlString.startsWith("https://", ignoreCase = true)) {
+            return false
+        }
+        return try {
+            val parsed = URL(urlString)
+            if (!parsed.protocol.equals("https", ignoreCase = true)) return false
+            if (!parsed.userInfo.isNullOrEmpty()) return false
+            val host = parsed.host.lowercase(Locale.ROOT)
+            val path = parsed.path
+            if (host == "github.com" && path.startsWith("/FHRha/Holad/releases/download/")) {
+                return true
+            }
+            if (host == "githubusercontent.com" || host.endsWith(".githubusercontent.com")) {
+                return true
+            }
+            false
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun openConnectionWithRedirects(urlString: String): HttpURLConnection {
         var currentUrl = urlString
         var redirects = 0
         while (redirects < 8) {
-            if (!currentUrl.startsWith("http://") && !currentUrl.startsWith("https://")) {
-                throw SecurityException("Invalid URL protocol in redirect. Only HTTP and HTTPS are allowed.")
+            if (!isAllowedDownloadUrl(currentUrl)) {
+                throw SecurityException("Disallowed update URL in redirect: only official GitHub releases over HTTPS are allowed.")
             }
             val url = URL(currentUrl)
             val conn = (url.openConnection() as HttpURLConnection).apply {

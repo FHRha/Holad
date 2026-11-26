@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { clearAppCache } from '../../utils/storage';
-import { useDownloadStore } from '../../store/downloadStore';
+import { useDownloadStore, useDownloadProgressStore } from '../../store/downloadStore';
 import { isTauri } from '../../utils/platform';
 import { openExternalLink } from '../../utils/linkHelper';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -235,6 +235,7 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
   const { t } = useTranslation();
   const location = useLocation();
   const downloads = useDownloadStore(state => state.downloads);
+  const progressById = useDownloadProgressStore(state => state.progressById);
   
   const items = Object.values(downloads || {});
   const activeDownloads = items.filter(d => d.status === 'downloading');
@@ -243,7 +244,10 @@ function SidebarDownloadsItem({ isWide }: { isWide: boolean }) {
   const isDownloading = activeDownloads.length > 0 || pausedDownloads.length > 0;
   const totalActive = activeDownloads.length + pausedDownloads.length + queuedDownloads.length;
   
-  const totalProgress = [...activeDownloads, ...pausedDownloads].reduce((acc, d) => acc + (d.progress || 0), 0);
+  const totalProgress = [...activeDownloads, ...pausedDownloads].reduce(
+    (acc, d) => acc + (progressById[d.id]?.progress ?? d.progress ?? 0),
+    0
+  );
   const avgProgress = isDownloading ? Math.round(totalProgress / (activeDownloads.length + pausedDownloads.length)) : 0;
 
   const to = '/downloads';

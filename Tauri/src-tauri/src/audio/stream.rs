@@ -14,6 +14,7 @@ use super::player::PlaybackMetadata;
 pub const DEFAULT_MAX_RAM_TRACKS: usize = 3;
 pub const DEFAULT_RAM_SPILL_THRESHOLD_BYTES: usize = 40 * 1024 * 1024;
 pub const DEFAULT_MAX_DISK_CACHE_BYTES: u64 = 500 * 1024 * 1024;
+pub const MAX_STREAM_RAM_BYTES: usize = 150 * 1024 * 1024;
 
 const STARTUP_BUFFER_BYTES: usize = 64 * 1024;
 const CHUNK_SIZE: usize = 64 * 1024;
@@ -118,7 +119,7 @@ impl ProgressiveMediaStream {
             let mut buf = shared.buf.lock().unwrap();
             buf.total_len = total_len;
             if let Some(len) = total_len {
-                if len < 200 * 1024 * 1024 {
+                if len <= MAX_STREAM_RAM_BYTES as u64 {
                     let cap = len as usize;
                     let cur_len = buf.data.len();
                     if cap > buf.data.capacity() {
@@ -155,13 +156,31 @@ impl ProgressiveMediaStream {
                     break;
                 }
                 Ok(n) => {
+                    let mut hit_cap = false;
                     let downloaded = {
                         let mut buf = shared.buf.lock().unwrap();
-                        buf.data.extend_from_slice(&chunk[..n]);
+                        let remaining = MAX_STREAM_RAM_BYTES.saturating_sub(buf.data.len());
+                        if n > remaining {
+                            if remaining > 0 {
+                                buf.data.extend_from_slice(&chunk[..remaining]);
+                            }
+                            buf.error = Some(format!(
+                                "HTTP stream exceeded {} MB RAM buffer limit",
+                                MAX_STREAM_RAM_BYTES / (1024 * 1024)
+                            ));
+                            buf.finished = true;
+                            hit_cap = true;
+                        } else {
+                            buf.data.extend_from_slice(&chunk[..n]);
+                        }
                         let len = buf.data.len() as u64;
                         shared.condvar.notify_all();
                         len
                     };
+
+                    if hit_cap {
+                        break;
+                    }
 
                     let pct = Self::compute_buffered_percent(downloaded, total_len);
                     if (pct - last_pct).abs() >= 1.0 {
@@ -226,10 +245,25 @@ impl ProgressiveMediaStream {
         self.shared.buf.lock().unwrap().data.len()
     }
 
-    pub fn write_to_file(&self, path: &Path) -> io::Result<()> {
+    pub fn snapshot_if_finished_ok(&self) -> Option<Vec<u8>> {
+        if self.shared.cancel.load(Ordering::Acquire) {
+            return None;
+        }
         let buf = self.shared.buf.lock().unwrap();
+        if buf.finished && buf.error.is_none() && !buf.data.is_empty() {
+            Some(buf.data.clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn write_to_file(&self, path: &Path) -> io::Result<()> {
+        let data = {
+            let buf = self.shared.buf.lock().unwrap();
+            buf.data.clone()
+        };
         let mut file = File::create(path)?;
-        file.write_all(&buf.data)?;
+        file.write_all(&data)?;
         file.flush()?;
         Ok(())
     }
@@ -367,6 +401,103 @@ pub enum MediaInput {
     Progressive(ProgressiveMediaStream),
 }
 
+fn allowed_local_media_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    const APP_IDS: &[&str] = &["com.holad.app", "com.holad.desktop", "Holad"];
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(appdata) = std::env::var_os("APPDATA") {
+            let base = PathBuf::from(appdata);
+            for id in APP_IDS {
+                dirs.push(base.join(id));
+            }
+        }
+        if let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") {
+            let base = PathBuf::from(local_appdata);
+            for id in APP_IDS {
+                dirs.push(base.join(id));
+            }
+        }
+        if let Some(profile) = std::env::var_os("USERPROFILE") {
+            let base = PathBuf::from(profile);
+            dirs.push(base.join("Downloads"));
+            dirs.push(base.join("Music").join("Holad"));
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        if let Some(xdg_data) = std::env::var_os("XDG_DATA_HOME") {
+            let base = PathBuf::from(xdg_data);
+            for id in APP_IDS {
+                dirs.push(base.join(id));
+            }
+        }
+        if let Some(xdg_cache) = std::env::var_os("XDG_CACHE_HOME") {
+            let base = PathBuf::from(xdg_cache);
+            for id in APP_IDS {
+                dirs.push(base.join(id));
+            }
+        }
+        if let Some(xdg_dl) = std::env::var_os("XDG_DOWNLOAD_DIR") {
+            dirs.push(PathBuf::from(xdg_dl));
+        }
+        if let Some(xdg_music) = std::env::var_os("XDG_MUSIC_DIR") {
+            dirs.push(PathBuf::from(xdg_music).join("Holad"));
+        }
+        if let Some(home) = std::env::var_os("HOME") {
+            let base = PathBuf::from(home);
+            for id in APP_IDS {
+                dirs.push(base.join(".local").join("share").join(id));
+                dirs.push(base.join(".cache").join(id));
+                dirs.push(base.join("Library").join("Application Support").join(id));
+                dirs.push(base.join("Library").join("Caches").join(id));
+            }
+            dirs.push(base.join("Downloads"));
+            dirs.push(base.join("Music").join("Holad"));
+        }
+    }
+
+    #[cfg(test)]
+    {
+        dirs.push(std::env::temp_dir());
+    }
+
+    dirs
+}
+
+fn validate_local_media_path(path_str: &str) -> Result<PathBuf, String> {
+    let trimmed = path_str.trim();
+    if trimmed.is_empty() {
+        return Err("Local media path cannot be empty".to_string());
+    }
+    let path = Path::new(trimmed);
+    if path
+        .components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
+        return Err("Path traversal ('..') is not allowed in media path".to_string());
+    }
+
+    let canonical = path
+        .canonicalize()
+        .map_err(|e| format!("Failed to resolve media path {}: {:?}", trimmed, e))?;
+    if !canonical.is_file() {
+        return Err(format!("Media path is not a regular file: {}", trimmed));
+    }
+
+    let allowed = allowed_local_media_dirs();
+    if !crate::is_path_within_any(&canonical, &allowed) {
+        return Err(format!(
+            "Access denied: media path '{}' is outside allowed Holad directories",
+            trimmed
+        ));
+    }
+
+    Ok(canonical)
+}
+
 impl MediaInput {
     pub(crate) fn open(
         path_or_url: &str,
@@ -375,7 +506,8 @@ impl MediaInput {
         cancel: Arc<AtomicBool>,
     ) -> Result<Self, String> {
         if let Some(local_path) = resolve_local_path(path_or_url) {
-            let file = File::open(Path::new(&local_path))
+            let safe_path = validate_local_media_path(&local_path)?;
+            let file = File::open(&safe_path)
                 .map_err(|e| format!("Failed to open file {}: {:?}", local_path, e))?;
 
             if let Ok(mut meta) = meta_arc.lock() {
@@ -386,14 +518,15 @@ impl MediaInput {
 
             Ok(Self::Local {
                 reader: BufReader::new(file),
-                path: local_path,
+                path: safe_path.to_string_lossy().into_owned(),
             })
         } else if path_or_url.starts_with("http://") || path_or_url.starts_with("https://") {
             let stream = ProgressiveMediaStream::open_http(path_or_url, meta_arc, generation, cancel)?;
             Ok(Self::Progressive(stream))
         } else {
             // Plain filesystem path fallback
-            let file = File::open(Path::new(path_or_url))
+            let safe_path = validate_local_media_path(path_or_url)?;
+            let file = File::open(&safe_path)
                 .map_err(|e| format!("Failed to open file {}: {:?}", path_or_url, e))?;
 
             if let Ok(mut meta) = meta_arc.lock() {
@@ -404,7 +537,7 @@ impl MediaInput {
 
             Ok(Self::Local {
                 reader: BufReader::new(file),
-                path: path_or_url.to_string(),
+                path: safe_path.to_string_lossy().into_owned(),
             })
         }
     }
@@ -476,6 +609,7 @@ pub struct StreamCache {
     ram_spill_threshold_bytes: usize,
     max_disk_cache_bytes: u64,
     cache_dir: Option<PathBuf>,
+    pending_spills: Vec<std::thread::JoinHandle<()>>,
 }
 
 impl StreamCache {
@@ -503,6 +637,7 @@ impl StreamCache {
             ram_spill_threshold_bytes,
             max_disk_cache_bytes,
             cache_dir,
+            pending_spills: Vec::new(),
         }
     }
 
@@ -532,35 +667,66 @@ impl StreamCache {
     }
 
     fn spill_progressive_to_disk(
-        &self,
+        &mut self,
         url: &str,
         stream: &ProgressiveMediaStream,
     ) -> Option<PathBuf> {
-        let dir = self.cache_dir.as_ref()?;
-        if !Self::is_http_url(url) || !stream.is_finished_ok() {
+        let dir = self.cache_dir.as_ref()?.clone();
+        if !Self::is_http_url(url) {
             return None;
         }
-        if std::fs::create_dir_all(dir).is_err() {
-            return None;
-        }
-        let final_path = Self::cache_path_for_url(dir, url);
+        let final_path = Self::cache_path_for_url(&dir, url);
         if final_path.exists() {
             return Some(final_path);
         }
-        let tmp_path = dir.join(format!(
-            "{}.tmp",
-            final_path.file_name()?.to_string_lossy()
-        ));
-        if stream.write_to_file(&tmp_path).is_err() {
-            let _ = std::fs::remove_file(&tmp_path);
-            return None;
+
+        // Snapshot bytes briefly under buf.lock(), then perform all disk I/O
+        // and cache eviction in a background thread.
+        let data = stream.snapshot_if_finished_ok()?;
+        let max_disk_bytes = self.max_disk_cache_bytes;
+        self.pending_spills.retain(|h| !h.is_finished());
+
+        if let Ok(handle) = std::thread::Builder::new()
+            .name("holad-cache-spill".to_string())
+            .spawn(move || {
+                if std::fs::create_dir_all(&dir).is_err() {
+                    return;
+                }
+                if final_path.exists() {
+                    return;
+                }
+                let Some(fname) = final_path.file_name() else {
+                    return;
+                };
+                let tmp_path = dir.join(format!("{}.tmp", fname.to_string_lossy()));
+                let write_res = (|| -> io::Result<()> {
+                    let mut file = File::create(&tmp_path)?;
+                    file.write_all(&data)?;
+                    file.flush()?;
+                    Ok(())
+                })();
+                if write_res.is_err() {
+                    let _ = std::fs::remove_file(&tmp_path);
+                    return;
+                }
+                if std::fs::rename(&tmp_path, &final_path).is_err() {
+                    let _ = std::fs::remove_file(&tmp_path);
+                    return;
+                }
+                Self::enforce_disk_cache_cap(&dir, max_disk_bytes);
+            })
+        {
+            self.pending_spills.push(handle);
         }
-        if std::fs::rename(&tmp_path, &final_path).is_err() {
-            let _ = std::fs::remove_file(&tmp_path);
-            return None;
+
+        None
+    }
+
+    #[cfg(test)]
+    pub fn flush_spills(&mut self) {
+        for handle in self.pending_spills.drain(..) {
+            let _ = handle.join();
         }
-        Self::enforce_disk_cache_cap(dir, self.max_disk_cache_bytes);
-        Some(final_path)
     }
 
     fn enforce_disk_cache_cap(cache_dir: &Path, max_bytes: u64) {
@@ -915,7 +1081,8 @@ mod tests {
         assert!(cache.contains_ram(urls[2]));
         assert!(cache.contains_ram(urls[3]));
 
-        // Verify track1 was spilled to disk
+        // Wait for background spill to finish, then verify track1 was spilled to disk
+        cache.flush_spills();
         let spilled_path = StreamCache::cache_path_for_url(&temp_dir, urls[0]);
         assert!(spilled_path.exists());
 

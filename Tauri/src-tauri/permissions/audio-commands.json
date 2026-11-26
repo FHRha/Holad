@@ -25,7 +25,8 @@
           "audio_set_output_device",
           "audio_recover_output_sink",
           "desktop_media_set_metadata",
-          "desktop_media_set_state"
+          "desktop_media_set_state",
+          "download_file_to_path"
         ],
         "deny": []
       }

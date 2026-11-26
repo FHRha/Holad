@@ -163,6 +163,10 @@ class StoragePlugin(private val activity: Activity) : Plugin(activity) {
                     rawSourcePath
                 }
                 val sourceFile = File(cleanSourcePath)
+                if (!isPathWithinAllowedDirectories(sourceFile)) {
+                    invoke.reject("Access denied: sourcePath must be within allowed application or Holad directories.")
+                    return@Thread
+                }
                 if (!sourceFile.exists() || !sourceFile.isFile) {
                     invoke.reject("Source audio file does not exist: $cleanSourcePath")
                     return@Thread
@@ -196,7 +200,12 @@ class StoragePlugin(private val activity: Activity) : Plugin(activity) {
 
         Thread {
             try {
-                if (!rawUri.isNullOrEmpty() && rawUri.startsWith("content://")) {
+                if (!rawUri.isNullOrEmpty()) {
+                    val allowedPrefix = "${MediaStore.Audio.Media.EXTERNAL_CONTENT_URI}/"
+                    if (!rawUri.startsWith(allowedPrefix)) {
+                        invoke.reject("Access denied: uri must be under MediaStore.Audio.Media.EXTERNAL_CONTENT_URI.")
+                        return@Thread
+                    }
                     try {
                         activity.contentResolver.delete(Uri.parse(rawUri), null, null)
                     } catch (e: Exception) {
@@ -210,6 +219,11 @@ class StoragePlugin(private val activity: Activity) : Plugin(activity) {
                     } else {
                         rawPath
                     }
+                    val file = File(cleanPath)
+                    if (!isPathWithinAllowedDirectories(file)) {
+                        invoke.reject("Access denied: path must be within allowed application or Holad directories.")
+                        return@Thread
+                    }
                     try {
                         @Suppress("DEPRECATION")
                         activity.contentResolver.delete(
@@ -220,7 +234,6 @@ class StoragePlugin(private val activity: Activity) : Plugin(activity) {
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed to delete MediaStore entry for $cleanPath", e)
                     }
-                    val file = File(cleanPath)
                     if (file.exists()) {
                         file.delete()
                     }
@@ -328,6 +341,33 @@ class StoragePlugin(private val activity: Activity) : Plugin(activity) {
                 invoke.reject("Failed to migrate legacy downloads: ${e.message}", e)
             }
         }.start()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun isPathWithinAllowedDirectories(file: File): Boolean {
+        return try {
+            val canonicalPath = file.canonicalPath
+            val allowedDirs = listOfNotNull(
+                activity.filesDir,
+                activity.cacheDir,
+                activity.externalCacheDir,
+                activity.getExternalFilesDir(null),
+                File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                    "Holad"
+                ),
+                File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                    "Holad"
+                )
+            )
+            allowedDirs.any { dir ->
+                val canonicalDir = dir.canonicalPath
+                canonicalPath == canonicalDir || canonicalPath.startsWith(canonicalDir + File.separator)
+            }
+        } catch (_: Exception) {
+            false
+        }
     }
 
     @Suppress("DEPRECATION")

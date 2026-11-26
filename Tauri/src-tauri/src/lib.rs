@@ -214,8 +214,7 @@ fn set_tray_menu_size(window: tauri::Window, width: f64, height: f64) {
     let _ = window.set_position(tauri::LogicalPosition::new(new_x, new_y));
 }
 
-#[tauri::command]
-fn get_music_download_dir(app: tauri::AppHandle) -> String {
+pub(crate) fn resolve_music_download_dir(app: &tauri::AppHandle) -> String {
     #[cfg(target_os = "windows")]
     {
         use windows::core::w;
@@ -266,15 +265,144 @@ fn get_music_download_dir(app: tauri::AppHandle) -> String {
 }
 
 #[tauri::command]
-fn set_music_download_dir(path: String) -> Result<(), String> {
+fn get_music_download_dir(app: tauri::AppHandle) -> String {
+    resolve_music_download_dir(&app)
+}
+
+pub(crate) fn normalize_path_for_check(path: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    use std::path::Component;
+
+    if path.as_os_str().is_empty() || !path.is_absolute() {
+        return Err("Path must be a non-empty absolute path".to_string());
+    }
+    if path.components().any(|c| matches!(c, Component::ParentDir)) {
+        return Err("Path traversal ('..') is not allowed".to_string());
+    }
+
+    let mut existing = path.to_path_buf();
+    let mut tail: Vec<std::ffi::OsString> = Vec::new();
+    while !existing.exists() {
+        let Some(name) = existing.file_name().map(|n| n.to_os_string()) else {
+            return Err("Invalid path root".to_string());
+        };
+        tail.push(name);
+        if !existing.pop() {
+            return Err("Invalid path root".to_string());
+        }
+    }
+
+    let mut canonical = existing.canonicalize().map_err(|e| e.to_string())?;
+    for part in tail.into_iter().rev() {
+        canonical.push(part);
+    }
+    Ok(canonical)
+}
+
+fn comparable_path(path: &std::path::Path) -> std::path::PathBuf {
+    let s = path.to_string_lossy();
+    #[cfg(target_os = "windows")]
+    {
+        let clean = s.strip_prefix(r"\\?\").unwrap_or(&s).to_lowercase();
+        std::path::PathBuf::from(clean)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::path::PathBuf::from(s.as_ref())
+    }
+}
+
+pub(crate) fn is_path_within_any(
+    normalized_target: &std::path::Path,
+    allowed_bases: &[std::path::PathBuf],
+) -> bool {
+    let target_cmp = comparable_path(normalized_target);
+    for base in allowed_bases {
+        if let Ok(norm_base) = normalize_path_for_check(base) {
+            if target_cmp.starts_with(comparable_path(&norm_base)) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+pub(crate) fn is_os_system_path(normalized_path: &std::path::Path) -> bool {
+    let cmp = comparable_path(normalized_path);
+
+    #[cfg(target_os = "windows")]
+    {
+        let sys_dirs = [
+            std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".to_string()),
+            std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".to_string()),
+            std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| r"C:\Program Files (x86)".to_string()),
+            std::env::var("ProgramData").unwrap_or_else(|_| r"C:\ProgramData".to_string()),
+        ];
+        for dir in &sys_dirs {
+            if cmp.starts_with(comparable_path(std::path::Path::new(dir))) {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        const UNIX_SYS_DIRS: &[&str] = &[
+            "/System", "/Library", "/usr", "/bin", "/sbin", "/etc", "/var", "/boot", "/dev",
+            "/proc", "/sys", "/root",
+        ];
+        UNIX_SYS_DIRS
+            .iter()
+            .any(|dir| cmp.starts_with(std::path::Path::new(dir)))
+    }
+}
+
+fn validate_user_dir_path(
+    app: &tauri::AppHandle,
+    target: &std::path::Path,
+) -> Result<std::path::PathBuf, String> {
+    let normalized = normalize_path_for_check(target)?;
+    if is_os_system_path(&normalized) {
+        return Err("Access to system directory is restricted".to_string());
+    }
+
+    let mut allowed: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(d) = app.path().download_dir() {
+        allowed.push(d);
+    }
+    if let Ok(d) = app.path().app_data_dir() {
+        allowed.push(d);
+    }
+    if let Ok(d) = app.path().data_dir() {
+        allowed.push(d);
+    }
+    if let Ok(d) = app.path().audio_dir() {
+        allowed.push(d);
+    }
+    let configured = std::path::PathBuf::from(resolve_music_download_dir(app));
+    if !configured.as_os_str().is_empty() {
+        allowed.push(configured);
+    }
+
+    if !is_path_within_any(&normalized, &allowed) {
+        return Err("Access denied: path is outside allowed directories".to_string());
+    }
+
+    Ok(normalized)
+}
+
+#[tauri::command]
+fn set_music_download_dir(app: tauri::AppHandle, path: String) -> Result<(), String> {
     let trimmed = path.trim();
     if trimmed.is_empty() {
         return Err("Path cannot be empty".to_string());
     }
 
     let p = std::path::PathBuf::from(trimmed);
+    validate_user_dir_path(&app, &p)?;
+
     if !p.exists() {
-        let _ = std::fs::create_dir_all(&p);
+        std::fs::create_dir_all(&p).map_err(|e| e.to_string())?;
     }
 
     #[cfg(target_os = "windows")]
@@ -333,6 +461,9 @@ fn open_downloads_folder(app: tauri::AppHandle, path: Option<String>) -> Result<
         download_dir.join("Holad")
     };
 
+    // Validate target path against allowed directories and OS system paths before creating it
+    validate_user_dir_path(&app, &target_path)?;
+
     // Ensure directory exists if it's the default Holad folder
     if !target_path.exists() {
         std::fs::create_dir_all(&target_path).map_err(|e| e.to_string())?;
@@ -346,16 +477,8 @@ fn open_downloads_folder(app: tauri::AppHandle, path: Option<String>) -> Result<
     }
 
     // Security check 2: Prevent opening critical OS system directories
-    #[cfg(target_os = "windows")]
-    {
-        let path_str = canonical.to_string_lossy().to_lowercase();
-        let win_dir = std::env::var("SystemRoot").unwrap_or_else(|_| "c:\\windows".into()).to_lowercase();
-        let prog_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "c:\\program files".into()).to_lowercase();
-        let prog_files_x86 = std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| "c:\\program files (x86)".into()).to_lowercase();
-
-        if path_str.starts_with(&win_dir) || path_str.starts_with(&prog_files) || path_str.starts_with(&prog_files_x86) {
-            return Err("Access to system directory is restricted".into());
-        }
+    if is_os_system_path(&canonical) {
+        return Err("Access to system directory is restricted".into());
     }
 
     // Strip extended-length prefix on Windows (\\?\C:\...) so explorer.exe handles it reliably
@@ -531,6 +654,7 @@ pub fn run() {
         audio::audio_list_output_devices,
         audio::audio_set_output_device,
         audio::audio_recover_output_sink,
+        audio::download_file_to_path,
         media_controls::desktop_media_set_metadata,
         media_controls::desktop_media_set_state
     ])

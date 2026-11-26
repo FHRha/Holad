@@ -78,6 +78,14 @@ export class TauriAudioBackend implements IAudioEngine {
         return TauriAudioBackend.instance;
     }
 
+    private updateBufferedPercent(pct: number | undefined): void {
+        if (typeof pct === 'number' && pct !== this.bufferedPercent) {
+            this.bufferedPercent = pct;
+            this.emit('progress', this.bufferedPercent);
+            useAudioStore.getState().setBuffered(this.bufferedPercent);
+        }
+    }
+
     private async setupEventListeners(): Promise<void> {
         if (typeof window === 'undefined') return;
 
@@ -90,11 +98,7 @@ export class TauriAudioBackend implements IAudioEngine {
                     this.duration = payload.duration;
                     this.emit('durationchange', this.duration);
                 }
-                if (typeof payload.bufferedPercent === 'number') {
-                    this.bufferedPercent = payload.bufferedPercent;
-                    this.emit('progress', this.bufferedPercent);
-                    useAudioStore.getState().setBuffered(this.bufferedPercent);
-                }
+                this.updateBufferedPercent(payload.bufferedPercent);
                 this.emit('timeupdate', this.currentTime, this.activeTrackId);
                 this.checkPreloadAndGapless();
             });
@@ -113,11 +117,7 @@ export class TauriAudioBackend implements IAudioEngine {
                         this.duration = payload.duration;
                         this.emit('durationchange', this.duration);
                     }
-                    if (typeof payload.bufferedPercent === 'number') {
-                        this.bufferedPercent = payload.bufferedPercent;
-                        this.emit('progress', this.bufferedPercent);
-                        useAudioStore.getState().setBuffered(this.bufferedPercent);
-                    }
+                    this.updateBufferedPercent(payload.bufferedPercent);
                     this.emit('statechange', 'paused');
                     this.emit('pause');
                     return;
@@ -129,11 +129,7 @@ export class TauriAudioBackend implements IAudioEngine {
                     this.duration = payload.duration;
                     this.emit('durationchange', this.duration);
                 }
-                if (typeof payload.bufferedPercent === 'number') {
-                    this.bufferedPercent = payload.bufferedPercent;
-                    this.emit('progress', this.bufferedPercent);
-                    useAudioStore.getState().setBuffered(this.bufferedPercent);
-                }
+                this.updateBufferedPercent(payload.bufferedPercent);
 
                 // CRITICAL: Audio backend does not unilaterally mutate playerStore.isPlaying to avoid race-condition feedback loops with useAudioEngine
 
@@ -211,11 +207,7 @@ export class TauriAudioBackend implements IAudioEngine {
                 this.duration = payload.duration > 0 ? payload.duration : (matchedTrack?.duration || 0);
                 this.isPlaying = payload.isPlaying ?? true;
 
-                if (typeof payload.bufferedPercent === 'number') {
-                    this.bufferedPercent = payload.bufferedPercent;
-                    this.emit('progress', this.bufferedPercent);
-                    useAudioStore.getState().setBuffered(this.bufferedPercent);
-                }
+                this.updateBufferedPercent(payload.bufferedPercent);
 
                 this.preloadedTrackId = null;
                 this.preloadedUrl = null;

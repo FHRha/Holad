@@ -9,6 +9,13 @@ export { isTauri, isMobileClient };
 
 const ANDROID_STORAGE_MIGRATED_KEY = 'holad_android_storage_migrated_v1';
 
+function sanitizeFileName(fileName: string): string {
+  return fileName
+    .replace(/\.\./g, '')
+    .replace(/[/\\]/g, '')
+    .trim() || 'track';
+}
+
 function guessAudioMimeType(fileName: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
   switch (ext) {
@@ -143,9 +150,122 @@ export class StorageManager {
     return 'download';
   }
 
+  static async downloadTrackToDisk(
+    url: string,
+    fileName: string,
+    onProgress?: (loaded: number, total: number) => void,
+    targetDir?: string,
+    subDir?: string,
+    signal?: AbortSignal
+  ): Promise<{ filePath: string; sizeBytes: number } | null> {
+    if (!isTauri()) return null;
+    if (signal?.aborted) throw new Error('Aborted');
+
+    let invoke: (<T>(cmd: string, args?: Record<string, unknown>) => Promise<T>) | undefined;
+    let ChannelCtor: (new <T>() => { onmessage: (msg: T) => void }) | undefined;
+    try {
+      const core = await import('@tauri-apps/api/core') as {
+        invoke?: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
+        Channel?: new <T>() => { onmessage: (msg: T) => void };
+      };
+      invoke = core.invoke;
+      ChannelCtor = core.Channel;
+    } catch {
+      return null;
+    }
+    if (typeof invoke !== 'function' || typeof ChannelCtor !== 'function') {
+      return null;
+    }
+
+    const safeFileName = sanitizeFileName(fileName);
+    const channel = new ChannelCtor<{ downloaded: number; total: number | null }>();
+    channel.onmessage = (msg) => {
+      if (onProgress && msg) {
+        onProgress(msg.downloaded ?? 0, msg.total ?? 0);
+      }
+    };
+
+    if (isTauriMobile() && !targetDir) {
+      await this.requestStoragePermissions();
+      const { appDataDir } = await import('@tauri-apps/api/path');
+      const tmpDir = await join(await appDataDir(), 'Holad', '.tmp');
+      if (!await exists(tmpDir)) {
+        await mkdir(tmpDir, { recursive: true });
+      }
+      const tmpFile = await join(tmpDir, `${Date.now()}_${safeFileName}`);
+      try {
+        const res = await invoke<{ sizeBytes?: number; bytesWritten?: number } | number | null>(
+          'download_file_to_path',
+          { url, destPath: tmpFile, channel }
+        );
+        if (signal?.aborted) throw new Error('Aborted');
+        if (res === null || res === undefined) return null;
+
+        const sizeBytes = typeof res === 'number' ? res : (res.sizeBytes ?? res.bytesWritten ?? 0);
+        try {
+          const normalizedSubDir = subDir ? subDir.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '') : '';
+          const relativePath = normalizedSubDir ? `${normalizedSubDir}/${safeFileName}` : safeFileName;
+          const pubRes = await invoke<{ path: string; uri: string }>('plugin:storage|savePublicAudio', {
+            sourcePath: tmpFile,
+            relativePath,
+            title: safeFileName.replace(/\.[^.]+$/, ''),
+            mimeType: guessAudioMimeType(safeFileName)
+          });
+          console.log(`Track ${safeFileName} saved to public Music/Holad at ${pubRes.path}`);
+          return { filePath: pubRes.path, sizeBytes };
+        } catch (mobileErr) {
+          console.warn('Public MediaStore save failed, falling back to app directory:', mobileErr);
+          let fallbackDir = await this.getDefaultDownloadDir();
+          if (subDir) {
+            fallbackDir = await join(fallbackDir, subDir);
+          }
+          if (!await exists(fallbackDir)) {
+            await mkdir(fallbackDir, { recursive: true });
+          }
+          const destPath = await join(fallbackDir, safeFileName);
+          await copyFile(tmpFile, destPath);
+          return { filePath: destPath, sizeBytes };
+        }
+      } catch (err) {
+        if (signal?.aborted) throw new Error('Aborted');
+        console.warn('Native download_file_to_path failed on mobile, falling back to fetch:', err);
+        return null;
+      } finally {
+        await remove(tmpFile).catch(() => {});
+      }
+    }
+
+    try {
+      let baseDir = targetDir || await this.getDefaultDownloadDir();
+      if (subDir) {
+        baseDir = await join(baseDir, subDir);
+      }
+      if (!await exists(baseDir)) {
+        await mkdir(baseDir, { recursive: true });
+      }
+      const destPath = await join(baseDir, safeFileName);
+      const res = await invoke<{ sizeBytes?: number; bytesWritten?: number; path?: string } | number | null>(
+        'download_file_to_path',
+        { url, destPath, channel }
+      );
+      if (signal?.aborted) throw new Error('Aborted');
+      if (res === null || res === undefined) return null;
+
+      const sizeBytes = typeof res === 'number' ? res : (res.sizeBytes ?? res.bytesWritten ?? 0);
+      const filePath = (typeof res === 'object' && res.path) ? res.path : destPath;
+      console.log(`Track ${safeFileName} downloaded natively to ${filePath}`);
+      return { filePath, sizeBytes };
+    } catch (err) {
+      if (signal?.aborted) throw new Error('Aborted');
+      console.warn('Native download_file_to_path failed, falling back to fetch:', err);
+      return null;
+    }
+  }
+
   static async saveTrack(fileName: string, data: ArrayBuffer | Uint8Array, targetDir?: string, subDir?: string): Promise<string> {
     if (isTauri()) {
       try {
+        const safeTmpFileName = sanitizeFileName(fileName);
         const uint8Array = data instanceof Uint8Array ? data : new Uint8Array(data);
 
         if (isTauriMobile() && !targetDir) {
@@ -157,18 +277,18 @@ export class StorageManager {
             if (!await exists(tmpDir)) {
               await mkdir(tmpDir, { recursive: true });
             }
-            const tmpFile = await join(tmpDir, `${Date.now()}_${fileName}`);
+            const tmpFile = await join(tmpDir, `${Date.now()}_${safeTmpFileName}`);
             await writeFile(tmpFile, uint8Array);
             try {
               const normalizedSubDir = subDir ? subDir.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '') : '';
-              const relativePath = normalizedSubDir ? `${normalizedSubDir}/${fileName}` : fileName;
+              const relativePath = normalizedSubDir ? `${normalizedSubDir}/${safeTmpFileName}` : safeTmpFileName;
               const res = await invoke<{ path: string; uri: string }>('plugin:storage|savePublicAudio', {
                 sourcePath: tmpFile,
                 relativePath,
-                title: fileName.replace(/\.[^.]+$/, ''),
-                mimeType: guessAudioMimeType(fileName)
+                title: safeTmpFileName.replace(/\.[^.]+$/, ''),
+                mimeType: guessAudioMimeType(safeTmpFileName)
               });
-              console.log(`Track ${fileName} saved to public Music/Holad at ${res.path}`);
+              console.log(`Track ${safeTmpFileName} saved to public Music/Holad at ${res.path}`);
               return res.path;
             } finally {
               await remove(tmpFile).catch(() => {});
@@ -253,7 +373,7 @@ export class StorageManager {
 
     if (isTauri()) {
       try {
-        if (await exists(coverPathOrId)) {
+        if ((coverPathOrId.includes('/') || coverPathOrId.includes('\\')) && await exists(coverPathOrId)) {
           return convertFileSrc(coverPathOrId);
         }
         const candidateDirs: string[] = [];

@@ -172,9 +172,9 @@ export function registerConnectSocketHandlers(
             return;
           }
         }
-      } else if (!isPingSuccessful && !isKnownUser) {
-        if (isRoomAuthorized) {
-          console.warn(`[Holad] Subsonic ping unreachable for ${auth.url}, but user '${auth.user}' provided valid credentials for room '${normalizedRoom}'. Allowing device connection in fallback mode.`);
+      } else if (!isPingSuccessful) {
+        if (isKnownUser && isRoomAuthorized) {
+          console.warn(`[Holad] Subsonic ping unreachable for ${auth.url}, but known user '${auth.user}' provided valid credentials for room '${normalizedRoom}'. Allowing device connection in fallback mode.`);
         } else {
           socket.emit('holad_authError', { code: 'AUTH_FAILED', message: 'Invalid Subsonic credentials or unverified server' });
           socket.disconnect();

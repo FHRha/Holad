@@ -19,6 +19,8 @@ import { getCachedImageUrl } from '../../utils/imageCache';
 import { clearAppCache } from '../../utils/storage';
 import {
   useDownloadStore,
+  useDownloadProgressStore,
+  getDownloadQueueStats,
   isItemDownloaded,
   getOfflineTracks,
 } from '../../store/downloadStore';
@@ -250,13 +252,13 @@ describe('Tier 1: Feature Coverage (Features 1 to 12)', () => {
       store.updateProgress('alb-402', 35);
       store.updateCurrentTrack('alb-402', 'Track 03 - Sunset');
 
-      let item = useDownloadStore.getState().downloads['alb-402'];
-      expect(item.progress).toBe(35);
-      expect(item.currentTrackName).toBe('Track 03 - Sunset');
+      let progressEntry = useDownloadProgressStore.getState().progressById['alb-402'];
+      expect(progressEntry?.progress).toBe(35);
+      expect(progressEntry?.currentTrackName).toBe('Track 03 - Sunset');
 
       store.updateProgress('alb-402', 75);
-      item = useDownloadStore.getState().downloads['alb-402'];
-      expect(item.progress).toBe(75);
+      progressEntry = useDownloadProgressStore.getState().progressById['alb-402'];
+      expect(progressEntry?.progress).toBe(75);
     });
 
     it('[T1.4.3] completeDownload sets status=completed, progress=100, and records final path', () => {
@@ -971,11 +973,12 @@ describe('Tier 1: Feature Coverage (Features 1 to 12)', () => {
       store.updateProgress('q1', 40);
       store.updateProgress('q2', 80);
 
-      const activeItems = Object.values(useDownloadStore.getState().downloads).filter(d => d.status === 'downloading');
-      const totalProgress = activeItems.reduce((acc, item) => acc + item.progress, 0);
-      const avgProgress = Math.round(totalProgress / activeItems.length);
+      const stats = getDownloadQueueStats(
+        useDownloadStore.getState().downloads,
+        useDownloadProgressStore.getState().progressById
+      );
 
-      expect(avgProgress).toBe(60);
+      expect(stats.overallProgress).toBe(60);
     });
 
     it('[T1.12.3] Completed and error items are excluded from active download progress calculation', () => {
@@ -992,7 +995,7 @@ describe('Tier 1: Feature Coverage (Features 1 to 12)', () => {
       const activeItems = Object.values(useDownloadStore.getState().downloads).filter(d => d.status === 'downloading');
       expect(activeItems.length).toBe(1);
       expect(activeItems[0].id).toBe('q-active');
-      expect(activeItems[0].progress).toBe(50);
+      expect(useDownloadProgressStore.getState().progressById['q-active']?.progress).toBe(50);
     });
 
     it('[T1.12.4] Active download count reflects number of items currently in downloading status', () => {

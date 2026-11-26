@@ -114,10 +114,25 @@ function normalizeSocketUrl(req: any) {
   }
 }
 
+const corsOriginEnv = process.env.CORS_ORIGIN?.trim();
+const allowedCorsOrigins = corsOriginEnv
+  ? corsOriginEnv.split(',').map((o) => o.trim()).filter(Boolean)
+  : null;
+const corsOriginOption: cors.CorsOptions['origin'] = allowedCorsOrigins && allowedCorsOrigins.length > 0
+  ? (origin, callback) => {
+      // Allow requests without Origin header (curl, native Tauri/mobile clients, server-to-server)
+      if (!origin || allowedCorsOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
+  : '*';
+
 const io = new Server(httpServer, {
   path: socketPath,
   cors: {
-    origin: '*',
+    origin: corsOriginOption,
     methods: ['GET', 'POST']
   },
   maxHttpBufferSize: 1e6 // 1 MB limit to prevent OOM DoS
@@ -126,7 +141,7 @@ const io = new Server(httpServer, {
 httpServer.prependListener('request', normalizeSocketUrl);
 httpServer.prependListener('upgrade', normalizeSocketUrl);
 
-app.use(cors());
+app.use(cors({ origin: corsOriginOption }));
 app.use(compression());
 
 // Middleware to support relative routing when hosted under custom base path or /Holad
@@ -255,7 +270,7 @@ function isTargetServerAllowed(urlString: string): boolean {
 
     // If no accounts yet, allow localhost and private network for first-time setup
     if (navidromeAccounts.length === 0) {
-      return true;
+      return isLocalOrInternal(cleanHost);
     }
 
     // Check against authorized Navidrome account hosts and matching ports
@@ -427,6 +442,19 @@ app.get(versionRoutes, (_req, res) => {
   res.json({ version: getAppVersion() });
 });
 
+const MAX_CACHE_ENTRIES = 5000;
+function setBoundedCache<K, V>(cache: Map<K, V>, key: K, value: V, maxSize = MAX_CACHE_ENTRIES): void {
+  if (cache.has(key)) {
+    cache.delete(key);
+  } else if (cache.size >= maxSize) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey !== undefined) {
+      cache.delete(oldestKey);
+    }
+  }
+  cache.set(key, value);
+}
+
 const artistImageCache = new Map<string, { url: string | null; ts: number }>();
 app.get(['/api/artist-image/:name', '/Holad/api/artist-image/:name'], async (req, res) => {
   const name = String(req.params.name || '').trim();
@@ -451,13 +479,13 @@ app.get(['/api/artist-image/:name', '/Holad/api/artist-image/:name'], async (req
           ? exactMatches.reduce((p: any, c: any) => ((p.nb_fan || 0) > (c.nb_fan || 0) ? p : c))
           : data.data[0];
         const img = best?.picture_xl || best?.picture_big || best?.picture_medium || null;
-        artistImageCache.set(cacheKey, { url: img, ts: Date.now() });
+        setBoundedCache(artistImageCache, cacheKey, { url: img, ts: Date.now() });
         res.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
         return res.json({ url: img });
       }
     }
   } catch {}
-  artistImageCache.set(cacheKey, { url: null, ts: Date.now() });
+  setBoundedCache(artistImageCache, cacheKey, { url: null, ts: Date.now() });
   res.set('Cache-Control', 'public, max-age=3600');
   return res.json({ url: null });
 });
@@ -647,7 +675,29 @@ app.post(['/api/demo/heartbeat', '/Holad/api/demo/heartbeat'], express.json(), (
   res.json({ success: refreshed });
 });
 
-app.post('/api/save-credentials', express.json({ limit: '1mb' }), async (req, res) => {
+const saveCredentialsRateMap = new Map<string, { count: number; resetAt: number }>();
+const SAVE_CREDENTIALS_WINDOW_MS = 60 * 1000;
+const SAVE_CREDENTIALS_MAX_REQUESTS = 20;
+
+const saveCredentialsRateLimiter: express.RequestHandler = (req, res, next) => {
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const entry = saveCredentialsRateMap.get(ip);
+
+  if (!entry || now >= entry.resetAt) {
+    setBoundedCache(saveCredentialsRateMap, ip, { count: 1, resetAt: now + SAVE_CREDENTIALS_WINDOW_MS });
+    return next();
+  }
+
+  if (entry.count >= SAVE_CREDENTIALS_MAX_REQUESTS) {
+    return res.status(429).json({ error: 'Too many credential attempts. Please wait a minute and try again.' });
+  }
+
+  entry.count += 1;
+  return next();
+};
+
+app.post('/api/save-credentials', saveCredentialsRateLimiter, express.json({ limit: '1mb' }), async (req, res) => {
   const { url: originalUrl, username, token, salt } = req.body;
   if (!originalUrl || !username || !token || !salt) return res.status(400).send('Missing fields');
   
@@ -899,13 +949,13 @@ const validateRestAuth = async (req: express.Request, res: express.Response, nex
       return res.status(401).send('Invalid Subsonic credentials');
     }
     
-    validateAuthCache.set(cacheKey, now);
+    setBoundedCache(validateAuthCache, cacheKey, now);
   } catch (error: any) {
     // If fetch failed due to network unreachable (e.g. Navidrome is on client's local network/localhost unreachable from backend VPS/Docker):
     const dbAccount = navidromeAccounts.find(a => a.user === user && a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
     if (dbAccount && dbAccount.token && safeTimingCompare(dbAccount.token, token)) {
       console.warn(`[AUTH] Subsonic server unreachable directly from backend (${error?.message || error}), allowing verified session/DB account for user: ${user}`);
-      validateAuthCache.set(cacheKey, now);
+      setBoundedCache(validateAuthCache, cacheKey, now);
     } else {
       console.error(`[AUTH] Subsonic server unreachable and token verification failed:`, error?.message || error);
       return res.status(401).send('Unauthorized: Failed to verify credentials');
@@ -1282,8 +1332,11 @@ app.get(libraryPaths('status'), async (req, res) => {
 
 app.post(libraryPaths('sync'), async (req, res) => {
   try {
-    const userId = (req.query.userId as string) || (await resolveAuthUserId(req)) || undefined;
-    const result = await librarySyncService.triggerManualSync(userId);
+    const authUser = await resolveAuthUserId(req);
+    if (!authUser) {
+      return res.status(401).json({ error: 'Unauthorized: Authentication required' });
+    }
+    const result = await librarySyncService.triggerManualSync(authUser);
     if (!result.success) {
       return res.status(result.status).json(result);
     }
@@ -1482,7 +1535,7 @@ app.get('/api/stats/artist/:name', async (req, res) => {
       yandexFirst = true;
     } else {
       try {
-        const topTagsUrl = `https://ws.audioscrobbler.com/2.0/?method=artist.gettoptags&artist=${encodeURIComponent(name)}&api_key=${lastFmKey}&format=json`;
+        const topTagsUrl = `https://ws.audioscrobbler.com/2.0/?method=artist.gettoptags&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(String(lastFmKey))}&format=json`;
         const tagsRes = await fetch(topTagsUrl, {
           headers: { 'User-Agent': 'Holad/1.0.0 (https://github.com/FHRha/Holad)' },
           signal: AbortSignal.timeout(3000)
@@ -1547,7 +1600,7 @@ app.get('/api/stats/artist/:name', async (req, res) => {
   };
 
   const tryLastFm = async () => {
-    const url = `https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(name)}&api_key=${lastFmKey}&format=json`;
+    const url = `https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(String(lastFmKey))}&format=json`;
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Holad/1.0.0 (https://github.com/FHRha/Holad)' },
       signal: AbortSignal.timeout(4000)
@@ -1638,7 +1691,7 @@ app.get('/api/stats/album/:artist/:album', async (req, res) => {
   };
 
   const tryLastFm = async () => {
-    const url = `https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${lastFmKey}&format=json`;
+    const url = `https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${encodeURIComponent(String(lastFmKey))}&format=json`;
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Holad/1.0.0 (https://github.com/FHRha/Holad)' },
       signal: AbortSignal.timeout(4000)
@@ -2168,7 +2221,7 @@ async function verifySubsonicCredentials(user: string, token: string, salt: stri
   }
 
   if (process.env.NODE_ENV === 'test') {
-    validateAuthCache.set(cacheKey, now);
+    setBoundedCache(validateAuthCache, cacheKey, now);
     return true;
   }
 
@@ -2201,7 +2254,7 @@ async function verifySubsonicCredentials(user: string, token: string, salt: stri
       const response = await fetch(pingUrl, { signal: AbortSignal.timeout(3000) });
       const json = await response.json().catch(() => null);
       if (response.ok && json?.['subsonic-response']?.status === 'ok') {
-        validateAuthCache.set(cacheKey, now);
+        setBoundedCache(validateAuthCache, cacheKey, now);
         return true;
       }
     } catch (error) {
@@ -2210,12 +2263,12 @@ async function verifySubsonicCredentials(user: string, token: string, salt: stri
   }
 
   if (process.env.NODE_ENV === 'test') {
-    validateAuthCache.set(cacheKey, now);
+    setBoundedCache(validateAuthCache, cacheKey, now);
     return true;
   }
   const dbAccount = navidromeAccounts.find(a => a.user === user && a.url.replace(/\/$/, '') === url.replace(/\/$/, ''));
   if (dbAccount && dbAccount.token && safeTimingCompare(dbAccount.token, token)) {
-    validateAuthCache.set(cacheKey, now);
+    setBoundedCache(validateAuthCache, cacheKey, now);
     return true;
   }
   return false;

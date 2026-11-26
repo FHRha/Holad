@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDownloadStore, verifyDownloads } from '../../store/downloadStore';
+import { useDownloadStore, useDownloadProgressStore, verifyDownloads } from '../../store/downloadStore';
 import { Trash2, FolderOpen, AlertTriangle, Loader2, Pause, Play, RefreshCw } from 'lucide-react';
 import { StorageManager, isTauri } from '../../utils/StorageManager';
 import { deleteDownloadedItem } from '../../utils/downloadHelper';
@@ -8,7 +8,10 @@ import DownloadedMusicGrid from '../settings/DownloadedMusicGrid';
 
 export default function DownloadsView() {
   const { t } = useTranslation();
-  const { downloads, clearHistory, downloadDirectory } = useDownloadStore();
+  const downloads = useDownloadStore(state => state.downloads);
+  const clearHistory = useDownloadStore(state => state.clearHistory);
+  const downloadDirectory = useDownloadStore(state => state.downloadDirectory);
+  const progressById = useDownloadProgressStore(state => state.progressById);
   const [isScanning, setIsScanning] = useState(false);
 
   const handleOpenFolder = async () => {
@@ -96,7 +99,10 @@ export default function DownloadsView() {
             {t('sidebar.downloading')} ({activeOrFailedItems.length})
           </h3>
           <div className="flex flex-col gap-2">
-            {activeOrFailedItems.map(item => (
+            {activeOrFailedItems.map(item => {
+              const liveProgress = progressById[item.id]?.progress ?? item.progress ?? 0;
+              const liveCurrentTrack = progressById[item.id]?.currentTrackName ?? item.currentTrackName;
+              return (
               <div key={item.id} className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/5">
                 <div className="flex items-center gap-4 flex-1 min-w-0 pr-4">
                   {item.coverArt || item.localCoverArtUri ? (
@@ -125,10 +131,10 @@ export default function DownloadsView() {
                       </span>
                     </div>
 
-                    {item.type === 'album' && (item.status === 'downloading' || item.status === 'paused') && item.currentTrackName ? (
+                    {item.type === 'album' && (item.status === 'downloading' || item.status === 'paused') && liveCurrentTrack ? (
                       <p className={`text-xs truncate flex items-center gap-1.5 mt-0.5 ${item.status === 'paused' ? 'text-yellow-500' : 'text-primary'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${item.status === 'paused' ? 'bg-yellow-500' : 'bg-primary animate-pulse'}`} />
-                        {item.currentTrackName}
+                        {liveCurrentTrack}
                       </p>
                     ) : (
                       <p className="text-xs text-secondary truncate mt-0.5">
@@ -144,7 +150,7 @@ export default function DownloadsView() {
                       <div className="mt-2 w-full bg-black/50 rounded-full h-1.5 overflow-hidden">
                         <div 
                           className={`h-full transition-all duration-300 ${item.status === 'paused' ? 'bg-yellow-500' : 'bg-primary'}`} 
-                          style={{ width: `${item.progress}%` }}
+                          style={{ width: `${liveProgress}%` }}
                         />
                       </div>
                     )}
@@ -160,7 +166,7 @@ export default function DownloadsView() {
                 
                 <div className="flex items-center gap-3 shrink-0">
                   {(item.status === 'downloading' || item.status === 'paused') && (
-                    <span className={`text-xs font-bold tabular-nums ${item.status === 'paused' ? 'text-yellow-500' : 'text-primary'}`}>{item.progress}%</span>
+                    <span className={`text-xs font-bold tabular-nums ${item.status === 'paused' ? 'text-yellow-500' : 'text-primary'}`}>{liveProgress}%</span>
                   )}
                   {item.status === 'queued' && (
                     <span className="text-xs font-medium text-secondary">0%</span>
@@ -195,7 +201,8 @@ export default function DownloadsView() {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

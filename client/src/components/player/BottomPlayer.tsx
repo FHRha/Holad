@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useRef, useMemo, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Repeat1, Shuffle, Heart, MoreVertical, VolumeX, Maximize2, Monitor, Smartphone, Tv2, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../store/playerStore';
@@ -54,7 +55,33 @@ export default function BottomPlayer() {
   const navigate = useNavigate();
   const { openMenu } = useContextMenuStore();
   const { t } = useTranslation();
-  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, excludedFingerprints, toggleTrackExclude, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, isMinimized, setIsMinimized } = usePlayerStore();
+  const { queue, currentIndex, isPlaying, setIsPlaying, nextTrack, prevTrack, volume, setVolume, role, isAutoDjEnabled, toggleAutoDj, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, excludedFingerprints, toggleTrackExclude, isShuffle, toggleShuffle, repeatMode, cycleRepeatMode, isMinimized, setIsMinimized } = usePlayerStore(
+    useShallow((s) => ({
+      queue: s.queue,
+      currentIndex: s.currentIndex,
+      isPlaying: s.isPlaying,
+      setIsPlaying: s.setIsPlaying,
+      nextTrack: s.nextTrack,
+      prevTrack: s.prevTrack,
+      volume: s.volume,
+      setVolume: s.setVolume,
+      role: s.role,
+      isAutoDjEnabled: s.isAutoDjEnabled,
+      toggleAutoDj: s.toggleAutoDj,
+      likedTrackIds: s.likedTrackIds,
+      toggleTrackLike: s.toggleTrackLike,
+      excludedTrackIds: s.excludedTrackIds,
+      excludedAlbumIds: s.excludedAlbumIds,
+      excludedFingerprints: s.excludedFingerprints,
+      toggleTrackExclude: s.toggleTrackExclude,
+      isShuffle: s.isShuffle,
+      toggleShuffle: s.toggleShuffle,
+      repeatMode: s.repeatMode,
+      cycleRepeatMode: s.cycleRepeatMode,
+      isMinimized: s.isMinimized,
+      setIsMinimized: s.setIsMinimized,
+    }))
+  );
   const { toggleNowPlaying, isNowPlayingOpen, isMobilePlayerExpanded, setIsMobilePlayerExpanded } = useUIStore();
   const audioBackend = useSettingsStore(s => s.audioBackend);
   const shouldMountAudioElements = !isTauri() || audioBackend === 'web';

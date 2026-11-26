@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { usePlayerStore } from '../store/playerStore';
 import { preloadTrackAssets } from '../utils/assetPreloader';
 import { useAudioStore } from '../store/audioStore';
@@ -46,7 +47,25 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     setInitialPosition,
     repeatMode,
     hostSettings,
-  } = usePlayerStore();
+  } = usePlayerStore(
+    useShallow((s) => ({
+      isPlaying: s.isPlaying,
+      setIsPlaying: s.setIsPlaying,
+      nextTrack: s.nextTrack,
+      volume: s.volume,
+      mobileVolume: s.mobileVolume,
+      volumeMultiplier: s.volumeMultiplier,
+      role: s.role,
+      roomId: s.roomId,
+      playbackRate: s.playbackRate,
+      sleepTimer: s.sleepTimer,
+      setSleepTimer: s.setSleepTimer,
+      initialPosition: s.initialPosition,
+      setInitialPosition: s.setInitialPosition,
+      repeatMode: s.repeatMode,
+      hostSettings: s.hostSettings,
+    }))
+  );
 
   const audioMode = useSocialStore(s => s.audioMode);
   const isSpeakerDj = roomId !== null && audioMode === 'speaker_dj';
@@ -71,12 +90,14 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const [activeIndex, setActiveIndex] = useState<0 | 1>(0);
   const engineRef = useRef<IAudioEngine>(getAudioEngine());
   const prevBackendRef = useRef(audioBackend);
+  const loadedNativeTrackIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (prevBackendRef.current !== audioBackend) {
       prevBackendRef.current = audioBackend;
       engineRef.current = getAudioEngine();
       isInitializedRef.current = false;
+      loadedNativeTrackIdRef.current = null;
     }
   }, [audioBackend]);
 
@@ -270,7 +291,24 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   }, [audioRefs, setAudioElement, audioBackend]);
 
   // Sync settings with AudioEngine
-  const settings = useSettingsStore();
+  const settings = useSettingsStore(
+    useShallow((s) => ({
+      isCrossfadeEnabled: s.isCrossfadeEnabled,
+      crossfadeDuration: s.crossfadeDuration,
+      crossfadeCurve: s.crossfadeCurve,
+      crossfadeTension: s.crossfadeTension,
+      isGaplessEnabled: s.isGaplessEnabled,
+      isLoudnessNormalizationEnabled: s.isLoudnessNormalizationEnabled,
+      preloadNextTrack: s.preloadNextTrack,
+      preloadMode: s.preloadMode,
+      preloadLookahead: s.preloadLookahead,
+      preloadCovers: s.preloadCovers,
+      compressorThreshold: s.compressorThreshold,
+      compressorRatio: s.compressorRatio,
+      compressorAttack: s.compressorAttack,
+      compressorRelease: s.compressorRelease,
+    }))
+  );
   
   const effectiveSettings = {
     isCrossfadeEnabled: role === 'listener' && hostSettings ? (hostSettings.isCrossfadeEnabled ?? settings.isCrossfadeEnabled) : settings.isCrossfadeEnabled,
@@ -468,6 +506,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       }
 
       triggerAudioSessionSync();
+      if (isNativeAudio) {
+        loadedNativeTrackIdRef.current = null;
+      }
       engineRef.current.playTrack(
         { ...currentTrack, streamUrl: audioSrc },
         {
@@ -477,6 +518,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
           crossfade: shouldCrossfade,
         }
       ).then(() => {
+        if (isNativeAudio) {
+          loadedNativeTrackIdRef.current = currentTrack.id;
+        }
         const newActiveIdx = engineRef.current.getActiveDeckIndex();
         setActiveIndex(newActiveIdx as 0 | 1);
         if (!isNativeAudio) {
@@ -535,6 +579,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
 
       if (isNativeAudio) {
         // Preload track in native audio backend paused in standby without autoplay
+        loadedNativeTrackIdRef.current = null;
         scheduleIdle(() => {
           engineRef.current.playTrack(
             { ...currentTrack, streamUrl: audioSrc },
@@ -544,7 +589,9 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
               immediate: true,
               crossfade: false,
             }
-          ).catch(() => {});
+          ).then(() => {
+            loadedNativeTrackIdRef.current = currentTrack.id;
+          }).catch(() => {});
         });
         return;
       }
@@ -589,7 +636,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
           const deck = (engineRef.current as any).getActiveDeck?.();
           if (deck) {
             deck.seek(posSec, dur);
-          } else if (isNativeAudio) {
+          } else if (isNativeAudio && loadedNativeTrackIdRef.current === currentTrack.id) {
             engineRef.current.seek(posSec);
           }
         }
@@ -642,9 +689,13 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
           flushPositionToLocalStorage(true);
           flushPlaybackProgressToServer(true);
         }
-        engineRef.current.pause();
+        if (prevIsPlayingRef.current || engineRef.current.getState() === 'playing') {
+          engineRef.current.pause();
+        }
       } else if (isPlaying && (!isActiveDevice || isSpeakerDj || !hasUserTriggeredPlayback)) {
-        engineRef.current.pause();
+        if (prevIsPlayingRef.current || engineRef.current.getState() === 'playing') {
+          engineRef.current.pause();
+        }
       }
       prevIsPlayingRef.current = isPlaying;
     }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, flushPlaybackProgressToServer, playActionId, setIsPlaying]);

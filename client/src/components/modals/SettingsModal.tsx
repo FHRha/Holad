@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useTranslation } from 'react-i18next';
 import { X, Palette, Settings2, MonitorPlay, HardDrive, Speaker, Sliders, Globe, RotateCcw } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
@@ -31,7 +32,24 @@ export default function SettingsModal({
 } = {}) {
   const { t } = useTranslation();
   const { isSettingsOpen, setSettingsOpen } = useUIStore();
-  const settings = useSettingsStore();
+  const settings = useSettingsStore(
+    useShallow((s) => ({
+      runOnStartup: s.runOnStartup,
+      setRunOnStartup: s.setRunOnStartup,
+      setTheme: s.setTheme,
+      setAppIcon: s.setAppIcon,
+      setAccentColor: s.setAccentColor,
+      setCustomColor: s.setCustomColor,
+      setStartPage: s.setStartPage,
+      setLanguage: s.setLanguage,
+      showAdvancedSettings: s.showAdvancedSettings,
+      setShowAdvancedSettings: s.setShowAdvancedSettings,
+      language: s.language,
+      syncLanguage: s.syncLanguage,
+      setSyncLanguage: s.setSyncLanguage,
+      startPage: s.startPage,
+    }))
+  );
   const isModalOpen = typeof isOpen === 'boolean' ? isOpen : isSettingsOpen;
 
   const role = usePlayerStore((state) => state.role);

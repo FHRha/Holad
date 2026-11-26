@@ -53,7 +53,7 @@ export function useDesktopIntegrations(): void {
 
     const setup = async () => {
       try {
-        const [{ invoke }, { listen }] = await Promise.all([
+        const [{ invoke, Channel }, { listen }] = await Promise.all([
           import('@tauri-apps/api/core'),
           import('@tauri-apps/api/event'),
         ]);
@@ -88,29 +88,23 @@ export function useDesktopIntegrations(): void {
         // 2. Global shortcuts (media keys)
         const shortcutsToRegister = ['MediaPlayPause', 'MediaNextTrack', 'MediaPreviousTrack'];
         try {
-          const unlistenShortcut = await listen<{ shortcut?: string } | string>(
-            'plugin:global-shortcut://triggered',
-            (event) => {
-              const payload = event.payload;
-              const shortcut = typeof payload === 'string' ? payload : payload?.shortcut;
-              if (shortcut) {
-                handleGlobalShortcut(shortcut);
-              }
+          const shortcutChannel = new Channel<{ shortcut: string; id: number; state: 'Pressed' | 'Released' }>();
+          shortcutChannel.onmessage = (event) => {
+            if (event?.state === 'Pressed' && event.shortcut) {
+              handleGlobalShortcut(event.shortcut);
             }
-          );
-          if (isDisposed) {
-            unlistenShortcut();
-          } else {
-            unlistenFns.push(unlistenShortcut);
-          }
+          };
 
           for (const shortcut of shortcutsToRegister) {
             try {
-              await invoke('plugin:global-shortcut|register', { shortcut });
+              await invoke('plugin:global-shortcut|register', {
+                shortcuts: [shortcut],
+                handler: shortcutChannel,
+              });
               if (!isDisposed) {
                 registeredShortcuts.push(shortcut);
               } else {
-                await invoke('plugin:global-shortcut|unregister', { shortcut }).catch(() => {});
+                await invoke('plugin:global-shortcut|unregister', { shortcuts: [shortcut] }).catch(() => {});
               }
             } catch {
               // Shortcut already registered or global-shortcut plugin not enabled
@@ -132,11 +126,10 @@ export function useDesktopIntegrations(): void {
         try { fn(); } catch {}
       });
       if (registeredShortcuts.length > 0) {
+        const shortcutsToUnregister = [...registeredShortcuts];
         import('@tauri-apps/api/core')
           .then(({ invoke }) => {
-            registeredShortcuts.forEach((shortcut) => {
-              invoke('plugin:global-shortcut|unregister', { shortcut }).catch(() => {});
-            });
+            invoke('plugin:global-shortcut|unregister', { shortcuts: shortcutsToUnregister }).catch(() => {});
           })
           .catch(() => {});
       }

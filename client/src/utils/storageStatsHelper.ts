@@ -251,24 +251,51 @@ export function useStorageStats(pollIntervalMs?: number) {
     }
   }, [refresh, pollIntervalMs]);
 
-  // Re-scan when downloads store changes (download completed or removed)
+  // Re-scan when completed downloads, downloadDirectory, or totalStorageLimitGb change (debounced 1000ms)
   useEffect(() => {
-    const unsub = useDownloadStore.subscribe((state, prevState) => {
-      if (state.downloads !== prevState.downloads || state.downloadDirectory !== prevState.downloadDirectory) {
-        refresh();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const getCompletedSignature = (downloads: Record<string, any>) => {
+      const completedKeys: string[] = [];
+      for (const id in downloads) {
+        if (downloads[id]?.status === 'completed') {
+          completedKeys.push(id);
+        }
       }
-    });
-    return () => unsub();
-  }, [refresh]);
+      completedKeys.sort();
+      return `${completedKeys.length}:${completedKeys.join(',')}`;
+    };
 
-  // Re-scan when settings store (totalStorageLimitGb) changes
-  useEffect(() => {
-    const unsub = useSettingsStore.subscribe((state, prevState) => {
-      if (state.totalStorageLimitGb !== prevState.totalStorageLimitGb) {
+    let prevCompletedSig = getCompletedSignature(useDownloadStore.getState().downloads);
+    let prevDir = useDownloadStore.getState().downloadDirectory;
+
+    const scheduleRefresh = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
         refresh();
+      }, 1000);
+    };
+
+    const unsubDownloads = useDownloadStore.subscribe((state) => {
+      const nextSig = getCompletedSignature(state.downloads);
+      if (nextSig !== prevCompletedSig || state.downloadDirectory !== prevDir) {
+        prevCompletedSig = nextSig;
+        prevDir = state.downloadDirectory;
+        scheduleRefresh();
       }
     });
-    return () => unsub();
+
+    const unsubSettings = useSettingsStore.subscribe((state, prevState) => {
+      if (state.totalStorageLimitGb !== prevState.totalStorageLimitGb) {
+        scheduleRefresh();
+      }
+    });
+
+    return () => {
+      unsubDownloads();
+      unsubSettings();
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
   }, [refresh]);
 
   const percentages = useMemo(() => calculatePartitionPercentages(stats), [stats]);

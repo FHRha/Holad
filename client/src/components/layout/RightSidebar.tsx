@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Clock, Download, Share, Shuffle, Trash2, Play, RefreshCw, ListPlus, UsersRound, Radio, LogOut, Check, ListMusic } from 'lucide-react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from '../common/dnd/SortableItem';
@@ -22,7 +23,20 @@ import { SocialPanel, AudioModeToggle, useSocialState } from '../social';
 
 export default function RightSidebar() {
   const { t } = useTranslation();
-  const { queue, currentIndex, playTrack, toggleShuffle, clearQueue, isProcessing, setQueue, setCurrentIndex, roomId, participants } = usePlayerStore();
+  const { queue, currentIndex, playTrack, toggleShuffle, clearQueue, isProcessing, setQueue, setCurrentIndex, roomId, participants } = usePlayerStore(
+    useShallow((s) => ({
+      queue: s.queue,
+      currentIndex: s.currentIndex,
+      playTrack: s.playTrack,
+      toggleShuffle: s.toggleShuffle,
+      clearQueue: s.clearQueue,
+      isProcessing: s.isProcessing,
+      setQueue: s.setQueue,
+      setCurrentIndex: s.setCurrentIndex,
+      roomId: s.roomId,
+      participants: s.participants,
+    }))
+  );
   const { openMenu } = useContextMenuStore();
   const { rightSidebarWidth, setRightSidebarWidth } = useUIStore();
   const isSmall = rightSidebarWidth <= 100;
