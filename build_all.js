@@ -872,7 +872,7 @@ node dist/index.js
           if (hasCargoNdk) {
             await runCommand(
               'Android Rust Native Build (cargo-ndk)',
-              `cargo ndk -t arm64-v8a -p 24 -o "${jniOutDir}" build --release --features custom-protocol`,
+              `cargo ndk -t arm64-v8a --platform 24 -o "${jniOutDir}" build --release --features custom-protocol`,
               tauriRustDir,
               env
             );
