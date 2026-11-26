@@ -333,7 +333,11 @@
     "discord_status_desc": "Отображение текущего трека в статусе профиля Discord",
     "discord_client_id_placeholder": "1565974937347301436 (По умолчанию / Holad)",
     "discord_client_id_help": "По умолчанию используется общий Client ID. Чтобы в Discord отображалось «Слушает Holad», создайте приложение «Holad» на discord.com/developers/applications и вставьте его Application ID.",
-    "library_cache_fts5_desc": "Быстрый серверный SQLite-кэш с полнотекстовым поиском FTS5"
+    "library_cache_fts5_desc": "Быстрый серверный SQLite-кэш с полнотекстовым поиском FTS5",
+    "audio_output_device": "Устройство вывода звука",
+    "audio_output_device_desc": "Выбор устройства воспроизведения",
+    "audio_output_default": "По умолчанию (система)",
+    "default": "по умолчанию"
   },
   "topbar": {
     "search": "Поиск...",
@@ -432,7 +436,14 @@
     "tap_for_full": "Открыть весь",
     "up_next": "Далее в очереди",
     "music": "Музыка",
-    "tab_info": "Инфо"
+    "tab_info": "Инфо",
+    "fast_forward": "Перемотать вперёд",
+    "repeat": "Повтор",
+    "repeat_all": "Повтор всех",
+    "repeat_one": "Повтор одного",
+    "retry_search": "Повторить поиск",
+    "rewind": "Перемотать назад",
+    "shuffle": "В случайном порядке"
   },
   "views": {
     "loading_albums": "Загрузка альбомов...",

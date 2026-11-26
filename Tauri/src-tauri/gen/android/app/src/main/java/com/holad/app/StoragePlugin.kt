@@ -259,6 +259,7 @@ class StoragePlugin(private val activity: Activity) : Plugin(activity) {
 
                 val legacyDirs = listOfNotNull(
                     File(activity.filesDir, "Holad"),
+                    activity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let { File(it, "Holad") },
                     @Suppress("DEPRECATION")
                     File(
                         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),

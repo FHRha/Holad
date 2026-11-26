@@ -56,7 +56,9 @@ describe('Tier 1 - R8: Strict UI Preservation & Design System Tokens', () => {
       )
     );
 
-    const mobilePlayer = container.querySelector('.md\\:hidden.fixed.bottom-\\[56px\\]');
+    const mobilePlayer = container.querySelector(
+      '.md\\:hidden.fixed.bottom-\\[calc\\(56px\\+env\\(safe-area-inset-bottom\\)\\)\\]'
+    );
     expect(mobilePlayer).not.toBeNull();
   });
 

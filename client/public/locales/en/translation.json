@@ -333,7 +333,11 @@
     "discord_status_desc": "Display current playing track in Discord profile status",
     "discord_client_id_placeholder": "1565974937347301436 (Default / Holad)",
     "discord_client_id_help": "A shared Client ID is used by default. To show 'Listening to Holad' in Discord, create a 'Holad' application at discord.com/developers/applications and paste its Application ID.",
-    "library_cache_fts5_desc": "Fast server SQLite cache with FTS5 full-text search"
+    "library_cache_fts5_desc": "Fast server SQLite cache with FTS5 full-text search",
+    "audio_output_device": "Audio Output Device",
+    "audio_output_device_desc": "Select the playback device for this computer",
+    "audio_output_default": "Default (System)",
+    "default": "default"
   },
   "topbar": {
     "search": "Search...",
@@ -432,7 +436,14 @@
     "tap_for_full": "Open full",
     "up_next": "Next up",
     "music": "Music",
-    "tab_info": "Info"
+    "tab_info": "Info",
+    "fast_forward": "Fast forward",
+    "repeat": "Repeat",
+    "repeat_all": "Repeat all",
+    "repeat_one": "Repeat one",
+    "retry_search": "Search again",
+    "rewind": "Rewind",
+    "shuffle": "Shuffle"
   },
   "views": {
     "loading_albums": "Loading albums...",

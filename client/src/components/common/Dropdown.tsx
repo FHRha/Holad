@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 
 export interface DropdownOption<T = any> {
@@ -25,22 +26,53 @@ export default function Dropdown({
   prefix = '',
 }: DropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = options.find((o) => o.value === value) || options[0];
 
+  const updatePosition = useCallback(() => {
+    const el = dropdownRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUpward = spaceBelow < 220 && rect.top > spaceBelow;
+    setMenuStyle({
+      position: 'fixed',
+      left: rect.left,
+      width: Math.max(rect.width, 140),
+      ...(openUpward
+        ? { bottom: window.innerHeight - rect.top + 6 }
+        : { top: rect.bottom + 6 }),
+      zIndex: 9999,
+    });
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target) &&
+        (!menuRef.current || !menuRef.current.contains(target))
+      ) {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
+      updatePosition();
       document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [isOpen, updatePosition]);
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
@@ -68,8 +100,12 @@ export default function Dropdown({
         />
       </button>
 
-      {isOpen && (
-        <div className="absolute z-50 top-full mt-1.5 w-full min-w-[140px] bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+      {isOpen && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={menuRef}
+          style={menuStyle}
+          className="bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
+        >
           <div className="flex flex-col gap-0.5 max-h-60 overflow-y-auto custom-scrollbar">
             {options.map((option, index) => {
               const isSelected = option.value === value;
@@ -105,7 +141,8 @@ export default function Dropdown({
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

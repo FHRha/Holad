@@ -43,7 +43,7 @@ export default function SettingSection({
     return (
       <div className={`flex flex-col gap-2.5 min-w-0 ${className}`}>
         {header}
-        <div className="bg-card border border-border shadow-sm rounded-2xl p-4 flex flex-col gap-3.5 min-w-0 overflow-hidden">
+        <div className="bg-card border border-border shadow-sm rounded-2xl p-4 flex flex-col gap-3.5 min-w-0">
           {children}
         </div>
       </div>

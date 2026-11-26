@@ -401,9 +401,18 @@ pub enum MediaInput {
     Progressive(ProgressiveMediaStream),
 }
 
+static RUNTIME_ALLOWED_MEDIA_DIRS: std::sync::OnceLock<Vec<PathBuf>> = std::sync::OnceLock::new();
+
+pub fn register_allowed_media_dirs(dirs: Vec<PathBuf>) {
+    let _ = RUNTIME_ALLOWED_MEDIA_DIRS.set(dirs);
+}
+
 fn allowed_local_media_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
-    const APP_IDS: &[&str] = &["com.holad.app", "com.holad.desktop", "Holad"];
+    if let Some(runtime_dirs) = RUNTIME_ALLOWED_MEDIA_DIRS.get() {
+        dirs.extend(runtime_dirs.iter().cloned());
+    }
+    const APP_IDS: &[&str] = &["com.holad.app", "com.holad.app.debug", "com.holad.desktop", "Holad"];
 
     #[cfg(target_os = "windows")]
     {
@@ -423,6 +432,24 @@ fn allowed_local_media_dirs() -> Vec<PathBuf> {
             let base = PathBuf::from(profile);
             dirs.push(base.join("Downloads"));
             dirs.push(base.join("Music").join("Holad"));
+        }
+
+        #[cfg(target_os = "android")]
+        {
+            for root in [
+                "/storage/emulated/0",
+                "/sdcard",
+                "/data/user/0",
+                "/data/data",
+            ] {
+                let base = PathBuf::from(root);
+                dirs.push(base.join("Music").join("Holad"));
+                dirs.push(base.join("Download").join("Holad"));
+                dirs.push(base.join("Android").join("data").join("com.holad.app").join("files"));
+                dirs.push(base.join("Android").join("data").join("com.holad.app.debug").join("files"));
+                dirs.push(base.join("com.holad.app").join("files"));
+                dirs.push(base.join("com.holad.app.debug").join("files"));
+            }
         }
     }
 
@@ -456,6 +483,24 @@ fn allowed_local_media_dirs() -> Vec<PathBuf> {
             }
             dirs.push(base.join("Downloads"));
             dirs.push(base.join("Music").join("Holad"));
+        }
+
+        #[cfg(target_os = "android")]
+        {
+            for root in [
+                "/storage/emulated/0",
+                "/sdcard",
+                "/data/user/0",
+                "/data/data",
+            ] {
+                let base = PathBuf::from(root);
+                dirs.push(base.join("Music").join("Holad"));
+                dirs.push(base.join("Download").join("Holad"));
+                dirs.push(base.join("Android").join("data").join("com.holad.app").join("files"));
+                dirs.push(base.join("Android").join("data").join("com.holad.app.debug").join("files"));
+                dirs.push(base.join("com.holad.app").join("files"));
+                dirs.push(base.join("com.holad.app.debug").join("files"));
+            }
         }
     }
 

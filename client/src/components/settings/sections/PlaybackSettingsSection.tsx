@@ -19,7 +19,6 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { isTauri } from '../../../utils/StorageManager';
-import { isTauriDesktop } from '../../../utils/platform';
 import { getAudioEngine } from '../../../audio/AudioEngine';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { usePlayerStore } from '../../../store/playerStore';
@@ -75,7 +74,7 @@ export default function PlaybackSettingsSection({
   const [isLoadingDevices, setIsLoadingDevices] = useState(false);
 
   const loadOutputDevices = useCallback(async () => {
-    if (!isTauriDesktop()) return;
+    if (!isTauri()) return;
     setIsLoadingDevices(true);
     try {
       const { invoke } = await import('@tauri-apps/api/core');
@@ -91,7 +90,7 @@ export default function PlaybackSettingsSection({
   }, []);
 
   useEffect(() => {
-    if (showAudio && isTauriDesktop()) {
+    if (showAudio && isTauri()) {
       void loadOutputDevices();
     }
   }, [showAudio, loadOutputDevices]);
@@ -335,7 +334,7 @@ export default function PlaybackSettingsSection({
           )}
 
           {/* Audio Output Device (Tauri Desktop only) */}
-          {isTauriDesktop() && (
+          {isTauri() && (
             <SettingSection
               title={t('settings.audio_output_device', 'Устройство вывода звука')}
               icon={<Speaker size={16} />}

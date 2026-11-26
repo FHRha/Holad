@@ -660,6 +660,16 @@ pub fn run() {
     ])
     .setup(|app| {
       discord_rpc::init();
+      {
+          let mut runtime_media_dirs = Vec::new();
+          if let Ok(d) = app.path().app_data_dir() { runtime_media_dirs.push(d); }
+          if let Ok(d) = app.path().app_cache_dir() { runtime_media_dirs.push(d); }
+          if let Ok(d) = app.path().download_dir() { runtime_media_dirs.push(d); }
+          if let Ok(d) = app.path().audio_dir() { runtime_media_dirs.push(d); }
+          let music_dir = resolve_music_download_dir(app.handle());
+          if !music_dir.is_empty() { runtime_media_dirs.push(std::path::PathBuf::from(music_dir)); }
+          audio::stream::register_allowed_media_dirs(runtime_media_dirs);
+      }
       if let Ok(cache_dir) = app.path().app_cache_dir() {
           if let Some(audio_service) = app.try_state::<audio::AudioService>() {
               audio_service.set_cache_dir(cache_dir.join("audio_cache"));
