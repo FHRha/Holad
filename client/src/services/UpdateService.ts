@@ -256,8 +256,22 @@ export class UpdateService {
                                || assets.find((a: any) => a.name?.endsWith('.exe'))
                                || assets.find((a: any) => a.name?.endsWith('.msi'));
                 } else if (platform === 'linux') {
-                    targetAsset = assets.find((a: any) => a.name?.endsWith('.AppImage'))
-                               || assets.find((a: any) => a.name?.endsWith('.deb'));
+                    let pkgType = 'appimage';
+                    if (isTauriDesktop()) {
+                        try {
+                            const { invoke } = await import('@tauri-apps/api/core');
+                            pkgType = await invoke<string>('get_linux_package_type');
+                        } catch {
+                            // Fallback to AppImage if command unavailable
+                        }
+                    }
+                    if (pkgType === 'deb') {
+                        targetAsset = assets.find((a: any) => a.name?.endsWith('.deb'))
+                                   || assets.find((a: any) => a.name?.endsWith('.AppImage'));
+                    } else {
+                        targetAsset = assets.find((a: any) => a.name?.endsWith('.AppImage'))
+                                   || assets.find((a: any) => a.name?.endsWith('.deb'));
+                    }
                 } else if (platform === 'android') {
                     targetAsset = assets.find((a: any) => a.name?.endsWith('.apk'));
                 }

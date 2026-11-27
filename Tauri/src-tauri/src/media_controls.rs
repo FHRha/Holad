@@ -9,9 +9,25 @@ use std::sync::Mutex;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 use std::time::Duration;
 
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+#[derive(Clone, PartialEq, Eq)]
+struct CachedMediaMetadata {
+    title: Option<String>,
+    artist: Option<String>,
+    album: Option<String>,
+    duration: Option<Duration>,
+    cover_url: Option<String>,
+}
+
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+struct MediaControlsState {
+    controls: Option<MediaControls>,
+    last_metadata: Option<CachedMediaMetadata>,
+}
+
 pub struct DesktopMediaService {
     #[cfg(any(target_os = "windows", target_os = "linux"))]
-    controls: Mutex<Option<MediaControls>>,
+    state: Mutex<MediaControlsState>,
 }
 
 impl Default for DesktopMediaService {
@@ -24,7 +40,10 @@ impl DesktopMediaService {
     pub fn new() -> Self {
         Self {
             #[cfg(any(target_os = "windows", target_os = "linux"))]
-            controls: Mutex::new(None),
+            state: Mutex::new(MediaControlsState {
+                controls: None,
+                last_metadata: None,
+            }),
         }
     }
 
@@ -69,7 +88,12 @@ impl DesktopMediaService {
                     log::info!("[SMTC] Successfully initialized and attached MediaControls!");
                 }
 
-                *self.controls.lock().unwrap() = Some(controls);
+                if let Ok(mut guard) = self.state.lock() {
+                    guard.controls = Some(controls);
+                    guard.last_metadata = None;
+                } else {
+                    log::error!("[SMTC] Failed to lock media controls state during init");
+                }
             }
             Err(e) => {
                 log::error!("[SMTC] Failed to create MediaControls: {:?}", e);
@@ -90,10 +114,9 @@ impl DesktopMediaService {
     ) -> Result<(), String> {
         #[cfg(any(target_os = "windows", target_os = "linux"))]
         {
-            let mut guard = self.controls.lock().unwrap();
-            if let Some(ref mut controls) = *guard {
+            if let Ok(mut guard) = self.state.lock() {
                 let dur = duration_secs.and_then(|d| {
-                    if d > 0.0 {
+                    if d > 0.0 && d.is_finite() {
                         Some(Duration::from_secs_f64(d))
                     } else {
                         None
@@ -104,6 +127,22 @@ impl DesktopMediaService {
                 let valid_cover = cover_url.filter(|url| {
                     url.starts_with("http://") || url.starts_with("https://") || url.starts_with("file://")
                 });
+
+                let next_cached = CachedMediaMetadata {
+                    title: title.map(str::to_string),
+                    artist: artist.map(str::to_string),
+                    album: album.map(str::to_string),
+                    duration: dur,
+                    cover_url: valid_cover.map(str::to_string),
+                };
+
+                if guard.last_metadata.as_ref() == Some(&next_cached) {
+                    return Ok(());
+                }
+
+                let Some(ref mut controls) = guard.controls else {
+                    return Ok(());
+                };
 
                 let meta = MediaMetadata {
                     title,
@@ -124,9 +163,15 @@ impl DesktopMediaService {
                         cover_url: None,
                     };
                     controls.set_metadata(meta_no_cover).map_err(|e| format!("{:?}", e))?;
+                    let mut fallback_cached = next_cached;
+                    fallback_cached.cover_url = None;
+                    guard.last_metadata = Some(fallback_cached);
                 } else {
                     res.map_err(|e| format!("{:?}", e))?;
+                    guard.last_metadata = Some(next_cached);
                 }
+            } else {
+                return Err("Failed to lock media controls state".to_string());
             }
         }
         #[cfg(not(any(target_os = "windows", target_os = "linux")))]
@@ -143,17 +188,20 @@ impl DesktopMediaService {
     ) -> Result<(), String> {
         #[cfg(any(target_os = "windows", target_os = "linux"))]
         {
-            let mut guard = self.controls.lock().unwrap();
-            if let Some(ref mut controls) = *guard {
-                let progress = position_secs.map(|p| MediaPosition(Duration::from_secs_f64(p.max(0.0))));
-                let playback = if is_playing {
-                    MediaPlayback::Playing { progress }
-                } else if position_secs.is_some() {
-                    MediaPlayback::Paused { progress }
-                } else {
-                    MediaPlayback::Stopped
-                };
-                controls.set_playback(playback).map_err(|e| format!("{:?}", e))?;
+            if let Ok(mut guard) = self.state.lock() {
+                if let Some(ref mut controls) = guard.controls {
+                    let progress = position_secs.map(|p| MediaPosition(Duration::from_secs_f64(p.max(0.0))));
+                    let playback = if is_playing {
+                        MediaPlayback::Playing { progress }
+                    } else if position_secs.is_some() {
+                        MediaPlayback::Paused { progress }
+                    } else {
+                        MediaPlayback::Stopped
+                    };
+                    controls.set_playback(playback).map_err(|e| format!("{:?}", e))?;
+                }
+            } else {
+                return Err("Failed to lock media controls state".to_string());
             }
         }
         #[cfg(not(any(target_os = "windows", target_os = "linux")))]

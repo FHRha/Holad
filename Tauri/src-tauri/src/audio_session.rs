@@ -977,6 +977,11 @@ pub mod windows_audio {
 pub mod linux_audio {
     use std::process::Command;
 
+    fn has_audio_cli() -> bool {
+        Command::new("wpctl").arg("--version").output().is_ok()
+            || Command::new("pactl").arg("--version").output().is_ok()
+    }
+
     pub fn get_default_audio_device() -> Option<super::NativeAudioDevice> {
         // 1. Try wpctl (PipeWire - default on modern Linux: Ubuntu 22.04+, Fedora, Arch, Debian 12+)
         if let Ok(output) = Command::new("wpctl").args(["inspect", "@DEFAULT_AUDIO_SINK@"]).output() {
@@ -985,7 +990,7 @@ pub mod linux_audio {
                 for line in text.lines() {
                     let trimmed = line.trim();
                     if trimmed.starts_with("node.description =") || trimmed.starts_with("device.description =") {
-                        if let Some(val) = trimmed.split('=').nth(1) {
+                        if let Some((_, val)) = trimmed.split_once('=') {
                             let name = val.trim().trim_matches('"').trim().to_string();
                             if !name.is_empty() {
                                 return Some(classify_device(name));
@@ -1002,19 +1007,26 @@ pub mod linux_audio {
                 let default_sink = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 if !default_sink.is_empty() {
                     if let Ok(list_out) = Command::new("pactl").args(["list", "sinks"]).output() {
-                        let list_text = String::from_utf8_lossy(&list_out.stdout);
-                        let mut found_sink = false;
-                        for line in list_text.lines() {
-                            let line_t = line.trim();
-                            if line_t.starts_with("Name: ") && line_t.contains(&default_sink) {
-                                found_sink = true;
-                            } else if found_sink && line_t.starts_with("Description: ") {
-                                let desc = line_t.strip_prefix("Description: ").unwrap_or("").trim().to_string();
-                                if !desc.is_empty() {
-                                    return Some(classify_device(desc));
+                        if list_out.status.success() {
+                            let list_text = String::from_utf8_lossy(&list_out.stdout);
+                            let mut found_sink = false;
+                            for line in list_text.lines() {
+                                let line_t = line.trim();
+                                if let Some(sink_name) = line_t.strip_prefix("Name:") {
+                                    if found_sink {
+                                        break;
+                                    }
+                                    if sink_name.trim() == default_sink {
+                                        found_sink = true;
+                                    }
+                                } else if found_sink {
+                                    if let Some(desc_raw) = line_t.strip_prefix("Description:") {
+                                        let desc = desc_raw.trim().to_string();
+                                        if !desc.is_empty() {
+                                            return Some(classify_device(desc));
+                                        }
+                                    }
                                 }
-                            } else if found_sink && line_t.starts_with("Name: ") {
-                                break;
                             }
                         }
                     }
@@ -1024,6 +1036,75 @@ pub mod linux_audio {
         }
 
         None
+    }
+
+    /// Lightweight non-blocking background monitor for Linux default audio sink changes.
+    /// Emits "audio-becoming-noisy", "headphones-connected", and "audio-device-changed"
+    /// when PipeWire/PulseAudio default sink switches, or exits cleanly if neither CLI exists.
+    pub fn start_audio_device_supervisor(app: tauri::AppHandle) {
+        use tauri::{Emitter, Manager};
+
+        std::thread::spawn(move || {
+            if !has_audio_cli() {
+                log::info!("[AudioDevice] Neither wpctl nor pactl available; Linux audio device supervisor disabled");
+                return;
+            }
+
+            let mut last_device_name: Option<String> = None;
+            let mut last_is_headphones = false;
+            let mut initialized = false;
+
+            loop {
+                match get_default_audio_device() {
+                    Some(current_dev) => {
+                        let device_changed = last_device_name.as_deref() != Some(current_dev.name.as_str())
+                            || last_is_headphones != current_dev.is_headphones;
+
+                        if !initialized {
+                            last_is_headphones = current_dev.is_headphones;
+                            last_device_name = Some(current_dev.name);
+                            initialized = true;
+                        } else if device_changed {
+                            log::info!(
+                                "[AudioDevice] Linux default sink changed: '{}' (headphones: {}, type: {})",
+                                current_dev.name,
+                                current_dev.is_headphones,
+                                current_dev.device_type
+                            );
+
+                            if last_is_headphones && !current_dev.is_headphones {
+                                log::warn!("[AudioDevice] Headphones disconnected/removed! Emitting audio-becoming-noisy");
+                                let _ = app.emit("audio-becoming-noisy", ());
+                            }
+
+                            if !last_is_headphones && current_dev.is_headphones {
+                                log::info!("[AudioDevice] Headphones connected/detected! Emitting headphones-connected");
+                                let _ = app.emit("headphones-connected", &current_dev);
+                            }
+
+                            let _ = app.emit("audio-device-changed", &current_dev);
+
+                            if let Some(audio_service) = app.try_state::<crate::audio::AudioService>() {
+                                audio_service.on_default_device_changed();
+                            }
+
+                            last_is_headphones = current_dev.is_headphones;
+                            last_device_name = Some(current_dev.name);
+                        }
+                    }
+                    None => {
+                        if initialized && last_is_headphones {
+                            log::warn!("[AudioDevice] Linux audio sink lost! Emitting audio-becoming-noisy");
+                            let _ = app.emit("audio-becoming-noisy", ());
+                            last_is_headphones = false;
+                            last_device_name = None;
+                        }
+                    }
+                }
+
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+            }
+        });
     }
 
     fn classify_device(name: String) -> super::NativeAudioDevice {

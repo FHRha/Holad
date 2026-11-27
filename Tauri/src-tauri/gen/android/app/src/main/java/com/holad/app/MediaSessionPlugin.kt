@@ -703,36 +703,33 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
             }
         }
 
-        try {
-            mediaChannel?.send(payload)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send through mediaChannel", e)
+        val channel = mediaChannel
+        if (channel != null) {
+            try {
+                channel.send(payload)
+                return
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send through mediaChannel, falling back to trigger", e)
+            }
         }
 
         try {
             trigger("mediaAction", payload)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to trigger mediaAction", e)
+            Log.e(TAG, "Failed to trigger mediaAction, falling back to evaluateJs", e)
+            val safeAction = JSONObject.quote(action)
+            val seekArg = if (extras != null) "${extras / 1000.0}" else "undefined"
+            val js = """
+                (function() {
+                    try {
+                        window.dispatchEvent(new CustomEvent('holad:mediasession:action', { detail: { action: $safeAction, seekTime: $seekArg } }));
+                    } catch (e) {
+                        console.error('[MediaSessionPlugin] eval error:', e);
+                    }
+                })();
+            """.trimIndent()
+            evaluateJs(js)
         }
-
-        val safeAction = JSONObject.quote(action)
-        val seekArg = if (extras != null) "${extras / 1000.0}" else "undefined"
-        val js = """
-            (function() {
-                try {
-                    var actionName = $safeAction;
-                    window.dispatchEvent(new CustomEvent('holad:mediasession:action', { detail: { action: actionName, seekTime: $seekArg } }));
-                    if (actionName === 'play') window.dispatchEvent(new CustomEvent('holad:mediasession:play'));
-                    if (actionName === 'pause') window.dispatchEvent(new CustomEvent('holad:mediasession:pause'));
-                    if (actionName === 'nexttrack') window.dispatchEvent(new CustomEvent('holad:mediasession:nexttrack'));
-                    if (actionName === 'previoustrack') window.dispatchEvent(new CustomEvent('holad:mediasession:previoustrack'));
-                } catch (e) {
-                    console.error('[MediaSessionPlugin] eval error:', e);
-                }
-            })();
-        """.trimIndent()
-
-        evaluateJs(js)
     }
 
     // --- Tauri Commands ---
@@ -782,7 +779,8 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
         pendingSpeed = speed
         pendingIsStreaming = isStreaming
 
-        if (isPlaying && !MediaService.isAppInForeground) {
+        val svc = mediaService ?: MediaService.instance
+        if (isPlaying && !MediaService.isAppInForeground && (!MediaService.isRunning || svc == null)) {
             try {
                 val intent = Intent(activity, MediaService::class.java).apply {
                     putExtra("extra_title", pendingTitle)
@@ -798,7 +796,6 @@ class MediaSessionPlugin(private val activity: Activity) : Plugin(activity), Med
             }
         }
 
-        val svc = mediaService ?: MediaService.instance
         svc?.updatePlaybackState(isPlaying, positionMs, speed, isStreaming)
         invoke.resolve()
     }

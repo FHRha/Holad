@@ -21,6 +21,7 @@
           "get_music_download_dir",
           "set_music_download_dir",
           "download_and_install_update",
+          "get_linux_package_type",
           "set_discord_client_id",
           "set_discord_rpc_enabled",
           "update_discord_activity"

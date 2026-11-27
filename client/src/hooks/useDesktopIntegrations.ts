@@ -86,32 +86,40 @@ export function useDesktopIntegrations(): void {
         }
 
         // 2. Global shortcuts (media keys)
-        const shortcutsToRegister = ['MediaPlayPause', 'MediaNextTrack', 'MediaPreviousTrack'];
-        try {
-          const shortcutChannel = new Channel<{ shortcut: string; id: number; state: 'Pressed' | 'Released' }>();
-          shortcutChannel.onmessage = (event) => {
-            if (event?.state === 'Pressed' && event.shortcut) {
-              handleGlobalShortcut(event.shortcut);
-            }
-          };
+        // On Linux, souvlaki MPRIS handles media keys natively; registering global shortcuts
+        // causes double track skips on X11 and failed grabs on Wayland.
+        const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
+        const plat = typeof navigator !== 'undefined' ? (navigator.platform || '').toLowerCase() : '';
+        const isLinux = ua.includes('linux') || plat.startsWith('linux');
 
-          for (const shortcut of shortcutsToRegister) {
-            try {
-              await invoke('plugin:global-shortcut|register', {
-                shortcuts: [shortcut],
-                handler: shortcutChannel,
-              });
-              if (!isDisposed) {
-                registeredShortcuts.push(shortcut);
-              } else {
-                await invoke('plugin:global-shortcut|unregister', { shortcuts: [shortcut] }).catch(() => {});
+        if (!isLinux) {
+          const shortcutsToRegister = ['MediaPlayPause', 'MediaNextTrack', 'MediaPreviousTrack'];
+          try {
+            const shortcutChannel = new Channel<{ shortcut: string; id: number; state: 'Pressed' | 'Released' }>();
+            shortcutChannel.onmessage = (event) => {
+              if (event?.state === 'Pressed' && event.shortcut) {
+                handleGlobalShortcut(event.shortcut);
               }
-            } catch {
-              // Shortcut already registered or global-shortcut plugin not enabled
+            };
+
+            for (const shortcut of shortcutsToRegister) {
+              try {
+                await invoke('plugin:global-shortcut|register', {
+                  shortcuts: [shortcut],
+                  handler: shortcutChannel,
+                });
+                if (!isDisposed) {
+                  registeredShortcuts.push(shortcut);
+                } else {
+                  await invoke('plugin:global-shortcut|unregister', { shortcuts: [shortcut] }).catch(() => {});
+                }
+              } catch {
+                // Shortcut already registered or global-shortcut plugin not enabled
+              }
             }
+          } catch {
+            // Global-shortcut plugin not enabled on backend
           }
-        } catch {
-          // Global-shortcut plugin not enabled on backend
         }
       } catch {
         // Ignore Tauri API import errors outside Tauri runtime

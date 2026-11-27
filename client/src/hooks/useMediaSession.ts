@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 import { useDownloadStore } from '../store/downloadStore';
@@ -27,12 +27,37 @@ function isTrackStreaming(track: any): boolean {
   return true;
 }
 
+function buildTrackMetadataPayload(track: any) {
+  let coverUrl = getCoverArtUrl(track.coverArt || track.albumId || track.id, 300);
+  if (coverUrl && coverUrl.startsWith('/')) {
+    try {
+      if (typeof window !== 'undefined' && window.location && window.location.origin) {
+        coverUrl = `${window.location.origin}${coverUrl}`;
+      }
+    } catch {}
+  }
+  return {
+    title: track.title || 'Unknown Title',
+    artist: track.artist || 'Unknown Artist',
+    album: track.album || 'Unknown Album',
+    coverUrl: coverUrl || null,
+    artwork: coverUrl ? [
+      { src: coverUrl, sizes: '96x96', type: 'image/jpeg' },
+      { src: coverUrl, sizes: '192x192', type: 'image/jpeg' },
+      { src: coverUrl, sizes: '512x512', type: 'image/jpeg' },
+    ] : []
+  };
+}
+
 export function useMediaSession() {
   const currentTrack = usePlayerStore(state => state.queue[state.currentIndex]);
   const isPlaying = usePlayerStore(state => state.isPlaying);
+  const playbackRate = usePlayerStore(state => state.playbackRate);
   const setIsPlaying = usePlayerStore(state => state.setIsPlaying);
   const nextTrack = usePlayerStore(state => state.nextTrack);
   const prevTrack = usePlayerStore(state => state.prevTrack);
+  const metadataTrackIdRef = useRef<string | null>(null);
+  const metadataDurationRef = useRef<number>(0);
 
   const updatePositionState = (position: number, duration: number, playbackRate = 1) => {
     if (!isFinite(duration) || duration <= 0) return;
@@ -79,7 +104,7 @@ export function useMediaSession() {
 
     state.setProgress(newVal * 100);
     state.handleSeekEnd(newVal);
-    updatePositionState(clampedTime, duration);
+    updatePositionState(clampedTime, duration, usePlayerStore.getState().playbackRate || 1);
   };
 
   const handleSeekOffset = (offset: number) => {
@@ -91,46 +116,30 @@ export function useMediaSession() {
 
   useEffect(() => {
     if (currentTrack) {
-      let coverUrl = getCoverArtUrl(currentTrack.coverArt || currentTrack.albumId || currentTrack.id, 300);
-      if (coverUrl && coverUrl.startsWith('/')) {
-        try {
-          if (typeof window !== 'undefined' && window.location && window.location.origin) {
-            coverUrl = `${window.location.origin}${coverUrl}`;
-          }
-        } catch {}
-      }
-      const metadata = {
-        title: currentTrack.title || 'Unknown Title',
-        artist: currentTrack.artist || 'Unknown Artist',
-        album: currentTrack.album || 'Unknown Album',
-        artwork: coverUrl ? [
-          { src: coverUrl, sizes: '96x96', type: 'image/jpeg' },
-          { src: coverUrl, sizes: '192x192', type: 'image/jpeg' },
-          { src: coverUrl, sizes: '512x512', type: 'image/jpeg' },
-        ] : []
-      };
+      const { title, artist, album, coverUrl, artwork } = buildTrackMetadataPayload(currentTrack);
+      const metadata = { title, artist, album, artwork };
+      const audioState = useAudioStore.getState();
+      const effectiveDuration = currentTrack.duration || audioState.duration || 0;
+      metadataTrackIdRef.current = currentTrack.id;
+      metadataDurationRef.current = effectiveDuration;
 
       if (isTauriMobile()) {
-        const audioState = useAudioStore.getState();
-        const effectiveDuration = currentTrack.duration || audioState.duration || 0;
         invoke('plugin:mediaSession|setMetadata', {
           title: metadata.title,
           artist: metadata.artist,
           album: metadata.album,
           duration: effectiveDuration,
-          artwork: coverUrl || null
+          artwork: coverUrl
         }).catch((err) => {
           console.warn('[MediaSession] plugin:mediaSession|setMetadata failed:', err);
         });
       } else if (isTauriDesktop()) {
-        const audioState = useAudioStore.getState();
-        const effectiveDuration = currentTrack.duration || audioState.duration || 0;
         invoke('desktop_media_set_metadata', {
           title: metadata.title,
           artist: metadata.artist,
           album: metadata.album,
           duration: effectiveDuration,
-          artwork: coverUrl || null
+          artwork: coverUrl
         }).catch(() => {});
       } else if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata(metadata);
@@ -151,6 +160,8 @@ export function useMediaSession() {
         }
       }
     } else {
+      metadataTrackIdRef.current = null;
+      metadataDurationRef.current = 0;
       if (isTauriMobile()) {
         invoke('plugin:mediaSession|stop').catch(() => {});
       } else if (isTauriDesktop()) {
@@ -171,13 +182,12 @@ export function useMediaSession() {
     let lastActionTime = 0;
     let lastActionType = '';
 
-    // Direct DOM CustomEvent fallbacks emitted by native evaluateJavascript
-    const onDirectPlay = () => {
+    const executePlay = () => {
       usePlayerStore.getState().setIsPlaying(true);
       const engine = getAudioEngine();
       if (engine) engine.resume().catch(() => {});
     };
-    const onDirectPause = () => {
+    const executePause = () => {
       usePlayerStore.getState().setIsPlaying(false);
       const engine = getAudioEngine();
       if (engine) engine.pause();
@@ -195,19 +205,19 @@ export function useMediaSession() {
 
       switch (payload.action) {
         case 'play':
-          onDirectPlay();
+          executePlay();
           break;
         case 'pause':
         case 'stop':
-          onDirectPause();
+          executePause();
           break;
         case 'toggle':
         case 'playpause': {
           const playing = usePlayerStore.getState().isPlaying;
           if (playing) {
-            onDirectPause();
+            executePause();
           } else {
-            onDirectPlay();
+            executePlay();
           }
           break;
         }
@@ -246,17 +256,43 @@ export function useMediaSession() {
       }
     };
 
+    const onDirectPlayEvent = () => handleAction({ action: 'play' });
+    const onDirectPauseEvent = () => handleAction({ action: 'pause' });
     const onDirectNext = () => handleAction({ action: 'nexttrack' });
     const onDirectPrev = () => handleAction({ action: 'previoustrack' });
 
     window.addEventListener('holad:mediasession:action', onDirectActionEvent);
-    window.addEventListener('holad:mediasession:play', onDirectPlay);
-    window.addEventListener('holad:mediasession:pause', onDirectPause);
+    window.addEventListener('holad:mediasession:play', onDirectPlayEvent);
+    window.addEventListener('holad:mediasession:pause', onDirectPauseEvent);
     window.addEventListener('holad:mediasession:nexttrack', onDirectNext);
     window.addEventListener('holad:mediasession:previoustrack', onDirectPrev);
 
+    let isChannelActive = false;
     let unlistenTauriMedia: (() => void) | undefined;
     let unlistenTauriPluginMedia: (() => void) | undefined;
+
+    const registerTauriEventFallbacks = () => {
+      if (!isSubscribed || isChannelActive) return;
+      import('@tauri-apps/api/event').then(({ listen }) => {
+        if (!isSubscribed || isChannelActive) return;
+        listen<{ action: string; seekTime?: number }>('mediaAction', (event) => {
+          if (isSubscribed && !isChannelActive) handleAction(event.payload);
+        }).then(unlisten => {
+          if (!isSubscribed || isChannelActive) unlisten();
+          else unlistenTauriMedia = unlisten;
+        }).catch(() => {});
+
+        if (isTauriMobile()) {
+          listen<{ action: string; seekTime?: number }>('mediaSession:mediaAction', (event) => {
+            if (isSubscribed && !isChannelActive) handleAction(event.payload);
+          }).then(unlisten => {
+            if (!isSubscribed || isChannelActive) unlisten();
+            else unlistenTauriPluginMedia = unlisten;
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    };
+
     if (isTauriMobile()) {
       import('@tauri-apps/api/core').then(({ Channel, invoke }) => {
         if (!isSubscribed) return;
@@ -265,33 +301,23 @@ export function useMediaSession() {
           channel.onmessage = (payload) => {
             if (isSubscribed) handleAction(payload);
           };
+          isChannelActive = true;
           invoke('plugin:mediaSession|registerMediaListener', { handler: channel }).catch(() => {
-            invoke('plugin:mediaSession|registerListener', { event: 'mediaAction', handler: channel }).catch(() => {});
+            invoke('plugin:mediaSession|registerListener', { event: 'mediaAction', handler: channel }).catch(() => {
+              isChannelActive = false;
+              registerTauriEventFallbacks();
+            });
           });
         } catch (e) {
           console.warn('[MediaSession] channel registration error:', e);
+          isChannelActive = false;
+          registerTauriEventFallbacks();
         }
-      }).catch(() => {});
-    }
-
-    if (isTauri()) {
-      import('@tauri-apps/api/event').then(({ listen }) => {
-        listen<{ action: string; seekTime?: number }>('mediaAction', (event) => {
-          if (isSubscribed) handleAction(event.payload);
-        }).then(unlisten => {
-          if (!isSubscribed) unlisten();
-          else unlistenTauriMedia = unlisten;
-        }).catch(() => {});
-
-        if (isTauriMobile()) {
-          listen<{ action: string; seekTime?: number }>('mediaSession:mediaAction', (event) => {
-            if (isSubscribed) handleAction(event.payload);
-          }).then(unlisten => {
-            if (!isSubscribed) unlisten();
-            else unlistenTauriPluginMedia = unlisten;
-          }).catch(() => {});
-        }
-      }).catch(() => {});
+      }).catch(() => {
+        registerTauriEventFallbacks();
+      });
+    } else if (isTauri()) {
+      registerTauriEventFallbacks();
     }
 
     return () => {
@@ -299,8 +325,8 @@ export function useMediaSession() {
       if (unlistenTauriMedia) unlistenTauriMedia();
       if (unlistenTauriPluginMedia) unlistenTauriPluginMedia();
       window.removeEventListener('holad:mediasession:action', onDirectActionEvent);
-      window.removeEventListener('holad:mediasession:play', onDirectPlay);
-      window.removeEventListener('holad:mediasession:pause', onDirectPause);
+      window.removeEventListener('holad:mediasession:play', onDirectPlayEvent);
+      window.removeEventListener('holad:mediasession:pause', onDirectPauseEvent);
       window.removeEventListener('holad:mediasession:nexttrack', onDirectNext);
       window.removeEventListener('holad:mediasession:previoustrack', onDirectPrev);
     };
@@ -317,16 +343,16 @@ export function useMediaSession() {
     // When minimized/in tray on a remote device, always report 'paused' so wallpapers and SMTC stay idle
     const shouldReportPlaying = isPlaying && (isActiveDevice || isWindowVisible);
     const state = shouldReportPlaying ? 'playing' : 'paused';
+    const effectiveRate = shouldReportPlaying ? (playbackRate || 1) : 0.0;
 
     if (isTauriMobile()) {
       const audioState = useAudioStore.getState();
       const duration = audioState.duration || currentTrack?.duration || 0;
       const position = duration > 0 ? (audioState.progress / 100) * duration : 0;
-      const rate = shouldReportPlaying ? 1.0 : 0.0;
       invoke('plugin:mediaSession|setPlaybackState', {
         isPlaying: shouldReportPlaying,
         position,
-        playbackRate: rate,
+        playbackRate: effectiveRate,
         isStreaming: isTrackStreaming(currentTrack)
       }).catch((err) => {
         console.warn('[MediaSession] plugin:mediaSession|setPlaybackState failed:', err);
@@ -335,11 +361,10 @@ export function useMediaSession() {
       const audioState = useAudioStore.getState();
       const duration = audioState.duration || currentTrack?.duration || 0;
       const position = duration > 0 ? (audioState.progress / 100) * duration : 0;
-      const rate = shouldReportPlaying ? 1.0 : 0.0;
       invoke('desktop_media_set_state', {
         isPlaying: shouldReportPlaying,
         position,
-        playbackRate: rate
+        playbackRate: effectiveRate
       }).catch(() => {});
     } else if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = state;
@@ -350,17 +375,39 @@ export function useMediaSession() {
       const duration = audioState.duration || currentTrack.duration || 0;
       if (duration > 0) {
         const position = (audioState.progress / 100) * duration;
-        updatePositionState(position, duration, 1);
+        updatePositionState(position, duration, playbackRate || 1);
       }
     }
-  }, [isPlaying, currentTrack, isActiveDevice, isWindowVisible]);
+  }, [isPlaying, currentTrack, isActiveDevice, isWindowVisible, playbackRate]);
 
   useEffect(() => {
     let lastUpdate = 0;
     let lastPosition = -1;
 
     const unsubscribe = useAudioStore.subscribe((state) => {
-      if (!currentTrack || state.isSeeking) return;
+      if (!currentTrack) return;
+
+      if (
+        isTauriMobile() &&
+        !currentTrack.duration &&
+        state.duration > 0 &&
+        metadataTrackIdRef.current === currentTrack.id &&
+        metadataDurationRef.current <= 0
+      ) {
+        metadataDurationRef.current = state.duration;
+        const { title, artist, album, coverUrl } = buildTrackMetadataPayload(currentTrack);
+        invoke('plugin:mediaSession|setMetadata', {
+          title,
+          artist,
+          album,
+          duration: state.duration,
+          artwork: coverUrl
+        }).catch((err) => {
+          console.warn('[MediaSession] plugin:mediaSession|setMetadata duration update failed:', err);
+        });
+      }
+
+      if (state.isSeeking) return;
       // Do not emit OS media session position updates if we are just a remote control and minimized/in tray
       if (!isActiveDevice && !getIsWindowVisible()) return;
 
@@ -375,7 +422,7 @@ export function useMediaSession() {
       if (now - lastUpdate >= 1000 || Math.abs(position - lastPosition) > 2) {
         lastUpdate = now;
         lastPosition = position;
-        updatePositionState(position, duration, 1);
+        updatePositionState(position, duration, usePlayerStore.getState().playbackRate || 1);
       }
     });
 

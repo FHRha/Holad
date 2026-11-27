@@ -44,7 +44,9 @@ fn is_autostart_launch() -> bool {
 
 #[tauri::command]
 fn set_close_to_tray(config: State<'_, AppConfig>, enabled: bool) {
-    *config.close_to_tray.lock().unwrap() = enabled;
+    if let Ok(mut guard) = config.close_to_tray.lock() {
+        *guard = enabled;
+    }
 }
 
 #[tauri::command]
@@ -195,23 +197,27 @@ fn set_app_language(language: String) -> Result<(), String> {
 #[tauri::command]
 fn set_tray_menu_size(window: tauri::Window, width: f64, height: f64) {
     let scale_factor = window.scale_factor().unwrap_or(1.0);
-    
-    // Get current logical size and position
-    let current_size = window.outer_size().unwrap().to_logical::<f64>(scale_factor);
-    let current_pos = window.outer_position().unwrap().to_logical::<f64>(scale_factor);
-    
-    // Calculate the current bottom-right corner coordinate
-    let bottom_right_x = current_pos.x + current_size.width;
-    let bottom_right_y = current_pos.y + current_size.height;
-    
-    // Set the new size
-    let _ = window.set_size(tauri::LogicalSize::new(width, height));
-    
-    // Set the new position such that the bottom-right corner remains in the same spot
-    let new_x = bottom_right_x - width;
-    let new_y = bottom_right_y - height;
-    
-    let _ = window.set_position(tauri::LogicalPosition::new(new_x, new_y));
+
+    // Get current logical size and position (Wayland may not expose outer_position)
+    if let (Ok(raw_size), Ok(raw_pos)) = (window.outer_size(), window.outer_position()) {
+        let current_size = raw_size.to_logical::<f64>(scale_factor);
+        let current_pos = raw_pos.to_logical::<f64>(scale_factor);
+
+        // Calculate the current bottom-right corner coordinate
+        let bottom_right_x = current_pos.x + current_size.width;
+        let bottom_right_y = current_pos.y + current_size.height;
+
+        // Set the new size
+        let _ = window.set_size(tauri::LogicalSize::new(width, height));
+
+        // Set the new position such that the bottom-right corner remains in the same spot
+        let new_x = bottom_right_x - width;
+        let new_y = bottom_right_y - height;
+
+        let _ = window.set_position(tauri::LogicalPosition::new(new_x, new_y));
+    } else {
+        let _ = window.set_size(tauri::LogicalSize::new(width, height));
+    }
 }
 
 pub(crate) fn resolve_music_download_dir(app: &tauri::AppHandle) -> String {
@@ -260,7 +266,30 @@ pub(crate) fn resolve_music_download_dir(app: &tauri::AppHandle) -> String {
     if let Ok(download_dir) = app.path().download_dir() {
         download_dir.join("Holad").to_string_lossy().to_string()
     } else {
-        r"C:\Users\User\Downloads\Holad".to_string()
+        #[cfg(target_os = "windows")]
+        {
+            if let Ok(profile) = std::env::var("USERPROFILE") {
+                std::path::PathBuf::from(profile)
+                    .join("Downloads")
+                    .join("Holad")
+                    .to_string_lossy()
+                    .to_string()
+            } else {
+                r"C:\Users\User\Downloads\Holad".to_string()
+            }
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            if let Ok(home) = std::env::var("HOME") {
+                std::path::PathBuf::from(home)
+                    .join("Downloads")
+                    .join("Holad")
+                    .to_string_lossy()
+                    .to_string()
+            } else {
+                "/tmp/Holad".to_string()
+            }
+        }
     }
 }
 
@@ -638,6 +667,26 @@ fn force_foreground_window(window: &tauri::WebviewWindow) {
     }
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn toggle_main_window_visibility(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let is_visible = window.is_visible().unwrap_or(false);
+        if is_visible {
+            let _ = window.hide();
+            let _ = window.emit("window-visibility-change", false);
+        } else {
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_focus();
+            let _ = window.emit("window-visibility-change", true);
+            #[cfg(target_os = "windows")]
+            {
+                unsafe { crate::taskbar::setup_taskbar_buttons(&window); }
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   #[allow(unused_mut)]
@@ -697,6 +746,7 @@ pub fn run() {
         get_music_download_dir,
         set_music_download_dir,
         updater::download_and_install_update,
+        updater::get_linux_package_type,
         discord_rpc::set_discord_rpc_enabled,
         discord_rpc::set_discord_client_id,
         discord_rpc::update_discord_activity,
@@ -762,21 +812,60 @@ pub fn run() {
           audio_session::windows_audio::start_audio_device_supervisor(app.handle().clone());
       }
 
+      #[cfg(target_os = "linux")]
+      {
+          audio_session::linux_audio::start_audio_device_supervisor(app.handle().clone());
+      }
+
       if let Some(window) = app.get_webview_window("main") {
           if !is_autostart {
-              window.show().unwrap();
+              let _ = window.show();
           }
       }
 
       #[cfg(not(any(target_os = "android", target_os = "ios")))]
       {
           let initial_tray_icon = tauri::image::Image::from_bytes(TRAY_WAVE_DARK)
-              .unwrap_or_else(|_| app.default_window_icon().unwrap().clone());
+              .ok()
+              .or_else(|| app.default_window_icon().cloned());
 
           let _tray_menu_prewarm = ensure_tray_menu_window(app.handle());
 
-          let _tray = TrayIconBuilder::with_id("main")
-              .icon(initial_tray_icon)
+          let mut tray_builder = TrayIconBuilder::with_id("main");
+          if let Some(icon) = initial_tray_icon {
+              tray_builder = tray_builder.icon(icon);
+          }
+
+          #[cfg(target_os = "linux")]
+          {
+              use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+
+              let show_hide_item = MenuItem::with_id(app, "tray_show_hide", "Show / Hide Window", true, None::<&str>)?;
+              let play_pause_item = MenuItem::with_id(app, "tray_play_pause", "Play / Pause", true, None::<&str>)?;
+              let next_track_item = MenuItem::with_id(app, "tray_next_track", "Next Track", true, None::<&str>)?;
+              let separator = PredefinedMenuItem::separator(app)?;
+              let quit_item = MenuItem::with_id(app, "tray_quit", "Quit", true, None::<&str>)?;
+              let menu = Menu::with_items(
+                  app,
+                  &[&show_hide_item, &play_pause_item, &next_track_item, &separator, &quit_item],
+              )?;
+
+              tray_builder = tray_builder
+                  .menu(&menu)
+                  .on_menu_event(|app, event| match event.id().as_ref() {
+                      "tray_show_hide" => toggle_main_window_visibility(app),
+                      "tray_play_pause" => {
+                          let _ = app.emit("mediaAction", serde_json::json!({ "action": "toggle" }));
+                      }
+                      "tray_next_track" => {
+                          let _ = app.emit("mediaAction", serde_json::json!({ "action": "nexttrack" }));
+                      }
+                      "tray_quit" => app.exit(0),
+                      _ => {}
+                  });
+          }
+
+          let _tray = tray_builder
               .on_tray_icon_event(|tray, event| match event {
                   TrayIconEvent::Click {
                       button: MouseButton::Right,
@@ -834,23 +923,7 @@ pub fn run() {
                       button_state: MouseButtonState::Up,
                       ..
                   } => {
-                      let app = tray.app_handle();
-                      if let Some(window) = app.get_webview_window("main") {
-                          let is_visible = window.is_visible().unwrap_or(false);
-                          if is_visible {
-                              window.hide().unwrap();
-                              let _ = window.emit("window-visibility-change", false);
-                          } else {
-                              window.show().unwrap();
-                              let _ = window.unminimize();
-                              window.set_focus().unwrap();
-                              let _ = window.emit("window-visibility-change", true);
-                              #[cfg(target_os = "windows")]
-                              {
-                                  unsafe { crate::taskbar::setup_taskbar_buttons(&window); }
-                              }
-                          }
-                      }
+                      toggle_main_window_visibility(tray.app_handle());
                   }
                   _ => {}
               })
@@ -871,7 +944,8 @@ pub fn run() {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 if window.label() == "main" {
                     let config = window.state::<AppConfig>();
-                    if *config.close_to_tray.lock().unwrap() {
+                    let close_to_tray = config.close_to_tray.lock().map(|g| *g).unwrap_or(true);
+                    if close_to_tray {
                         let _ = window.hide();
                         let _ = window.emit("window-visibility-change", false);
                         api.prevent_close();

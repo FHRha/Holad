@@ -48,6 +48,10 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         var instance: MediaService? = null
             private set
 
+        @Volatile
+        var isRunning: Boolean = false
+            private set
+
         var isAppInForeground: Boolean = true
             private set
 
@@ -153,6 +157,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         super.onCreate()
         Log.i("MediaService", "MediaService onCreate called")
         instance = this
+        isRunning = true
         audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
         wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "holad:MediaServiceWakeLock")?.apply {
@@ -184,6 +189,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         mediaSession?.release()
         mediaSession = null
         instance = null
+        isRunning = false
     }
 
     fun setMediaActionListener(listener: MediaActionListener?) {
@@ -204,6 +210,15 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
+    }
+
+    private fun isMediaButtonDebounced(): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastMediaButtonTime > 250L) {
+            lastMediaButtonTime = now
+            return false
+        }
+        return true
     }
 
     private fun initMediaSession() {
@@ -276,9 +291,7 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
                                 return true
                             }
                             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_HEADSETHOOK -> {
-                                val now = SystemClock.elapsedRealtime()
-                                if (now - lastMediaButtonTime > 250) {
-                                    lastMediaButtonTime = now
+                                if (!isMediaButtonDebounced()) {
                                     if (isPlayingState) {
                                         handlePause()
                                     } else {
@@ -292,11 +305,15 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
                                 return true
                             }
                             KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
-                                handleNext()
+                                if (!isMediaButtonDebounced()) {
+                                    handleNext()
+                                }
                                 return true
                             }
                             KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_MEDIA_REWIND -> {
-                                handlePrevious()
+                                if (!isMediaButtonDebounced()) {
+                                    handlePrevious()
+                                }
                                 return true
                             }
                             KeyEvent.KEYCODE_MEDIA_STOP -> {
@@ -659,7 +676,11 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         isPlayingState = effectiveIsPlaying
         isStreamingState = isStreaming
         currentPositionMs = positionMs
-        playbackSpeed = if (speed > 0f) speed else 1.0f
+        playbackSpeed = if (effectiveIsPlaying) {
+            if (speed > 0f) speed else 1.0f
+        } else {
+            0f
+        }
 
         if (effectiveIsPlaying) {
             markPlaybackStarted()
@@ -739,6 +760,15 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         mediaSession?.setMetadata(metaBuilder.build())
     }
 
+    private fun buildServicePendingIntent(requestCode: Int, action: String, flags: Int): PendingIntent {
+        val intent = Intent(this, MediaService::class.java).apply { this.action = action }
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            PendingIntent.getForegroundService(this, requestCode, intent, flags)
+        } else {
+            PendingIntent.getService(this, requestCode, intent, flags)
+        }
+    }
+
     private fun buildNotification(): Notification {
         createNotificationChannel()
         val sessionToken = mediaSession?.sessionToken
@@ -755,31 +785,15 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
             piFlags
         )
 
-        // Explicit PendingIntents to target MediaService directly for reliable notification actions on Android 12+
-        val prevPendingIntent = PendingIntent.getService(
-            this,
-            101,
-            Intent(this, MediaService::class.java).apply { action = ACTION_PREVIOUS },
-            piFlags
-        )
-        val playPausePendingIntent = PendingIntent.getService(
-            this,
+        // Explicit foreground-service PendingIntents so notification actions still work after STOP_FOREGROUND_DETACH on Android O+
+        val prevPendingIntent = buildServicePendingIntent(101, ACTION_PREVIOUS, piFlags)
+        val playPausePendingIntent = buildServicePendingIntent(
             102,
-            Intent(this, MediaService::class.java).apply { action = if (isPlayingState) ACTION_PAUSE else ACTION_PLAY },
+            if (isPlayingState) ACTION_PAUSE else ACTION_PLAY,
             piFlags
         )
-        val nextPendingIntent = PendingIntent.getService(
-            this,
-            103,
-            Intent(this, MediaService::class.java).apply { action = ACTION_NEXT },
-            piFlags
-        )
-        val stopPendingIntent = PendingIntent.getService(
-            this,
-            104,
-            Intent(this, MediaService::class.java).apply { action = ACTION_STOP },
-            piFlags
-        )
+        val nextPendingIntent = buildServicePendingIntent(103, ACTION_NEXT, piFlags)
+        val stopPendingIntent = buildServicePendingIntent(104, ACTION_STOP, piFlags)
 
         val playPauseIcon = if (isPlayingState) R.drawable.ic_pause else R.drawable.ic_play
         val playPauseTitle = if (isPlayingState) "Pause" else "Play"

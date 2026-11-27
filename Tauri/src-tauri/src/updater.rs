@@ -339,18 +339,71 @@ fn download_and_install_sync(
 
     #[cfg(target_os = "linux")]
     {
+        use std::os::unix::fs::PermissionsExt;
         use std::process::Command;
+
         let clean_name_str = clean_name.to_string_lossy();
         if clean_name_str.ends_with(".AppImage") {
-            use std::os::unix::fs::PermissionsExt;
-            if let Ok(metadata) = std::fs::metadata(&dest_file) {
-                let mut perms = metadata.permissions();
-                perms.set_mode(0o755);
-                let _ = std::fs::set_permissions(&dest_file, perms);
+            let mut launch_path = dest_file.clone();
+
+            if let Ok(appimage_env) = std::env::var("APPIMAGE") {
+                let trimmed = appimage_env.trim();
+                if !trimmed.is_empty() {
+                    let target_path = std::path::PathBuf::from(trimmed);
+                    if let Some(parent_dir) = target_path.parent() {
+                        let file_label = target_path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("Holad.AppImage");
+                        let staged_path = parent_dir.join(format!(".{}.update.tmp", file_label));
+                        let backup_path = parent_dir.join(format!(".{}.bak", file_label));
+
+                        let replace_result = (|| -> std::io::Result<()> {
+                            std::fs::copy(&dest_file, &staged_path)?;
+                            let mut perms = std::fs::metadata(&staged_path)?.permissions();
+                            perms.set_mode(0o755);
+                            std::fs::set_permissions(&staged_path, perms)?;
+
+                            if target_path.exists() {
+                                let _ = std::fs::copy(&target_path, &backup_path);
+                            }
+                            std::fs::rename(&staged_path, &target_path)?;
+                            let _ = std::fs::remove_file(&backup_path);
+                            Ok(())
+                        })();
+
+                        match replace_result {
+                            Ok(()) => {
+                                let _ = std::fs::remove_file(&dest_file);
+                                launch_path = target_path;
+                                log::info!("Atomically replaced AppImage at {:?}", launch_path);
+                            }
+                            Err(e) => {
+                                let _ = std::fs::remove_file(&staged_path);
+                                log::warn!(
+                                    "Could not replace AppImage at {:?} ({}); falling back to {:?}",
+                                    target_path,
+                                    e,
+                                    dest_file
+                                );
+                            }
+                        }
+                    }
+                }
             }
-            log::info!("Launching Linux AppImage: {:?}", dest_file);
-            let status = Command::new(&dest_file).spawn();
-            match status {
+
+            if launch_path == dest_file {
+                if let Ok(metadata) = std::fs::metadata(&dest_file) {
+                    let mut perms = metadata.permissions();
+                    perms.set_mode(0o755);
+                    if let Err(e) = std::fs::set_permissions(&dest_file, perms) {
+                        log::warn!("Failed to chmod +x on {:?}: {}", dest_file, e);
+                    }
+                }
+            }
+
+            log::info!("Launching Linux AppImage: {:?}", launch_path);
+            match Command::new(&launch_path).spawn() {
                 Ok(_) => {
                     std::thread::sleep(std::time::Duration::from_millis(600));
                     app.exit(0);
@@ -369,9 +422,35 @@ fn download_and_install_sync(
                 }
             }
         } else if clean_name_str.ends_with(".deb") {
-            log::info!("Opening Debian package: {:?}", dest_file);
-            let _ = Command::new("xdg-open").arg(&dest_file).spawn();
-            Ok(())
+            log::info!("Installing Debian package: {:?}", dest_file);
+            let spawn_res = Command::new("pkexec")
+                .arg("dpkg")
+                .arg("-i")
+                .arg(&dest_file)
+                .spawn()
+                .or_else(|e| {
+                    log::warn!("pkexec unavailable ({}), falling back to xdg-open for {:?}", e, dest_file);
+                    Command::new("xdg-open").arg(&dest_file).spawn()
+                });
+
+            match spawn_res {
+                Ok(_) => {
+                    std::thread::sleep(std::time::Duration::from_millis(600));
+                    app.exit(0);
+                    Ok(())
+                }
+                Err(e) => {
+                    let err_msg = format!("Failed to launch .deb installer: {}", e);
+                    let _ = app.emit("update-download-progress", UpdateProgressPayload {
+                        stage: "error".into(),
+                        percent: 100.0,
+                        downloaded,
+                        total,
+                        error: Some(err_msg.clone()),
+                    });
+                    Err(err_msg)
+                }
+            }
         } else {
             let err_msg = "Unsupported Linux update format".to_string();
             let _ = app.emit("update-download-progress", UpdateProgressPayload {
@@ -396,6 +475,26 @@ fn download_and_install_sync(
             error: Some(err_msg.clone()),
         });
         Err(err_msg)
+    }
+}
+
+#[tauri::command]
+pub fn get_linux_package_type() -> &'static str {
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var_os("APPIMAGE").is_some_and(|v| !v.is_empty()) {
+            return "appimage";
+        }
+        if let Ok(exe) = std::env::current_exe() {
+            if exe.starts_with("/usr/") || exe.starts_with("/opt/") {
+                return "deb";
+            }
+        }
+        "binary"
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        "other"
     }
 }
 
