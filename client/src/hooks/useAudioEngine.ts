@@ -291,7 +291,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     }
     const el0 = audioRefs[0]?.current;
     const el1 = audioRefs[1]?.current;
-    if (el0 && el1 && (!isInitializedRef.current || audioBackend === 'web')) {
+    if (el0 && el1 && !isInitializedRef.current) {
       engineRef.current.initialize([el0, el1]);
       isInitializedRef.current = true;
       setAudioElement(el0);
@@ -764,9 +764,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
           flushPositionToLocalStorage(true);
           flushPlaybackProgressToServer(true);
         }
-        if (prevIsPlayingRef.current || engineRef.current.getState() === 'playing') {
-          engineRef.current.pause();
-        }
+        engineRef.current.pause();
       } else if (isPlaying && (!isActiveDevice || isSpeakerDj || !hasUserTriggeredPlayback)) {
         if (prevIsPlayingRef.current || engineRef.current.getState() === 'playing') {
           engineRef.current.pause();

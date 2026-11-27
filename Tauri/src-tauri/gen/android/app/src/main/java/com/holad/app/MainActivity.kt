@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.ViewGroup
+import android.webkit.WebSettings
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
@@ -21,6 +22,7 @@ import java.util.Locale
 class MainActivity : TauriActivity() {
   private external fun initNdkContext(context: Context)
   private var permissionsRequested = false
+  private var webViewConfigured = false
   private val mainHandler = Handler(Looper.getMainLooper())
 
   private var safeAreaTopDp = 0f
@@ -71,6 +73,7 @@ class MainActivity : TauriActivity() {
   override fun onResume() {
     super.onResume()
     MediaService.setAppInForeground(true)
+    configureWebViewAudioSettings()
     refreshAndInjectSafeAreaInsets()
     if (!permissionsRequested) {
       checkRuntimePermissions()
@@ -80,7 +83,23 @@ class MainActivity : TauriActivity() {
   override fun onWindowFocusChanged(hasFocus: Boolean) {
     super.onWindowFocusChanged(hasFocus)
     if (hasFocus) {
+      configureWebViewAudioSettings()
       refreshAndInjectSafeAreaInsets()
+    }
+  }
+
+  private fun configureWebViewAudioSettings() {
+    if (webViewConfigured) return
+    val decor = window?.decorView as? ViewGroup ?: return
+    val wv = findWebView(decor) ?: return
+    wv.post {
+      try {
+        wv.settings.mediaPlaybackRequiresUserGesture = false
+        wv.settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        webViewConfigured = true
+      } catch (e: Throwable) {
+        android.util.Log.w("MainActivity", "Failed to configure WebView audio settings", e)
+      }
     }
   }
 

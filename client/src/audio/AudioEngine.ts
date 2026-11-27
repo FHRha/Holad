@@ -361,12 +361,20 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
     }
 
     public async resume(): Promise<void> {
+        const activeDeck = this.getActiveDeck();
+        if (!activeDeck.element.src && this.currentTrack) {
+            await this.playTrack(this.currentTrack, {
+                startTime: this.preparingStartPosition || 0,
+                immediate: true,
+            });
+            return;
+        }
         this.isPlaying = true;
         if (this.deckTrackIds[this.activeIndex] === null && this.currentTrack?.id) {
             this.deckTrackIds[this.activeIndex] = this.currentTrack.id;
         }
         await this.unlockPipelineWithTimeout();
-        await this.getActiveDeck().play();
+        await activeDeck.play();
     }
 
     public seek(positionSeconds: number): void {

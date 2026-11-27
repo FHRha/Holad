@@ -18,7 +18,7 @@ android {
     compileSdk = 36
     namespace = "com.holad.app"
     defaultConfig {
-        manifestPlaceholders["usesCleartextTraffic"] = "false"
+        manifestPlaceholders["usesCleartextTraffic"] = "true"
         applicationId = "com.holad.app"
         minSdk = 24
         targetSdk = 36
