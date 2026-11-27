@@ -101,31 +101,8 @@ if (rawVersion) {
     }
   });
 
-  // Update Cargo.toml
-  const cargoTomlPath = path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'Cargo.toml');
-  if (fs.existsSync(cargoTomlPath)) {
-    try {
-      let cargoContent = fs.readFileSync(cargoTomlPath, 'utf8');
-      cargoContent = cargoContent.replace(/^version\s*=\s*"[^"]*"/m, `version = "${semverVersion}"`);
-      fs.writeFileSync(cargoTomlPath, cargoContent);
-      console.log(`Updated version in Tauri/src-tauri/Cargo.toml to ${semverVersion}`);
-    } catch (e) {
-      console.warn(`Could not update version in Cargo.toml:`, e.message);
-    }
-  }
-
-  // Update Cargo.lock
-  const cargoLockPath = path.join(ROOT_DIR, 'Tauri', 'src-tauri', 'Cargo.lock');
-  if (fs.existsSync(cargoLockPath)) {
-    try {
-      let lockContent = fs.readFileSync(cargoLockPath, 'utf8');
-      lockContent = lockContent.replace(/(\[\[package\]\]\r?\nname\s*=\s*"holad"\r?\nversion\s*=\s*)"[^"]*"/, `$1"${semverVersion}"`);
-      fs.writeFileSync(cargoLockPath, lockContent);
-      console.log(`Updated version in Tauri/src-tauri/Cargo.lock to ${semverVersion}`);
-    } catch (e) {
-      console.warn(`Could not update version in Cargo.lock:`, e.message);
-    }
-  }
+  // Note: Tauri/src-tauri reads its app version from tauri.conf.json, so we avoid
+  // mutating Tauri/src-tauri/Cargo.toml & Cargo.lock to preserve Cargo/rust-cache hits.
 
   // Update installer Cargo.toml
   const installerCargoTomlPath = path.join(ROOT_DIR, 'installer', 'src-tauri', 'Cargo.toml');
@@ -613,14 +590,15 @@ node dist/index.js
     console.log("\n[Native Client] ✔ Client already built with base './', skipping redundant rebuild.");
   }
 
-  // Pre-build installer frontend concurrently on Windows
+  // Pre-build installer frontend concurrently WITH Tauri Build (not blocking Tauri Build start)
   const installerDir = path.join(ROOT_DIR, 'installer');
+  let installerFrontendPromise = null;
   if (process.platform === 'win32' && !skipTauri && fs.existsSync(installerDir)) {
-    nativePrepTasks.push((async () => {
+    installerFrontendPromise = (async () => {
       console.log("\n--- Pre-building Custom Installer Frontend ---");
       await ensureDependencies('Installer Dependencies', installerDir);
       await runCommand('Installer Frontend Build', `${pnpmCmd} run build`, installerDir);
-    })());
+    })();
   }
 
   if (nativePrepTasks.length > 0) {
@@ -825,13 +803,16 @@ node dist/index.js
             // Clean staging directory
             try { fs.rmSync(stagingDir, { recursive: true, force: true }); } catch (e) {}
 
-            // 3. Ensure installer dependencies & build frontend (if not pre-built)
+            // 3. Ensure installer frontend finished building concurrently
+            if (installerFrontendPromise) {
+              await installerFrontendPromise;
+            }
             if (!fs.existsSync(path.join(installerDir, 'dist', 'index.html'))) {
               console.log("\n--- Building Installer Frontend ---");
               await ensureDependencies('Installer Dependencies', installerDir);
               await runCommand('Installer Frontend Build', `${pnpmCmd} run build`, installerDir);
             } else {
-              console.log("\n[Installer] ✔ Frontend already pre-built, skipping rebuild.");
+              console.log("\n[Installer] ✔ Frontend already built.");
             }
 
             // 4. Build custom installer binary
@@ -921,8 +902,8 @@ node dist/index.js
           const gradleTask = hasKeystore
             ? 'assembleArm64Release -x rustBuildArm64Release'
             : 'assembleArm64Debug -x rustBuildArm64Debug';
-          const daemonFlag = '--no-daemon --build-cache';
-          await runCommand('Android APK Build', `${gradlew} ${gradleTask} ${daemonFlag} -q`.trim(), tauriAndroidDir, env);
+          const daemonFlag = process.env.GITHUB_ACTIONS ? '--no-daemon --build-cache --stacktrace' : '--no-daemon --build-cache';
+          await runCommand('Android APK Build', `${gradlew} ${gradleTask} ${daemonFlag}`.trim(), tauriAndroidDir, env);
           // Ensure Gradle daemon doesn't linger in RAM
           await runCommand('Stop Gradle Daemon', `${gradlew} --stop`, tauriAndroidDir, env).catch(() => {});
 
