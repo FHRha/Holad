@@ -921,7 +921,8 @@
     "checking": "Checking for updates...",
     "check_failed": "Failed to check for updates",
     "up_to_date": "You are on the latest version!",
-    "prerelease_badge": "Pre-release"
+    "prerelease_badge": "Pre-release",
+    "relogin_notice": "After updating, you may be signed out of your account — simply log in again."
   },
   "demo": {
     "badge": "Holad Demo Mode",

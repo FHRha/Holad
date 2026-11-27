@@ -268,23 +268,6 @@ export const useHoladStore = create<HoladState>((set, get) => {
         socket!.emit('holad_ping', { t0: performance.now() });
 
         emitJoinRoom(socket!, normalizedRoom);
-
-        // If client had active offline playback, reconcile immediately
-        const playerStore = usePlayerStore.getState();
-        if (playerStore.hasActiveOfflinePlayback) {
-          const positionMs = getCurrentPositionMs(playerStore);
-          socket!.emit('holad_reconcileOffline', {
-            roomId: normalizedRoom,
-            deviceId,
-            queue: playerStore.queue,
-            currentIndex: playerStore.currentIndex,
-            positionMs,
-            isPlaying: playerStore.isPlaying,
-            playbackRate: playerStore.playbackRate || 1,
-          });
-          playerStore.setHasActiveOfflinePlayback(false);
-          playerStore.setIsSessionHydrated(true);
-        }
       });
 
       // NTP-light pong handler
@@ -398,24 +381,34 @@ export const useHoladStore = create<HoladState>((set, get) => {
 
         // If client has active offline playback that was not yet reconciled:
         if (playerStore.hasActiveOfflinePlayback) {
-          const positionMs = getCurrentPositionMs(playerStore);
-          socket!.emit('holad_reconcileOffline', {
-            roomId: get().roomId || snapshot.roomId,
-            deviceId: get().deviceId,
-            queue: playerStore.queue,
-            currentIndex: playerStore.currentIndex,
-            positionMs,
-            isPlaying: playerStore.isPlaying,
-            playbackRate: playerStore.playbackRate || 1,
-          });
-          playerStore.setHasActiveOfflinePlayback(false);
-          playerStore.setIsSessionHydrated(true);
+          const isOtherDeviceActivelyPlaying =
+            Boolean(snapshot.activeDeviceId) &&
+            snapshot.activeDeviceId !== get().deviceId &&
+            snapshot.isPlaying === true;
 
-          setTimeout(() => {
-            setSyncApplyingRemoteState(false);
-            set({ isApplyingRemoteState: false });
-          }, 50);
-          return;
+          if (isOtherDeviceActivelyPlaying) {
+            playerStore.setHasActiveOfflinePlayback(false);
+            playerStore.setIsSessionHydrated(true);
+          } else {
+            const positionMs = getCurrentPositionMs(playerStore);
+            socket!.emit('holad_reconcileOffline', {
+              roomId: get().roomId || snapshot.roomId,
+              deviceId: get().deviceId,
+              queue: playerStore.queue,
+              currentIndex: playerStore.currentIndex,
+              positionMs,
+              isPlaying: playerStore.isPlaying,
+              playbackRate: playerStore.playbackRate || 1,
+            });
+            playerStore.setHasActiveOfflinePlayback(false);
+            playerStore.setIsSessionHydrated(true);
+
+            setTimeout(() => {
+              setSyncApplyingRemoteState(false);
+              set({ isApplyingRemoteState: false });
+            }, 50);
+            return;
+          }
         }
 
         const currentActive = get().activeDeviceId;

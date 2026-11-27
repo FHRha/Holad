@@ -546,6 +546,16 @@ export class ConnectRoomManager {
   ): HoladRoom {
     const room = this.getOrCreateRoom(roomId);
 
+    const isOtherDeviceActivelyPlaying =
+      Boolean(room.activeDeviceId) &&
+      room.activeDeviceId !== deviceId &&
+      room.devices.some(d => d.id === room.activeDeviceId) &&
+      room.snapshot.isPlaying === true;
+
+    if (isOtherDeviceActivelyPlaying) {
+      return room;
+    }
+
     this.clearGraceTimer(roomId, deviceId);
 
     const existingDevice = room.devices.find(d => d.id === deviceId);

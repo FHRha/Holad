@@ -357,6 +357,41 @@ describe('ConnectRoomManager Unit Tests', () => {
       is_playing: true
     }));
   });
+
+  it('should NOT switch activeDeviceId or pause playback on reconcileOffline when another online device is playing', () => {
+    manager.addDevice('user_guard_test', {
+      id: 'device-a',
+      name: 'Device A',
+      socketId: 'sock-a'
+    });
+    manager.updateSnapshot('user_guard_test', 'device-a', {
+      trackId: 'playing-track-a',
+      queue: [{ id: 'playing-track-a', title: 'Playing A' }],
+      currentIndex: 0,
+      positionMs: 12000,
+      isPlaying: true
+    });
+
+    const roomBefore = manager.getRoom('user_guard_test')!;
+    const versionBefore = roomBefore.snapshot.version;
+
+    // Device B (not yet in room or passive) tries to reconcileOffline with isPlaying: false
+    const roomAfter = manager.reconcileOffline('user_guard_test', 'device-b', {
+      queue: [{ id: 'offline-track-b', title: 'Offline B' }],
+      currentIndex: 0,
+      positionMs: 0,
+      isPlaying: false,
+      playbackRate: 1
+    });
+
+    expect(roomAfter.activeDeviceId).toBe('device-a');
+    expect(roomAfter.snapshot.activeDeviceId).toBe('device-a');
+    expect(roomAfter.snapshot.isPlaying).toBe(true);
+    expect(roomAfter.snapshot.trackId).toBe('playing-track-a');
+    expect(roomAfter.snapshot.positionMs).toBe(12000);
+    expect(roomAfter.snapshot.version).toBe(versionBefore);
+    expect(roomAfter.devices.some(d => d.id === 'device-b')).toBe(false);
+  });
 });
 
 describe('Holad Connect v2 Socket Integration Tests', () => {

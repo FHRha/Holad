@@ -1,4 +1,4 @@
-import { X, Download, SkipForward, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
+import { X, Download, SkipForward, Loader2, AlertCircle, ExternalLink, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
 import { UpdateService } from '../../services/UpdateService';
@@ -88,6 +88,13 @@ export default function UpdateModal() {
             <p className="text-secondary text-sm mb-2">
               {t('update.new_version_desc', 'A new version of Holad is available.')}
             </p>
+          </div>
+
+          <div className="flex items-start gap-2.5 p-3 bg-foreground/[0.03] border border-border rounded-xl text-xs text-secondary">
+            <Info size={16} className="shrink-0 text-primary mt-0.5" />
+            <span className="leading-relaxed">
+              {t('update.relogin_notice', 'After updating, you may be signed out of your account — simply log in again.')}
+            </span>
           </div>
 
           {isDownloading && (
