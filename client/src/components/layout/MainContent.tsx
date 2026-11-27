@@ -246,11 +246,26 @@ export default function MainContent() {
           </div>
           <div className="animate-home-section" style={{ animationDelay: '70ms' }}>
             {!genresSettled && displayGenres.length === 0 ? (
-              <div className="mb-8 flex flex-col gap-3">
-                <Skeleton className="h-6 w-40" />
-                <div className="flex gap-3 overflow-hidden">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-36 rounded-xl shrink-0" />
+              <div className="mb-10 flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-7 w-52" />
+                  <div className="flex gap-2">
+                    <Skeleton className="w-8 h-8 rounded-full" />
+                    <Skeleton className="w-8 h-8 rounded-full" />
+                  </div>
+                </div>
+                <div className="flex gap-4 overflow-hidden">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-[calc(20%-13px)] min-w-[160px] h-[160px] rounded-xl p-4 flex flex-col justify-between bg-foreground/[0.04] shrink-0"
+                    >
+                      <Skeleton className="h-6 w-2/3" />
+                      <div className="flex justify-between items-end">
+                        <Skeleton className="h-3.5 w-16" />
+                        <Skeleton className="w-10 h-10 rounded-full" />
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

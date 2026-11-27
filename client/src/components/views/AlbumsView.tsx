@@ -153,7 +153,7 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
           <Skeleton className="h-8 w-40 mb-8 hidden md:block" />
         </div>
         <div className="flex-1 overflow-y-auto px-4 md:px-8 pb-[calc(5rem+var(--safe-area-inset-bottom))] md:pb-8 hide-scrollbar">
-          <CardGridSkeleton count={12} viewMode={viewMode} />
+          <CardGridSkeleton count={12} viewMode={viewMode} withAlphabetBar />
         </div>
       </div>
     );

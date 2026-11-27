@@ -582,7 +582,7 @@ export default function TracksView() {
           <div className={`flex-1 overflow-hidden ${isInsideLibrary ? 'pt-2' : 'pt-[calc(0.5rem+var(--safe-area-inset-top))] md:pt-2'} px-4 md:px-0 relative`}>
             {loading ? (
               <div className="h-full overflow-y-auto hide-scrollbar pb-[calc(5rem+var(--safe-area-inset-bottom))] md:pb-4">
-                <TrackListSkeleton count={12} />
+                <TrackListSkeleton count={12} variant="tracks" />
               </div>
             ) : finalTracks.length === 0 ? (
               <div className="flex items-center justify-center h-full text-secondary">{t('views.not_found')}</div>

@@ -10,7 +10,7 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { sanitizeHtml } from '../../utils/sanitize';
-import { DetailHeaderSkeleton, TrackListSkeleton, CardGridSkeleton, Skeleton } from '../common/Skeleton';
+import { TrackListSkeleton, CardGridSkeleton, Skeleton } from '../common/Skeleton';
 
 export default function ArtistView() {
   const { t } = useTranslation();
@@ -34,25 +34,61 @@ export default function ArtistView() {
   if (loading) {
     return (
       <div className="flex-1 overflow-y-auto bg-transparent md:bg-card custom-scrollbar relative pb-[calc(8rem+var(--safe-area-inset-bottom))] md:pb-24">
-        <div className="p-6 pt-[calc(1.5rem+var(--safe-area-inset-top))] sm:p-10 relative">
-          <button
-            onClick={() => navigate(-1)}
-            aria-label={t('common.back', 'Назад')}
-            className="absolute top-[calc(1.5rem+var(--safe-area-inset-top))] md:top-6 left-6 p-2 rounded-full bg-black/40 hover:bg-black/60 text-foreground transition-colors z-10"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <DetailHeaderSkeleton avatarShape="circle" className="mt-8 sm:mt-4" />
+        <div className="relative w-full h-80 sm:h-96 bg-foreground/[0.03]">
+          <div className="relative z-10 p-6 pt-[calc(1.5rem+var(--safe-area-inset-top))] sm:p-10 h-full flex flex-col justify-end">
+            <button
+              onClick={() => navigate(-1)}
+              aria-label={t('common.back', 'Назад')}
+              className="absolute top-[calc(1.5rem+var(--safe-area-inset-top))] md:top-6 left-6 p-2 rounded-full bg-black/40 hover:bg-black/60 text-foreground transition-colors z-10"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-8 text-center sm:text-left mt-auto">
+              <Skeleton className="w-32 h-32 sm:w-48 sm:h-48 rounded-full shrink-0" />
+              <div className="flex flex-col gap-3 items-center sm:items-start w-full">
+                <Skeleton className="hidden sm:block h-4 w-24" />
+                <Skeleton className="h-10 sm:h-16 md:h-20 w-56 sm:w-80 max-w-full" />
+                <Skeleton className="h-4 w-44" />
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="px-6 sm:px-10 grid grid-cols-1 lg:grid-cols-3 gap-10 mt-4">
+
+        <div className="p-4 sm:p-6 sm:px-10 flex items-center justify-center sm:justify-start gap-4">
+          <Skeleton className="w-14 h-14 rounded-full shrink-0" />
+          <Skeleton className="w-11 h-11 rounded-full shrink-0" />
+          <Skeleton className="h-12 w-40 rounded-full shrink-0" />
+        </div>
+
+        <div className="px-6 sm:px-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2">
             <Skeleton className="h-7 w-40 mb-6" />
-            <TrackListSkeleton count={6} compact />
+            <TrackListSkeleton count={6} variant="artist" />
           </div>
           <div className="lg:col-span-1">
             <Skeleton className="h-44 w-full rounded-2xl" />
           </div>
         </div>
+
+        <div className="p-6 sm:p-10 pt-10">
+          <Skeleton className="h-7 w-40 mb-6" />
+          <div className="flex overflow-hidden gap-4 md:gap-6 pb-6">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="min-w-[140px] sm:min-w-[180px] max-w-[140px] sm:max-w-[180px] shrink-0 bg-card/60 rounded-xl p-4 flex flex-col"
+              >
+                <Skeleton className="w-full aspect-square rounded-lg" />
+                <div className="p-3 mt-auto flex flex-col gap-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-2.5 w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="p-6 sm:p-10">
           <Skeleton className="h-7 w-32 mb-6" />
           <CardGridSkeleton count={6} />
@@ -140,7 +176,7 @@ export default function ArtistView() {
         <div className="lg:col-span-2">
           <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.popular_tracks', 'Популярное')}</h2>
           {tracksLoading && topSongs.length === 0 ? (
-            <TrackListSkeleton count={6} compact />
+            <TrackListSkeleton count={6} variant="artist" />
           ) : topSongs.length === 0 ? (
             <p className="text-secondary text-sm">{t('views.no_track_data')}</p>
           ) : (

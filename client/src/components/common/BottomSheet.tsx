@@ -114,7 +114,7 @@ export default function BottomSheet({
       />
       <div 
         ref={sheetRef}
-        className={`fixed z-[9999] bottom-0 left-0 right-0 bg-card border-t border-border rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] overflow-hidden pb-8 animate-in slide-in-from-bottom-full duration-300 ${className}`.trim()}
+        className={`fixed z-[9999] bottom-0 left-0 right-0 bg-card border-t border-border rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] overflow-hidden pb-[calc(2rem+var(--safe-area-inset-bottom))] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] animate-in slide-in-from-bottom-full duration-300 ${className}`.trim()}
         style={{ 
           maxHeight,
           height: height || undefined,

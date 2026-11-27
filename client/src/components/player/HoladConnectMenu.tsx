@@ -179,7 +179,7 @@ export default function HoladConnectMenu({
               />
               <div 
                 ref={mobileMenuRef}
-                className="fixed bottom-0 left-0 right-0 w-full bg-card border-t border-black/10 dark:border-white/10 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-[9999] overflow-hidden pb-8 animate-in slide-in-from-bottom-full duration-300"
+                className="fixed bottom-0 left-0 right-0 w-full bg-card border-t border-black/10 dark:border-white/10 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-[9999] overflow-hidden pb-[calc(2rem+var(--safe-area-inset-bottom))] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] animate-in slide-in-from-bottom-full duration-300"
                 style={{ 
                   transition: 'transform 0.3s ease-out'
                 }}

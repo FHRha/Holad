@@ -58,7 +58,7 @@ export default function ConnectDeviceList({
           {t('player.connect_to_device')}
         </div>
       )}
-      <div className="flex flex-col gap-1 max-h-60 overflow-y-auto px-2 pt-2">
+      <div className="flex flex-col gap-1 max-h-60 overflow-y-auto px-2 pt-2 pb-2">
         {devices.length > 0 && devices.map((device) => {
           const isItemActive = activeDeviceId ? device.id === activeDeviceId : device.id === localDeviceId;
           return (

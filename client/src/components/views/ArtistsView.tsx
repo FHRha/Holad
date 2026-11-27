@@ -158,7 +158,7 @@ export default function ArtistsView() {
         </div>
         <div className={`flex-1 overflow-y-auto flex flex-col px-4 ${mobileTopPadding} md:p-6 pb-[calc(8rem+var(--safe-area-inset-bottom))] md:pb-8 hide-scrollbar`}>
           <Skeleton className="h-11 w-full rounded-xl mb-6 md:hidden shrink-0" />
-          <CardGridSkeleton count={12} variant="circle" />
+          <CardGridSkeleton count={12} variant="circle" withAlphabetBar />
         </div>
       </div>
     );

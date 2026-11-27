@@ -125,21 +125,28 @@ export default function FavoritesView() {
           </div>
           <div>
             <Skeleton className="h-6 w-44 mb-6" />
-            <TrackListSkeleton count={8} />
+            <TrackListSkeleton count={8} variant="favorites" />
           </div>
         </div>
 
         <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-[calc(8rem+var(--safe-area-inset-bottom))] w-full">
           <div className="px-4 pt-[calc(1rem+var(--safe-area-inset-top))] pb-2 sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border z-10 w-full">
             <Skeleton className="h-11 w-full rounded-xl mb-4" />
-            <div className="flex items-center gap-2 mb-4">
-              <Skeleton className="h-8 w-24 rounded-full" />
-              <Skeleton className="h-8 w-28 rounded-full" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-24 rounded-full" />
+                <Skeleton className="h-8 w-28 rounded-full" />
+              </div>
+              <Skeleton className="w-9 h-9 rounded-full shrink-0" />
             </div>
-            <Skeleton className="h-11 w-full rounded-xl mb-2" />
+            <div className="flex gap-1 p-1 rounded-xl bg-card border border-border mb-2">
+              <Skeleton className="flex-1 h-10 rounded-lg" />
+              <Skeleton className="flex-1 h-10 rounded-lg" />
+              <Skeleton className="flex-1 h-10 rounded-lg" />
+            </div>
           </div>
           <div className="px-4 py-4">
-            <TrackListSkeleton count={8} compact />
+            <TrackListSkeleton count={8} variant="favorites" />
           </div>
         </div>
       </>

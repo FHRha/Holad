@@ -73,7 +73,7 @@ export const SleepTimerMenu: React.FC<SleepTimerMenuProps> = ({ isOpen, onClose 
   return (
     <div className="absolute inset-0 z-[200] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
-        className="w-full sm:w-[400px] max-h-[90vh] overflow-y-auto bg-background/90 backdrop-blur-xl transform-gpu border border-border rounded-t-3xl sm:rounded-3xl p-6 flex flex-col gap-2 animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95"
+        className="w-full sm:w-[400px] max-h-[90vh] overflow-y-auto bg-background/90 backdrop-blur-xl transform-gpu border border-border rounded-t-3xl sm:rounded-3xl p-6 pb-[calc(1.5rem+var(--safe-area-inset-bottom))] sm:pb-6 pl-[max(1.5rem,var(--safe-area-inset-left))] pr-[max(1.5rem,var(--safe-area-inset-right))] flex flex-col gap-2 animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">

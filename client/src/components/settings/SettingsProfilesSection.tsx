@@ -289,7 +289,7 @@ export default function SettingsProfilesSection({ isMobile = false }: Props) {
         {/* Modal Dialog for Create / Rename / Overwrite / Clear */}
         {modalState.type && (
           <div
-            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-xs pt-[max(1rem,var(--safe-area-inset-top))] pb-[max(1rem,var(--safe-area-inset-bottom))] pl-[max(1rem,var(--safe-area-inset-left))] pr-[max(1rem,var(--safe-area-inset-right))] animate-in fade-in duration-150"
             onClick={() => setModalState({ type: null, slot: 1, nameInput: '' })}
           >
             <div

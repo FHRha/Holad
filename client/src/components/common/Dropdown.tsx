@@ -36,12 +36,21 @@ export default function Dropdown({
     const el = dropdownRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
+    const safeBottomCss = Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom')
+    ) || 0;
+    const safeBottomWin = (window as Window & { __HOLAD_SAFE_AREA__?: { bottom?: number } }).__HOLAD_SAFE_AREA__?.bottom ?? 0;
+    const safeBottom = Math.max(safeBottomCss, safeBottomWin);
+    const spaceBelow = window.innerHeight - safeBottom - rect.bottom;
     const openUpward = spaceBelow < 220 && rect.top > spaceBelow;
+    const availableHeight = openUpward ? rect.top - 12 : spaceBelow - 12;
     setMenuStyle({
       position: 'fixed',
       left: rect.left,
       width: Math.max(rect.width, 140),
+      maxHeight: Math.max(120, availableHeight),
+      display: 'flex',
+      flexDirection: 'column',
       ...(openUpward
         ? { bottom: window.innerHeight - rect.top + 6 }
         : { top: rect.bottom + 6 }),
@@ -106,7 +115,7 @@ export default function Dropdown({
           style={menuStyle}
           className="bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
         >
-          <div className="flex flex-col gap-0.5 max-h-60 overflow-y-auto custom-scrollbar">
+          <div className="flex flex-col gap-0.5 flex-1 min-h-0 max-h-60 overflow-y-auto custom-scrollbar">
             {options.map((option, index) => {
               const isSelected = option.value === value;
               return (

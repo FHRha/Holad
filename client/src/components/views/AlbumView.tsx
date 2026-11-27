@@ -10,7 +10,7 @@ import { useAlbumData } from '../../hooks/useAlbumData';
 import ArtistLinks from '../common/ArtistLinks';
 import RatingStars from '../common/RatingStars';
 import LongPressWrapper from '../common/LongPressWrapper';
-import { DetailHeaderSkeleton, TrackListSkeleton } from '../common/Skeleton';
+import { DetailHeaderSkeleton, TrackListSkeleton, Skeleton } from '../common/Skeleton';
 import TrackTableHeader from '../common/TrackTableHeader';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { useUIStore } from '../../store/uiStore';
@@ -56,9 +56,30 @@ export default function AlbumView() {
             >
               <ArrowLeft size={20} />
             </button>
-            <DetailHeaderSkeleton />
+            <DetailHeaderSkeleton actionsCount={4} />
           </div>
-          <TrackListSkeleton count={8} />
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 mt-6">
+            <div className="flex-1">
+              <TrackListSkeleton count={8} variant="album" />
+            </div>
+            <div className="w-full lg:w-80 flex flex-col gap-8 shrink-0">
+              <div className="flex flex-col gap-3">
+                <Skeleton className="h-3.5 w-20" />
+                <Skeleton className="h-8 w-28 rounded-full" />
+              </div>
+              <div className="flex flex-col gap-3">
+                <Skeleton className="h-3.5 w-16" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-7 w-20 rounded-md" />
+                  <Skeleton className="h-7 w-16 rounded-md" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-3">
+                <Skeleton className="h-3.5 w-24" />
+                <Skeleton className="h-8 w-36 rounded" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

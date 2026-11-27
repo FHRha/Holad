@@ -329,9 +329,9 @@ export default function PlaylistDetailView() {
             >
               <ArrowLeft size={20} />
             </button>
-            <DetailHeaderSkeleton />
+            <DetailHeaderSkeleton actionsCount={1} />
           </div>
-          <TrackListSkeleton count={8} />
+          <TrackListSkeleton count={8} variant="playlist" />
         </div>
       </div>
     );

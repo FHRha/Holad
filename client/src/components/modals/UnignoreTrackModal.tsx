@@ -50,7 +50,7 @@ export default function UnignoreTrackModal() {
       <BottomSheet
         isOpen={unignoreModal.isOpen}
         onClose={closeUnignoreModal}
-        className="px-5 pt-3 pb-8"
+        className="px-5 pt-3 pb-[calc(2rem+var(--safe-area-inset-bottom))]"
         onContextMenu={(e) => e.preventDefault()}
         header={
           <>
@@ -106,7 +106,7 @@ export default function UnignoreTrackModal() {
   // Desktop Centered Modal Dialog
   return createPortal(
     <div 
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm pt-[max(1rem,var(--safe-area-inset-top))] pb-[max(1rem,var(--safe-area-inset-bottom))] pl-[max(1rem,var(--safe-area-inset-left))] pr-[max(1rem,var(--safe-area-inset-right))] animate-in fade-in duration-200"
       onClick={closeUnignoreModal}
     >
       <div 
