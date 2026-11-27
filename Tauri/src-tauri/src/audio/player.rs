@@ -203,6 +203,7 @@ pub fn calculate_crossfade_gains(
 
 pub struct AudioPlayer {
     sink: Mutex<Option<MixerDeviceSink>>,
+    sink_invalidated: Arc<AtomicBool>,
     player: Mutex<Option<Arc<Player>>>,
     pub(crate) meta: Arc<Mutex<PlaybackMetadata>>,
     active_source: Mutex<Option<ActiveTrackSource>>,
@@ -228,6 +229,7 @@ impl AudioPlayer {
     pub fn with_cache_dir(cache_dir: Option<PathBuf>) -> Self {
         Self {
             sink: Mutex::new(None),
+            sink_invalidated: Arc::new(AtomicBool::new(false)),
             player: Mutex::new(None),
             meta: Arc::new(Mutex::new(PlaybackMetadata {
                 url: String::new(),
@@ -257,7 +259,21 @@ impl AudioPlayer {
         self.stream_cache.lock().unwrap().set_cache_dir(dir);
     }
 
-    fn open_sink_for_device(device_id: Option<&str>) -> Result<MixerDeviceSink, String> {
+    fn open_sink_for_device(
+        device_id: Option<&str>,
+        sink_invalidated: Arc<AtomicBool>,
+    ) -> Result<MixerDeviceSink, String> {
+        let make_error_cb = || {
+            let invalidated = Arc::clone(&sink_invalidated);
+            move |err: rodio::cpal::Error| {
+                log::error!(
+                    "[AudioPlayer] Output stream error (marking sink invalidated): {:?}",
+                    err
+                );
+                invalidated.store(true, Ordering::Release);
+            }
+        };
+
         if let Some(target_id) = device_id {
             let host = rodio::cpal::default_host();
             if let Ok(devices) = host.output_devices() {
@@ -270,7 +286,9 @@ impl AudioPlayer {
                         .as_deref()
                         == Some(target_id);
                     if id_match || name_match {
-                        match DeviceSinkBuilder::from_device(dev).and_then(|b| b.open_stream()) {
+                        match DeviceSinkBuilder::from_device(dev)
+                            .and_then(|b| b.with_error_callback(make_error_cb()).open_stream())
+                        {
                             Ok(mut s) => {
                                 s.log_on_drop(false);
                                 return Ok(s);
@@ -288,7 +306,10 @@ impl AudioPlayer {
             }
         }
 
-        match DeviceSinkBuilder::open_default_sink() {
+        match DeviceSinkBuilder::from_default_device()
+            .and_then(|b| b.with_error_callback(make_error_cb()).open_sink_or_fallback())
+            .or_else(|_| DeviceSinkBuilder::open_default_sink())
+        {
             Ok(mut s) => {
                 s.log_on_drop(false);
                 Ok(s)
@@ -299,22 +320,28 @@ impl AudioPlayer {
 
     fn ensure_device_sink(&self) -> Result<(), String> {
         let mut sink_guard = self.sink.lock().unwrap();
-        if sink_guard.is_some() {
+        let invalidated = self.sink_invalidated.load(Ordering::Acquire);
+        if sink_guard.is_some() && !invalidated {
             return Ok(());
+        }
+        if invalidated {
+            log::warn!("[AudioPlayer] Output sink was invalidated, rebuilding...");
+            *sink_guard = None;
+            self.sink_invalidated.store(false, Ordering::Release);
         }
 
         let dev_id = self.selected_device_id.lock().unwrap().clone();
-        let sink = Self::open_sink_for_device(dev_id.as_deref())?;
+        let sink = Self::open_sink_for_device(dev_id.as_deref(), Arc::clone(&self.sink_invalidated))?;
         *sink_guard = Some(sink);
         Ok(())
     }
 
     fn cancel_queued_tracks(&self) {
+        // Drop queued entries without cancelling their underlying ProgressiveMediaStream:
+        // StreamCache shares the same handle/cancel token, so cancelling here would poison
+        // preloaded tracks right before skipping to them.
         let mut queue = self.queued_tracks.lock().unwrap();
-        while let Some(q) = queue.pop_front() {
-            q.cancel.store(true, Ordering::Release);
-            q.input.cancel();
-        }
+        queue.clear();
     }
 
     fn cancel_active_crossfade(&self) {
@@ -1187,9 +1214,10 @@ impl AudioPlayer {
             let mut sink_guard = self.sink.lock().unwrap();
             *sink_guard = None;
         }
+        self.sink_invalidated.store(false, Ordering::Release);
 
         let dev_id = self.selected_device_id.lock().unwrap().clone();
-        let new_sink = Self::open_sink_for_device(dev_id.as_deref())?;
+        let new_sink = Self::open_sink_for_device(dev_id.as_deref(), Arc::clone(&self.sink_invalidated))?;
         {
             let mut sink_guard = self.sink.lock().unwrap();
             *sink_guard = Some(new_sink);
@@ -1335,6 +1363,8 @@ impl AudioPlayer {
     /// Returns `true` if a gapless track transition occurred.
     pub fn tick_position(&self, delta_secs: f64) -> bool {
         let transitioned = self.check_gapless_transition();
+        let has_valid_sink =
+            !self.sink_invalidated.load(Ordering::Acquire) && self.sink.lock().unwrap().is_some();
 
         let (should_loop, loop_url) = {
             let player_guard = self.player.lock().unwrap();
@@ -1364,7 +1394,7 @@ impl AudioPlayer {
                             } else {
                                 total
                             };
-                        } else {
+                        } else if has_valid_sink && !player.empty() {
                             meta.position_secs += delta_secs * (meta.playback_rate as f64);
                             if meta.duration > 0.0 && meta.position_secs > meta.duration {
                                 meta.position_secs = meta.duration;

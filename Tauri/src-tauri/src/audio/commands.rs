@@ -329,11 +329,14 @@ pub fn audio_set_output_device(
 }
 
 #[tauri::command]
-pub fn audio_recover_output_sink(
+pub async fn audio_recover_output_sink(
     app: AppHandle,
     service: State<'_, AudioService>,
 ) -> Result<AudioState, String> {
-    let state = service.player.recover_output_sink()?;
+    let player = Arc::clone(&service.player);
+    let state = tauri::async_runtime::spawn_blocking(move || player.recover_output_sink())
+        .await
+        .map_err(|e| format!("Audio sink recovery task failed: {}", e))??;
     emit_state(&app, &state);
     Ok(state)
 }

@@ -350,6 +350,14 @@ export class TauriAudioBackend implements IAudioEngine {
         const crossfadeDur = options.transitionDuration || this.settings.crossfadeDuration || 2.0;
         const crossfadeCurve = this.settings.crossfadeCurve || 'equalPower';
 
+        if (!shouldCrossfade) {
+            if (this.transitionTimeoutId) {
+                clearTimeout(this.transitionTimeoutId);
+                this.transitionTimeoutId = null;
+            }
+            this.isTransitioningActive = false;
+        }
+
         if (shouldCrossfade) {
             console.log(`[TauriAudioBackend] audio_crossfade initiating with url: "${streamUrl}", duration: ${crossfadeDur}, curve: ${crossfadeCurve}`);
             this.isTransitioningActive = true;
@@ -397,8 +405,15 @@ export class TauriAudioBackend implements IAudioEngine {
                 return;
             } catch (e) {
                 if (this.playToken !== currentToken) return;
-                this.isTransitioningActive = false;
                 console.warn('[TauriAudioBackend] audio_crossfade error, falling back to audio_load:', e);
+            } finally {
+                if (this.playToken === currentToken) {
+                    if (this.transitionTimeoutId) {
+                        clearTimeout(this.transitionTimeoutId);
+                        this.transitionTimeoutId = null;
+                    }
+                    this.isTransitioningActive = false;
+                }
             }
         }
 

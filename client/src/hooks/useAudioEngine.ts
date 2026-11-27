@@ -9,8 +9,11 @@ import { useHistoryStore } from '../store/historyStore';
 import { pushHistoryEntry } from '../api/history';
 import { savePlaybackState } from '../api/playbackState';
 import { useSettingsStore } from '../store/settingsStore';
+import { useDownloadStore } from '../store/downloadStore';
+import { getStreamUrl } from '../api/subsonic';
+import { isOffline } from '../utils/networkStatus';
 import { useTrackSource } from './useTrackSource';
-import { isTauri, isTauriDesktop, isMobilePlatform } from '../utils/platform';
+import { isTauri, isTauriDesktop, isTauriMobile, isMobilePlatform } from '../utils/platform';
 import { invoke } from '@tauri-apps/api/core';
 import type { IAudioEngine } from '../audio/types';
 import { getAudioEngine } from '../audio/AudioEngine';
@@ -20,6 +23,14 @@ import { isJamPath } from '../utils/basePath';
 import { getIsWindowVisible, subscribeWindowVisibility } from './useWindowVisibility';
 
 const scheduleIdle = typeof requestIdleCallback !== 'undefined' ? requestIdleCallback : (cb: Function) => setTimeout(cb, 500);
+const cancelIdle = (id: ReturnType<typeof scheduleIdle> | null | undefined) => {
+  if (id == null) return;
+  if (typeof cancelIdleCallback !== 'undefined' && typeof requestIdleCallback !== 'undefined') {
+    cancelIdleCallback(id as number);
+  } else {
+    clearTimeout(id as ReturnType<typeof setTimeout>);
+  }
+};
 
 let lastAudioSessionSyncTime = 0;
 const triggerAudioSessionSync = () => {
@@ -119,6 +130,12 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         console.warn('[useAudioEngine] Failed to apply saved audioOutputDeviceId:', err);
       });
     }
+  }, [audioBackend]);
+
+  // Recover native output sink on Tauri Mobile startup/backend switch
+  useEffect(() => {
+    if (!isTauriMobile() || audioBackend === 'web') return;
+    invoke('audio_recover_output_sink').catch(() => {});
   }, [audioBackend]);
 
   const isInitializedRef = useRef<boolean>(false);
@@ -431,18 +448,48 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const prevActiveDeviceRef = useRef<boolean>(isActiveDevice);
 
   const playActionId = usePlayerStore(s => s.playActionId);
+  const isSessionHydrated = usePlayerStore(s => s.isSessionHydrated);
+  const standbyPreloadCancelRef = useRef<(() => void) | null>(null);
+
+  const cancelStandbyPreload = useCallback(() => {
+    if (standbyPreloadCancelRef.current) {
+      standbyPreloadCancelRef.current();
+      standbyPreloadCancelRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
-    if (!currentTrack || srcLoading || srcTrackId !== currentTrack.id) return;
-    
+    cancelStandbyPreload();
+    return () => {
+      cancelStandbyPreload();
+    };
+  }, [currentTrack?.id, playActionId, cancelStandbyPreload]);
+
+  useEffect(() => {
+    if (!currentTrack) return;
+
+    const isNativeAudio = isTauri() && audioBackend !== 'web';
+    let effectiveAudioSrc = audioSrc;
+    let effectiveIsAvailable = isAvailable;
+
+    if (srcLoading || srcTrackId !== currentTrack.id) {
+      const hasLocalDownload = Boolean(useDownloadStore.getState().downloads[currentTrack.id]?.path);
+      if (isNativeAudio && !hasLocalDownload && !isOffline()) {
+        effectiveAudioSrc = getStreamUrl(currentTrack.id);
+        effectiveIsAvailable = true;
+      } else {
+        return;
+      }
+    }
+
     // oxlint-disable-next-line
-    if (!isAvailable) {
+    if (!effectiveIsAvailable) {
       setIsPlaying(false);
       engineRef.current.pause();
       console.warn('This track is not available offline');
       return;
     }
-    if (!audioSrc) return;
+    if (!effectiveAudioSrc) return;
     
     const didDeviceBecomeActive = isActiveDevice && !prevActiveDeviceRef.current;
     prevActiveDeviceRef.current = isActiveDevice;
@@ -520,12 +567,13 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         useAudioStore.getState().setProgress(Math.min(100, (startTimeSec / trackDur) * 100));
       }
 
+      cancelStandbyPreload();
       triggerAudioSessionSync();
       if (isNativeAudio) {
         loadedNativeTrackIdRef.current = null;
       }
       engineRef.current.playTrack(
-        { ...currentTrack, streamUrl: audioSrc },
+        { ...currentTrack, streamUrl: effectiveAudioSrc },
         {
           startTime: startTimeSec,
           immediate: !shouldCrossfade,
@@ -596,9 +644,11 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       if (isNativeAudio) {
         // Preload track in native audio backend paused in standby without autoplay
         loadedNativeTrackIdRef.current = null;
-        scheduleIdle(() => {
+        cancelStandbyPreload();
+        const idleHandle = scheduleIdle(() => {
+          standbyPreloadCancelRef.current = null;
           engineRef.current.playTrack(
-            { ...currentTrack, streamUrl: audioSrc },
+            { ...currentTrack, streamUrl: effectiveAudioSrc },
             {
               startTime: targetPosSec,
               autoplay: false,
@@ -609,21 +659,25 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
             loadedNativeTrackIdRef.current = currentTrack.id;
           }).catch(() => {});
         });
+        standbyPreloadCancelRef.current = () => cancelIdle(idleHandle);
         return;
       }
 
       // Defer loading standby audio stream when paused to idle callback so critical page rendering (FCP, LCP, fonts) has 100% network priority
-      const preloadAudioSrc = audioSrc.includes('/api/stream/') && !audioSrc.includes('preloadChunk=')
-        ? `${audioSrc}&preloadChunk=262144`
-        : audioSrc;
+      const preloadAudioSrc = effectiveAudioSrc.includes('/api/stream/') && !effectiveAudioSrc.includes('preloadChunk=')
+        ? `${effectiveAudioSrc}&preloadChunk=262144`
+        : effectiveAudioSrc;
       const deck = (engineRef.current as any).getActiveDeck?.();
       if (deck) {
-        scheduleIdle(() => {
+        cancelStandbyPreload();
+        const idleHandle = scheduleIdle(() => {
+          standbyPreloadCancelRef.current = null;
           deck.load(preloadAudioSrc, targetPosSec, 'metadata').catch(() => {});
         });
+        standbyPreloadCancelRef.current = () => cancelIdle(idleHandle);
       }
     }
-  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition, setIsPlaying, playActionId, isAvailable, audioBackend]);
+  }, [currentTrack, srcTrackId, audioSrc, srcLoading, isActiveDevice, isSpeakerDj, audioRefs, setAudioElement, effectiveSettings.isCrossfadeEnabled, effectiveSettings.crossfadeDuration, initialPosition, setInitialPosition, setIsPlaying, playActionId, isAvailable, audioBackend, cancelStandbyPreload]);
 
   // Handle async initialPosition restoring for the first track
   useEffect(() => {
@@ -687,12 +741,17 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
     useEffect(() => {
       if (!currentTrack) return;
   
-      const isHydrated = usePlayerStore.getState().isSessionHydrated;
-      const playActionId = usePlayerStore.getState().playActionId;
-      const hasUserTriggeredPlayback = playActionId > 0 || prevIsPlayingRef.current;
+      const isHydrated = isSessionHydrated || usePlayerStore.getState().isSessionHydrated;
+      const currentPlayActionId = usePlayerStore.getState().playActionId;
+      const hasUserTriggeredPlayback = currentPlayActionId > 0 || prevIsPlayingRef.current;
+
+      if (isPlaying && !isHydrated) {
+        return;
+      }
 
       if (isPlaying && isActiveDevice && !isSpeakerDj && isHydrated && hasUserTriggeredPlayback) {
         if (!prevIsPlayingRef.current) {
+          cancelStandbyPreload();
           triggerAudioSessionSync();
           engineRef.current.resume().then(() => {
             triggerAudioSessionSync();
@@ -714,7 +773,7 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         }
       }
       prevIsPlayingRef.current = isPlaying;
-    }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, flushPositionToLocalStorage, flushPlaybackProgressToServer, playActionId, setIsPlaying]);
+    }, [isPlaying, currentTrack, isActiveDevice, isSpeakerDj, isSessionHydrated, flushPositionToLocalStorage, flushPlaybackProgressToServer, playActionId, setIsPlaying, cancelStandbyPreload]);
 
   
 

@@ -593,18 +593,21 @@ pub extern "C" fn Java_com_holad_app_MainActivity_initNdkContext(
     _class: jni::objects::JClass,
     context: jni::objects::JObject,
 ) {
-    if let Ok(vm) = env.get_java_vm() {
-        let vm_ptr = vm.get_java_vm_pointer() as *mut std::ffi::c_void;
-        if let Ok(global_context) = env.new_global_ref(context) {
-            let ctx_ptr = global_context.as_raw() as *mut std::ffi::c_void;
-            // Prevent dropping global ref
-            std::mem::forget(global_context);
-            unsafe {
-                ndk_context::initialize_android_context(vm_ptr, ctx_ptr);
+    static NDK_INIT: std::sync::Once = std::sync::Once::new();
+    NDK_INIT.call_once(|| {
+        if let Ok(vm) = env.get_java_vm() {
+            let vm_ptr = vm.get_java_vm_pointer() as *mut std::ffi::c_void;
+            if let Ok(global_context) = env.new_global_ref(context) {
+                let ctx_ptr = global_context.as_raw() as *mut std::ffi::c_void;
+                // Prevent dropping global ref
+                std::mem::forget(global_context);
+                unsafe {
+                    ndk_context::initialize_android_context(vm_ptr, ctx_ptr);
+                }
+                log::info!("[Rust Audio] Successfully initialized ndk_context with JavaVM and Activity Context!");
             }
-            log::info!("[Rust Audio] Successfully initialized ndk_context with JavaVM and Activity Context!");
         }
-    }
+    });
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]

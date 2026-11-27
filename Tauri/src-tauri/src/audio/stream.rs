@@ -143,15 +143,29 @@ impl ProgressiveMediaStream {
 
             match reader.read(&mut chunk) {
                 Ok(0) => {
-                    {
+                    let truncated_err = {
                         let mut buf = shared.buf.lock().unwrap();
+                        let downloaded = buf.data.len() as u64;
+                        let mut truncated = None;
+                        if let Some(total) = total_len {
+                            if downloaded < total {
+                                let msg = format!("Unexpected EOF: {}/{}", downloaded, total);
+                                buf.error = Some(msg.clone());
+                                truncated = Some(msg);
+                            }
+                        }
                         buf.finished = true;
                         shared.condvar.notify_all();
-                    }
-                    if let Ok(mut meta) = meta_arc.lock() {
-                        if meta.generation == generation {
-                            meta.buffered_percent = 100.0;
+                        truncated
+                    };
+                    if truncated_err.is_none() {
+                        if let Ok(mut meta) = meta_arc.lock() {
+                            if meta.generation == generation {
+                                meta.buffered_percent = 100.0;
+                            }
                         }
+                    } else if let Some(msg) = truncated_err {
+                        log::warn!("[ProgressiveMediaStream] {}", msg);
                     }
                     break;
                 }
@@ -239,6 +253,10 @@ impl ProgressiveMediaStream {
         }
         let buf = self.shared.buf.lock().unwrap();
         buf.finished && buf.error.is_none() && !buf.data.is_empty()
+    }
+
+    pub fn has_error(&self) -> bool {
+        self.shared.buf.lock().unwrap().error.is_some()
     }
 
     pub fn ram_len(&self) -> usize {
@@ -818,25 +836,30 @@ impl StreamCache {
         if let Some(idx) = self.entries.iter().position(|e| e.url == url) {
             let mut entry = self.entries.remove(idx).unwrap();
 
-            // Spill oversized finished HTTP stream to disk and swap to Local handle
-            if let MediaInput::Progressive(ref stream) = entry.input {
-                if stream.is_finished_ok() && stream.ram_len() > self.ram_spill_threshold_bytes {
-                    if let Some(disk_path) = self.spill_progressive_to_disk(&entry.url, stream) {
-                        if let Ok(file) = File::open(&disk_path) {
-                            entry.input = MediaInput::Local {
-                                reader: BufReader::new(file),
-                                path: disk_path.to_string_lossy().into_owned(),
-                            };
+            let is_poisoned = entry.cancel.load(Ordering::Acquire)
+                || matches!(&entry.input, MediaInput::Progressive(s) if s.has_error());
+
+            if !is_poisoned {
+                // Spill oversized finished HTTP stream to disk and swap to Local handle
+                if let MediaInput::Progressive(ref stream) = entry.input {
+                    if stream.is_finished_ok() && stream.ram_len() > self.ram_spill_threshold_bytes {
+                        if let Some(disk_path) = self.spill_progressive_to_disk(&entry.url, stream) {
+                            if let Ok(file) = File::open(&disk_path) {
+                                entry.input = MediaInput::Local {
+                                    reader: BufReader::new(file),
+                                    path: disk_path.to_string_lossy().into_owned(),
+                                };
+                            }
                         }
                     }
                 }
-            }
 
-            let cloned = entry.input.clone_handle().ok()?;
-            let duration = entry.duration;
-            let cancel = Arc::clone(&entry.cancel);
-            self.entries.push_back(entry);
-            return Some((cloned, duration, cancel));
+                let cloned = entry.input.clone_handle().ok()?;
+                let duration = entry.duration;
+                let cancel = Arc::clone(&entry.cancel);
+                self.entries.push_back(entry);
+                return Some((cloned, duration, cancel));
+            }
         }
 
         // Check disk cache for HTTP URLs

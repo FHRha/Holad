@@ -6,7 +6,7 @@ import { useIsActiveDevice } from './useIsActiveDevice';
 import { useWindowVisibility, getIsWindowVisible } from './useWindowVisibility';
 import { getCoverArtUrl } from '../api/subsonic';
 import { getAudioEngine } from '../audio/AudioEngine';
-import { isTauri, isTauriDesktop, isTauriMobile } from '../utils/platform';
+import { isTauri, isTauriDesktop, isTauriMobile, isMobilePlatform } from '../utils/platform';
 import { invoke } from '@tauri-apps/api/core';
 
 function isTrackStreaming(track: any): boolean {
@@ -242,7 +242,10 @@ export function useMediaSession() {
         case 'unduck': {
           const eng = getAudioEngine();
           if (eng && typeof (eng as any).setVolume === 'function') {
-            (eng as any).setVolume(1.0);
+            const state = usePlayerStore.getState();
+            const isMobile = isMobilePlatform();
+            const restoredVolume = isMobile ? state.mobileVolume : state.volume;
+            (eng as any).setVolume(restoredVolume, isMobile);
           }
           break;
         }

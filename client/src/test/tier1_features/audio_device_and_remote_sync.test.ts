@@ -199,6 +199,7 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       const masterId = 'desktop-master';
       const mockSocket = { emit: vi.fn() } as any;
 
+      usePlayerStore.setState({ isSessionHydrated: true });
       useHoladStore.setState({
         socket: mockSocket,
         roomId: 'test-room',
@@ -229,6 +230,7 @@ describe('Headphone Handling, Audio Device Display & Holad Remote Protection', (
       const masterId = 'desktop-master';
       const mockSocket = { emit: vi.fn() } as any;
 
+      usePlayerStore.setState({ isSessionHydrated: true });
       useHoladStore.setState({
         socket: mockSocket,
         roomId: 'test-room',

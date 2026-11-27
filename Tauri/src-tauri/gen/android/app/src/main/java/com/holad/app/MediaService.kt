@@ -192,6 +192,17 @@ class MediaService : Service(), AudioManager.OnAudioFocusChangeListener {
         isRunning = false
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.i("MediaService", "MediaService onTaskRemoved: isPlayingState=$isPlayingState")
+        if (!isPlayingState) {
+            releaseWakeLock()
+            releaseWifiLock()
+            abandonAudioFocus()
+            stopForegroundInternal()
+        }
+    }
+
     fun setMediaActionListener(listener: MediaActionListener?) {
         this.actionListener = listener
     }
