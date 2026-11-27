@@ -40,7 +40,11 @@ export interface ProfileState {
   applySlot: (slot: 1 | 2 | 3) => void;
   renameSlot: (slot: 1 | 2 | 3, newName: string) => Promise<void>;
   clearSlot: (slot: 1 | 2 | 3) => Promise<void>;
-  syncWithServerProfiles: (rawProfiles: string | (ProfileSlot | null)[], serverUpdatedAt?: number) => void;
+  syncWithServerProfiles: (
+    rawProfiles: string | (ProfileSlot | null)[] | { slots?: (ProfileSlot | null)[]; activeSlot?: 1 | 2 | 3 | null },
+    serverUpdatedAt?: number,
+    serverActiveSlot?: 1 | 2 | 3 | null
+  ) => void;
 }
 
 export function captureCurrentProfileData(): ProfileData {
@@ -116,7 +120,13 @@ export const useProfileStore = create<ProfileState>()(
         // Persist to SQLite Server
         pushPreferences({
           profiles: JSON.stringify(currentSlots),
-        }).catch((err) => console.warn('[ProfileStore] Failed to push profiles to server:', err));
+        })
+          .then((ok) => {
+            if (ok && get().profilesUpdatedAt === now) {
+              set({ profilesUpdatedAt: 0 });
+            }
+          })
+          .catch((err) => console.warn('[ProfileStore] Failed to push profiles to server:', err));
       },
 
       applySlot: (slot) => {
@@ -145,7 +155,13 @@ export const useProfileStore = create<ProfileState>()(
 
         pushPreferences({
           profiles: JSON.stringify(currentSlots),
-        }).catch((err) => console.warn('[ProfileStore] Failed to push renamed profile:', err));
+        })
+          .then((ok) => {
+            if (ok && get().profilesUpdatedAt === now) {
+              set({ profilesUpdatedAt: 0 });
+            }
+          })
+          .catch((err) => console.warn('[ProfileStore] Failed to push renamed profile:', err));
       },
 
       clearSlot: async (slot) => {
@@ -161,19 +177,34 @@ export const useProfileStore = create<ProfileState>()(
 
         pushPreferences({
           profiles: JSON.stringify(currentSlots),
-        }).catch((err) => console.warn('[ProfileStore] Failed to clear profile slot on server:', err));
+        })
+          .then((ok) => {
+            if (ok && get().profilesUpdatedAt === now) {
+              set({ profilesUpdatedAt: 0 });
+            }
+          })
+          .catch((err) => console.warn('[ProfileStore] Failed to clear profile slot on server:', err));
       },
 
-      syncWithServerProfiles: (rawProfiles, serverUpdatedAt = 0) => {
+      syncWithServerProfiles: (rawProfiles, serverUpdatedAt = 0, serverActiveSlot) => {
         if (!rawProfiles) return;
         try {
           const parsed = typeof rawProfiles === 'string' ? JSON.parse(rawProfiles) : rawProfiles;
-          if (!Array.isArray(parsed)) return;
+          const slotsList = Array.isArray(parsed)
+            ? parsed
+            : (parsed && typeof parsed === 'object' && Array.isArray(parsed.slots) ? parsed.slots : null);
+          if (!slotsList) return;
+
+          const incomingActiveSlot = serverActiveSlot !== undefined
+            ? serverActiveSlot
+            : (!Array.isArray(parsed) && parsed && typeof parsed === 'object' && 'activeSlot' in parsed
+              ? (parsed.activeSlot as 1 | 2 | 3 | null | undefined)
+              : undefined);
 
           const localUpdatedAt = get().profilesUpdatedAt || 0;
           const localSlots = get().slots;
           const hasLocalProfiles = localSlots.some((s) => s !== null);
-          const hasServerProfiles = parsed.some((item) => item && typeof item === 'object' && item.name && item.data);
+          const hasServerProfiles = slotsList.some((item: any) => item && typeof item === 'object' && item.name && item.data);
 
           // SSOT Priority: If server has at least one valid profile slot, and local has NO profiles (all null),
           // server ALWAYS takes priority (SSOT), regardless of localUpdatedAt. Never overwrite server profiles with empty slots!
@@ -183,41 +214,53 @@ export const useProfileStore = create<ProfileState>()(
             // Local has profiles, but server has none: push local profiles to server
             pushPreferences({
               profiles: JSON.stringify(localSlots),
-            }).catch(() => {});
+            })
+              .then((ok) => {
+                if (ok && get().profilesUpdatedAt === localUpdatedAt) {
+                  set({ profilesUpdatedAt: 0 });
+                }
+              })
+              .catch(() => {});
             return;
           } else if (localUpdatedAt > serverUpdatedAt && localUpdatedAt > 0 && hasLocalProfiles) {
             // Priority: Database (SSOT). If local has newer un-synced offline edits, push local to server.
             console.log('[ProfileStore] Local profiles are newer than server DB, uploading local profiles...');
             pushPreferences({
               profiles: JSON.stringify(localSlots),
-            }).catch(() => {});
+            })
+              .then((ok) => {
+                if (ok && get().profilesUpdatedAt === localUpdatedAt) {
+                  set({ profilesUpdatedAt: 0 });
+                }
+              })
+              .catch(() => {});
             return;
           }
 
           // Otherwise, apply server profiles to store
           const sanitizedSlots: [ProfileSlot | null, ProfileSlot | null, ProfileSlot | null] = [null, null, null];
           for (let i = 0; i < 3; i++) {
-            const item = parsed[i];
+            const item = slotsList[i];
             if (item && typeof item === 'object' && item.name && item.data) {
               sanitizedSlots[i] = {
                 slot: (i + 1) as 1 | 2 | 3,
                 name: item.name,
                 data: item.data,
-                updatedAt: item.updatedAt || serverUpdatedAt || Date.now(),
+                updatedAt: item.updatedAt || serverUpdatedAt || 0,
               };
             }
           }
 
           // Verify if activeSlot is still valid
-          const currentActive = get().activeSlot;
-          const nextActive = currentActive && sanitizedSlots[currentActive - 1] ? currentActive : null;
+          const candidateActive = incomingActiveSlot !== undefined ? incomingActiveSlot : get().activeSlot;
+          const nextActive = (candidateActive === 1 || candidateActive === 2 || candidateActive === 3) && sanitizedSlots[candidateActive - 1]
+            ? candidateActive
+            : null;
 
           set({
             slots: sanitizedSlots,
             activeSlot: nextActive,
-            profilesUpdatedAt: (!hasLocalProfiles && hasServerProfiles)
-              ? (serverUpdatedAt || Date.now())
-              : Math.max(serverUpdatedAt, localUpdatedAt),
+            profilesUpdatedAt: serverUpdatedAt || 0,
           });
 
           if (nextActive && sanitizedSlots[nextActive - 1]) {

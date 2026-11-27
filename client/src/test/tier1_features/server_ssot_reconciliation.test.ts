@@ -3,6 +3,12 @@ import { usePlayerStore } from '../../store/playerStore';
 import { useHoladStore } from '../../store/holadStore';
 import { useAudioStore } from '../../store/audioStore';
 import { networkManager } from '../../utils/networkStatus';
+import { useHistoryStore } from '../../store/historyStore';
+import { syncHistoryWithServer } from '../../api/history';
+import { usePlaylistStore } from '../../store/playlistStore';
+import { pushPreferences } from '../../api/preferences';
+import { useAuthStore } from '../../store/authStore';
+import { handleRemoteCommand } from '../../connect/remoteCommandHandler';
 import type { Track } from '../../types';
 import type { PlaybackSnapshot } from '../../connect/types';
 
@@ -312,5 +318,96 @@ describe('Server-Authoritative SSOT & Offline Playback Reconciliation', () => {
     expect(emitSpy).not.toHaveBeenCalledWith('holad_reconcileOffline', expect.anything());
     expect(usePlayerStore.getState().hasActiveOfflinePlayback).toBe(false);
     expect(usePlayerStore.getState().isSessionHydrated).toBe(true);
+  });
+
+  it('8. syncHistoryWithServer treats server history as SSOT when no offline plays are pending', async () => {
+    useAuthStore.setState({
+      user: 'ssot-user',
+      token: 'tok',
+      salt: 'slt',
+      url: 'http://localhost:4533',
+      isAuthenticated: true,
+    });
+    useHistoryStore.setState({
+      history: [{ id: 'stale-deleted-song', title: 'Stale', artist: 'A', duration: 100, playedAt: 1000 } as any],
+      pendingOfflineHistory: [],
+    });
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    } as any);
+
+    await syncHistoryWithServer();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(useHistoryStore.getState().history).toEqual([]);
+  });
+
+  it('9. remoteCommandHandler requestHistory does not re-upload stale localStorage history', () => {
+    useHistoryStore.setState({
+      history: [{ id: 'old-song', title: 'Old', artist: 'A', duration: 100, playedAt: 1000 } as any],
+      pendingOfflineHistory: [],
+    });
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    handleRemoteCommand(
+      { type: 'requestHistory' },
+      {
+        socket: null,
+        deviceId: 'dev-1',
+        roomId: 'ssot-user',
+        activeDeviceId: 'dev-1',
+        lastPausedAt: null,
+      }
+    );
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('10. playlistStore.mergeServerPlaylists uses server as SSOT while keeping pending offline playlists', () => {
+    usePlaylistStore.setState({
+      playlists: [
+        { id: 'pl-deleted-on-server', name: 'Deleted', description: '', trackIds: ['t1'], pendingOfflineSync: false },
+        { id: 'pl-synced', name: 'Synced', description: '', trackIds: ['t1', 't-removed'], pendingOfflineSync: false },
+        { id: 'pl-offline-new', name: 'Offline New', description: '', trackIds: ['t9'], pendingOfflineSync: true },
+      ],
+      pendingSyncIds: ['pl-offline-new'],
+    });
+
+    usePlaylistStore.getState().mergeServerPlaylists([
+      { id: 'pl-synced', name: 'Synced Renamed', description: 'Updated', trackIds: ['t1'] },
+    ]);
+
+    const playlists = usePlaylistStore.getState().playlists;
+    expect(playlists.map(p => p.id)).toEqual(['pl-synced', 'pl-offline-new']);
+    expect(playlists[0].name).toBe('Synced Renamed');
+    expect(playlists[0].trackIds).toEqual(['t1']);
+  });
+
+  it('11. pushPreferences does not abort earlier concurrent preference updates', async () => {
+    useAuthStore.setState({
+      user: 'ssot-user',
+      token: 'tok',
+      salt: 'slt',
+      url: 'http://localhost:4533',
+      isAuthenticated: true,
+    });
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => ({
+      ok: true,
+    } as any));
+
+    const [res1, res2] = await Promise.all([
+      pushPreferences({ theme: 'light' }),
+      pushPreferences({ language: 'en' }),
+    ]);
+
+    expect(res1).toBe(true);
+    expect(res2).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0][1]?.signal?.aborted).toBe(false);
+    expect(fetchSpy.mock.calls[1][1]?.signal?.aborted).toBe(false);
   });
 });

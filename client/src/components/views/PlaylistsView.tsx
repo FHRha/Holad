@@ -10,25 +10,44 @@ import PlaylistCover from '../common/PlaylistCover';
 import EmptyState from '../common/EmptyState';
 import { CardGridSkeleton, Skeleton } from '../common/Skeleton';
 import { isJamPath } from '../../utils/basePath';
+import {
+  getLibraryCacheEpoch,
+  subscribeLibraryInvalidation,
+} from '../../utils/libraryCache';
 
-let cachedPlaylistsData: any[] | null = null;
+interface PlaylistsViewCache {
+  epoch: number;
+  playlists: any[];
+}
+
+let cachedPlaylistsData: PlaylistsViewCache | null = null;
+
+function getValidPlaylistsCache(): PlaylistsViewCache | null {
+  if (cachedPlaylistsData && cachedPlaylistsData.epoch === getLibraryCacheEpoch()) {
+    return cachedPlaylistsData;
+  }
+  cachedPlaylistsData = null;
+  return null;
+}
 
 export default function PlaylistsView() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const isInsideLibrary = useLocation().pathname.startsWith('/library');
   const { openMenu } = useContextMenuStore();
-  const [playlists, setPlaylists] = useState<any[]>(() => cachedPlaylistsData || []);
-  const [loading, setLoading] = useState(() => !cachedPlaylistsData);
+  const initialCache = getValidPlaylistsCache();
+  const [playlists, setPlaylists] = useState<any[]>(() => initialCache?.playlists || []);
+  const [loading, setLoading] = useState(() => !initialCache);
   const customPlaylists = usePlaylistStore(state => state.playlists);
   const { isOffline } = useNetworkStatus();
 
   useEffect(() => {
     let isMounted = true;
-    const fetchAllPlaylists = async () => {
-      if (!cachedPlaylistsData && isMounted) {
+    const fetchAllPlaylists = async (isBackground = false) => {
+      if (!isBackground && !getValidPlaylistsCache() && isMounted) {
         setLoading(true);
       }
+      const currentEpoch = getLibraryCacheEpoch();
       try {
         let serverPlaylists: any[] = [];
         if (!isOffline) {
@@ -58,7 +77,7 @@ export default function PlaylistsView() {
 
         if (isMounted) {
           const combined = [...mappedCustomPlaylists, ...(serverPlaylists || [])];
-          cachedPlaylistsData = combined;
+          cachedPlaylistsData = { epoch: currentEpoch, playlists: combined };
           setPlaylists(combined);
         }
       } catch (err) {
@@ -69,11 +88,16 @@ export default function PlaylistsView() {
         }
       }
     };
-    fetchAllPlaylists();
-    window.addEventListener('playlists-updated', fetchAllPlaylists);
+    const handleEventRefresh = () => {
+      void fetchAllPlaylists(true);
+    };
+    void fetchAllPlaylists(false);
+    window.addEventListener('playlists-updated', handleEventRefresh);
+    const unsubscribeLibrary = subscribeLibraryInvalidation(handleEventRefresh);
     return () => {
       isMounted = false;
-      window.removeEventListener('playlists-updated', fetchAllPlaylists);
+      window.removeEventListener('playlists-updated', handleEventRefresh);
+      unsubscribeLibrary();
     };
   }, [isOffline, customPlaylists]);
 

@@ -3,10 +3,9 @@ import { usePlayerStore } from '../store/playerStore';
 import { useAudioStore } from '../store/audioStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useHistoryStore } from '../store/historyStore';
-import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
-import { syncHistoryWithServer } from '../api/history';
-import { getHoladServerUrl } from '../utils/serverConfig';
+import { syncHistoryWithServer, pushHistoryBatch } from '../api/history';
+import { syncQueueToServer } from '../store/slices/queueSlice';
 import { getAudioEngine } from '../audio/AudioEngine';
 
 export interface RemoteCommandContext {
@@ -79,21 +78,17 @@ export function handleRemoteCommand(
   
   if (command.type === 'requestHistory') {
     console.log('[Holad] Received requestHistory.');
-    const history = useHistoryStore.getState().history;
-    console.log('[Holad] Emitting history via REST API with tracks:', history.length);
-    if (history.length > 0 && roomId) {
-      const { user, token, salt, url } = useAuthStore.getState();
-      fetch(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(roomId)}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user': encodeURIComponent(user),
-          'x-token': encodeURIComponent(token),
-          'x-salt': encodeURIComponent(salt),
-          'x-url': encodeURIComponent(url)
-        },
-        body: JSON.stringify(history)
-      }).catch(err => console.error('[Holad] Failed to upload history:', err));
+    const historyStore = useHistoryStore.getState();
+    const pendingOffline = historyStore.pendingOfflineHistory || [];
+    if (pendingOffline.length > 0 && roomId) {
+      console.log('[Holad] Pushing pending offline history:', pendingOffline.length);
+      pushHistoryBatch(pendingOffline)
+        .then((ok) => {
+          if (ok) {
+            historyStore.clearPendingOfflineHistory();
+          }
+        })
+        .catch(err => console.error('[Holad] Failed to upload pending history:', err));
     }
     return;
   }
@@ -117,7 +112,11 @@ export function handleRemoteCommand(
   if (command.type === 'preferencesUpdated') {
     const prefs = command.payload;
     if (prefs?.profiles) {
-      useProfileStore.getState().syncWithServerProfiles(prefs.profiles, prefs.updated_at);
+      useProfileStore.getState().syncWithServerProfiles(
+        prefs.profiles,
+        prefs.updated_at,
+        prefs.activeSlot ?? prefs.active_slot
+      );
     }
     if (prefs) {
       const { syncTheme, syncLanguage, setTheme, setAccentColor, setCustomColor, setLanguage } = useSettingsStore.getState();
@@ -166,6 +165,9 @@ export function handleRemoteCommand(
           currentIndex: store.currentIndex,
           queue: store.queue,
           currentTime,
+          isShuffle: store.isShuffle,
+          repeatMode: store.repeatMode,
+          queueVersion: store.queueVersion || '',
           accentColor: useSettingsStore.getState().accentColor,
           customColors: useSettingsStore.getState().customColors,
           lastPausedAt
@@ -190,6 +192,9 @@ export function handleRemoteCommand(
           currentIndex: store.currentIndex,
           queue: store.queue,
           currentTime: curTime,
+          isShuffle: store.isShuffle,
+          repeatMode: store.repeatMode,
+          queueVersion: store.queueVersion || '',
           accentColor: useSettingsStore.getState().accentColor,
           customColors: useSettingsStore.getState().customColors,
           lastPausedAt
@@ -234,7 +239,7 @@ export function handleRemoteCommand(
           store.setVolume(command.payload);
         }
         break;
-      case 'shuffle':
+      case 'shuffle': {
         if (typeof command.payload === 'boolean') {
           if (store.isShuffle !== command.payload) {
             store.toggleShuffle();
@@ -242,14 +247,41 @@ export function handleRemoteCommand(
         } else {
           store.toggleShuffle();
         }
+        const updated = usePlayerStore.getState();
+        socket?.emit('holad_updateSnapshot', {
+          roomId: roomId || undefined,
+          currentIndex: updated.currentIndex,
+          isShuffle: updated.isShuffle,
+          repeatMode: updated.repeatMode,
+          queueVersion: updated.queueVersion || '',
+        });
         break;
-      case 'repeat':
+      }
+      case 'repeat': {
         if (typeof command.payload === 'string') {
-          usePlayerStore.setState({ repeatMode: command.payload as any });
+          const normalized = command.payload === 'off' ? 'none' : command.payload;
+          if (normalized === 'none' || normalized === 'all' || normalized === 'one') {
+            usePlayerStore.setState({ repeatMode: normalized });
+          }
         } else {
           store.cycleRepeatMode();
         }
+        const updated = usePlayerStore.getState();
+        syncQueueToServer(
+          updated.queue,
+          updated.currentIndex,
+          updated.queueVersion || '',
+          Date.now(),
+          updated
+        );
+        socket?.emit('holad_updateSnapshot', {
+          roomId: roomId || undefined,
+          repeatMode: updated.repeatMode,
+          isShuffle: updated.isShuffle,
+          queueVersion: updated.queueVersion || '',
+        });
         break;
+      }
       case 'setTrack':
         if (typeof command.payload === 'number') {
           store.setCurrentIndex(command.payload);

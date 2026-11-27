@@ -138,6 +138,8 @@ const io = new Server(httpServer, {
   maxHttpBufferSize: 1e6 // 1 MB limit to prevent OOM DoS
 });
 
+librarySyncService.setIo(io);
+
 httpServer.prependListener('request', normalizeSocketUrl);
 httpServer.prependListener('upgrade', normalizeSocketUrl);
 
@@ -337,6 +339,8 @@ const ALLOWED_GUEST_ENDPOINTS = new Set([
   'getStarred2',
   'getMusicFolders',
   'getLicense',
+  'getScanStatus',
+  'getScanStatus.view',
   'stream',
   'download'
 ]);
@@ -352,7 +356,9 @@ const ALLOWED_AUTH_ENDPOINTS = new Set([
   'scrobble',
   'savePlayQueue',
   'getPlayQueue',
-  'createShare'
+  'createShare',
+  'startScan',
+  'startScan.view'
 ]);
 
 // Allow expanding endpoints via environment variable (e.g. SUBSONIC_ALLOWED_ENDPOINTS=customMethod1,customMethod2)
@@ -765,6 +771,9 @@ app.post('/api/save-credentials', saveCredentialsRateLimiter, express.json({ lim
     
     database.saveNavidromeAccount({ url, user: username, token, salt });
     navidromeAccounts = database.getNavidromeAccounts();
+    if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+      librarySyncService.triggerSync(username);
+    }
     res.json({ status: 'ok' });
   } catch (error: any) {
     console.error('[AUTH] Failed to connect to Navidrome:', error);
@@ -2999,6 +3008,15 @@ if (fs.existsSync(clientPath)) {
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`▶ Access Holad at: http://localhost:${PORT}/`);
+
+  if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+    const initialSyncTimer = setTimeout(() => {
+      librarySyncService.triggerSync();
+    }, 5000);
+    if (initialSyncTimer.unref) {
+      initialSyncTimer.unref();
+    }
+  }
 });
 
 export { app, httpServer, io, navidromeAccounts, librarySyncService };

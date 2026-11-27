@@ -5,8 +5,9 @@ import { useAudioStore } from './audioStore';
 import { useSettingsStore } from './settingsStore';
 import { useHistoryStore } from './historyStore';
 import { useAuthStore } from './authStore';
-import { getSocketUrl, getHoladServerUrl, getSocketPath } from '../utils/serverConfig';
+import { getSocketUrl, getSocketPath } from '../utils/serverConfig';
 import { getCoverArtUrl } from '../api/subsonic';
+import { syncHistoryWithServer, pushHistoryBatch } from '../api/history';
 import {
   generateDeviceId,
   getDeviceName,
@@ -331,14 +332,6 @@ export const useHoladStore = create<HoladState>((set, get) => {
           const playerStore = usePlayerStore.getState();
           const audioStore = useAudioStore.getState();
 
-          socket!.emit('holad_updateState', {
-            roomId: get().roomId,
-            deviceId: get().deviceId,
-            isPlaying: playerStore.isPlaying,
-            currentIndex: playerStore.currentIndex,
-            queue: playerStore.queue,
-          });
-
           if (playerStore.queue.length > 0 && playerStore.currentIndex >= 0) {
             const track = playerStore.queue[playerStore.currentIndex];
             const duration = audioStore.duration || track?.duration;
@@ -377,6 +370,15 @@ export const useHoladStore = create<HoladState>((set, get) => {
           isPlaying: typeof state.isPlaying === 'boolean' ? state.isPlaying : (currentSnapshot?.isPlaying ?? false),
           playbackRate: typeof state.playbackRate === 'number' ? state.playbackRate : (currentSnapshot?.playbackRate ?? 1),
           version: typeof state.version === 'number' ? state.version : ((currentSnapshot?.version ?? 0) + 1),
+          isShuffle: typeof state.isShuffle === 'boolean'
+            ? state.isShuffle
+            : (typeof state.is_shuffled === 'boolean' ? state.is_shuffled : currentSnapshot?.isShuffle),
+          repeatMode: (state.repeatMode === 'none' || state.repeatMode === 'all' || state.repeatMode === 'one')
+            ? state.repeatMode
+            : (state.repeatMode === 'off' ? 'none' : currentSnapshot?.repeatMode),
+          queueVersion: typeof state.queueVersion === 'string'
+            ? state.queueVersion
+            : (typeof state.queue_version === 'string' ? state.queue_version : currentSnapshot?.queueVersion),
         };
 
         // If client has active offline playback that was not yet reconciled:
@@ -399,6 +401,9 @@ export const useHoladStore = create<HoladState>((set, get) => {
               positionMs,
               isPlaying: playerStore.isPlaying,
               playbackRate: playerStore.playbackRate || 1,
+              isShuffle: playerStore.isShuffle,
+              repeatMode: playerStore.repeatMode,
+              queueVersion: playerStore.queueVersion || '',
             });
             playerStore.setHasActiveOfflinePlayback(false);
             playerStore.setIsSessionHydrated(true);
@@ -480,6 +485,12 @@ export const useHoladStore = create<HoladState>((set, get) => {
           return;
         }
 
+        const snapshotExtra = {
+          ...(typeof snapshot.isShuffle === 'boolean' ? { isShuffle: snapshot.isShuffle } : {}),
+          ...(snapshot.repeatMode ? { repeatMode: snapshot.repeatMode } : {}),
+          ...(typeof snapshot.queueVersion === 'string' ? { queueVersion: snapshot.queueVersion } : {}),
+        };
+
         if (isPassive) {
           const wasHydrated = playerStore.isSessionHydrated;
           usePlayerStore.setState({
@@ -488,6 +499,7 @@ export const useHoladStore = create<HoladState>((set, get) => {
             currentIndex: targetIndex,
             isPlaying: wasHydrated ? snapshot.isPlaying : false,
             isSessionHydrated: true,
+            ...snapshotExtra,
           });
 
           const trackDurSec = currentTrack?.duration && currentTrack.duration > 0
@@ -550,14 +562,17 @@ export const useHoladStore = create<HoladState>((set, get) => {
               isPlaying: false,
               initialPosition: currentPosMs,
               isSessionHydrated: true,
+              ...snapshotExtra,
             });
           } else {
             usePlayerStore.setState({
               queue: mappedQueue,
               originalQueue: mappedQueue,
               currentIndex: targetIndex,
+              isPlaying: snapshot.isPlaying,
               initialPosition: currentPosMs,
               isSessionHydrated: true,
+              ...snapshotExtra,
             });
           }
         }
@@ -619,6 +634,12 @@ export const useHoladStore = create<HoladState>((set, get) => {
           activeDeviceId: get().activeDeviceId,
           lastPausedAt: get().lastPausedAt,
         });
+      });
+
+      socket.on('holad_libraryUpdated', () => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('holad:library-updated'));
+        }
       });
 
       get().setupStoreSubscriptions();
@@ -720,26 +741,20 @@ export const useHoladStore = create<HoladState>((set, get) => {
       const state = get();
       if (!state.roomId) return;
 
-      const { user, token, salt, url } = useAuthStore.getState();
-      const localHistory = useHistoryStore.getState().history;
+      const historyStore = useHistoryStore.getState();
+      const pendingHistory = historyStore.pendingOfflineHistory || [];
 
       try {
-        if (localHistory.length > 0) {
-          console.log('[Holad] Pushing local history for manual sync...');
-          await fetch(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(state.roomId)}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-user': encodeURIComponent(user),
-              'x-token': encodeURIComponent(token),
-              'x-salt': encodeURIComponent(salt),
-              'x-url': encodeURIComponent(url),
-            },
-            body: JSON.stringify(localHistory),
-          });
+        if (pendingHistory.length > 0) {
+          console.log('[Holad] Pushing pending offline history for manual sync...');
+          const ok = await pushHistoryBatch(pendingHistory);
+          if (ok) {
+            historyStore.clearPendingOfflineHistory();
+          }
         }
+        await syncHistoryWithServer();
       } catch (err) {
-        console.error('[Holad] Failed to push local history during manual sync:', err);
+        console.error('[Holad] Failed to sync history during manual sync:', err);
       }
 
       const currentSocket = state.socket || socket;

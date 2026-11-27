@@ -6,19 +6,88 @@ import { useAuthStore } from '../store/authStore';
 import { fetchStarred, getCoverArtUrl, getSong } from '../api/subsonic';
 import { fetchExclusions } from '../api/exclusions';
 import { syncHistoryWithServer } from '../api/history';
-import { fetchPreferences } from '../api/preferences';
-import { fetchIntegrations } from '../api/integrations';
+import { fetchPreferences, type ServerPreferences } from '../api/preferences';
+import { fetchIntegrations, type ServerIntegrationItem } from '../api/integrations';
 import { fetchPlaybackState, savePlaybackState } from '../api/playbackState';
 import { toCompactQueue } from '../store/slices/queueSlice';
 import { useSettingsStore } from '../store/settingsStore';
-import { usePlaylistStore, fetchUserCustomPlaylists } from '../store/playlistStore';
+import {
+  usePlaylistStore,
+  fetchUserCustomPlaylistsWithStatus,
+  syncPendingCustomPlaylists,
+} from '../store/playlistStore';
 import { useProfileStore } from '../store/profileStore';
 import { jamSocket } from '../api/socket';
 import { useHoladStore } from '../store/holadStore';
 import { useSocialStore } from '../store/socialStore';
 import { useDemoStore } from '../store/demoStore';
 import { getAudioEngine } from '../audio/AudioEngine';
+import { isClientOffline } from '../utils/networkStatus';
 import type { Track } from '../types';
+
+const applyServerPreferences = (prefs: ServerPreferences | null) => {
+  if (!prefs) return;
+  const { syncTheme, syncLanguage, setTheme, setAccentColor, setCustomColor, setLanguage } = useSettingsStore.getState();
+  if (syncTheme) {
+    if (prefs.theme && (prefs.theme === 'dark' || prefs.theme === 'light' || prefs.theme === 'system')) {
+      setTheme(prefs.theme);
+    }
+    if (prefs.accent_color) {
+      setAccentColor(prefs.accent_color);
+    }
+    if (prefs.custom_colors) {
+      try {
+        const colors = typeof prefs.custom_colors === 'string' ? JSON.parse(prefs.custom_colors) : prefs.custom_colors;
+        if (Array.isArray(colors)) {
+          colors.forEach((col: string, idx: number) => {
+            if (idx < 3) setCustomColor(idx, col);
+          });
+        }
+      } catch {}
+    }
+  }
+  if (syncLanguage && prefs.language) {
+    setLanguage(prefs.language);
+  }
+  if (prefs.profiles) {
+    useProfileStore.getState().syncWithServerProfiles(
+      prefs.profiles,
+      prefs.updated_at,
+      (prefs as any).activeSlot ?? (prefs as any).active_slot
+    );
+  }
+};
+
+const applyServerIntegrations = (items: ServerIntegrationItem[]) => {
+  if (!Array.isArray(items)) return;
+  const { setLastFmKey, setUseLastFm, setYandexToken, setUseYandex } = useSettingsStore.getState();
+  const lastfm = items.find(i => i.integration_name === 'lastfm');
+  const yandex = items.find(i => i.integration_name === 'yandex');
+
+  if (lastfm && lastfm.token) {
+    setLastFmKey(lastfm.token);
+    setUseLastFm(lastfm.enabled !== false);
+  } else if (lastfm || !isClientOffline()) {
+    setLastFmKey('');
+    setUseLastFm(false);
+  }
+
+  if (yandex && yandex.token) {
+    setYandexToken(yandex.token);
+    setUseYandex(yandex.enabled !== false);
+  } else if (yandex || !isClientOffline()) {
+    setYandexToken('');
+    setUseYandex(false);
+  }
+};
+
+const hasPendingOfflineExclusions = (): boolean => {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem('holad_pending_offline_exclusions') === 'true';
+  } catch {
+    return false;
+  }
+};
 
 const applyServerPlaybackState = (
   serverState: any,
@@ -199,31 +268,7 @@ export function useAppInitialization() {
 
       fetchPreferences().then(prefs => {
         if (cancelled || !prefs) return;
-        const { syncTheme, syncLanguage, setTheme, setAccentColor, setCustomColor, setLanguage } = useSettingsStore.getState();
-        if (syncTheme) {
-          if (prefs.theme && (prefs.theme === 'dark' || prefs.theme === 'light' || prefs.theme === 'system')) {
-            setTheme(prefs.theme);
-          }
-          if (prefs.accent_color) {
-            setAccentColor(prefs.accent_color);
-          }
-          if (prefs.custom_colors) {
-            try {
-              const colors = typeof prefs.custom_colors === 'string' ? JSON.parse(prefs.custom_colors) : prefs.custom_colors;
-              if (Array.isArray(colors)) {
-                colors.forEach((col: string, idx: number) => {
-                  if (idx < 3) setCustomColor(idx, col);
-                });
-              }
-            } catch {}
-          }
-        }
-        if (syncLanguage && prefs.language) {
-          setLanguage(prefs.language);
-        }
-        if (prefs.profiles) {
-          useProfileStore.getState().syncWithServerProfiles(prefs.profiles, prefs.updated_at);
-        }
+        applyServerPreferences(prefs);
       }).catch(e => console.error("Failed to fetch preferences", e));
 
       // Defer secondary background syncs so initial playback state & primary view win the weak mobile pipe
@@ -231,47 +276,27 @@ export function useAppInitialization() {
         if (cancelled) return;
 
         fetchExclusions().then(exclusions => {
-          if (cancelled || !exclusions) return;
-          const currentStore = usePlayerStore.getState();
-          const mergedTracks = Array.from(new Set([
-            ...(currentStore.excludedTrackIds || []),
-            ...(exclusions.excludedTrackIds || [])
-          ]));
-          const mergedAlbums = Array.from(new Set([
-            ...(currentStore.excludedAlbumIds || []),
-            ...(exclusions.excludedAlbumIds || [])
-          ]));
-          const mergedFingerprints = Array.from(new Set([
-            ...(currentStore.excludedFingerprints || []),
-            ...(exclusions.excludedFingerprints || [])
-          ]));
-          setExcludedItems(mergedTracks, mergedAlbums, mergedFingerprints);
+          if (cancelled || !exclusions || hasPendingOfflineExclusions()) return;
+          setExcludedItems(
+            exclusions.excludedTrackIds || [],
+            exclusions.excludedAlbumIds || [],
+            exclusions.excludedFingerprints || []
+          );
         }).catch(e => console.error("Failed to fetch exclusions", e));
 
-        fetchUserCustomPlaylists().then(playlists => {
-          if (!cancelled) {
-            usePlaylistStore.getState().mergeServerPlaylists(playlists);
-          }
-        }).catch(e => console.error("Failed to fetch custom playlists", e));
+        syncPendingCustomPlaylists()
+          .then(() => fetchUserCustomPlaylistsWithStatus())
+          .then(res => {
+            if (!cancelled && res.ok) {
+              usePlaylistStore.getState().mergeServerPlaylists(res.playlists);
+            }
+          }).catch(e => console.error("Failed to fetch custom playlists", e));
 
         syncHistoryWithServer().catch(e => console.error("Failed to sync history with server", e));
 
         fetchIntegrations().then(items => {
           if (cancelled || !Array.isArray(items)) return;
-          const { setLastFmKey, setUseLastFm, setYandexToken, setUseYandex } = useSettingsStore.getState();
-          for (const item of items) {
-            if (item.integration_name === 'lastfm') {
-              if (item.token) {
-                setLastFmKey(item.token);
-                setUseLastFm(item.enabled !== false);
-              }
-            } else if (item.integration_name === 'yandex') {
-              if (item.token) {
-                setYandexToken(item.token);
-                setUseYandex(item.enabled !== false);
-              }
-            }
-          }
+          applyServerIntegrations(items);
         }).catch(e => console.error("Failed to fetch integrations", e));
       };
 
@@ -378,23 +403,14 @@ export function useAppInitialization() {
   // Online network listener for synchronizing pending changes
   useEffect(() => {
     const handleOnline = () => {
-      // 1. Synchronize exclusions
+      // 1. Synchronize exclusions (Server SSOT unless offline edits are pending)
       fetchExclusions().then(exclusions => {
-        if (exclusions) {
-          const currentStore = usePlayerStore.getState();
-          const mergedTracks = Array.from(new Set([
-            ...(currentStore.excludedTrackIds || []),
-            ...(exclusions.excludedTrackIds || [])
-          ]));
-          const mergedAlbums = Array.from(new Set([
-            ...(currentStore.excludedAlbumIds || []),
-            ...(exclusions.excludedAlbumIds || [])
-          ]));
-          const mergedFingerprints = Array.from(new Set([
-            ...(currentStore.excludedFingerprints || []),
-            ...(exclusions.excludedFingerprints || [])
-          ]));
-          currentStore.setExcludedItems(mergedTracks, mergedAlbums, mergedFingerprints);
+        if (exclusions && !hasPendingOfflineExclusions()) {
+          usePlayerStore.getState().setExcludedItems(
+            exclusions.excludedTrackIds || [],
+            exclusions.excludedAlbumIds || [],
+            exclusions.excludedFingerprints || []
+          );
         }
       }).catch(() => {});
 
@@ -402,16 +418,28 @@ export function useAppInitialization() {
       syncHistoryWithServer().catch(() => {});
 
       // 3. Synchronize custom playlists
-      fetchUserCustomPlaylists().then(playlists => {
-        usePlaylistStore.getState().mergeServerPlaylists(playlists);
+      syncPendingCustomPlaylists()
+        .then(() => fetchUserCustomPlaylistsWithStatus())
+        .then(res => {
+          if (res.ok) {
+            usePlaylistStore.getState().mergeServerPlaylists(res.playlists);
+          }
+        }).catch(() => {});
+
+      // 4. Synchronize preferences, settings profiles, and integrations
+      fetchPreferences().then(prefs => {
+        applyServerPreferences(prefs);
       }).catch(() => {});
 
-      // 4. Synchronize preferences & settings profiles
-      fetchPreferences().then(prefs => {
-        if (prefs?.profiles) {
-          useProfileStore.getState().syncWithServerProfiles(prefs.profiles, prefs.updated_at);
+      fetchIntegrations().then(items => {
+        if (Array.isArray(items)) {
+          applyServerIntegrations(items);
         }
       }).catch(() => {});
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('holad:library-updated'));
+      }
 
       // 3. Synchronize playback state (Server-Authoritative SSOT)
       fetchPlaybackState().then(serverState => {

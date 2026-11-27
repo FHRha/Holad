@@ -11,13 +11,26 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { CardGridSkeleton, Skeleton } from '../common/Skeleton';
+import {
+  getLibraryCacheEpoch,
+  subscribeLibraryInvalidation,
+} from '../../utils/libraryCache';
 
 interface AlbumsViewCache {
+  epoch: number;
   albums: any[];
   hasMore: boolean;
 }
 
 let cachedAlbumsData: AlbumsViewCache | null = null;
+
+function getValidAlbumsCache(): AlbumsViewCache | null {
+  if (cachedAlbumsData && cachedAlbumsData.epoch === getLibraryCacheEpoch()) {
+    return cachedAlbumsData;
+  }
+  cachedAlbumsData = null;
+  return null;
+}
 
 export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 'list' }) {
   const { t } = useTranslation();
@@ -27,19 +40,22 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
   const { isOffline } = useNetworkStatus();
   const downloads = useDownloadStore(state => state.downloads);
   const { openMenu } = useContextMenuStore();
-  const [albums, setAlbums] = useState<any[]>(() => cachedAlbumsData?.albums || []);
-  const [loading, setLoading] = useState(() => !cachedAlbumsData);
+  const initialCache = getValidAlbumsCache();
+  const [albums, setAlbums] = useState<any[]>(() => initialCache?.albums || []);
+  const [loading, setLoading] = useState(() => !initialCache);
 
-  const [hasMore, setHasMore] = useState(() => cachedAlbumsData ? cachedAlbumsData.hasMore : true);
+  const [hasMore, setHasMore] = useState(() => initialCache ? initialCache.hasMore : true);
   const [loadingMore, setLoadingMore] = useState(false);
   const virtuosoRef = useRef<any>(null);
 
   useEffect(() => {
-    const loadInitial = async () => {
-      if (!cachedAlbumsData) {
+    let isMounted = true;
+    const loadInitial = async (isBackground = false) => {
+      if (!isBackground && !getValidAlbumsCache()) {
         setLoading(true);
       }
       try {
+        const currentEpoch = getLibraryCacheEpoch();
         let incoming: any[] = [];
         try {
           const libRes = await fetchLibraryAlbums({ limit: 50, offset: 0 }, 5000);
@@ -54,15 +70,18 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
           const data = await fetchAlbums(0, 50);
           incoming = data || [];
         }
+        if (!isMounted) return;
         setAlbums(incoming);
         const more = incoming.length >= 50;
         setHasMore(more);
         cachedAlbumsData = {
+          epoch: currentEpoch,
           albums: incoming,
           hasMore: more,
         };
       } catch (err) {
         console.error('Failed to fetch albums, falling back to downloaded albums:', err);
+        if (!isMounted) return;
         const downloaded = getDownloadedAlbums().map(d => ({
           id: d.id,
           name: d.name,
@@ -74,10 +93,19 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
         setAlbums(downloaded);
         setHasMore(false);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
-    loadInitial();
+    loadInitial(false);
+    const unsubscribe = subscribeLibraryInvalidation(() => {
+      if (isMounted) {
+        void loadInitial(true);
+      }
+    });
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   const loadMoreAlbums = async () => {

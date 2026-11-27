@@ -10,8 +10,25 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useDownloadStore, getOfflineTracks } from '../../store/downloadStore';
 import { useDebounce } from '../../hooks/useDebounce';
 import { VirtuosoGrid } from 'react-virtuoso';
+import {
+  getLibraryCacheEpoch,
+  subscribeLibraryInvalidation,
+} from '../../utils/libraryCache';
 
-let cachedArtistsData: any[] | null = null;
+interface ArtistsViewCache {
+  epoch: number;
+  artists: any[];
+}
+
+let cachedArtistsData: ArtistsViewCache | null = null;
+
+function getValidArtistsCache(): ArtistsViewCache | null {
+  if (cachedArtistsData && cachedArtistsData.epoch === getLibraryCacheEpoch()) {
+    return cachedArtistsData;
+  }
+  cachedArtistsData = null;
+  return null;
+}
 
 export default function ArtistsView() {
   const { t } = useTranslation();
@@ -19,78 +36,90 @@ export default function ArtistsView() {
   const activeFilter = useUIStore(s => s.activeFilter);
   const { isOffline } = useNetworkStatus();
   const downloads = useDownloadStore(state => state.downloads);
-  const [artists, setArtists] = useState<any[]>(() => cachedArtistsData || []);
-  const [loading, setLoading] = useState(() => !cachedArtistsData);
+  const initialCache = getValidArtistsCache();
+  const [artists, setArtists] = useState<any[]>(() => initialCache?.artists || []);
+  const [loading, setLoading] = useState(() => !initialCache);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    if (!cachedArtistsData) {
-      setLoading(true);
-    }
-    getArtists().then(data => {
-      // data is an array of { id, name, albumCount, starred, ... }
-      // The user wants artists sorted by importance (e.g. albums/tracks count)
-      
-      const sorted = [...data].sort((a, b) => {
-        // First sort by starred
-        if (a.starred && !b.starred) return -1;
-        if (!a.starred && b.starred) return 1;
-        
-        // Then by album count (usually correlates with track count)
-        const countA = a.albumCount || 0;
-        const countB = b.albumCount || 0;
-        if (countA !== countB) {
-          return countB - countA;
-        }
-        
-        // Finally by name
-        return a.name.localeCompare(b.name);
-      });
-      
-      cachedArtistsData = sorted;
-      setArtists(sorted);
-      setLoading(false);
-    }).catch(err => {
-      console.error(err);
-      
-      const offlineTracks = getOfflineTracks();
-      const currentDownloads = useDownloadStore.getState().downloads;
-      
-      const artistMap = new Map<string, any>();
-      
-      offlineTracks.forEach(t => {
-        if (t.artist) {
-          const lower = t.artist.toLowerCase();
-          if (!artistMap.has(lower)) {
-            artistMap.set(lower, {
-              id: t.artistId || lower,
-              name: t.artist,
-              albumCount: 1,
-              starred: false
-            });
+    let isMounted = true;
+    const loadArtists = async (isBackground = false) => {
+      if (!isBackground && !getValidArtistsCache()) {
+        setLoading(true);
+      }
+      const currentEpoch = getLibraryCacheEpoch();
+      try {
+        const data = await getArtists();
+        if (!isMounted) return;
+        const sorted = [...data].sort((a, b) => {
+          if (a.starred && !b.starred) return -1;
+          if (!a.starred && b.starred) return 1;
+          const countA = a.albumCount || 0;
+          const countB = b.albumCount || 0;
+          if (countA !== countB) {
+            return countB - countA;
           }
-        }
-      });
-      
-      Object.values(currentDownloads).forEach(d => {
-        if (d.status === 'completed' && d.artist) {
-          const lower = d.artist.toLowerCase();
-          if (!artistMap.has(lower)) {
-            artistMap.set(lower, {
-              id: lower,
-              name: d.artist,
-              albumCount: d.type === 'album' ? 1 : 0,
-              starred: false
-            });
+          return a.name.localeCompare(b.name);
+        });
+
+        cachedArtistsData = { epoch: currentEpoch, artists: sorted };
+        setArtists(sorted);
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        if (!isMounted) return;
+
+        const offlineTracks = getOfflineTracks();
+        const currentDownloads = useDownloadStore.getState().downloads;
+
+        const artistMap = new Map<string, any>();
+
+        offlineTracks.forEach(t => {
+          if (t.artist) {
+            const lower = t.artist.toLowerCase();
+            if (!artistMap.has(lower)) {
+              artistMap.set(lower, {
+                id: t.artistId || lower,
+                name: t.artist,
+                albumCount: 1,
+                starred: false
+              });
+            }
           }
-        }
-      });
-      
-      const sorted = Array.from(artistMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-      cachedArtistsData = sorted;
-      setArtists(sorted);
-      setLoading(false);
+        });
+
+        Object.values(currentDownloads).forEach(d => {
+          if (d.status === 'completed' && d.artist) {
+            const lower = d.artist.toLowerCase();
+            if (!artistMap.has(lower)) {
+              artistMap.set(lower, {
+                id: lower,
+                name: d.artist,
+                albumCount: d.type === 'album' ? 1 : 0,
+                starred: false
+              });
+            }
+          }
+        });
+
+        const sorted = Array.from(artistMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+        cachedArtistsData = { epoch: currentEpoch, artists: sorted };
+        setArtists(sorted);
+        setLoading(false);
+      }
+    };
+
+    void loadArtists(false);
+    const unsubscribe = subscribeLibraryInvalidation(() => {
+      if (isMounted) {
+        void loadArtists(true);
+      }
     });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   const debouncedSearch = useDebounce(search, 300);

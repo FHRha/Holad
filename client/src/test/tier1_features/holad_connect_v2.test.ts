@@ -328,6 +328,7 @@ describe('Holad Connect v2 Client Architecture', () => {
         queue: [track1, track2],
         currentIndex: 0,
         isPlaying: true,
+        isSessionHydrated: true,
       });
 
       useHoladStore.getState().setupStoreSubscriptions();
@@ -345,6 +346,117 @@ describe('Holad Connect v2 Client Architecture', () => {
         currentIndex: 1,
         isPlaying: true,
       }));
+    });
+
+    it('does NOT emit holad_remoteCommand when activeDeviceId is null and blocks unhydrated leaks', () => {
+      const mockSocket = {
+        emit: vi.fn(),
+      } as any;
+
+      const track1 = createMockTrack('trk-1', 'Track 1', 120);
+      useHoladStore.setState({
+        socket: mockSocket,
+        roomId: 'my-room',
+        activeDeviceId: null,
+      });
+      usePlayerStore.setState({
+        queue: [track1],
+        currentIndex: 0,
+        isPlaying: false,
+        isSessionHydrated: false,
+        hasActiveOfflinePlayback: true,
+      });
+
+      useHoladStore.getState().setupStoreSubscriptions();
+
+      // Unhydrated change must not leak
+      usePlayerStore.setState({ isPlaying: true });
+      expect(mockSocket.emit).not.toHaveBeenCalled();
+
+      // Hydrated, but activeDeviceId is still null: must NOT emit holad_remoteCommand to nobody
+      usePlayerStore.setState({ isSessionHydrated: true, repeatMode: 'all' });
+      const remoteCalls = mockSocket.emit.mock.calls.filter((c: any[]) => c[0] === 'holad_remoteCommand');
+      expect(remoteCalls).toHaveLength(0);
+    });
+  });
+
+  describe('17. Stage 4B SSOT Fixes in holadStore', () => {
+    it('does NOT push stale local isPlaying=true on holad_devices takeover', () => {
+      useHoladStore.getState().connect('room-takeover');
+      const devicesHandler = socketEventHandlers['holad_devices'];
+      expect(devicesHandler).toBeDefined();
+
+      const myId = useHoladStore.getState().deviceId;
+      useHoladStore.setState({ activeDeviceId: 'other-device' });
+      usePlayerStore.setState({
+        queue: [createMockTrack('t1', 'T1', 100)],
+        currentIndex: 0,
+        isPlaying: true,
+        isSessionHydrated: true,
+      });
+      mockSocketInstance.emit.mockClear();
+
+      devicesHandler({
+        devices: [{ id: myId, name: 'My PC' }],
+        activeDeviceId: myId,
+      });
+
+      const updateStateCalls = mockSocketInstance.emit.mock.calls.filter((c: any[]) => c[0] === 'holad_updateState');
+      expect(updateStateCalls).toHaveLength(0);
+    });
+
+    it('applies snapshot.isPlaying, isShuffle, repeatMode, and queueVersion on hydrated active device in holad_syncState', () => {
+      useHoladStore.getState().connect('room-active-sync');
+      const syncHandler = socketEventHandlers['holad_syncState'];
+      expect(syncHandler).toBeDefined();
+
+      const myId = useHoladStore.getState().deviceId;
+      useHoladStore.setState({ activeDeviceId: myId });
+      usePlayerStore.setState({
+        queue: [createMockTrack('t1', 'T1', 100)],
+        currentIndex: 0,
+        isPlaying: true,
+        isShuffle: false,
+        repeatMode: 'none',
+        queueVersion: 'v1',
+        isSessionHydrated: true,
+        hasActiveOfflinePlayback: false,
+      });
+
+      syncHandler({
+        roomId: 'room-active-sync',
+        activeDeviceId: myId,
+        trackId: 't1',
+        currentIndex: 0,
+        queue: [{ id: 't1', title: 'T1', artist: 'A1', duration: 100 }],
+        positionMs: 5000,
+        timestamp: Date.now(),
+        isPlaying: false,
+        playbackRate: 1,
+        version: 4,
+        isShuffle: true,
+        repeatMode: 'one',
+        queueVersion: 'v2',
+      });
+
+      const playerState = usePlayerStore.getState();
+      expect(playerState.isPlaying).toBe(false);
+      expect(playerState.isShuffle).toBe(true);
+      expect(playerState.repeatMode).toBe('one');
+      expect(playerState.queueVersion).toBe('v2');
+    });
+
+    it('dispatches holad:library-updated window event on holad_libraryUpdated socket event', () => {
+      useHoladStore.getState().connect('room-lib-sync');
+      const libHandler = socketEventHandlers['holad_libraryUpdated'];
+      expect(libHandler).toBeDefined();
+
+      const listener = vi.fn();
+      window.addEventListener('holad:library-updated', listener);
+      libHandler();
+      window.removeEventListener('holad:library-updated', listener);
+
+      expect(listener).toHaveBeenCalledTimes(1);
     });
   });
 

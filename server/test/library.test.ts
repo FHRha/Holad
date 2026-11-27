@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import {
   upsertTracksBatch,
@@ -12,7 +12,14 @@ import {
   setSyncState,
   getLibraryStats,
   clearLibrary,
+  pruneDeletedTracks,
+  pruneDeletedAlbums,
+  pruneDeletedArtists,
 } from '../src/db/tables/libraryTable.js';
+import {
+  saveNavidromeAccount,
+  deleteNavidromeAccount,
+} from '../src/db/tables/accountsTable.js';
 import { librarySyncService } from '../src/library/LibrarySyncService.js';
 import { app } from '../index.js';
 
@@ -217,6 +224,160 @@ describe('Holad Media Engine - SQLite Library Cache & CRUD', () => {
     expect(state?.status).toBe('completed');
     expect(state?.progress).toBe(100);
     expect(state?.total_tracks).toBe(500);
+  });
+
+  it('should prune deleted tracks, albums, and artists scoped by user_id', () => {
+    upsertTracksBatch([
+      { id: 'p-t1', user_id: 'userA', title: 'Keep Track' },
+      { id: 'p-t2', user_id: 'userA', title: 'Delete Track' },
+      { id: 'p-t3', user_id: 'userB', title: 'Other User Track' },
+    ]);
+    upsertAlbumsBatch([
+      { id: 'p-a1', user_id: 'userA', name: 'Keep Album' },
+      { id: 'p-a2', user_id: 'userA', name: 'Delete Album' },
+      { id: 'p-a3', user_id: 'userB', name: 'Other User Album' },
+    ]);
+    upsertArtistsBatch([
+      { id: 'p-art1', user_id: 'userA', name: 'Keep Artist' },
+      { id: 'p-art2', user_id: 'userA', name: 'Delete Artist' },
+      { id: 'p-art3', user_id: 'userB', name: 'Other User Artist' },
+    ]);
+
+    const prunedTracks = pruneDeletedTracks('userA', ['p-t1']);
+    const prunedAlbums = pruneDeletedAlbums('userA', ['p-a1']);
+    const prunedArtists = pruneDeletedArtists('userA', ['p-art1']);
+
+    expect(prunedTracks).toBe(1);
+    expect(prunedAlbums).toBe(1);
+    expect(prunedArtists).toBe(1);
+
+    const userATracks = queryTracks({ userId: 'userA' });
+    expect(userATracks.tracks.map((t) => t.id)).toEqual(['p-t1']);
+
+    const userBTracks = queryTracks({ userId: 'userB' });
+    expect(userBTracks.tracks.map((t) => t.id)).toEqual(['p-t3']);
+
+    const userAAlbums = queryAlbums({ userId: 'userA' });
+    expect(userAAlbums.albums.map((a) => a.id)).toEqual(['p-a1']);
+
+    const userAArtists = queryArtists({ userId: 'userA' });
+    expect(userAArtists.artists.map((a) => a.id)).toEqual(['p-art1']);
+  });
+
+  it('should sync all configured accounts, prune deleted items, and emit holad_libraryUpdated', async () => {
+    const mockUrl1 = 'http://sync-test-1.local';
+    const mockUrl2 = 'http://sync-test-2.local';
+    saveNavidromeAccount({ url: mockUrl1, user: 'sync_u1', token: 't1', salt: 's1' });
+    saveNavidromeAccount({ url: mockUrl2, user: 'sync_u2', token: 't2', salt: 's2' });
+
+    const emitSpy = vi.fn();
+    librarySyncService.setIo({ emit: emitSpy } as any);
+
+    let pass = 1;
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: any) => {
+      const urlStr = String(input);
+      const isAcc1 = urlStr.includes('sync-test-1.local');
+
+      if (urlStr.includes('getArtists.view')) {
+        return new Response(
+          JSON.stringify({
+            'subsonic-response': {
+              status: 'ok',
+              artists: {
+                index: [
+                  {
+                    artist: isAcc1
+                      ? [{ id: 'art-1', name: 'Artist One', albumCount: 1 }]
+                      : [{ id: 'art-2', name: 'Artist Two', albumCount: 1 }],
+                  },
+                ],
+              },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        );
+      }
+
+      if (urlStr.includes('getAlbumList2.view')) {
+        return new Response(
+          JSON.stringify({
+            'subsonic-response': {
+              status: 'ok',
+              albumList2: {
+                album: isAcc1
+                  ? [{ id: 'alb-1', name: 'Album One', artist: 'Artist One', artistId: 'art-1', songCount: 2 }]
+                  : [{ id: 'alb-2', name: 'Album Two', artist: 'Artist Two', artistId: 'art-2', songCount: 1 }],
+              },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        );
+      }
+
+      if (urlStr.includes('search3.view')) {
+        const songsAcc1 =
+          pass === 1
+            ? [
+                { id: 'song-1', title: 'Song One', artist: 'Artist One', artistId: 'art-1', album: 'Album One', albumId: 'alb-1', duration: 120 },
+                { id: 'song-deleted', title: 'Removed Song', artist: 'Artist One', artistId: 'art-1', album: 'Album One', albumId: 'alb-1', duration: 90 },
+              ]
+            : [
+                { id: 'song-1', title: 'Song One', artist: 'Artist One', artistId: 'art-1', album: 'Album One', albumId: 'alb-1', duration: 120 },
+              ];
+        const songsAcc2 = [
+          { id: 'song-2', title: 'Song Two', artist: 'Artist Two', artistId: 'art-2', album: 'Album Two', albumId: 'alb-2', duration: 150 },
+        ];
+        return new Response(
+          JSON.stringify({
+            'subsonic-response': {
+              status: 'ok',
+              searchResult3: { song: isAcc1 ? songsAcc1 : songsAcc2 },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        );
+      }
+
+      if (urlStr.includes('getScanStatus.view')) {
+        return new Response(
+          JSON.stringify({
+            'subsonic-response': {
+              status: 'ok',
+              scanStatus: { scanning: false, count: pass === 1 ? 2 : 1 },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        );
+      }
+
+      throw new Error(`Unexpected fetch URL in test: ${urlStr}`);
+    });
+
+    try {
+      await librarySyncService.runSync({ isManual: false });
+      expect(queryTracks({ userId: 'sync_u1' }).total).toBe(2);
+      expect(queryTracks({ userId: 'sync_u2' }).total).toBe(1);
+      expect(emitSpy).toHaveBeenCalledWith(
+        'holad_libraryUpdated',
+        expect.objectContaining({ totalTracks: 3, totalAlbums: 2 })
+      );
+
+      emitSpy.mockClear();
+      pass = 2;
+      await librarySyncService.runSync({ isManual: false });
+      const remainingU1 = queryTracks({ userId: 'sync_u1' });
+      expect(remainingU1.total).toBe(1);
+      expect(remainingU1.tracks[0]?.id).toBe('song-1');
+      expect(emitSpy).toHaveBeenCalledWith(
+        'holad_libraryUpdated',
+        expect.objectContaining({ totalTracks: 2, totalAlbums: 2 })
+      );
+    } finally {
+      fetchSpy.mockRestore();
+      deleteNavidromeAccount('sync_u1', mockUrl1);
+      deleteNavidromeAccount('sync_u2', mockUrl2);
+      clearLibrary();
+    }
   });
 });
 

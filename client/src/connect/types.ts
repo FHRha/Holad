@@ -18,6 +18,9 @@ export interface PlaybackSnapshot {
   isPlaying: boolean;
   playbackRate: number; // 0.5, 1.0, 1.25, 1.5, 2.0
   version: number; // Монотонный счетчик изменений для защиты от гонок
+  isShuffle?: boolean;
+  repeatMode?: 'none' | 'all' | 'one';
+  queueVersion?: string;
 }
 
 export interface HoladDevice {

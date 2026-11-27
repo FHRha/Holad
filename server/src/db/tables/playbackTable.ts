@@ -146,6 +146,7 @@ export function updatePlaybackProgress(
   isPlaying: boolean,
   updatedAt: number
 ): void {
+  userId = (userId || '').trim().toLowerCase();
   ensureUserExists(userId);
   const now = updatedAt || Date.now();
   const playingInt = isPlaying ? 1 : 0;

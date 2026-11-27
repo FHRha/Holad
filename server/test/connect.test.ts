@@ -392,6 +392,77 @@ describe('ConnectRoomManager Unit Tests', () => {
     expect(roomAfter.snapshot.version).toBe(versionBefore);
     expect(roomAfter.devices.some(d => d.id === 'device-b')).toBe(false);
   });
+
+  it('should propagate and persist isShuffle, repeatMode, and queueVersion across snapshot lifecycle', () => {
+    const mockDb = {
+      getPlaybackState: vi.fn().mockReturnValue({
+        song_id: 's1',
+        current_index: 0,
+        queue: [{ id: 's1' }, { id: 's2' }],
+        queue_version: 'qv-init',
+        position: 10,
+        is_playing: false,
+        is_shuffled: true,
+        repeat_mode: 'all'
+      }),
+      savePlaybackState: vi.fn()
+    };
+
+    const dbManager = new ConnectRoomManager(mockDb);
+    const room = dbManager.getOrCreateRoom('user_shuffle_test');
+    expect(room.snapshot.isShuffle).toBe(true);
+    expect(room.snapshot.repeatMode).toBe('all');
+    expect(room.snapshot.queueVersion).toBe('qv-init');
+
+    dbManager.addDevice('user_shuffle_test', { id: 'dev-1', name: 'Dev 1', socketId: 's-1' });
+    dbManager.updateSnapshot('user_shuffle_test', 'dev-1', {
+      isShuffle: false,
+      repeatMode: 'one',
+      queueVersion: 'qv-2'
+    });
+    expect(room.snapshot.isShuffle).toBe(false);
+    expect(room.snapshot.repeatMode).toBe('one');
+    expect(room.snapshot.queueVersion).toBe('qv-2');
+
+    dbManager.persistPlaybackStateNow('user_shuffle_test');
+    expect(mockDb.savePlaybackState).toHaveBeenLastCalledWith('user_shuffle_test', expect.objectContaining({
+      is_shuffled: false,
+      repeat_mode: 'one',
+      queue_version: 'qv-2'
+    }));
+
+    dbManager.reconcileOffline('user_shuffle_test', 'dev-1', {
+      queue: [{ id: 's3' }],
+      currentIndex: 0,
+      isPlaying: true,
+      isShuffle: true,
+      repeatMode: 'none',
+      queueVersion: 'qv-offline'
+    });
+    expect(room.snapshot.isShuffle).toBe(true);
+    expect(room.snapshot.repeatMode).toBe('none');
+    expect(room.snapshot.queueVersion).toBe('qv-offline');
+  });
+
+  it('should normalize mixed-case userId in updatePlaybackProgress without creating duplicate empty-queue rows', () => {
+    const mixedUser = 'MixedCase_Progress_User';
+    database.savePlaybackState(mixedUser, {
+      song_id: 'track-keep-1',
+      current_index: 0,
+      queue: [{ id: 'track-keep-1', title: 'Keep Me' }],
+      position: 12,
+      is_playing: false
+    });
+
+    database.updatePlaybackProgress(mixedUser, 0, 'track-keep-1', 42, true, Date.now());
+
+    const loaded = database.getPlaybackState(mixedUser);
+    expect(loaded).not.toBeNull();
+    expect(loaded!.position).toBe(42);
+    expect(loaded!.is_playing).toBe(true);
+    expect(loaded!.queue).toHaveLength(1);
+    expect(loaded!.queue?.[0]?.id).toBe('track-keep-1');
+  });
 });
 
 describe('Holad Connect v2 Socket Integration Tests', () => {

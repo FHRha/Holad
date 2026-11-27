@@ -16,6 +16,8 @@ import {
   triggerLibrarySync,
   type LibrarySyncStatus,
 } from '../../../api/library';
+import { startScan } from '../../../api/subsonic/index';
+import { invalidateLibraryCaches } from '../../../utils/libraryCache';
 
 export interface LibrarySyncControlProps {
   isMobile?: boolean;
@@ -31,11 +33,18 @@ export default function LibrarySyncControl({
   const [isLoading, setIsLoading] = useState(false);
   const [isTriggering, setIsTriggering] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  const wasSyncingRef = useRef(false);
 
   const fetchStatus = useCallback(async () => {
     try {
       const data = await getLibrarySyncStatus();
+      const currentlySyncing = Boolean(data.is_syncing || data.status === 'syncing');
+      if (wasSyncingRef.current && !currentlySyncing && data.status === 'completed') {
+        wasSyncingRef.current = false;
+        invalidateLibraryCaches();
+      } else if (currentlySyncing) {
+        wasSyncingRef.current = true;
+      }
       setStatus(data);
       return data;
     } catch (err) {
@@ -52,6 +61,7 @@ export default function LibrarySyncControl({
   // Active polling while sync is running
   useEffect(() => {
     if (status?.is_syncing || status?.status === 'syncing') {
+      wasSyncingRef.current = true;
       pollTimerRef.current = setTimeout(async () => {
         const next = await fetchStatus();
         if (next && (next.is_syncing || next.status === 'syncing')) {
@@ -72,8 +82,10 @@ export default function LibrarySyncControl({
     setIsTriggering(true);
 
     try {
+      startScan().catch(() => {});
       const result = await triggerLibrarySync();
       if (result.success) {
+        wasSyncingRef.current = true;
         toast.info(t('settings.library_sync_started', 'Синхронизация медиатеки запущена'));
         // Optimistically set syncing state
         setStatus((prev) =>

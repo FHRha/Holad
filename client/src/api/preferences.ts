@@ -59,37 +59,30 @@ export async function fetchPreferences(): Promise<ServerPreferences | null> {
   }
 }
 
-let activePreferencesAbortController: AbortController | null = null;
+let preferencesPushQueue: Promise<boolean> = Promise.resolve(true);
 
-export async function pushPreferences(prefs: Partial<ServerPreferences>): Promise<boolean> {
+export function pushPreferences(prefs: Partial<ServerPreferences>): Promise<boolean> {
   const user = resolvePreferencesUser();
-  if (!user) return false;
+  if (!user) return Promise.resolve(false);
 
-  if (activePreferencesAbortController) {
-    activePreferencesAbortController.abort();
-    activePreferencesAbortController = null;
-  }
-  const currentController = new AbortController();
-  activePreferencesAbortController = currentController;
-
-  try {
-    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/preferences/${encodeURIComponent(user)}`, {
-      method: 'POST',
-      headers: getHeaders(),
-      signal: currentController.signal,
-      body: JSON.stringify(prefs),
-      timeoutMs: 8000
-    });
-    return res.ok;
-  } catch (err: any) {
-    if (err?.name === 'AbortError') {
+  const run = async (): Promise<boolean> => {
+    const currentUser = resolvePreferencesUser();
+    if (!currentUser) return false;
+    try {
+      const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/preferences/${encodeURIComponent(currentUser)}`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(prefs),
+        timeoutMs: 8000
+      });
+      return res.ok;
+    } catch (err: any) {
+      console.error('[Preferences] Push error:', err);
       return false;
     }
-    console.error('[Preferences] Push error:', err);
-    return false;
-  } finally {
-    if (activePreferencesAbortController === currentController) {
-      activePreferencesAbortController = null;
-    }
-  }
+  };
+
+  const next = preferencesPushQueue.then(run, run);
+  preferencesPushQueue = next.catch(() => false);
+  return next;
 }

@@ -49,7 +49,10 @@ export class ConnectRoomManager {
         timestamp: now,
         isPlaying: false,
         playbackRate: 1,
-        version: 1
+        version: 1,
+        isShuffle: false,
+        repeatMode: 'none',
+        queueVersion: ''
       };
       let cachedState: any = null;
 
@@ -61,6 +64,13 @@ export class ConnectRoomManager {
             const currentIndex = typeof saved.current_index === 'number' ? saved.current_index : 0;
             const queue = Array.isArray(saved.queue) ? saved.queue : [];
             const positionMs = (saved.position || 0) * 1000;
+            const isShuffle = Boolean(saved.is_shuffled);
+            const rawRepeat = saved.repeat_mode;
+            const repeatMode: 'none' | 'all' | 'one' =
+              rawRepeat === 'all' || rawRepeat === 'one' || rawRepeat === 'none'
+                ? rawRepeat
+                : 'none';
+            const queueVersion = typeof saved.queue_version === 'string' ? saved.queue_version : '';
 
             snapshot = {
               roomId,
@@ -72,7 +82,10 @@ export class ConnectRoomManager {
               timestamp: now,
               isPlaying: false,
               playbackRate: 1,
-              version: 1
+              version: 1,
+              isShuffle,
+              repeatMode,
+              queueVersion
             };
 
             cachedState = {
@@ -84,6 +97,9 @@ export class ConnectRoomManager {
               isPlaying: false,
               playbackRate: 1,
               version: 1,
+              isShuffle,
+              repeatMode,
+              queueVersion,
               activeDeviceId: null,
               lastPausedAt: null
             };
@@ -134,8 +150,11 @@ export class ConnectRoomManager {
         song_id: room.snapshot.trackId,
         current_index: typeof room.snapshot.currentIndex === 'number' ? room.snapshot.currentIndex : 0,
         queue: Array.isArray(room.snapshot.queue) ? room.snapshot.queue : [],
+        queue_version: room.snapshot.queueVersion ?? '',
         position: Math.round((room.snapshot.positionMs || 0) / 1000),
         is_playing: Boolean(room.snapshot.isPlaying),
+        is_shuffled: Boolean(room.snapshot.isShuffle),
+        repeat_mode: room.snapshot.repeatMode ?? 'none',
         updated_at: Date.now()
       });
     } catch (err) {
@@ -374,6 +393,15 @@ export class ConnectRoomManager {
     if (patch.playbackRate !== undefined) {
       room.snapshot.playbackRate = patch.playbackRate;
     }
+    if (typeof patch.isShuffle === 'boolean') {
+      room.snapshot.isShuffle = patch.isShuffle;
+    }
+    if (patch.repeatMode === 'none' || patch.repeatMode === 'all' || patch.repeatMode === 'one') {
+      room.snapshot.repeatMode = patch.repeatMode;
+    }
+    if (typeof patch.queueVersion === 'string') {
+      room.snapshot.queueVersion = patch.queueVersion;
+    }
 
     // activeDeviceId in snapshot is assigned ONLY by server
     room.snapshot.activeDeviceId = room.activeDeviceId;
@@ -390,6 +418,9 @@ export class ConnectRoomManager {
       currentTime: room.snapshot.positionMs / 1000,
       isPlaying: room.snapshot.isPlaying,
       playbackRate: room.snapshot.playbackRate,
+      isShuffle: room.snapshot.isShuffle,
+      repeatMode: room.snapshot.repeatMode,
+      queueVersion: room.snapshot.queueVersion,
       version: room.snapshot.version,
       activeDeviceId: room.activeDeviceId,
       lastPausedAt: room.snapshot.isPlaying ? null : (room.lastPausedAt || Date.now())
@@ -517,6 +548,22 @@ export class ConnectRoomManager {
     if (typeof state.playbackRate === 'number') {
       room.snapshot.playbackRate = state.playbackRate;
     }
+    const isShuffleVal = typeof state.isShuffle === 'boolean'
+      ? state.isShuffle
+      : (typeof state.is_shuffled === 'boolean' ? state.is_shuffled : undefined);
+    if (isShuffleVal !== undefined) {
+      room.snapshot.isShuffle = isShuffleVal;
+    }
+    const rawRepeat = state.repeatMode ?? state.repeat_mode;
+    if (rawRepeat === 'none' || rawRepeat === 'all' || rawRepeat === 'one') {
+      room.snapshot.repeatMode = rawRepeat;
+    } else if (rawRepeat === 'off') {
+      room.snapshot.repeatMode = 'none';
+    }
+    const qv = state.queueVersion ?? state.queue_version;
+    if (typeof qv === 'string') {
+      room.snapshot.queueVersion = qv;
+    }
     room.snapshot.activeDeviceId = room.activeDeviceId;
     room.leaseExpiresAt = Date.now() + ConnectRoomManager.GRACE_PERIOD_MS;
     room.snapshot.timestamp = Date.now();
@@ -592,6 +639,15 @@ export class ConnectRoomManager {
     if (typeof payload.playbackRate === 'number' && payload.playbackRate > 0) {
       room.snapshot.playbackRate = payload.playbackRate;
     }
+    if (typeof payload.isShuffle === 'boolean') {
+      room.snapshot.isShuffle = payload.isShuffle;
+    }
+    if (payload.repeatMode === 'none' || payload.repeatMode === 'all' || payload.repeatMode === 'one') {
+      room.snapshot.repeatMode = payload.repeatMode;
+    }
+    if (typeof payload.queueVersion === 'string') {
+      room.snapshot.queueVersion = payload.queueVersion;
+    }
 
     room.snapshot.version++;
     room.snapshot.timestamp = Date.now();
@@ -606,6 +662,9 @@ export class ConnectRoomManager {
       currentTime: room.snapshot.positionMs / 1000,
       isPlaying: room.snapshot.isPlaying,
       playbackRate: room.snapshot.playbackRate,
+      isShuffle: room.snapshot.isShuffle,
+      repeatMode: room.snapshot.repeatMode,
+      queueVersion: room.snapshot.queueVersion,
       version: room.snapshot.version,
       activeDeviceId: room.activeDeviceId,
       lastPausedAt: room.snapshot.isPlaying ? null : (room.lastPausedAt || Date.now())

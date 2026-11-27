@@ -10,10 +10,12 @@ export interface CustomPlaylist {
   description: string;
   trackIds: string[];
   tracks?: any[];
+  pendingOfflineSync?: boolean;
 }
 
 interface PlaylistStore {
   playlists: CustomPlaylist[];
+  pendingSyncIds: string[];
   setPlaylists: (playlists: CustomPlaylist[]) => void;
   mergeServerPlaylists: (serverPlaylists: CustomPlaylist[]) => void;
   createPlaylist: (name: string, description?: string) => string;
@@ -40,11 +42,11 @@ function getAuthHeaders(): Record<string, string> {
   return headers;
 }
 
-export async function fetchUserCustomPlaylists(): Promise<CustomPlaylist[]> {
+export async function fetchUserCustomPlaylistsWithStatus(): Promise<{ ok: boolean; playlists: CustomPlaylist[] }> {
   try {
     const baseUrl = getHoladServerUrl();
     const user = useAuthStore.getState().user;
-    if (!user) return [];
+    if (!user) return { ok: false, playlists: [] };
     const headers: Record<string, string> = {
       ...getAuthHeaders(),
     };
@@ -53,12 +55,50 @@ export async function fetchUserCustomPlaylists(): Promise<CustomPlaylist[]> {
       headers,
       timeoutMs: 8000,
     });
-    if (!res.ok) return [];
+    if (!res.ok) return { ok: false, playlists: [] };
     const data = await res.json();
-    return Array.isArray(data?.playlists) ? data.playlists : [];
+    return {
+      ok: true,
+      playlists: Array.isArray(data?.playlists) ? data.playlists : [],
+    };
   } catch (err) {
     console.error('Error fetching user custom playlists:', err);
-    return [];
+    return { ok: false, playlists: [] };
+  }
+}
+
+export async function fetchUserCustomPlaylists(): Promise<CustomPlaylist[]> {
+  const { playlists } = await fetchUserCustomPlaylistsWithStatus();
+  return playlists;
+}
+
+export async function syncPendingCustomPlaylists(): Promise<void> {
+  const state = usePlaylistStore.getState();
+  const pendingSet = new Set<string>(state.pendingSyncIds || []);
+  for (const pl of state.playlists) {
+    if (pl.pendingOfflineSync) {
+      pendingSet.add(pl.id);
+    }
+  }
+  if (pendingSet.size === 0) return;
+
+  for (const id of pendingSet) {
+    const pl = usePlaylistStore.getState().playlists.find(p => p.id === id);
+    if (!pl) {
+      usePlaylistStore.setState(s => ({
+        pendingSyncIds: s.pendingSyncIds.filter(pid => pid !== id),
+      }));
+      continue;
+    }
+    try {
+      await syncCustomPlaylistToServer(pl);
+      usePlaylistStore.setState(s => ({
+        pendingSyncIds: s.pendingSyncIds.filter(pid => pid !== id),
+        playlists: s.playlists.map(p => p.id === id ? { ...p, pendingOfflineSync: false } : p),
+      }));
+    } catch {
+      // Keep pending until next online sync
+    }
   }
 }
 
@@ -128,44 +168,79 @@ export async function deleteCustomPlaylistFromServer(id: string): Promise<void> 
   }
 }
 
+const playlistSyncEpoch = new Map<string, number>();
+
+function pushPlaylistWithPendingTracking(playlist: CustomPlaylist): void {
+  const epoch = (playlistSyncEpoch.get(playlist.id) || 0) + 1;
+  playlistSyncEpoch.set(playlist.id, epoch);
+
+  syncCustomPlaylistToServer(playlist)
+    .then(() => {
+      if (playlistSyncEpoch.get(playlist.id) !== epoch) return;
+      usePlaylistStore.setState((state) => ({
+        pendingSyncIds: state.pendingSyncIds.filter(pid => pid !== playlist.id),
+        playlists: state.playlists.map(pl => pl.id === playlist.id ? { ...pl, pendingOfflineSync: false } : pl),
+      }));
+    })
+    .catch(console.error);
+}
+
 export const usePlaylistStore = create<PlaylistStore>()(
   persist(
     (set, get) => ({
       playlists: [],
+      pendingSyncIds: [],
       
       setPlaylists: (playlists) => set({ playlists }),
       mergeServerPlaylists: (serverPlaylists) => {
-        if (!Array.isArray(serverPlaylists) || serverPlaylists.length === 0) return;
+        if (!Array.isArray(serverPlaylists)) return;
         set((state) => {
-          const localMap = new Map(state.playlists.map(p => [p.id, p]));
-          for (const serverPl of serverPlaylists) {
-            if (!localMap.has(serverPl.id)) {
-              localMap.set(serverPl.id, serverPl);
-            } else {
-              const local = localMap.get(serverPl.id);
-              if (local) {
-                const mergedTrackIds = Array.from(new Set([...(local.trackIds || []), ...(serverPl.trackIds || [])]));
-                localMap.set(serverPl.id, {
-                  id: serverPl.id,
-                  name: serverPl.name || local.name,
-                  description: serverPl.description !== undefined ? serverPl.description : local.description,
-                  trackIds: mergedTrackIds,
-                  tracks: serverPl.tracks || local.tracks
-                });
-              }
+          const pendingSet = new Set<string>(state.pendingSyncIds || []);
+          const localPendingMap = new Map<string, CustomPlaylist>();
+          for (const local of state.playlists) {
+            if (pendingSet.has(local.id) || local.pendingOfflineSync) {
+              localPendingMap.set(local.id, local);
             }
           }
-          return { playlists: Array.from(localMap.values()) };
+
+          const nextPlaylists: CustomPlaylist[] = [];
+          const seenIds = new Set<string>();
+
+          for (const serverPl of serverPlaylists) {
+            seenIds.add(serverPl.id);
+            const pendingLocal = localPendingMap.get(serverPl.id);
+            if (pendingLocal) {
+              nextPlaylists.push(pendingLocal);
+            } else {
+              nextPlaylists.push({
+                id: serverPl.id,
+                name: serverPl.name || '',
+                description: serverPl.description ?? '',
+                trackIds: Array.isArray(serverPl.trackIds) ? serverPl.trackIds : [],
+                tracks: serverPl.tracks,
+                pendingOfflineSync: false,
+              });
+            }
+          }
+
+          for (const [id, pendingLocal] of localPendingMap.entries()) {
+            if (!seenIds.has(id)) {
+              nextPlaylists.push(pendingLocal);
+            }
+          }
+
+          return { playlists: nextPlaylists };
         });
       },
       
       createPlaylist: (name, description = '') => {
         const id = uuidv4();
-        const newPlaylist: CustomPlaylist = { id, name, description, trackIds: [] };
+        const newPlaylist: CustomPlaylist = { id, name, description, trackIds: [], pendingOfflineSync: true };
         set((state) => ({
-          playlists: [...state.playlists, newPlaylist]
+          playlists: [...state.playlists, newPlaylist],
+          pendingSyncIds: state.pendingSyncIds.includes(id) ? state.pendingSyncIds : [...state.pendingSyncIds, id],
         }));
-        syncCustomPlaylistToServer(newPlaylist).catch(console.error);
+        pushPlaylistWithPendingTracking(newPlaylist);
         return id;
       },
       
@@ -174,18 +249,22 @@ export const usePlaylistStore = create<PlaylistStore>()(
           playlists: state.playlists.map(pl => pl.id === id ? {
             ...pl,
             name: name !== undefined ? name : pl.name,
-            description: description !== undefined ? description : pl.description
-          } : pl)
+            description: description !== undefined ? description : pl.description,
+            pendingOfflineSync: true,
+          } : pl),
+          pendingSyncIds: state.pendingSyncIds.includes(id) ? state.pendingSyncIds : [...state.pendingSyncIds, id],
         }));
         const affected = get().playlists.find(pl => pl.id === id);
         if (affected) {
-          syncCustomPlaylistToServer(affected).catch(console.error);
+          pushPlaylistWithPendingTracking(affected);
         }
       },
       
       deletePlaylist: (id) => {
+        playlistSyncEpoch.delete(id);
         set((state) => ({
-          playlists: state.playlists.filter(pl => pl.id !== id)
+          playlists: state.playlists.filter(pl => pl.id !== id),
+          pendingSyncIds: state.pendingSyncIds.filter(pid => pid !== id),
         }));
         deleteCustomPlaylistFromServer(id).catch(console.error);
       },
@@ -194,14 +273,17 @@ export const usePlaylistStore = create<PlaylistStore>()(
         set((state) => ({
           playlists: state.playlists.map(pl => {
             if (pl.id === playlistId && !pl.trackIds.includes(trackId)) {
-              return { ...pl, trackIds: [...pl.trackIds, trackId] };
+              return { ...pl, trackIds: [...pl.trackIds, trackId], pendingOfflineSync: true };
             }
             return pl;
-          })
+          }),
+          pendingSyncIds: state.pendingSyncIds.includes(playlistId)
+            ? state.pendingSyncIds
+            : [...state.pendingSyncIds, playlistId],
         }));
         const affected = get().playlists.find(pl => pl.id === playlistId);
         if (affected) {
-          syncCustomPlaylistToServer(affected).catch(console.error);
+          pushPlaylistWithPendingTracking(affected);
         }
       },
       
@@ -209,14 +291,17 @@ export const usePlaylistStore = create<PlaylistStore>()(
         set((state) => ({
           playlists: state.playlists.map(pl => {
             if (pl.id === playlistId) {
-              return { ...pl, trackIds: pl.trackIds.filter(id => id !== trackId) };
+              return { ...pl, trackIds: pl.trackIds.filter(id => id !== trackId), pendingOfflineSync: true };
             }
             return pl;
-          })
+          }),
+          pendingSyncIds: state.pendingSyncIds.includes(playlistId)
+            ? state.pendingSyncIds
+            : [...state.pendingSyncIds, playlistId],
         }));
         const affected = get().playlists.find(pl => pl.id === playlistId);
         if (affected) {
-          syncCustomPlaylistToServer(affected).catch(console.error);
+          pushPlaylistWithPendingTracking(affected);
         }
       }
     }),

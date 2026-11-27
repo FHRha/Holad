@@ -1,10 +1,14 @@
 import crypto from 'crypto';
 import md5 from 'md5';
+import type { Server } from 'socket.io';
 import {
   getNavidromeAccounts,
   upsertTracksBatch,
   upsertAlbumsBatch,
   upsertArtistsBatch,
+  pruneDeletedTracks,
+  pruneDeletedAlbums,
+  pruneDeletedArtists,
   getSyncState,
   setSyncState,
   getLibraryStats,
@@ -21,24 +25,39 @@ export interface SyncResult {
   retryAfter?: number;
 }
 
+export interface SubsonicScanStatus {
+  scanning: boolean;
+  count?: number;
+  folderCount?: number;
+  lastScan?: string;
+}
+
+const DEFAULT_BACKGROUND_SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+
 export class LibrarySyncService {
   private isSyncing = false;
   private lastSyncCompletedTime = 0;
   private readonly syncCooldownMs = 30_000; // 30s cooldown
   private syncIntervalTimer: NodeJS.Timeout | null = null;
+  private io: Server | null = null;
+  private lastScanCountByAccount = new Map<string, number>();
 
   constructor() {
-    // Background interval: delta sync once every hour (3600s)
-    this.startBackgroundSync(60 * 60 * 1000);
+    // Background interval: check & sync every 10 minutes
+    this.startBackgroundSync(DEFAULT_BACKGROUND_SYNC_INTERVAL_MS);
   }
 
-  public startBackgroundSync(intervalMs = 3600_000): void {
+  public setIo(io: Server): void {
+    this.io = io;
+  }
+
+  public startBackgroundSync(intervalMs = DEFAULT_BACKGROUND_SYNC_INTERVAL_MS): void {
     if (this.syncIntervalTimer) {
       clearInterval(this.syncIntervalTimer);
     }
     this.syncIntervalTimer = setInterval(() => {
-      console.log('[MediaEngine] Scheduled hourly sync triggered');
-      this.runSync({ isManual: false }).catch((err) => {
+      console.log('[MediaEngine] Scheduled library sync check triggered');
+      this.checkAndRunBackgroundSync().catch((err) => {
         console.error('[MediaEngine] Scheduled sync error:', err);
       });
     }, intervalMs);
@@ -57,6 +76,119 @@ export class LibrarySyncService {
 
   public getIsSyncing(): boolean {
     return this.isSyncing;
+  }
+
+  private getConfiguredAccounts(): NavidromeAccountRecord[] {
+    let accounts = getNavidromeAccounts();
+    if (
+      accounts.length === 0 &&
+      process.env.NAVIDROME_URL &&
+      process.env.NAVIDROME_USER
+    ) {
+      accounts = [
+        {
+          url: process.env.NAVIDROME_URL,
+          user: process.env.NAVIDROME_USER,
+          pass: process.env.NAVIDROME_PASS || '',
+          token: process.env.NAVIDROME_TOKEN,
+          salt: process.env.NAVIDROME_SALT,
+        },
+      ];
+    }
+    return accounts;
+  }
+
+  private getAccountKey(account: NavidromeAccountRecord): string {
+    return `${account.url.replace(/\/$/, '')}::${account.user}`;
+  }
+
+  public async getScanStatus(account?: NavidromeAccountRecord): Promise<SubsonicScanStatus | null> {
+    const target = account || this.getConfiguredAccounts()[0];
+    if (!target) return null;
+
+    try {
+      const data = await this.fetchSubsonic(target, 'getScanStatus.view');
+      const scanStatus = data?.scanStatus;
+      if (!scanStatus) return null;
+      return {
+        scanning: Boolean(scanStatus.scanning),
+        count: typeof scanStatus.count === 'number' ? scanStatus.count : undefined,
+        folderCount: typeof scanStatus.folderCount === 'number' ? scanStatus.folderCount : undefined,
+        lastScan: typeof scanStatus.lastScan === 'string' ? scanStatus.lastScan : undefined,
+      };
+    } catch (err) {
+      console.warn(`[MediaEngine] Failed to get scan status for ${target.user}:`, err);
+      return null;
+    }
+  }
+
+  public async startScan(account?: NavidromeAccountRecord): Promise<SubsonicScanStatus | null> {
+    const target = account || this.getConfiguredAccounts()[0];
+    if (!target) return null;
+
+    try {
+      const data = await this.fetchSubsonic(target, 'startScan.view');
+      const scanStatus = data?.scanStatus;
+      if (!scanStatus) return null;
+      return {
+        scanning: Boolean(scanStatus.scanning),
+        count: typeof scanStatus.count === 'number' ? scanStatus.count : undefined,
+        folderCount: typeof scanStatus.folderCount === 'number' ? scanStatus.folderCount : undefined,
+        lastScan: typeof scanStatus.lastScan === 'string' ? scanStatus.lastScan : undefined,
+      };
+    } catch (err) {
+      console.warn(`[MediaEngine] Failed to start scan for ${target.user}:`, err);
+      return null;
+    }
+  }
+
+  private async checkAndRunBackgroundSync(): Promise<void> {
+    if (this.isSyncing) return;
+
+    const accounts = this.getConfiguredAccounts();
+    if (accounts.length === 0) return;
+
+    // Lightweight check via getScanStatus before running full sync when a baseline exists
+    let shouldSync = false;
+    for (const account of accounts) {
+      const stats = getLibraryStats(account.user);
+      const key = this.getAccountKey(account);
+      const prevCount = this.lastScanCountByAccount.get(key);
+
+      if (stats.totalTracks === 0 || prevCount === undefined) {
+        shouldSync = true;
+        break;
+      }
+
+      const scanStatus = await this.getScanStatus(account);
+      if (
+        !scanStatus ||
+        scanStatus.scanning ||
+        scanStatus.count === undefined ||
+        scanStatus.count !== prevCount
+      ) {
+        shouldSync = true;
+        break;
+      }
+    }
+
+    if (!shouldSync) {
+      return;
+    }
+
+    await this.runSync({ isManual: false });
+  }
+
+  public triggerSync(userId?: string): boolean {
+    if (this.isSyncing) {
+      return false;
+    }
+    setImmediate(() => {
+      this.runSync({ isManual: false, userId }).catch((err) => {
+        console.error('[MediaEngine] Background sync trigger error:', err);
+      });
+    });
+    return true;
   }
 
   public getStatus(userId?: string) {
@@ -136,22 +268,7 @@ export class LibrarySyncService {
     });
 
     try {
-      let accounts = getNavidromeAccounts();
-      if (
-        accounts.length === 0 &&
-        process.env.NAVIDROME_URL &&
-        process.env.NAVIDROME_USER
-      ) {
-        accounts = [
-          {
-            url: process.env.NAVIDROME_URL,
-            user: process.env.NAVIDROME_USER,
-            pass: process.env.NAVIDROME_PASS || '',
-            token: process.env.NAVIDROME_TOKEN,
-            salt: process.env.NAVIDROME_SALT,
-          },
-        ];
-      }
+      const accounts = this.getConfiguredAccounts();
 
       if (accounts.length === 0) {
         console.warn('[MediaEngine] No Navidrome/Subsonic accounts configured for sync');
@@ -166,60 +283,155 @@ export class LibrarySyncService {
         return;
       }
 
-      // Sync primary account
-      const account = accounts[0]!;
-      console.log(
-        `[MediaEngine] Starting library sync for account user: ${account.user} at ${account.url}`
-      );
+      let totalTracksAll = 0;
+      let totalAlbumsAll = 0;
+      let totalArtistsAll = 0;
+      let anySucceeded = false;
+      let anyChanges = false;
+      let lastError: any = null;
 
-      // 1. Fetch & cache Artists (progress 5% -> 25%)
-      const artists = await this.syncArtists(account);
+      for (let accountIdx = 0; accountIdx < accounts.length; accountIdx++) {
+        const account = accounts[accountIdx]!;
+        const progressBase = Math.round((accountIdx / accounts.length) * 90);
+        const progressSpan = Math.max(10, Math.round(90 / accounts.length));
+
+        try {
+          console.log(
+            `[MediaEngine] Starting library sync (${accountIdx + 1}/${accounts.length}) for account user: ${account.user} at ${account.url}`
+          );
+
+          const prevStats = getLibraryStats(account.user);
+
+          // 1. Fetch & cache Artists
+          const artistsResult = await this.syncArtists(account);
+          const artists = artistsResult.artists;
+          setSyncState({
+            id: syncId,
+            user_id: options.userId || account.user,
+            status: 'syncing',
+            progress: Math.min(95, 5 + progressBase + Math.round(progressSpan * 0.25)),
+            total_artists: totalArtistsAll + artists.length,
+            total_albums: totalAlbumsAll,
+            total_tracks: totalTracksAll,
+            last_sync_time: Date.now(),
+            error: null,
+          });
+
+          // 2. Fetch & cache Albums
+          const albumsResult = await this.syncAlbums(account);
+          const albums = albumsResult.albums;
+          setSyncState({
+            id: syncId,
+            user_id: options.userId || account.user,
+            status: 'syncing',
+            progress: Math.min(95, 5 + progressBase + Math.round(progressSpan * 0.5)),
+            total_artists: totalArtistsAll + artists.length,
+            total_albums: totalAlbumsAll + albums.length,
+            total_tracks: totalTracksAll,
+            last_sync_time: Date.now(),
+            error: null,
+          });
+
+          // 3. Fetch & cache Tracks
+          const tracksResult = await this.syncTracks(account, albums, syncId, artists);
+          const { tracks, totalArtists, activeArtistIds } = tracksResult;
+
+          // 4. Prune deleted items after a full successful sync for that entity type
+          let prunedCount = 0;
+          if (tracksResult.complete) {
+            prunedCount += pruneDeletedTracks(
+              account.user,
+              tracks.map((t) => t.id)
+            );
+          }
+          if (albumsResult.complete) {
+            prunedCount += pruneDeletedAlbums(
+              account.user,
+              albums.map((a) => a.id)
+            );
+          }
+          if (artistsResult.complete && tracksResult.complete) {
+            prunedCount += pruneDeletedArtists(
+              account.user,
+              Array.from(activeArtistIds)
+            );
+          }
+
+          if (prunedCount > 0) {
+            console.log(`[MediaEngine] Pruned ${prunedCount} deleted items for ${account.user}`);
+          }
+
+          const afterStats = getLibraryStats(account.user);
+          if (
+            prunedCount > 0 ||
+            afterStats.totalTracks !== prevStats.totalTracks ||
+            afterStats.totalAlbums !== prevStats.totalAlbums ||
+            afterStats.totalArtists !== prevStats.totalArtists ||
+            (tracks.length > 0 && prevStats.totalTracks === 0)
+          ) {
+            anyChanges = true;
+          }
+
+          // Record scan count baseline if available
+          const scanStatus = await this.getScanStatus(account);
+          if (scanStatus && typeof scanStatus.count === 'number') {
+            this.lastScanCountByAccount.set(this.getAccountKey(account), scanStatus.count);
+          }
+
+          totalTracksAll += tracks.length;
+          totalAlbumsAll += albums.length;
+          totalArtistsAll += totalArtists;
+          anySucceeded = true;
+
+          if (account.user && account.user !== syncId) {
+            setSyncState({
+              id: account.user,
+              user_id: account.user,
+              status: 'completed',
+              progress: 100,
+              total_artists: totalArtists,
+              total_albums: albums.length,
+              total_tracks: tracks.length,
+              last_sync_time: Date.now(),
+              error: null,
+            });
+          }
+        } catch (accountErr) {
+          lastError = accountErr;
+          console.error(`[MediaEngine] Sync failed for account ${account.user}:`, accountErr);
+        }
+      }
+
+      if (!anySucceeded && lastError) {
+        throw lastError;
+      }
+
+      // Finalize completed state
       setSyncState({
         id: syncId,
-        user_id: options.userId || account.user,
-        status: 'syncing',
-        progress: 25,
-        total_artists: artists.length,
-        total_albums: 0,
-        total_tracks: 0,
-        last_sync_time: Date.now(),
-        error: null,
-      });
-
-      // 2. Fetch & cache Albums (progress 25% -> 50%)
-      const albums = await this.syncAlbums(account);
-      setSyncState({
-        id: syncId,
-        user_id: options.userId || account.user,
-        status: 'syncing',
-        progress: 50,
-        total_artists: artists.length,
-        total_albums: albums.length,
-        total_tracks: 0,
-        last_sync_time: Date.now(),
-        error: null,
-      });
-
-      // 3. Fetch & cache Tracks (progress 50% -> 95%)
-      const { tracks, totalArtists } = await this.syncTracks(account, albums, syncId, artists);
-
-      // 4. Finalize completed state
-      setSyncState({
-        id: syncId,
-        user_id: options.userId || account.user,
+        user_id: options.userId || accounts[0]!.user,
         status: 'completed',
         progress: 100,
-        total_artists: totalArtists,
-        total_albums: albums.length,
-        total_tracks: tracks.length,
+        total_artists: totalArtistsAll,
+        total_albums: totalAlbumsAll,
+        total_tracks: totalTracksAll,
         last_sync_time: Date.now(),
         error: null,
       });
 
       this.lastSyncCompletedTime = Date.now();
       console.log(
-        `[MediaEngine] Library sync finished successfully. Cached ${totalArtists} artists, ${albums.length} albums, ${tracks.length} tracks.`
+        `[MediaEngine] Library sync finished successfully. Cached ${totalArtistsAll} artists, ${totalAlbumsAll} albums, ${totalTracksAll} tracks across ${accounts.length} account(s).`
       );
+
+      if ((anyChanges || options.isManual) && this.io) {
+        this.io.emit('holad_libraryUpdated', {
+          timestamp: Date.now(),
+          totalTracks: totalTracksAll,
+          totalAlbums: totalAlbumsAll,
+          totalArtists: totalArtistsAll,
+        });
+      }
     } catch (err: any) {
       console.error('[MediaEngine] Library sync failed:', err);
       setSyncState({
@@ -236,7 +448,9 @@ export class LibrarySyncService {
     }
   }
 
-  private async syncArtists(account: NavidromeAccountRecord): Promise<CachedArtist[]> {
+  private async syncArtists(
+    account: NavidromeAccountRecord
+  ): Promise<{ artists: CachedArtist[]; complete: boolean }> {
     try {
       const data = await this.fetchSubsonic(account, 'getArtists.view');
       const index = data?.artists?.index || [];
@@ -260,18 +474,21 @@ export class LibrarySyncService {
       if (artists.length > 0) {
         upsertArtistsBatch(artists);
       }
-      return artists;
+      return { artists, complete: true };
     } catch (err) {
       console.warn('[MediaEngine] Failed to sync artists:', err);
-      return [];
+      return { artists: [], complete: false };
     }
   }
 
-  private async syncAlbums(account: NavidromeAccountRecord): Promise<CachedAlbum[]> {
+  private async syncAlbums(
+    account: NavidromeAccountRecord
+  ): Promise<{ albums: CachedAlbum[]; complete: boolean }> {
     const allAlbums: CachedAlbum[] = [];
     let offset = 0;
     const batchSize = 500;
     let hasMore = true;
+    let complete = true;
 
     while (hasMore) {
       try {
@@ -309,11 +526,12 @@ export class LibrarySyncService {
         }
       } catch (err) {
         console.warn(`[MediaEngine] Failed to sync album batch at offset ${offset}:`, err);
+        complete = false;
         break;
       }
     }
 
-    return allAlbums;
+    return { albums: allAlbums, complete };
   }
 
   private async syncTracks(
@@ -321,16 +539,23 @@ export class LibrarySyncService {
     albums: CachedAlbum[],
     syncId: string,
     initialArtists: CachedArtist[]
-  ): Promise<{ tracks: CachedTrack[]; totalArtists: number }> {
+  ): Promise<{
+    tracks: CachedTrack[];
+    totalArtists: number;
+    activeArtistIds: Set<string>;
+    complete: boolean;
+  }> {
     const allTracks: CachedTrack[] = [];
     let offset = 0;
     const batchSize = 500;
     let hasMore = true;
+    let complete = true;
 
     const artistSplitRegex = /\s*[;\\/,•]\s*|\s+feat\.?\s+|\s+ft\.?\s+|\s*&\s*|\s+x\s+/i;
     const knownArtists = new Set<string>(
       initialArtists.map((a) => a.name.trim().toLowerCase()).filter(Boolean)
     );
+    const activeArtistIds = new Set<string>(initialArtists.map((a) => a.id));
     const newArtistsBatch: CachedArtist[] = [];
 
     const processArtistsFromTracks = (tracksBatch: CachedTrack[]) => {
@@ -348,6 +573,7 @@ export class LibrarySyncService {
               ? t.artist_id
               : `artist_${md5(lower)}`;
 
+            activeArtistIds.add(artistId);
             newArtistsBatch.push({
               id: artistId,
               name: artistName,
@@ -425,12 +651,13 @@ export class LibrarySyncService {
         }
       } catch (err) {
         console.warn(`[MediaEngine] Failed to sync track batch at offset ${offset}:`, err);
+        complete = false;
         break;
       }
     }
 
-    // Fallback: If search3 returned 0 tracks but we have albums, fetch tracks via getAlbum
-    if (allTracks.length === 0 && albums.length > 0) {
+    // Fallback: If search3 returned 0 tracks without failing, and we have albums, fetch tracks via getAlbum
+    if (complete && allTracks.length === 0 && albums.length > 0) {
       console.log(
         `[MediaEngine] search3 returned 0 tracks; falling back to per-album track fetching for ${albums.length} albums`
       );
@@ -482,6 +709,7 @@ export class LibrarySyncService {
           }
         } catch (err) {
           console.warn(`[MediaEngine] Failed to get tracks for album ${album.id}:`, err);
+          complete = false;
         }
       }
     }
@@ -490,7 +718,7 @@ export class LibrarySyncService {
       upsertArtistsBatch(newArtistsBatch.splice(0, newArtistsBatch.length));
     }
 
-    return { tracks: allTracks, totalArtists: knownArtists.size };
+    return { tracks: allTracks, totalArtists: knownArtists.size, activeArtistIds, complete };
   }
 
   private async fetchSubsonic(

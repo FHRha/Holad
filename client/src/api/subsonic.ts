@@ -3,6 +3,7 @@ export * from './subsonic/tracks';
 export * from './subsonic/albums';
 export * from './subsonic/social';
 export * from './subsonic/playlists';
+export * from './subsonic/system';
 
 import { buildUrl, getBaseUrl, getAuthParams, fetchWithRetry } from './subsonic-core';
 import { useAuthStore } from '../store/authStore';

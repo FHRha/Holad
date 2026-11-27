@@ -23,6 +23,11 @@ export async function pushHistoryEntry(track: Track, playedAt: number): Promise<
   const { user, isAuthenticated } = useAuthStore.getState();
   if (!isAuthenticated || !user) return false;
 
+  const entry: PlayHistoryEntry = {
+    ...track,
+    playedAt
+  };
+
   try {
     const payload = {
       id: track.id,
@@ -43,9 +48,15 @@ export async function pushHistoryEntry(track: Track, playedAt: number): Promise<
       timeoutMs: 8000
     });
 
-    return res.ok;
+    if (res.ok) {
+      useHistoryStore.getState().removePendingOfflineHistory(track.id, playedAt);
+      return true;
+    }
+    useHistoryStore.getState().addPendingOfflineHistory(entry);
+    return false;
   } catch (error) {
     console.warn('[History API] Failed to push history entry:', error);
+    useHistoryStore.getState().addPendingOfflineHistory(entry);
     return false;
   }
 }
@@ -73,13 +84,12 @@ export async function pushHistoryBatch(entries: PlayHistoryEntry[]): Promise<boo
   }
 }
 
-/**
- * Fetches history delta from server SQLite database.
- * If `since` is specified, only returns tracks played after that timestamp.
- */
-export async function fetchHistoryDelta(since?: number, limit = 500): Promise<PlayHistoryEntry[]> {
+export async function fetchHistoryDeltaWithStatus(
+  since?: number,
+  limit = 500
+): Promise<{ ok: boolean; entries: PlayHistoryEntry[] }> {
   const { user, isAuthenticated } = useAuthStore.getState();
-  if (!isAuthenticated || !user) return [];
+  if (!isAuthenticated || !user) return { ok: false, entries: [] };
 
   try {
     const params = new URLSearchParams();
@@ -98,15 +108,24 @@ export async function fetchHistoryDelta(since?: number, limit = 500): Promise<Pl
     });
 
     if (!res.ok) {
-      return [];
+      return { ok: false, entries: [] };
     }
 
     const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    return { ok: true, entries: Array.isArray(data) ? data : [] };
   } catch (error) {
     console.warn('[History API] Failed to fetch history delta:', error);
-    return [];
+    return { ok: false, entries: [] };
   }
+}
+
+/**
+ * Fetches history delta from server SQLite database.
+ * If `since` is specified, only returns tracks played after that timestamp.
+ */
+export async function fetchHistoryDelta(since?: number, limit = 500): Promise<PlayHistoryEntry[]> {
+  const { entries } = await fetchHistoryDeltaWithStatus(since, limit);
+  return entries;
 }
 
 /**
@@ -145,44 +164,27 @@ export async function syncHistoryWithServer(): Promise<void> {
 
   isSyncing = true;
   try {
-    const localHistory = useHistoryStore.getState().history;
-    const initialPushKey = `holad_history_migrated_${user}`;
-    const hasPushedInitial = localStorage.getItem(initialPushKey) === 'true';
+    const historyStore = useHistoryStore.getState();
+    const pendingOffline = historyStore.pendingOfflineHistory || [];
 
-    // If client has local history and hasn't uploaded initial batch to server yet
-    if (localHistory.length > 0 && !hasPushedInitial) {
-      const serverSample = await fetchHistoryDelta(undefined, 1);
-      if (serverSample.length === 0) {
-        console.log('[History API] Migrating local history to server SQLite DB:', localHistory.length);
-        await pushHistoryBatch(localHistory);
+    if (pendingOffline.length > 0) {
+      console.log('[History API] Pushing pending offline tracks to server:', pendingOffline.length);
+      const pushed = await pushHistoryBatch(pendingOffline);
+      if (pushed) {
+        historyStore.clearPendingOfflineHistory();
       }
-      localStorage.setItem(initialPushKey, 'true');
     }
 
-    if (localHistory.length === 0) {
-      // New device or cleared storage: pull initial history
-      const serverEntries = await fetchHistoryDelta(undefined, 500);
-      if (serverEntries.length > 0) {
-        console.log('[History API] Loaded history from server SQLite DB:', serverEntries.length);
-        useHistoryStore.getState().syncHistoryData(serverEntries);
-      }
-      localStorage.setItem(initialPushKey, 'true');
-    } else {
-      // Check for offline plays that haven't reached the server yet
-      const recentServer = await fetchHistoryDelta(undefined, 50);
-      const isAlreadyOnServer = (localEntry: PlayHistoryEntry) => {
-        return recentServer.some(s => s.id === localEntry.id && Math.abs(s.playedAt - localEntry.playedAt) < 5000);
-      };
-      const unpushed = localHistory.slice(0, 50).filter(l => !isAlreadyOnServer(l));
-      if (unpushed.length > 0) {
-        console.log('[History API] Pushing unpushed offline tracks to server:', unpushed.length);
-        await pushHistoryBatch(unpushed);
-      }
+    const { ok, entries: serverEntries } = await fetchHistoryDeltaWithStatus(undefined, 500);
+    if (!ok) {
+      return;
+    }
 
-      // Merge new tracks played on other devices
-      if (recentServer.length > 0) {
-        useHistoryStore.getState().syncHistoryData(recentServer);
-      }
+    if (useHistoryStore.getState().pendingOfflineHistory.length === 0) {
+      // Online without pending offline-recorded history: accept server history as SSOT
+      useHistoryStore.getState().setHistory(serverEntries);
+    } else if (serverEntries.length > 0) {
+      useHistoryStore.getState().syncHistoryData(serverEntries);
     }
   } catch (error) {
     console.warn('[History API] Error syncing history with server:', error);

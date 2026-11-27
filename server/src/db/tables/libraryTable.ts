@@ -510,3 +510,71 @@ export function clearLibrary(userId?: string): void {
     console.error('[DB] Failed to clear library:', err);
   }
 }
+
+type CacheTableName = 'cached_tracks' | 'cached_albums' | 'cached_artists';
+
+function pruneTableByActiveIds(
+  table: CacheTableName,
+  userId: string | undefined,
+  activeIds: string[]
+): number {
+  const activeSet = new Set(activeIds);
+  const selectSql = userId
+    ? `SELECT id FROM ${table} WHERE user_id = ?`
+    : `SELECT id FROM ${table}`;
+  const existingRows = (
+    userId
+      ? db.prepare(selectSql).all(userId)
+      : db.prepare(selectSql).all()
+  ) as { id: string }[];
+
+  const toDelete = existingRows
+    .map((r) => r.id)
+    .filter((id) => !activeSet.has(id));
+
+  if (toDelete.length === 0) return 0;
+
+  const deleteStmt = userId
+    ? db.prepare(`DELETE FROM ${table} WHERE id = ? AND user_id = ?`)
+    : db.prepare(`DELETE FROM ${table} WHERE id = ?`);
+
+  const tx = db.transaction((ids: string[]) => {
+    for (const id of ids) {
+      if (userId) {
+        deleteStmt.run(id, userId);
+      } else {
+        deleteStmt.run(id);
+      }
+    }
+  });
+
+  tx(toDelete);
+  return toDelete.length;
+}
+
+export function pruneDeletedTracks(userId: string | undefined, activeIds: string[]): number {
+  try {
+    return pruneTableByActiveIds('cached_tracks', userId, activeIds);
+  } catch (err) {
+    console.error('[DB] Failed to prune deleted tracks:', err);
+    return 0;
+  }
+}
+
+export function pruneDeletedAlbums(userId: string | undefined, activeIds: string[]): number {
+  try {
+    return pruneTableByActiveIds('cached_albums', userId, activeIds);
+  } catch (err) {
+    console.error('[DB] Failed to prune deleted albums:', err);
+    return 0;
+  }
+}
+
+export function pruneDeletedArtists(userId: string | undefined, activeIds: string[]): number {
+  try {
+    return pruneTableByActiveIds('cached_artists', userId, activeIds);
+  } catch (err) {
+    console.error('[DB] Failed to prune deleted artists:', err);
+    return 0;
+  }
+}

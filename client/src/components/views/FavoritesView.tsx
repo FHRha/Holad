@@ -17,20 +17,34 @@ import FilterChip from '../common/FilterChip';
 import AlbumRow from '../common/AlbumRow';
 import { mapSubsonicTracks, mapSubsonicTrack } from '../../utils/trackMapper';
 import { CardGridSkeleton, TrackListSkeleton, Skeleton } from '../common/Skeleton';
+import {
+  getLibraryCacheEpoch,
+  subscribeLibraryInvalidation,
+} from '../../utils/libraryCache';
 
 interface FavoritesViewCache {
+  epoch: number;
   albums: any[];
   tracks: any[];
 }
 
 let cachedFavoritesData: FavoritesViewCache | null = null;
 
+function getValidFavoritesCache(): FavoritesViewCache | null {
+  if (cachedFavoritesData && cachedFavoritesData.epoch === getLibraryCacheEpoch()) {
+    return cachedFavoritesData;
+  }
+  cachedFavoritesData = null;
+  return null;
+}
+
 export default function FavoritesView() {
   const { t } = useTranslation();
   const { setSearchOpen } = useUIStore();
-  const [albums, setAlbums] = useState<any[]>(() => cachedFavoritesData?.albums || []);
-  const [tracks, setTracks] = useState<any[]>(() => cachedFavoritesData?.tracks || []);
-  const [loading, setLoading] = useState(() => !cachedFavoritesData);
+  const initialCache = getValidFavoritesCache();
+  const [albums, setAlbums] = useState<any[]>(() => initialCache?.albums || []);
+  const [tracks, setTracks] = useState<any[]>(() => initialCache?.tracks || []);
+  const [loading, setLoading] = useState(() => !initialCache);
   const likedCount = usePlayerStore(s => s.likedTrackIds.length);
   const [mobileTab, setMobileTab] = useState<'tracks' | 'albums' | 'artists'>('tracks');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -38,15 +52,11 @@ export default function FavoritesView() {
   const [mobileScrollParent, setMobileScrollParent] = useState<HTMLDivElement | null>(null);
   const { openMenu } = useContextMenuStore();
 
-  useEffect(() => {
-    // oxlint-disable-next-line
-    loadStarred();
-  }, [likedCount]);
-
-  const loadStarred = async () => {
-    if (!cachedFavoritesData) {
+  const loadStarred = useCallback(async (isBackground = false) => {
+    if (!isBackground && !getValidFavoritesCache()) {
       setLoading(true);
     }
+    const currentEpoch = getLibraryCacheEpoch();
     try {
       const data = await fetchStarred();
       const newAlbums = data.album || [];
@@ -54,6 +64,7 @@ export default function FavoritesView() {
       setAlbums(newAlbums);
       setTracks(newTracks);
       cachedFavoritesData = {
+        epoch: currentEpoch,
         albums: newAlbums,
         tracks: newTracks,
       };
@@ -67,13 +78,24 @@ export default function FavoritesView() {
       setTracks(fallbackTracks);
       setAlbums(offlineAlbums);
       cachedFavoritesData = {
+        epoch: currentEpoch,
         albums: offlineAlbums,
         tracks: fallbackTracks,
       };
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void loadStarred(false);
+  }, [likedCount, loadStarred]);
+
+  useEffect(() => {
+    return subscribeLibraryInvalidation(() => {
+      void loadStarred(true);
+    });
+  }, [loadStarred]);
 
   const handlePlayTrack = useCallback((index: number, trackList: any[]) => {
     const mappedTracks: Track[] = mapSubsonicTracks(trackList);

@@ -16,8 +16,13 @@ import { useTrackFilters } from '../../hooks/useTrackFilters';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { Virtuoso } from 'react-virtuoso';
+import {
+  getLibraryCacheEpoch,
+  subscribeLibraryInvalidation,
+} from '../../utils/libraryCache';
 
 interface TracksViewCache {
+  epoch: number;
   tracks: any[];
   globalArtists: any[];
   globalAlbums: any[];
@@ -26,21 +31,30 @@ interface TracksViewCache {
 
 let cachedTracksData: TracksViewCache | null = null;
 
+function getValidTracksCache(): TracksViewCache | null {
+  if (cachedTracksData && cachedTracksData.epoch === getLibraryCacheEpoch()) {
+    return cachedTracksData;
+  }
+  cachedTracksData = null;
+  return null;
+}
+
 export default function TracksView() {
   const { t } = useTranslation();
   const isInsideLibrary = useLocation().pathname.startsWith('/library');
   const { isOffline } = useNetworkStatus();
-  const [tracks, setTracks] = useState<any[]>(() => cachedTracksData?.tracks || []);
-  const [globalArtists, setGlobalArtists] = useState<any[]>(() => cachedTracksData?.globalArtists || []);
-  const [globalAlbums, setGlobalAlbums] = useState<any[]>(() => cachedTracksData?.globalAlbums || []);
-  const [loading, setLoading] = useState(() => !cachedTracksData);
+  const initialCache = getValidTracksCache();
+  const [tracks, setTracks] = useState<any[]>(() => initialCache?.tracks || []);
+  const [globalArtists, setGlobalArtists] = useState<any[]>(() => initialCache?.globalArtists || []);
+  const [globalAlbums, setGlobalAlbums] = useState<any[]>(() => initialCache?.globalAlbums || []);
+  const [loading, setLoading] = useState(() => !initialCache);
 
   const activeFilter = useUIStore(s => s.activeFilter);
   const downloads = useDownloadStore(state => state.downloads);
   const isGuest = usePlayerStore(state => !!state.roomId && state.role !== 'host');
 
-  const regularTracksRef = useRef<any[]>(cachedTracksData?.tracks || []);
-  const regularHasMoreRef = useRef<boolean>(cachedTracksData?.hasMore ?? true);
+  const regularTracksRef = useRef<any[]>(initialCache?.tracks || []);
+  const regularHasMoreRef = useRef<boolean>(initialCache?.hasMore ?? true);
   const isFilterModeRef = useRef<boolean>(false);
 
   const baseTracks = useMemo(() => {
@@ -119,10 +133,11 @@ export default function TracksView() {
   useEffect(() => {
     let cancelled = false;
 
-    const loadInitialTracks = async () => {
-      if (!cachedTracksData) {
+    const loadInitialTracks = async (isBackground = false) => {
+      if (!isBackground && !getValidTracksCache()) {
         setLoading(true);
       }
+      const currentEpoch = getLibraryCacheEpoch();
       try {
         let tracksData: any[] = [];
         try {
@@ -144,14 +159,18 @@ export default function TracksView() {
           (a.title || a.name || '').localeCompare(b.title || b.name || '')
         );
         const more = tracksData.length >= 100;
-        setTracks(sorted);
-        setHasMore(more);
         regularTracksRef.current = sorted;
         regularHasMoreRef.current = more;
+        if (!isFilterModeRef.current) {
+          setTracks(sorted);
+          setHasMore(more);
+        }
+        const existingCache = cachedTracksData?.epoch === currentEpoch ? cachedTracksData : null;
         cachedTracksData = {
+          epoch: currentEpoch,
           tracks: sorted,
-          globalArtists: cachedTracksData?.globalArtists || [],
-          globalAlbums: cachedTracksData?.globalAlbums || [],
+          globalArtists: existingCache?.globalArtists || [],
+          globalAlbums: existingCache?.globalAlbums || [],
           hasMore: more,
         };
       } catch (e) {
@@ -159,10 +178,14 @@ export default function TracksView() {
         if (!cancelled) {
           const offlineList = getOfflineTracks();
           if (offlineList.length > 0) {
-            setTracks(offlineList);
             regularTracksRef.current = offlineList;
+            if (!isFilterModeRef.current) {
+              setTracks(offlineList);
+            }
           }
-          setHasMore(false);
+          if (!isFilterModeRef.current) {
+            setHasMore(false);
+          }
         }
       } finally {
         if (!cancelled) {
@@ -176,6 +199,7 @@ export default function TracksView() {
       if (typeof window !== 'undefined' && window.innerWidth < 768) {
         return;
       }
+      const currentEpoch = getLibraryCacheEpoch();
 
       (async () => {
         try {
@@ -192,7 +216,7 @@ export default function TracksView() {
           if (cancelled) return;
           const next = artistsData || [];
           setGlobalArtists(next);
-          if (cachedTracksData) {
+          if (cachedTracksData && cachedTracksData.epoch === currentEpoch) {
             cachedTracksData.globalArtists = next;
           }
         })
@@ -214,18 +238,26 @@ export default function TracksView() {
           if (cancelled) return;
           const next = albumsData || [];
           setGlobalAlbums(next);
-          if (cachedTracksData) {
+          if (cachedTracksData && cachedTracksData.epoch === currentEpoch) {
             cachedTracksData.globalAlbums = next;
           }
         })
         .catch(() => {});
     };
 
-    loadInitialTracks();
+    void loadInitialTracks(false);
     loadSidebarFilters();
+
+    const unsubscribe = subscribeLibraryInvalidation(() => {
+      if (!cancelled) {
+        void loadInitialTracks(true);
+        loadSidebarFilters();
+      }
+    });
 
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, []);
 

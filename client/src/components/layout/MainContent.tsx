@@ -10,8 +10,14 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useUIStore } from '../../store/uiStore';
 import { getDownloadedAlbums, getOfflineTracks } from '../../store/downloadStore';
 import { isMobileDevice } from '../../App';
+import {
+  getLibraryCacheEpoch,
+  subscribeLibraryInvalidation,
+  initLibraryAutoRefresh,
+} from '../../utils/libraryCache';
 
 interface MainContentCache {
+  epoch: number;
   albums: any[];
   randomAlbums: any[];
   recentTracks: any[];
@@ -20,6 +26,14 @@ interface MainContentCache {
 }
 
 let cachedMainContent: MainContentCache | null = null;
+
+function getValidMainContentCache(): MainContentCache | null {
+  if (cachedMainContent && cachedMainContent.epoch === getLibraryCacheEpoch()) {
+    return cachedMainContent;
+  }
+  cachedMainContent = null;
+  return null;
+}
 
 function shuffleList<T>(arr: T[]): T[] {
   const result = [...arr];
@@ -32,14 +46,15 @@ function shuffleList<T>(arr: T[]): T[] {
 
 export default function MainContent() {
   const { t } = useTranslation();
-  const [albums, setAlbums] = useState<any[]>(() => cachedMainContent?.albums || []);
-  const [randomAlbums, setRandomAlbums] = useState<any[]>(() => cachedMainContent?.randomAlbums || []);
-  const [recentTracks, setRecentTracks] = useState<any[]>(() => cachedMainContent?.recentTracks || []);
-  const [frequentAlbums, setFrequentAlbums] = useState<any[]>(() => cachedMainContent?.frequentAlbums || []);
-  const [genres, setGenres] = useState<any[]>(() => cachedMainContent?.genres || []);
-  const [albumsSettled, setAlbumsSettled] = useState(() => Boolean(cachedMainContent));
-  const [recentSettled, setRecentSettled] = useState(() => Boolean(cachedMainContent));
-  const [genresSettled, setGenresSettled] = useState(() => Boolean(cachedMainContent));
+  const initialCache = getValidMainContentCache();
+  const [albums, setAlbums] = useState<any[]>(() => initialCache?.albums || []);
+  const [randomAlbums, setRandomAlbums] = useState<any[]>(() => initialCache?.randomAlbums || []);
+  const [recentTracks, setRecentTracks] = useState<any[]>(() => initialCache?.recentTracks || []);
+  const [frequentAlbums, setFrequentAlbums] = useState<any[]>(() => initialCache?.frequentAlbums || []);
+  const [genres, setGenres] = useState<any[]>(() => initialCache?.genres || []);
+  const [albumsSettled, setAlbumsSettled] = useState(() => Boolean(initialCache));
+  const [recentSettled, setRecentSettled] = useState(() => Boolean(initialCache));
+  const [genresSettled, setGenresSettled] = useState(() => Boolean(initialCache));
   const [isMobile, setIsMobile] = useState(isMobileDevice);
   const mountedRef = useRef(true);
 
@@ -105,13 +120,21 @@ export default function MainContent() {
   }, [isOfflineMode]);
 
   const loadContent = () => {
+    const currentEpoch = getLibraryCacheEpoch();
+    const isCacheValidForCurrentEpoch = cachedMainContent?.epoch === currentEpoch;
+
     const updateCache = (patch: Partial<MainContentCache>) => {
+      const baseCache =
+        cachedMainContent && cachedMainContent.epoch === currentEpoch
+          ? cachedMainContent
+          : null;
       cachedMainContent = {
-        albums: patch.albums ?? cachedMainContent?.albums ?? [],
-        randomAlbums: patch.randomAlbums ?? cachedMainContent?.randomAlbums ?? [],
-        recentTracks: patch.recentTracks ?? cachedMainContent?.recentTracks ?? [],
-        frequentAlbums: patch.frequentAlbums ?? cachedMainContent?.frequentAlbums ?? [],
-        genres: patch.genres ?? cachedMainContent?.genres ?? [],
+        epoch: currentEpoch,
+        albums: patch.albums ?? baseCache?.albums ?? [],
+        randomAlbums: patch.randomAlbums ?? baseCache?.randomAlbums ?? [],
+        recentTracks: patch.recentTracks ?? baseCache?.recentTracks ?? [],
+        frequentAlbums: patch.frequentAlbums ?? baseCache?.frequentAlbums ?? [],
+        genres: patch.genres ?? baseCache?.genres ?? [],
       };
     };
 
@@ -120,7 +143,11 @@ export default function MainContent() {
       .then((albumData) => {
         if (!mountedRef.current) return;
         const newAlbums = albumData || [];
-        const newRandom = cachedMainContent?.randomAlbums?.length ? cachedMainContent.randomAlbums : shuffleList(newAlbums);
+        const cachedRandom =
+          isCacheValidForCurrentEpoch && cachedMainContent?.epoch === currentEpoch
+            ? cachedMainContent.randomAlbums
+            : null;
+        const newRandom = cachedRandom?.length ? cachedRandom : shuffleList(newAlbums);
         setAlbums(newAlbums);
         setRandomAlbums(newRandom);
         updateCache({ albums: newAlbums, randomAlbums: newRandom });
@@ -166,9 +193,17 @@ export default function MainContent() {
 
   useEffect(() => {
     mountedRef.current = true;
+    initLibraryAutoRefresh();
     loadContent();
+    const unsubscribe = subscribeLibraryInvalidation(() => {
+      if (mountedRef.current) {
+        cachedMainContent = null;
+        loadContent();
+      }
+    });
     return () => {
       mountedRef.current = false;
+      unsubscribe();
     };
   }, []);
 

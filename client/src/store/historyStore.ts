@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Track } from './playerStore';
+import { isClientOffline } from '../utils/networkStatus';
 
 export interface PlayHistoryEntry extends Track {
   playedAt: number; // timestamp
@@ -8,8 +9,13 @@ export interface PlayHistoryEntry extends Track {
 
 interface HistoryState {
   history: PlayHistoryEntry[];
+  pendingOfflineHistory: PlayHistoryEntry[];
   addTrackToHistory: (track: Track, customPlayedAt?: number) => void;
+  setHistory: (entries: PlayHistoryEntry[]) => void;
   syncHistoryData: (entries: PlayHistoryEntry[]) => void;
+  addPendingOfflineHistory: (entry: PlayHistoryEntry) => void;
+  removePendingOfflineHistory: (trackId: string, playedAt: number) => void;
+  clearPendingOfflineHistory: () => void;
   clearHistory: () => void;
 }
 
@@ -17,7 +23,9 @@ export const useHistoryStore = create<HistoryState>()(
   persist(
     (set) => ({
       history: [],
+      pendingOfflineHistory: [],
       addTrackToHistory: (track, customPlayedAt) => {
+        const offline = isClientOffline();
         set((state) => {
           const now = customPlayedAt || Date.now();
           
@@ -34,9 +42,34 @@ export const useHistoryStore = create<HistoryState>()(
 
           // Keep up to 5000 recent plays
           const newHistory = [newEntry, ...state.history].slice(0, 5000);
+
+          let nextPending = state.pendingOfflineHistory;
+          if (offline) {
+            const alreadyPending = nextPending.some(
+              (p) => p.id === newEntry.id && Math.abs(p.playedAt - newEntry.playedAt) < 5000
+            );
+            if (!alreadyPending) {
+              nextPending = [newEntry, ...nextPending].slice(0, 5000);
+            }
+          }
           
-          return { history: newHistory };
+          return { history: newHistory, pendingOfflineHistory: nextPending };
         });
+      },
+      setHistory: (entries) => {
+        const safeEntries = Array.isArray(entries) ? [...entries] : [];
+        safeEntries.sort((a, b) => b.playedAt - a.playedAt);
+        const deduped: PlayHistoryEntry[] = [];
+        for (const e of safeEntries) {
+          const isDuplicate = deduped.some(existing =>
+            existing.id === e.id &&
+            Math.abs(existing.playedAt - e.playedAt) < 5 * 60 * 1000
+          );
+          if (!isDuplicate) {
+            deduped.push(e);
+          }
+        }
+        set({ history: deduped.slice(0, 5000) });
       },
       syncHistoryData: (entries) => {
         set((state) => {
@@ -61,7 +94,26 @@ export const useHistoryStore = create<HistoryState>()(
           return { history: newHistory.slice(0, 5000) };
         });
       },
-      clearHistory: () => set({ history: [] }),
+      addPendingOfflineHistory: (entry) => {
+        set((state) => {
+          const exists = state.pendingOfflineHistory.some(
+            (p) => p.id === entry.id && Math.abs(p.playedAt - entry.playedAt) < 5000
+          );
+          if (exists) return state;
+          return {
+            pendingOfflineHistory: [entry, ...state.pendingOfflineHistory].slice(0, 5000),
+          };
+        });
+      },
+      removePendingOfflineHistory: (trackId, playedAt) => {
+        set((state) => ({
+          pendingOfflineHistory: state.pendingOfflineHistory.filter(
+            (p) => !(p.id === trackId && Math.abs(p.playedAt - playedAt) < 5000)
+          ),
+        }));
+      },
+      clearPendingOfflineHistory: () => set({ pendingOfflineHistory: [] }),
+      clearHistory: () => set({ history: [], pendingOfflineHistory: [] }),
     }),
     {
       name: 'holad-history',

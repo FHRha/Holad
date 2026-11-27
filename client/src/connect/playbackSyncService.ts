@@ -151,7 +151,7 @@ export function setupPlaybackSubscriptions(): void {
 
   unsubscribeStore = usePlayerStore.subscribe((state, prevState) => {
     if (isApplyingRemoteState || useHoladStore.getState().isApplyingRemoteState) return;
-    if (!state.isSessionHydrated && !state.hasActiveOfflinePlayback) return;
+    if (!state.isSessionHydrated) return;
 
     const holad = useHoladStore.getState();
     const currentActive = holad.activeDeviceId;
@@ -174,8 +174,11 @@ export function setupPlaybackSubscriptions(): void {
       const indexChanged = state.currentIndex !== prevState?.currentIndex;
       const queueChanged = state.queue !== prevState?.queue || state.queue?.length !== prevState?.queue?.length;
       const rateChanged = state.playbackRate !== prevState?.playbackRate;
+      const shuffleChanged = state.isShuffle !== prevState?.isShuffle;
+      const repeatChanged = state.repeatMode !== prevState?.repeatMode;
+      const queueVersionChanged = state.queueVersion !== prevState?.queueVersion;
 
-      if (isPlayingChanged || indexChanged || queueChanged || rateChanged) {
+      if (isPlayingChanged || indexChanged || queueChanged || rateChanged || shuffleChanged || repeatChanged || queueVersionChanged) {
         const positionMs = getCurrentPositionMs(state);
         const currentTrack = state.queue[state.currentIndex];
 
@@ -196,6 +199,9 @@ export function setupPlaybackSubscriptions(): void {
           positionMs,
           isPlaying: state.isPlaying,
           playbackRate: state.playbackRate || 1,
+          isShuffle: state.isShuffle,
+          repeatMode: state.repeatMode,
+          queueVersion: state.queueVersion || '',
         };
 
         currentSocket.emit('holad_updateSnapshot', patch);
@@ -209,22 +215,31 @@ export function setupPlaybackSubscriptions(): void {
           currentTime: positionMs / 1000,
           positionMs,
           playbackRate: state.playbackRate || 1,
+          isShuffle: state.isShuffle,
+          repeatMode: state.repeatMode,
+          queueVersion: state.queueVersion || '',
           accentColor: useSettingsStore.getState().accentColor,
           customColors: useSettingsStore.getState().customColors,
           lastPausedAt: !state.isPlaying ? (holad.lastPausedAt || Date.now()) : null,
         });
       }
-    } else {
-      // 2. PASSIVE DEVICE (currentActive !== currentDeviceId)
+    } else if (currentActive) {
+      // 2. PASSIVE DEVICE (another device is active)
       stopHeartbeat();
 
       const queueChanged = state.queue !== prevState?.queue || state.queue?.length !== prevState?.queue?.length;
       const indexChanged = state.currentIndex !== prevState?.currentIndex;
       const isPlayingChanged = state.isPlaying !== prevState?.isPlaying;
+      const shuffleChanged = state.isShuffle !== prevState?.isShuffle;
       const repeatChanged = state.repeatMode !== prevState?.repeatMode;
       const rateChanged = state.playbackRate !== prevState?.playbackRate;
 
-      if (queueChanged) {
+      if (shuffleChanged) {
+        currentSocket.emit('holad_remoteCommand', {
+          type: 'shuffle',
+          payload: state.isShuffle,
+        });
+      } else if (queueChanged) {
         currentSocket.emit('holad_remoteCommand', {
           type: 'setQueue',
           payload: { queue: state.queue, currentIndex: state.currentIndex },
@@ -255,6 +270,8 @@ export function setupPlaybackSubscriptions(): void {
           payload: state.playbackRate,
         });
       }
+    } else {
+      stopHeartbeat();
     }
   });
 
