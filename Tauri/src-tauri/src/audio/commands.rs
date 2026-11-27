@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -9,7 +10,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use super::player::{AudioOutputDeviceInfo, AudioPlayer, AudioState, PlaybackStatus};
 
 pub struct AudioService {
-    player: AudioPlayer,
+    player: Arc<AudioPlayer>,
     ticker_started: AtomicBool,
 }
 
@@ -26,7 +27,7 @@ fn emit_state(app: &AppHandle, state: &AudioState) {
 impl AudioService {
     pub fn new() -> Self {
         Self {
-            player: AudioPlayer::new(),
+            player: Arc::new(AudioPlayer::new()),
             ticker_started: AtomicBool::new(false),
         }
     }
@@ -77,10 +78,10 @@ impl AudioService {
                             last_status = state.status;
                             emit_state(&app, &state);
                         } else if state.status != last_status {
-                            emit_state(&app, &state);
                             if state.status == PlaybackStatus::Ended {
                                 let _ = app.emit("track-ended", state.clone());
                             }
+                            emit_state(&app, &state);
                             last_status = state.status;
                         }
 
@@ -105,7 +106,7 @@ impl AudioService {
 }
 
 #[tauri::command]
-pub fn audio_load(
+pub async fn audio_load(
     app: AppHandle,
     service: State<'_, AudioService>,
     url: String,
@@ -114,38 +115,52 @@ pub fn audio_load(
 ) -> Result<AudioState, String> {
     service.start_ticker_if_needed(app.clone());
     let autoplay_val = autoplay.unwrap_or(false);
-    let state = service.player.load_source(&url, autoplay_val, position)?;
+    let player = Arc::clone(&service.player);
+    let state = tauri::async_runtime::spawn_blocking(move || {
+        player.load_source(&url, autoplay_val, position)
+    })
+    .await
+    .map_err(|e| format!("Audio load task failed: {}", e))??;
     emit_state(&app, &state);
     Ok(state)
 }
 
 #[tauri::command]
-pub fn audio_preload(
+pub async fn audio_preload(
     service: State<'_, AudioService>,
     url: String,
 ) -> Result<AudioState, String> {
-    service.player.preload(&url)
+    let player = Arc::clone(&service.player);
+    tauri::async_runtime::spawn_blocking(move || player.preload(&url))
+        .await
+        .map_err(|e| format!("Audio preload task failed: {}", e))?
 }
 
 #[tauri::command]
-pub fn audio_queue_gapless(
+pub async fn audio_queue_gapless(
     app: AppHandle,
     service: State<'_, AudioService>,
     url: String,
 ) -> Result<AudioState, String> {
     service.start_ticker_if_needed(app.clone());
-    let state = service.player.queue_gapless(&url)?;
+    let player = Arc::clone(&service.player);
+    let state = tauri::async_runtime::spawn_blocking(move || player.queue_gapless(&url))
+        .await
+        .map_err(|e| format!("Audio queue_gapless task failed: {}", e))??;
     emit_state(&app, &state);
     Ok(state)
 }
 
 #[tauri::command]
-pub fn audio_play(
+pub async fn audio_play(
     app: AppHandle,
     service: State<'_, AudioService>,
 ) -> Result<AudioState, String> {
     service.start_ticker_if_needed(app.clone());
-    let state = service.player.play()?;
+    let player = Arc::clone(&service.player);
+    let state = tauri::async_runtime::spawn_blocking(move || player.play())
+        .await
+        .map_err(|e| format!("Audio play task failed: {}", e))??;
     emit_state(&app, &state);
     Ok(state)
 }
@@ -171,12 +186,15 @@ pub fn audio_stop(
 }
 
 #[tauri::command]
-pub fn audio_seek(
+pub async fn audio_seek(
     app: AppHandle,
     service: State<'_, AudioService>,
     position: f64,
 ) -> Result<AudioState, String> {
-    let state = service.player.seek(position)?;
+    let player = Arc::clone(&service.player);
+    let state = tauri::async_runtime::spawn_blocking(move || player.seek(position))
+        .await
+        .map_err(|e| format!("Audio seek task failed: {}", e))??;
     let _ = app.emit("timeupdate", state.clone());
     emit_state(&app, &state);
     Ok(state)
@@ -266,7 +284,7 @@ pub fn audio_stop_visualizer(service: State<'_, AudioService>) -> Result<(), Str
 }
 
 #[tauri::command]
-pub fn audio_crossfade(
+pub async fn audio_crossfade(
     app: AppHandle,
     service: State<'_, AudioService>,
     url: String,
@@ -277,9 +295,12 @@ pub fn audio_crossfade(
 ) -> Result<AudioState, String> {
     service.start_ticker_if_needed(app.clone());
     let dur = duration_secs.unwrap_or(2.0);
-    let state = service
-        .player
-        .crossfade(&url, dur, curve.as_deref(), tension_x, tension_y)?;
+    let player = Arc::clone(&service.player);
+    let state = tauri::async_runtime::spawn_blocking(move || {
+        player.crossfade(&url, dur, curve.as_deref(), tension_x, tension_y)
+    })
+    .await
+    .map_err(|e| format!("Audio crossfade task failed: {}", e))??;
     emit_state(&app, &state);
     Ok(state)
 }

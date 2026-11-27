@@ -184,8 +184,8 @@ impl ProgressiveMediaStream {
 
                     let pct = Self::compute_buffered_percent(downloaded, total_len);
                     if (pct - last_pct).abs() >= 1.0 {
-                        last_pct = pct;
-                        if let Ok(mut meta) = meta_arc.lock() {
+                        if let Ok(mut meta) = meta_arc.try_lock() {
+                            last_pct = pct;
                             if meta.generation == generation {
                                 meta.buffered_percent = pct;
                             }

@@ -330,7 +330,9 @@ export function useAppInitialization() {
           }).then(() => {
             storeNow.setHasActiveOfflinePlayback(false);
             storeNow.setIsSessionHydrated(true);
-          }).catch(() => {});
+          }).catch(() => {
+            storeNow.setIsSessionHydrated(true);
+          });
           return;
         }
 
@@ -343,6 +345,7 @@ export function useAppInitialization() {
         }
       }).catch(e => {
         console.warn("[Holad] Failed to fetch server playback state, keeping local cache as offline fallback", e);
+        usePlayerStore.setState({ isSessionHydrated: true });
       });
     }
   }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute, isDemoMode, guestUserId]);

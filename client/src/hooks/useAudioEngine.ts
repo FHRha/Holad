@@ -91,13 +91,22 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   const engineRef = useRef<IAudioEngine>(getAudioEngine());
   const prevBackendRef = useRef(audioBackend);
   const loadedNativeTrackIdRef = useRef<string | null>(null);
+  const prevTrackIdRef = useRef<string | null>(null);
+  const backendSwitchPositionRef = useRef<number>(0);
 
   useEffect(() => {
     if (prevBackendRef.current !== audioBackend) {
+      const prevEngine = engineRef.current;
+      const savedPos = prevEngine.getCurrentTime();
+      if (savedPos > 0 && isFinite(savedPos)) {
+        backendSwitchPositionRef.current = savedPos;
+      }
+      prevEngine.pause();
       prevBackendRef.current = audioBackend;
       engineRef.current = getAudioEngine();
       isInitializedRef.current = false;
       loadedNativeTrackIdRef.current = null;
+      prevTrackIdRef.current = null;
     }
   }, [audioBackend]);
 
@@ -417,7 +426,6 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   }, [isActiveDevice, settings.preloadNextTrack, settings.preloadMode, settings.preloadCovers, currentTrack]);
 
   // Handle Track Source Changes & Playback Transitions
-  const prevTrackIdRef = useRef<string | null>(null);
   const gaplessTransitionedTrackIdRef = useRef<string | null>(null);
   const crossfadeTriggeredRef = useRef<string | null>(null);
   const prevActiveDeviceRef = useRef<boolean>(isActiveDevice);
@@ -448,7 +456,13 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       gaplessTransitionedTrackIdRef.current = null;
       prevTrackIdRef.current = currentTrack.id;
       crossfadeTriggeredRef.current = null;
-      scheduleIdle(() => { preloadTrackAssets(currentTrack, [120, 300]).catch(() => {}); });
+      if (isTauri() && audioBackend !== 'web') {
+        loadedNativeTrackIdRef.current = currentTrack.id;
+      }
+      scheduleIdle(() => {
+        preloadTrackAssets(currentTrack, [120, 300]).catch(() => {});
+        preloadUpcomingTrack();
+      });
       const engDur = engineRef.current.getDuration();
       if (engDur > 0 && isFinite(engDur)) {
         useAudioStore.getState().setDuration(engDur);
@@ -495,7 +509,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
         if (targetEl) setAudioElement(targetEl);
       }
 
-      let startTimeSec = initialPosition > 0 ? initialPosition / 1000 : 0;
+      let startTimeSec = initialPosition > 0 ? initialPosition / 1000 : backendSwitchPositionRef.current;
+      backendSwitchPositionRef.current = 0;
       if (shouldTransferPlay && snapshot) {
         const clientOffset = useHoladStore.getState().clientOffset || 0;
         const nowServer = Date.now() - clientOffset;
@@ -547,7 +562,8 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
       engineRef.current.setDeckTrackId?.(activeDeckIdx as 0 | 1, currentTrack.id);
       (engineRef.current as any).setCurrentTrack?.(currentTrack);
 
-      let targetPosSec = initialPosition > 0 ? initialPosition / 1000 : 0;
+      let targetPosSec = initialPosition > 0 ? initialPosition / 1000 : backendSwitchPositionRef.current;
+      backendSwitchPositionRef.current = 0;
       if (targetPosSec <= 0 && currentTrack?.id) {
         if (snapshot && snapshot.trackId === currentTrack.id && snapshot.positionMs > 0) {
           targetPosSec = snapshot.positionMs / 1000;
@@ -757,19 +773,32 @@ export function useAudioEngine(audioRefs: [React.RefObject<HTMLAudioElement | nu
   useEffect(() => {
     if (isTauri() && audioBackend !== 'web') return;
     const handleInteraction = () => {
+      if (isTauri() && useSettingsStore.getState().audioBackend !== 'web') return;
       engineRef.current.getWebAudioPipeline()?.unlockContext();
-      // Force unlock HTML Audio elements on mobile by playing and immediately pausing them
-      // BUT only if they are not actively playing a track, otherwise we break the user's first play action.
+      // Force unlock empty HTML Audio elements on mobile by playing and immediately pausing silent WAV,
+      // but NEVER touch or pause audioRefs[0] if playback is actively starting or a track is already loaded.
+      const pState = usePlayerStore.getState();
+      const engState = engineRef.current.getState();
+      const isPlaybackStartingOrActive = pState.isPlaying || engState === 'playing' || engState === 'loading';
       const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-      if (audioRefs[1].current && !audioRefs[1].current.src) {
-        audioRefs[1].current.src = silentWav;
+      if (!isPlaybackStartingOrActive && audioRefs[0].current && audioRefs[0].current.paused && !audioRefs[0].current.src) {
+        audioRefs[0].current.src = silentWav;
+        audioRefs[0].current.play().then(() => {
+          const curStore = usePlayerStore.getState();
+          const curEngState = engineRef.current.getState();
+          if (!curStore.isPlaying && curEngState !== 'playing' && curEngState !== 'loading' && audioRefs[0].current?.src === silentWav) {
+            audioRefs[0].current.pause();
+          }
+        }).catch(() => {});
       }
-      audioRefs[0].current?.play().then(() => {
-         if (!usePlayerStore.getState().isPlaying) audioRefs[0].current?.pause();
-      }).catch(() => {});
-      audioRefs[1].current?.play().then(() => {
-         audioRefs[1].current?.pause();
-      }).catch(() => {});
+      if (!isPlaybackStartingOrActive && audioRefs[1].current && audioRefs[1].current.paused && !audioRefs[1].current.src) {
+        audioRefs[1].current.src = silentWav;
+        audioRefs[1].current.play().then(() => {
+          if (audioRefs[1].current?.src === silentWav) {
+            audioRefs[1].current.pause();
+          }
+        }).catch(() => {});
+      }
       
       document.removeEventListener('click', handleInteraction);
       document.removeEventListener('touchstart', handleInteraction);

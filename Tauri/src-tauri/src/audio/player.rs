@@ -78,6 +78,12 @@ struct ActiveTrackSource {
     cancel: Arc<AtomicBool>,
 }
 
+struct ActiveCrossfade {
+    cancel: Arc<AtomicBool>,
+    outgoing_player: Option<Arc<Player>>,
+    outgoing_source_cancel: Option<Arc<AtomicBool>>,
+}
+
 struct QueuedTrack {
     url: String,
     duration: f64,
@@ -200,6 +206,7 @@ pub struct AudioPlayer {
     player: Mutex<Option<Arc<Player>>>,
     pub(crate) meta: Arc<Mutex<PlaybackMetadata>>,
     active_source: Mutex<Option<ActiveTrackSource>>,
+    active_crossfade: Mutex<Option<ActiveCrossfade>>,
     stream_cache: Mutex<StreamCache>,
     queued_tracks: Mutex<VecDeque<QueuedTrack>>,
     selected_device_id: Mutex<Option<String>>,
@@ -237,6 +244,7 @@ impl AudioPlayer {
                 is_crossfading: false,
             })),
             active_source: Mutex::new(None),
+            active_crossfade: Mutex::new(None),
             stream_cache: Mutex::new(StreamCache::new(cache_dir)),
             queued_tracks: Mutex::new(VecDeque::new()),
             selected_device_id: Mutex::new(None),
@@ -306,6 +314,22 @@ impl AudioPlayer {
         while let Some(q) = queue.pop_front() {
             q.cancel.store(true, Ordering::Release);
             q.input.cancel();
+        }
+    }
+
+    fn cancel_active_crossfade(&self) {
+        let prev = self.active_crossfade.lock().unwrap().take();
+        if let Some(cf) = prev {
+            cf.cancel.store(true, Ordering::Release);
+            if let Some(old_player) = cf.outgoing_player {
+                old_player.stop();
+            }
+            if let Some(src_cancel) = cf.outgoing_source_cancel {
+                src_cancel.store(true, Ordering::Release);
+            }
+        }
+        if let Ok(mut meta) = self.meta.lock() {
+            meta.is_crossfading = false;
         }
     }
 
@@ -400,6 +424,7 @@ impl AudioPlayer {
     ) -> Result<AudioState, String> {
         self.ensure_device_sink()?;
         self.cancel_queued_tracks();
+        self.cancel_active_crossfade();
 
         // Stop existing player & cancel previous HTTP stream
         {
@@ -433,6 +458,12 @@ impl AudioPlayer {
         let (input, duration_secs, cancel) =
             self.acquire_media_input(path_or_url, current_gen, Arc::clone(&self.meta))?;
 
+        if self.meta.lock().unwrap().generation != current_gen {
+            cancel.store(true, Ordering::Release);
+            input.cancel();
+            return Ok(self.get_state());
+        }
+
         let decode_handle = input
             .clone_handle()
             .map_err(|e| format!("Failed to clone media handle: {}", e))?;
@@ -455,6 +486,13 @@ impl AudioPlayer {
         new_player.set_speed(playback_rate);
 
         self.decode_and_append(&new_player, decode_handle, initial_pos, None)?;
+
+        if self.meta.lock().unwrap().generation != current_gen {
+            new_player.stop();
+            cancel.store(true, Ordering::Release);
+            input.cancel();
+            return Ok(self.get_state());
+        }
 
         if !autoplay {
             new_player.pause();
@@ -605,6 +643,7 @@ impl AudioPlayer {
     ) -> Result<AudioState, String> {
         self.ensure_device_sink()?;
         self.cancel_queued_tracks();
+        self.cancel_active_crossfade();
 
         let was_playing = {
             let player_guard = self.player.lock().unwrap();
@@ -626,11 +665,39 @@ impl AudioPlayer {
             meta.generation
         };
 
-        let (input, duration_secs_total, cancel) =
-            self.acquire_media_input(path_or_url, current_gen, Arc::clone(&self.meta))?;
-        let decode_handle = input
-            .clone_handle()
-            .map_err(|e| format!("Failed to clone crossfade handle: {}", e))?;
+        let reset_crossfading_on_err = || {
+            if let Ok(mut meta) = self.meta.lock() {
+                if meta.generation == current_gen {
+                    meta.is_crossfading = false;
+                }
+            }
+        };
+
+        let (input, duration_secs_total, cancel) = match self.acquire_media_input(
+            path_or_url,
+            current_gen,
+            Arc::clone(&self.meta),
+        ) {
+            Ok(res) => res,
+            Err(e) => {
+                reset_crossfading_on_err();
+                return Err(e);
+            }
+        };
+
+        if self.meta.lock().unwrap().generation != current_gen {
+            cancel.store(true, Ordering::Release);
+            input.cancel();
+            return Ok(self.get_state());
+        }
+
+        let decode_handle = match input.clone_handle() {
+            Ok(h) => h,
+            Err(e) => {
+                reset_crossfading_on_err();
+                return Err(format!("Failed to clone crossfade handle: {}", e));
+            }
+        };
 
         let (current_volume, playback_rate) = {
             let meta = self.meta.lock().unwrap();
@@ -639,13 +706,31 @@ impl AudioPlayer {
 
         let new_player = {
             let sink_guard = self.sink.lock().unwrap();
-            let mixer_sink = sink_guard.as_ref().ok_or("Audio sink not initialized")?;
+            let mixer_sink = match sink_guard.as_ref() {
+                Some(s) => s,
+                None => {
+                    reset_crossfading_on_err();
+                    return Err("Audio sink not initialized".to_string());
+                }
+            };
             Player::connect_new(mixer_sink.mixer())
         };
 
         new_player.set_volume(0.0);
         new_player.set_speed(playback_rate);
-        self.decode_and_append(&new_player, decode_handle, 0.0, None)?;
+        if let Err(e) = self.decode_and_append(&new_player, decode_handle, 0.0, None) {
+            new_player.stop();
+            reset_crossfading_on_err();
+            return Err(e);
+        }
+
+        if self.meta.lock().unwrap().generation != current_gen {
+            new_player.stop();
+            cancel.store(true, Ordering::Release);
+            input.cancel();
+            return Ok(self.get_state());
+        }
+
         new_player.play();
 
         let new_player_arc = Arc::new(new_player);
@@ -679,6 +764,16 @@ impl AudioPlayer {
             meta.track_base_pos_secs = 0.0;
         }
 
+        let cf_cancel = Arc::new(AtomicBool::new(false));
+        {
+            let mut active_cf = self.active_crossfade.lock().unwrap();
+            *active_cf = Some(ActiveCrossfade {
+                cancel: Arc::clone(&cf_cancel),
+                outgoing_player: old_player_opt.clone(),
+                outgoing_source_cancel: old_source_opt.as_ref().map(|s| Arc::clone(&s.cancel)),
+            });
+        }
+
         let fade_new = Arc::clone(&new_player_arc);
         let crossfade_dur = duration_secs.max(0.1);
         let target_vol = current_volume;
@@ -692,7 +787,26 @@ impl AudioPlayer {
                 let step_dur = Duration::from_secs_f64(crossfade_dur / steps as f64);
 
                 for i in 1..=steps {
+                    if cf_cancel.load(Ordering::Acquire) {
+                        if let Some(ref old) = old_player_opt {
+                            old.stop();
+                        }
+                        if let Some(ref old_src) = old_source_opt {
+                            Self::cancel_source_if_incomplete(old_src);
+                        }
+                        return;
+                    }
                     std::thread::sleep(step_dur);
+                    if cf_cancel.load(Ordering::Acquire) {
+                        if let Some(ref old) = old_player_opt {
+                            old.stop();
+                        }
+                        if let Some(ref old_src) = old_source_opt {
+                            Self::cancel_source_if_incomplete(old_src);
+                        }
+                        return;
+                    }
+
                     let progress = i as f32 / steps as f32;
                     let (out_gain, in_gain) =
                         calculate_crossfade_gains(progress, &curve_type, tension_x, tension_y);
@@ -703,13 +817,14 @@ impl AudioPlayer {
                     }
                 }
 
-                fade_new.set_volume(target_vol);
+                if !cf_cancel.load(Ordering::Acquire) {
+                    fade_new.set_volume(target_vol);
+                }
                 if let Some(ref old) = old_player_opt {
                     old.stop();
                 }
                 if let Some(old_src) = old_source_opt {
-                    old_src.cancel.store(true, Ordering::Release);
-                    old_src.input.cancel();
+                    Self::cancel_source_if_incomplete(&old_src);
                 }
 
                 if let Ok(mut meta) = meta_arc.lock() {
@@ -726,6 +841,9 @@ impl AudioPlayer {
     pub fn play(&self) -> Result<AudioState, String> {
         let player_guard = self.player.lock().unwrap();
         if let Some(ref player) = *player_guard {
+            if player.empty() {
+                return Err("No audio loaded".to_string());
+            }
             player.play();
             let mut meta = self.meta.lock().unwrap();
             meta.status = PlaybackStatus::Playing;
@@ -762,6 +880,7 @@ impl AudioPlayer {
 
     pub fn stop(&self) -> Result<AudioState, String> {
         self.cancel_queued_tracks();
+        self.cancel_active_crossfade();
 
         {
             let mut player_guard = self.player.lock().unwrap();
@@ -792,24 +911,28 @@ impl AudioPlayer {
     }
 
     pub fn seek(&self, position_secs: f64) -> Result<AudioState, String> {
-        let player_guard = self.player.lock().unwrap();
-        let mut meta = self.meta.lock().unwrap();
-
-        let url = meta.url.clone();
-        if url.is_empty() {
-            return Err("No audio loaded to seek".to_string());
-        }
+        let (url, track_base_pos_secs) = {
+            let meta = self.meta.lock().unwrap();
+            if meta.url.is_empty() {
+                return Err("No audio loaded to seek".to_string());
+            }
+            (meta.url.clone(), meta.track_base_pos_secs)
+        };
 
         let pos = position_secs.max(0.0);
-        let seek_duration = Duration::from_secs_f64(meta.track_base_pos_secs + pos);
+        let seek_duration = Duration::from_secs_f64(track_base_pos_secs + pos);
 
-        if let Some(ref player) = *player_guard {
+        let player_opt = self.player.lock().unwrap().clone();
+        if let Some(player) = player_opt {
             match player.try_seek(seek_duration) {
                 Ok(_) => {
-                    meta.position_secs = pos;
-                    meta.start_offset_secs = 0.0;
-                    drop(meta);
-                    drop(player_guard);
+                    {
+                        let mut meta = self.meta.lock().unwrap();
+                        if meta.url == url {
+                            meta.position_secs = pos;
+                            meta.start_offset_secs = 0.0;
+                        }
+                    }
                     return Ok(self.get_state());
                 }
                 Err(e) => {
@@ -818,15 +941,13 @@ impl AudioPlayer {
             }
         }
 
-        drop(meta);
-        drop(player_guard);
-
         self.seek_by_reload(&url, pos)?;
         Ok(self.get_state())
     }
 
     fn seek_by_reload(&self, url: &str, pos: f64) -> Result<(), String> {
         self.ensure_device_sink()?;
+        self.cancel_active_crossfade();
 
         let clone_opt = {
             let active = self.active_source.lock().unwrap();

@@ -288,6 +288,7 @@ export const createQueueSlice: StateCreator<
         originalQueue: newOriginalQueue,
         currentIndex: newCurrentIndex,
         isPlaying: true,
+        playActionId: state.playActionId + 1,
         playbackUpdatedAt: now,
         queueVersion: newVersion,
         hasActiveOfflinePlayback

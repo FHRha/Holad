@@ -77,6 +77,7 @@ export interface IWebAudioPipeline {
     readonly analyserNode: AnalyserNode;
     
     attachDeck(deckIndex: 0 | 1, element: HTMLAudioElement): void;
+    detachDeck?(deckIndex: 0 | 1): void;
     setDeckGain(deckIndex: 0 | 1, gain: number, rampDuration?: number): void;
     setMasterVolume(volume: number, multiplier?: number, rampDuration?: number): void;
     setNormalizationEnabled(enabled: boolean): void;

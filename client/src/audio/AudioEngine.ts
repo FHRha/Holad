@@ -87,7 +87,12 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
 
         deck.on('elementReplaced', (newEl: HTMLAudioElement) => {
             if (this.pipeline) {
-                this.pipeline.attachDeck(deckIndex, newEl);
+                if (deck.isTainted) {
+                    this.pipeline.detachDeck?.(deckIndex);
+                    deck.setVolume(this.volume * this.volumeMultiplier);
+                } else {
+                    this.pipeline.attachDeck(deckIndex, newEl);
+                }
             }
         });
 
@@ -221,13 +226,8 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                     } catch { /* Browser restriction fallback: property is read-only or locked */ }
                 }
 
-                if (this.pipeline) {
-                    await Promise.race([
-                        this.pipeline.unlockContext(),
-                        new Promise((r) => setTimeout(r, 200))
-                    ]);
-                    if (this.playToken !== currentToken || !this.isPlaying) return;
-                }
+                await this.unlockPipelineWithTimeout();
+                if (this.playToken !== currentToken || !this.isPlaying) return;
 
                 this.deckTrackIds[incomingIndex] = track?.id || null;
                 await incomingDeck.load(streamUrl, position);
@@ -283,13 +283,8 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                     } catch { /* Browser restriction fallback: property is read-only or locked */ }
                 }
 
-                if (this.pipeline) {
-                    await Promise.race([
-                        this.pipeline.unlockContext(),
-                        new Promise((r) => setTimeout(r, 200))
-                    ]);
-                    if (this.playToken !== currentToken || !this.isPlaying) return;
-                }
+                await this.unlockPipelineWithTimeout();
+                if (this.playToken !== currentToken || !this.isPlaying) return;
 
                 this.deckTrackIds[incomingIndex] = track?.id || null;
                 this.activeIndex = incomingIndex;
@@ -307,13 +302,8 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                 );
             } else {
                 // Standard direct play
-                if (this.pipeline) {
-                    await Promise.race([
-                        this.pipeline.unlockContext(),
-                        new Promise((r) => setTimeout(r, 200))
-                    ]);
-                    if (this.playToken !== currentToken || !this.isPlaying) return;
-                }
+                await this.unlockPipelineWithTimeout();
+                if (this.playToken !== currentToken || !this.isPlaying) return;
 
                 if (trackDuration) {
                     try {
@@ -327,9 +317,11 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
                 await activeDeck.load(streamUrl, position);
                 if (this.playToken !== currentToken || !this.isPlaying) return;
                 await activeDeck.play();
-                if (this.pipeline) {
+                if (this.pipeline && !activeDeck.isTainted) {
                     this.pipeline.setDeckGain(this.activeIndex, 1.0, 0);
                     this.pipeline.setDeckGain((1 - this.activeIndex) as 0 | 1, 0.0, 0);
+                } else if (activeDeck.isTainted) {
+                    activeDeck.setVolume(this.volume * this.volumeMultiplier);
                 }
                 this.isPreparingPlayback = false;
                 this.hasPreloadedCurrentTrack = false;
@@ -340,6 +332,14 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
             this.isPreparingPlayback = false;
             this.preparingStartPosition = 0;
         }
+    }
+
+    private async unlockPipelineWithTimeout(): Promise<void> {
+        if (!this.pipeline) return;
+        await Promise.race([
+            this.pipeline.unlockContext(),
+            new Promise((r) => setTimeout(r, 200))
+        ]);
     }
 
     public async play(url: string, position: number = 0): Promise<void> {
@@ -365,9 +365,7 @@ export class AudioEngine implements IAudioEngine, IAudioCore {
         if (this.deckTrackIds[this.activeIndex] === null && this.currentTrack?.id) {
             this.deckTrackIds[this.activeIndex] = this.currentTrack.id;
         }
-        if (this.pipeline) {
-            await this.pipeline.unlockContext();
-        }
+        await this.unlockPipelineWithTimeout();
         await this.getActiveDeck().play();
     }
 

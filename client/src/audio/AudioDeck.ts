@@ -21,7 +21,7 @@ export class AudioDeck implements IAudioDeck {
 
     private listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
     private boundHandlers: Map<string, (...args: any[]) => void> = new Map();
-    private isTainted: boolean = false;
+    public isTainted: boolean = false;
 
     constructor(id: string, element?: HTMLAudioElement) {
         this.id = id;
@@ -130,41 +130,9 @@ export class AudioDeck implements IAudioDeck {
             
             if (!isFatalOrDecoder && !this.isTainted && this.element === this.primaryElement && this.element.getAttribute('crossorigin') === 'anonymous') {
                 console.warn('AudioDeck: Error with crossOrigin anonymous, falling back to secondary element');
-                
-                const oldElement = this.element;
-                const wasPlaying = !oldElement.paused && this.state === 'playing';
-                const newElement = new Audio();
-                newElement.crossOrigin = null;
-                newElement.preload = 'auto';
-                (newElement as any).playsInline = true;
-                newElement.setAttribute('playsinline', 'true');
-                newElement.style.display = 'none';
-                newElement.id = `audio-deck-${this.id}-fallback`;
-                if (typeof document !== 'undefined' && document.body) {
-                    document.body.appendChild(newElement);
-                }
-                
-                newElement.src = oldElement.src;
-                newElement.volume = oldElement.volume;
-                newElement.playbackRate = oldElement.playbackRate;
-                
-                this.boundHandlers.forEach((handler, event) => {
-                    oldElement.removeEventListener(event, handler);
-                    newElement.addEventListener(event, handler);
-                });
-                
-                this.element = newElement;
-                this.isTainted = true;
-                this.emit('elementReplaced', newElement);
-                
-                const currentTime = this.state === 'loading' ? this.targetPosition : oldElement.currentTime;
-                
-                oldElement.pause();
-                oldElement.removeAttribute('src');
-                oldElement.load();
-                
-                this.element.load();
-                this.element.currentTime = currentTime;
+                const wasPlaying = !this.element.paused && this.state === 'playing';
+                const currentTime = this.state === 'loading' ? this.targetPosition : this.element.currentTime;
+                this.switchToTaintedFallback(currentTime);
                 if (wasPlaying) {
                     this.element.play().catch(() => {});
                 }
@@ -174,6 +142,42 @@ export class AudioDeck implements IAudioDeck {
             const err = this.element.error || e;
             this.emit('error', err);
         });
+    }
+
+    private switchToTaintedFallback(currentTime: number): void {
+        const oldElement = this.element;
+        const newElement = new Audio();
+        newElement.crossOrigin = null;
+        newElement.preload = 'auto';
+        (newElement as any).playsInline = true;
+        newElement.setAttribute('playsinline', 'true');
+        newElement.style.display = 'none';
+        newElement.id = `audio-deck-${this.id}-fallback`;
+        if (typeof document !== 'undefined' && document.body) {
+            document.body.appendChild(newElement);
+        }
+
+        newElement.src = oldElement.src;
+        newElement.volume = oldElement.volume;
+        newElement.playbackRate = oldElement.playbackRate;
+
+        this.boundHandlers.forEach((handler, event) => {
+            oldElement.removeEventListener(event, handler);
+            newElement.addEventListener(event, handler);
+        });
+
+        this.element = newElement;
+        this.isTainted = true;
+        this.emit('elementReplaced', newElement);
+
+        oldElement.pause();
+        oldElement.removeAttribute('src');
+        oldElement.load();
+
+        this.element.load();
+        try {
+            this.element.currentTime = currentTime;
+        } catch {}
     }
 
     private setState(newState: AudioState): void {
@@ -203,7 +207,7 @@ export class AudioDeck implements IAudioDeck {
                 }
                 
                 this.element = this.primaryElement;
-                (this as any).isTainted = false;
+                this.isTainted = false;
                 this.emit('elementReplaced', this.primaryElement);
             }
             
@@ -323,13 +327,10 @@ export class AudioDeck implements IAudioDeck {
                 this.emit('error', err);
                 throw err;
             }
-            if (this.element.getAttribute('crossorigin') === 'anonymous') {
-                console.warn('AudioDeck: Play error with crossOrigin, retrying without it');
-                this.element.removeAttribute('crossorigin');
-                this.element.crossOrigin = null;
+            if (!this.isTainted && this.element === this.primaryElement && this.element.getAttribute('crossorigin') === 'anonymous') {
+                console.warn('AudioDeck: Play error with crossOrigin, retrying with fallback element');
                 const currentTime = this.state === 'loading' ? this.targetPosition : this.element.currentTime;
-                this.element.load();
-                this.element.currentTime = currentTime;
+                this.switchToTaintedFallback(currentTime);
                 try {
                     await this.element.play();
                     this.setState('playing');

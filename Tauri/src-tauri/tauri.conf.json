@@ -34,6 +34,7 @@
       "assetProtocol": {
         "enable": true,
         "scope": [
+          "$AUDIO/Holad/**",
           "$DOWNLOAD/Holad/**",
           "$APPDATA/com.holad.app/**",
           "$APPDATA/com.holad.desktop/**",

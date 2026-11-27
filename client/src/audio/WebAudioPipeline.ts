@@ -167,6 +167,24 @@ export class WebAudioPipeline implements IWebAudioPipeline {
         }
     }
 
+    public detachDeck(deckIndex: 0 | 1): void {
+        try {
+            if (this.deckListeners[deckIndex]) {
+                this.deckListeners[deckIndex]!();
+                this.deckListeners[deckIndex] = null;
+            }
+            if (this.deckSources[deckIndex]) {
+                try {
+                    this.deckSources[deckIndex]?.disconnect();
+                } catch {}
+                this.deckSources[deckIndex] = null;
+            }
+            this.deckElements[deckIndex] = null;
+        } catch (e) {
+            console.warn(`WebAudioPipeline detachDeck ${deckIndex} warning:`, e);
+        }
+    }
+
     private safeCancel(param: AudioParam, time: number) {
         try {
             if (typeof (param as any).cancelAndHoldAtTime === 'function') {
