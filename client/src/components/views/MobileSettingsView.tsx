@@ -204,9 +204,9 @@ export default function MobileSettingsView() {
   ];
 
   return (
-    <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto overflow-x-hidden flex-col pb-[calc(8rem+env(safe-area-inset-bottom))] w-full">
+    <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto overflow-x-hidden flex-col pb-safe-nav w-full">
       {/* Sticky Header with Search, Language and Quick Action Bar (matching Favorites/Library standard) */}
-      <div className="px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-2 sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border z-[60] w-full">
+      <div className="pt-safe-4 pb-2 pl-[max(1rem,var(--safe-area-inset-left))] pr-[max(1rem,var(--safe-area-inset-right))] sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border z-[60] w-full">
         <div className="flex items-center gap-2.5 mb-4 w-full relative z-[70]">
           <div
             className="flex items-center flex-1 bg-card rounded-xl px-3 py-2.5 border border-border cursor-text shadow-xs min-w-0"

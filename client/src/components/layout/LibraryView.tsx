@@ -62,7 +62,7 @@ export default function LibraryView() {
         <NavTab to="/library/playlists" label={t('sidebar.playlists')} />
       </div>
 
-      <div className="md:hidden px-4 pt-4 pb-2 shrink-0 bg-background/80 backdrop-blur-xl border-b border-border z-10 relative">
+      <div className="md:hidden pt-safe-4 pb-2 pl-[max(1rem,var(--safe-area-inset-left))] pr-[max(1rem,var(--safe-area-inset-right))] shrink-0 bg-background/80 backdrop-blur-xl border-b border-border z-10 relative">
         <div 
           className="flex items-center bg-card rounded-xl px-3 py-2.5 mb-4 border border-border cursor-text shadow-xs"
           onClick={() => setSearchOpen(true)}

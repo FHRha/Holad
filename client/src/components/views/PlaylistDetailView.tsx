@@ -10,9 +10,10 @@ import { usePlaylistStore } from '../../store/playlistStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { getHoladServerUrl } from '../../utils/serverConfig';
 import { isJamPath as checkIsJamPath } from '../../utils/basePath';
+import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
 import TrackRow from '../common/TrackRow';
 import PlaylistCover from '../common/PlaylistCover';
-import LoadingSpinner from '../common/LoadingSpinner';
+import { DetailHeaderSkeleton, TrackListSkeleton } from '../common/Skeleton';
 import TrackTableHeader from '../common/TrackTableHeader';
 import { Virtuoso } from 'react-virtuoso';
 import { mapSubsonicTracks } from '../../utils/trackMapper';
@@ -41,11 +42,14 @@ export default function PlaylistDetailView() {
       try {
         const customPlaylists = usePlaylistStore.getState().playlists;
         let customPlaylist = customPlaylists.find(p => p.id === id);
-        
+
         // If not in local state, query Holad server before Subsonic API
         if (!customPlaylist && !isOffline) {
           try {
-            const res = await fetch(`${getHoladServerUrl()}/api/custom-playlists/${encodeURIComponent(id)}`);
+            const res = await fetchWithTimeout(
+              `${getHoladServerUrl()}/api/custom-playlists/${encodeURIComponent(id)}`,
+              { timeoutMs: 8000 }
+            );
             if (res.ok) {
               const data = await res.json();
               if (data && data.playlist) {
@@ -70,165 +74,181 @@ export default function PlaylistDetailView() {
         const isJamPath = checkIsJamPath();
 
         if (customPlaylist) {
-           const offlineTracks = getOfflineTracks();
-           const rawTrackIds: string[] = Array.isArray(customPlaylist.trackIds) ? customPlaylist.trackIds : [];
-           const embeddedTracks: any[] = Array.isArray((customPlaylist as any).tracks) ? (customPlaylist as any).tracks : [];
-           
-           const resolvedEntries: any[] = [];
-           const replacementsToSync: Array<{ oldId: string; newId: string }> = [];
+          const offlineTracks = getOfflineTracks();
+          const rawTrackIds: string[] = Array.isArray(customPlaylist.trackIds) ? customPlaylist.trackIds : [];
+          const embeddedTracks: any[] = Array.isArray((customPlaylist as any).tracks) ? (customPlaylist as any).tracks : [];
 
-           const allItems: Array<{ id: string; cached?: any }> = [];
-           if (rawTrackIds.length > 0) {
-             rawTrackIds.forEach((tId, idx) => {
-               const cached = embeddedTracks.find((e: any) => (typeof e === 'string' ? e : e?.id) === tId) || embeddedTracks[idx];
-               allItems.push({ id: tId, cached });
-             });
-           } else if (embeddedTracks.length > 0) {
-             embeddedTracks.forEach((e: any) => {
-               const tId = typeof e === 'string' ? e : e?.id;
-               if (tId) allItems.push({ id: tId, cached: typeof e === 'object' ? e : undefined });
-             });
-           }
+          const allItems: Array<{ id: string; cached?: any }> = [];
+          if (rawTrackIds.length > 0) {
+            rawTrackIds.forEach((tId, idx) => {
+              const cached = embeddedTracks.find((e: any) => (typeof e === 'string' ? e : e?.id) === tId) || embeddedTracks[idx];
+              allItems.push({ id: tId, cached });
+            });
+          } else if (embeddedTracks.length > 0) {
+            embeddedTracks.forEach((e: any) => {
+              const tId = typeof e === 'string' ? e : e?.id;
+              if (tId) allItems.push({ id: tId, cached: typeof e === 'object' ? e : undefined });
+            });
+          }
 
-           for (const item of allItems) {
-             let track = offlineTracks.find(t => t.id === item.id);
-             
-             // If online and not found in offline tracks, try to fetch from server
-             if (!track && !isOffline) {
-               try {
-                 const { getSong } = await import('../../api/subsonic/tracks');
-                 track = await getSong(item.id);
-               } catch (e) {
-                 console.error('Failed to fetch song info for custom playlist', e);
-               }
-             }
+          const { getSong, searchTracks } = !isOffline
+            ? await import('../../api/subsonic/tracks')
+            : { getSong: null, searchTracks: null };
 
-             // Fuzzy reconciliation fallback if track not found
-             if (!track && !isOffline && item.cached && (item.cached.title || item.cached.name)) {
-               try {
-                 const { searchTracks } = await import('../../api/subsonic/tracks');
-                 const query = [item.cached.artist, item.cached.title || item.cached.name].filter(Boolean).join(' ') || (item.cached.title || item.cached.name);
-                 const candidates = await searchTracks(query, 10);
-                 let bestCand: any = null;
-                 let bestScore = 0;
-                 for (const cand of candidates) {
-                   const score = matchTrackConfidence(item.cached, cand);
-                   if (score > bestScore && score >= 0.75) {
-                     bestScore = score;
-                     bestCand = cand;
-                   }
-                 }
-                 if (bestCand) {
-                   track = bestCand;
-                   replacementsToSync.push({ oldId: item.id, newId: bestCand.id });
-                 }
-               } catch (e) {
-                 console.error('Failed to fuzzy reconcile track in playlist:', e);
-               }
-             }
+          const resolveItem = async (item: { id: string; cached?: any }) => {
+            let track = offlineTracks.find(t => t.id === item.id);
 
-             if (track) {
-               // If offline, ensure it's downloaded
-               if (isOffline) {
-                 const { downloads } = useDownloadStore.getState();
-                 if (isItemDownloaded(downloads, track.id, track.albumId, track)) {
-                   resolvedEntries.push(track);
-                 }
-               } else {
-                 resolvedEntries.push(track);
-               }
-             } else if (item.cached) {
-               resolvedEntries.push({ ...item.cached, id: item.id, isUnavailable: true });
-             } else {
-               resolvedEntries.push({ id: item.id, title: 'Unavailable track', isUnavailable: true });
-             }
-           }
+            // If online and not found in offline tracks, try to fetch from server
+            if (!track && !isOffline && getSong) {
+              try {
+                track = await getSong(item.id);
+              } catch (e) {
+                console.error('Failed to fetch song info for custom playlist', e);
+              }
+            }
 
-           if (replacementsToSync.length > 0 && !isOffline) {
-             const currentUser = useAuthStore.getState().user;
-             const reconcileHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-             if (currentUser) {
-               reconcileHeaders['x-user-id'] = encodeURIComponent(currentUser);
-             }
-             fetch(`${getHoladServerUrl()}/api/custom-playlists/${encodeURIComponent(customPlaylist.id)}/reconcile`, {
-               method: 'POST',
-               headers: reconcileHeaders,
-               body: JSON.stringify({ replacements: replacementsToSync })
-             }).catch(e => console.error('Failed to sync playlist reconciliation to server:', e));
+            let replacement: { oldId: string; newId: string } | null = null;
 
-             const curPlaylists = usePlaylistStore.getState().playlists;
-             const updatedPlaylists = curPlaylists.map(pl => {
-               if (pl.id === customPlaylist!.id) {
-                 const updatedTrackIds = (pl.trackIds || []).map(id => {
-                   const rep = replacementsToSync.find(r => r.oldId === id);
-                   return rep ? rep.newId : id;
-                 });
-                 const updatedTracks = (pl.tracks || []).map(t => {
-                   const rep = replacementsToSync.find(r => r.oldId === t.id);
-                   return rep ? { ...t, id: rep.newId } : t;
-                 });
-                 return { ...pl, trackIds: updatedTrackIds, tracks: updatedTracks };
-               }
-               return pl;
-             });
-             usePlaylistStore.setState({ playlists: updatedPlaylists });
-           }
-           
-           if (!isMounted) return;
-           
-           const firstCover = resolvedEntries.length > 0 
-             ? (resolvedEntries[0].coverArt || resolvedEntries[0].albumId || resolvedEntries[0].id) 
-             : null;
-           
-           setPlaylist({
-             id: customPlaylist.id,
-             name: customPlaylist.name,
-             comment: customPlaylist.description,
-             songCount: resolvedEntries.length,
-             duration: resolvedEntries.reduce((acc, t) => acc + (t.duration || 0), 0),
-             coverArt: firstCover,
-             trackIds: rawTrackIds,
-             entry: resolvedEntries,
-             isCustom: true
-           });
-           setEditName(customPlaylist.name || '');
-           setEditDesc(customPlaylist.description || '');
+            // Fuzzy reconciliation fallback if track not found
+            if (!track && !isOffline && searchTracks && item.cached && (item.cached.title || item.cached.name)) {
+              try {
+                const query = [item.cached.artist, item.cached.title || item.cached.name].filter(Boolean).join(' ') || (item.cached.title || item.cached.name);
+                const candidates = await searchTracks(query, 10);
+                let bestCand: any = null;
+                let bestScore = 0;
+                for (const cand of candidates) {
+                  const score = matchTrackConfidence(item.cached, cand);
+                  if (score > bestScore && score >= 0.75) {
+                    bestScore = score;
+                    bestCand = cand;
+                  }
+                }
+                if (bestCand) {
+                  track = bestCand;
+                  replacement = { oldId: item.id, newId: bestCand.id };
+                }
+              } catch (e) {
+                console.error('Failed to fuzzy reconcile track in playlist:', e);
+              }
+            }
+
+            if (track) {
+              if (isOffline) {
+                const { downloads } = useDownloadStore.getState();
+                if (isItemDownloaded(downloads, track.id, track.albumId, track)) {
+                  return { entry: track, replacement };
+                }
+                return { entry: null, replacement };
+              }
+              return { entry: track, replacement };
+            }
+            if (item.cached) {
+              return { entry: { ...item.cached, id: item.id, isUnavailable: true }, replacement };
+            }
+            return { entry: { id: item.id, title: 'Unavailable track', isUnavailable: true }, replacement };
+          };
+
+          // Resolve tracks in bounded concurrent batches (concurrency 5) instead of sequential N+1 loop
+          const CONCURRENCY = 5;
+          const resolvedEntries: any[] = [];
+          const replacementsToSync: Array<{ oldId: string; newId: string }> = [];
+
+          for (let i = 0; i < allItems.length; i += CONCURRENCY) {
+            if (!isMounted) return;
+            const batch = allItems.slice(i, i + CONCURRENCY);
+            const batchResults = await Promise.all(batch.map(resolveItem));
+            for (const res of batchResults) {
+              if (res.entry) resolvedEntries.push(res.entry);
+              if (res.replacement) replacementsToSync.push(res.replacement);
+            }
+          }
+
+          if (replacementsToSync.length > 0 && !isOffline) {
+            const currentUser = useAuthStore.getState().user;
+            const reconcileHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (currentUser) {
+              reconcileHeaders['x-user-id'] = encodeURIComponent(currentUser);
+            }
+            fetchWithTimeout(`${getHoladServerUrl()}/api/custom-playlists/${encodeURIComponent(customPlaylist.id)}/reconcile`, {
+              method: 'POST',
+              headers: reconcileHeaders,
+              body: JSON.stringify({ replacements: replacementsToSync }),
+              timeoutMs: 8000,
+            }).catch(e => console.error('Failed to sync playlist reconciliation to server:', e));
+
+            const curPlaylists = usePlaylistStore.getState().playlists;
+            const updatedPlaylists = curPlaylists.map(pl => {
+              if (pl.id === customPlaylist!.id) {
+                const updatedTrackIds = (pl.trackIds || []).map(tId => {
+                  const rep = replacementsToSync.find(r => r.oldId === tId);
+                  return rep ? rep.newId : tId;
+                });
+                const updatedTracks = (pl.tracks || []).map(t => {
+                  const rep = replacementsToSync.find(r => r.oldId === t.id);
+                  return rep ? { ...t, id: rep.newId } : t;
+                });
+                return { ...pl, trackIds: updatedTrackIds, tracks: updatedTracks };
+              }
+              return pl;
+            });
+            usePlaylistStore.setState({ playlists: updatedPlaylists });
+          }
+
+          if (!isMounted) return;
+
+          const firstCover = resolvedEntries.length > 0
+            ? (resolvedEntries[0].coverArt || resolvedEntries[0].albumId || resolvedEntries[0].id)
+            : null;
+
+          setPlaylist({
+            id: customPlaylist.id,
+            name: customPlaylist.name,
+            comment: customPlaylist.description,
+            songCount: resolvedEntries.length,
+            duration: resolvedEntries.reduce((acc, t) => acc + (t.duration || 0), 0),
+            coverArt: firstCover,
+            trackIds: rawTrackIds,
+            entry: resolvedEntries,
+            isCustom: true
+          });
+          setEditName(customPlaylist.name || '');
+          setEditDesc(customPlaylist.description || '');
         } else {
-           const isCustomId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || id.startsWith('custom_');
-           if (isCustomId) {
-             if (isMounted) {
-               if (!isJamPath) {
-                 navigate('/playlists', { replace: true });
-               } else {
-                 setPlaylist(null);
-               }
-             }
-             return;
-           }
+          const isCustomId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || id.startsWith('custom_');
+          if (isCustomId) {
+            if (isMounted) {
+              if (!isJamPath) {
+                navigate('/playlists', { replace: true });
+              } else {
+                setPlaylist(null);
+              }
+            }
+            return;
+          }
 
-           try {
-             const data = await getPlaylist(id);
-             if (!isMounted) return;
-             if (data && data.id) {
-               setPlaylist(data);
-               setEditName(data?.name || '');
-               setEditDesc(data?.comment || '');
-             } else {
-               if (!isJamPath) {
-                 navigate('/playlists', { replace: true });
-               } else {
-                 setPlaylist(null);
-               }
-             }
-           } catch (e) {
-             if (!isMounted) return;
-             console.error('Failed to fetch Subsonic playlist:', e);
-             if (!isJamPath) {
-               navigate('/playlists', { replace: true });
-             } else {
-               setPlaylist(null);
-             }
-           }
+          try {
+            const data = await getPlaylist(id);
+            if (!isMounted) return;
+            if (data && data.id) {
+              setPlaylist(data);
+              setEditName(data?.name || '');
+              setEditDesc(data?.comment || '');
+            } else {
+              if (!isJamPath) {
+                navigate('/playlists', { replace: true });
+              } else {
+                setPlaylist(null);
+              }
+            }
+          } catch (e) {
+            if (!isMounted) return;
+            console.error('Failed to fetch Subsonic playlist:', e);
+            if (!isJamPath) {
+              navigate('/playlists', { replace: true });
+            } else {
+              setPlaylist(null);
+            }
+          }
         }
       } catch (err) {
         if (!isMounted) return;
@@ -246,7 +266,7 @@ export default function PlaylistDetailView() {
       }
     };
     fetchPlaylistData();
-    
+
     const handleUpdate = () => {
       if (isMounted) fetchPlaylistData();
     };
@@ -298,7 +318,23 @@ export default function PlaylistDetailView() {
   }, [playlist, setIsProcessing, setQueueAndPlay]);
 
   if (loading) {
-    return <LoadingSpinner fullScreen />;
+    return (
+      <div className="flex-1 overflow-y-auto relative h-full bg-transparent md:bg-background custom-scrollbar">
+        <div className="px-4 md:px-8 pt-[calc(1.5rem+var(--safe-area-inset-top))] md:py-10 flex flex-col gap-6 md:gap-10 pb-[calc(8rem+var(--safe-area-inset-bottom))] md:pb-10">
+          <div className="relative">
+            <button
+              onClick={() => navigate(-1)}
+              aria-label={t('common.back', 'Назад')}
+              className="md:hidden absolute -top-2 left-0 p-2 rounded-full bg-black/40 hover:bg-black/60 text-foreground transition-colors z-20"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <DetailHeaderSkeleton />
+          </div>
+          <TrackListSkeleton count={8} />
+        </div>
+      </div>
+    );
   }
 
   if (!playlist) {
@@ -309,15 +345,16 @@ export default function PlaylistDetailView() {
 
   return (
     <div ref={setScrollParent} className="flex-1 overflow-y-auto relative h-full bg-transparent md:bg-background custom-scrollbar">
-      <div className="relative z-10 px-4 md:px-8 py-6 md:py-10 flex flex-col gap-6 md:gap-10 min-h-full pb-32 md:pb-10">
+      <div className="relative z-10 px-4 md:px-8 pt-[calc(1.5rem+var(--safe-area-inset-top))] md:py-10 flex flex-col gap-6 md:gap-10 min-h-full pb-[calc(8rem+var(--safe-area-inset-bottom))] md:pb-10">
         <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-end text-center md:text-left relative">
-          <button 
+          <button
             onClick={() => navigate(-1)}
+            aria-label={t('common.back', 'Назад')}
             className="md:hidden absolute -top-2 left-0 p-2 rounded-full bg-black/40 hover:bg-black/60 text-foreground transition-colors z-20"
           >
             <ArrowLeft size={20} />
           </button>
-          
+
           <div className="w-48 h-48 md:w-64 md:h-64 rounded-xl shadow-2xl bg-black/20 flex items-center justify-center overflow-hidden shrink-0 mx-auto md:mx-0">
             <PlaylistCover
               coverArt={playlist.coverArt}
@@ -328,10 +365,10 @@ export default function PlaylistDetailView() {
               className="w-full h-full object-cover"
             />
           </div>
-          
+
           <div className="flex flex-col gap-2 flex-1 w-full items-center md:items-start">
             <span className="text-xs font-bold tracking-[0.2em] uppercase text-foreground/70">{t('views.playlist', 'Playlist')}</span>
-            
+
             {isEditing ? (
               <div className="w-full max-w-md flex flex-col gap-3 my-2">
                 <input
@@ -369,13 +406,13 @@ export default function PlaylistDetailView() {
                 )}
               </>
             )}
-            
+
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-xs md:text-sm text-foreground/70 font-medium mb-1 mt-2">
               <span>{playlist.songCount || 0} {t('views.tracks', 'tracks')}</span>
               <span>•</span>
               <span>{formatDurationVerbose(playlist.duration || 0, t)}</span>
             </div>
-            
+
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 w-full mt-4">
               <button onClick={handlePlayAll} className="w-14 h-14 md:w-auto md:h-auto md:px-8 md:py-3 bg-primary md:bg-foreground text-background rounded-full font-bold text-sm flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-xl">
                 <Play fill="currentColor" size={24} className="md:size-18 ml-1 md:ml-0" /> <span className="hidden md:inline">{t('views.play', 'Play')}</span>
@@ -386,7 +423,7 @@ export default function PlaylistDetailView() {
 
         <div className="flex flex-col gap-4 mt-6">
           <TrackTableHeader />
-          
+
           {tracks.length === 0 ? (
             <div className="text-center text-secondary py-10">{t('views.playlist_empty', 'Playlist is empty')}</div>
           ) : (

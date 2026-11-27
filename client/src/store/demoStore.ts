@@ -5,6 +5,7 @@ import { usePlayerStore } from './playerStore';
 import { useHoladStore } from './holadStore';
 import { useSocialStore } from './socialStore';
 import { isTauri } from '../utils/platform';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 interface DemoState {
   isDemoMode: boolean;
@@ -51,7 +52,9 @@ export const useDemoStore = create<DemoState>((set, get) => ({
 
       const serverUrl = getHoladServerUrl();
       const existingSessionId = get().sessionId || sessionStorage.getItem('holad_demo_session_id') || '';
-      const res = await fetch(`${serverUrl}/api/demo/session?sessionId=${encodeURIComponent(existingSessionId)}`);
+      const res = await fetchWithTimeout(`${serverUrl}/api/demo/session?sessionId=${encodeURIComponent(existingSessionId)}`, {
+        timeoutMs: 8000,
+      });
 
       if (!res.ok) {
         if (res.status === 429 || res.status === 503) {
@@ -127,10 +130,11 @@ export const useDemoStore = create<DemoState>((set, get) => ({
       if (!sessionId) return;
       try {
         const serverUrl = getHoladServerUrl();
-        await fetch(`${serverUrl}/api/demo/heartbeat`, {
+        await fetchWithTimeout(`${serverUrl}/api/demo/heartbeat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId })
+          body: JSON.stringify({ sessionId }),
+          timeoutMs: 8000,
         });
       } catch (e) {
         // Silent error handling for background heartbeats

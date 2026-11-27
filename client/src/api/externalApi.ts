@@ -1,5 +1,6 @@
 import { getHoladServerUrl } from '../utils/serverConfig';
 import { useSettingsStore } from '../store/settingsStore';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 export async function getExternalArtistStats(artistName: string) {
   const { useNavidrome, useLastFm, useYandex, lastFmKey, yandexToken } = useSettingsStore.getState();
@@ -12,7 +13,9 @@ export async function getExternalArtistStats(artistName: string) {
   if (yandexToken) params.append('yandexToken', yandexToken);
 
   try {
-    const res = await fetch(`${getHoladServerUrl()}/api/stats/artist/${encodeURIComponent(artistName)}?${params.toString()}`);
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/stats/artist/${encodeURIComponent(artistName)}?${params.toString()}`, {
+      timeoutMs: 8000
+    });
     if (!res.ok) {
       throw new Error('Stats endpoint returned error');
     }
@@ -34,7 +37,9 @@ export async function getExternalAlbumStats(artistName: string, albumName: strin
   if (yandexToken) params.append('yandexToken', yandexToken);
 
   try {
-    const res = await fetch(`${getHoladServerUrl()}/api/stats/album/${encodeURIComponent(artistName)}/${encodeURIComponent(albumName)}?${params.toString()}`);
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/stats/album/${encodeURIComponent(artistName)}/${encodeURIComponent(albumName)}?${params.toString()}`, {
+      timeoutMs: 8000
+    });
     if (!res.ok) {
       throw new Error('Stats endpoint returned error');
     }

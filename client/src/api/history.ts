@@ -2,6 +2,7 @@ import { getHoladServerUrl } from '../utils/serverConfig';
 import { useAuthStore } from '../store/authStore';
 import { useHistoryStore, type PlayHistoryEntry } from '../store/historyStore';
 import type { Track } from '../types';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 const getHeaders = () => {
   const { user, token, salt, url } = useAuthStore.getState();
@@ -35,10 +36,11 @@ export async function pushHistoryEntry(track: Track, playedAt: number): Promise<
       playedAt
     };
 
-    const res = await fetch(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(user)}`, {
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(user)}`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      timeoutMs: 8000
     });
 
     return res.ok;
@@ -57,10 +59,11 @@ export async function pushHistoryBatch(entries: PlayHistoryEntry[]): Promise<boo
   if (!isAuthenticated || !user || !Array.isArray(entries) || entries.length === 0) return false;
 
   try {
-    const res = await fetch(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(user)}`, {
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(user)}`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify(entries)
+      body: JSON.stringify(entries),
+      timeoutMs: 8000
     });
 
     return res.ok;
@@ -88,9 +91,10 @@ export async function fetchHistoryDelta(since?: number, limit = 500): Promise<Pl
     }
 
     const query = params.toString() ? `?${params.toString()}` : '';
-    const res = await fetch(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(user)}${query}`, {
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(user)}${query}`, {
       method: 'GET',
-      headers: getHeaders()
+      headers: getHeaders(),
+      timeoutMs: 8000
     });
 
     if (!res.ok) {
@@ -113,9 +117,10 @@ export async function deleteServerHistory(): Promise<boolean> {
   if (!isAuthenticated || !user) return false;
 
   try {
-    const res = await fetch(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(user)}`, {
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/history/${encodeURIComponent(user)}`, {
       method: 'DELETE',
-      headers: getHeaders()
+      headers: getHeaders(),
+      timeoutMs: 8000
     });
 
     return res.ok;

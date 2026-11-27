@@ -90,7 +90,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
       />
       <div className="absolute inset-0 z-0 bg-background/40" />
 
-      <div className="relative z-10 flex items-center justify-between px-4 py-4 w-full">
+      <div className="relative z-10 flex items-center justify-between px-4 pt-[calc(1rem+var(--safe-area-inset-top))] pb-4 w-full">
         {showMinimizeButton ? (
           <button 
             onClick={onClose}
@@ -184,7 +184,7 @@ export default function MobileJamPlayerUI({ onClose }: { onClose: () => void }) 
         </div>
       </div>
 
-      <div className="relative z-10 w-full h-[72px] flex-shrink-0 bg-background/40 backdrop-blur-md transform-gpu will-change-transform border-t border-border flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
+      <div className="relative z-10 w-full h-[calc(72px+var(--safe-area-inset-bottom))] flex-shrink-0 bg-background/40 backdrop-blur-md transform-gpu will-change-transform border-t border-border flex items-center justify-around px-2 pb-[var(--safe-area-inset-bottom)]">
         <button onClick={() => setActiveTab('player')} className={`p-3 rounded-full transition-colors ${activeTab === 'player' ? 'text-primary bg-primary/10' : 'text-secondary hover:text-secondary'}`}>
           <Music size={24} />
         </button>

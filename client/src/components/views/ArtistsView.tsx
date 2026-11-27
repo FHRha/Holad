@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getArtists } from '../../api/subsonic';
 import ArtistCard from '../common/ArtistCard';
+import { CardGridSkeleton, Skeleton } from '../common/Skeleton';
 import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUIStore } from '../../store/uiStore';
@@ -13,6 +15,7 @@ let cachedArtistsData: any[] | null = null;
 
 export default function ArtistsView() {
   const { t } = useTranslation();
+  const isInsideLibrary = useLocation().pathname.startsWith('/library');
   const activeFilter = useUIStore(s => s.activeFilter);
   const { isOffline } = useNetworkStatus();
   const downloads = useDownloadStore(state => state.downloads);
@@ -115,8 +118,21 @@ export default function ArtistsView() {
     return result.filter(a => a.name?.toLowerCase().includes(lower));
   }, [artists, debouncedSearch, activeFilter, isOffline, downloads]);
 
+  const mobileTopPadding = isInsideLibrary ? 'pt-4' : 'pt-[calc(1rem+var(--safe-area-inset-top))]';
+
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center text-secondary">{t('views.loading_artists')}</div>;
+    return (
+      <div className="flex-1 overflow-hidden flex flex-col bg-transparent md:bg-card relative md:p-0">
+        <div className="hidden md:flex sticky top-0 z-20 bg-card/90 backdrop-blur p-6 pb-4 border-b border-white/5 items-center justify-between shrink-0">
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-9 w-64 rounded-full" />
+        </div>
+        <div className={`flex-1 overflow-y-auto flex flex-col px-4 ${mobileTopPadding} md:p-6 pb-[calc(8rem+var(--safe-area-inset-bottom))] md:pb-8 hide-scrollbar`}>
+          <Skeleton className="h-11 w-full rounded-xl mb-6 md:hidden shrink-0" />
+          <CardGridSkeleton count={12} variant="circle" />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -136,7 +152,7 @@ export default function ArtistsView() {
         </div>
       </div>
       
-      <div className="flex-1 overflow-hidden flex flex-col px-4 pt-4 md:p-6">
+      <div className={`flex-1 overflow-hidden flex flex-col px-4 ${mobileTopPadding} md:p-6`}>
         <div className="relative w-full mb-6 md:hidden shrink-0">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary" />
           <input 
@@ -158,7 +174,7 @@ export default function ArtistsView() {
               data={filteredArtists}
               computeItemKey={(index) => filteredArtists[index]?.id || index}
               className="h-full custom-scrollbar"
-              listClassName="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 md:gap-6 pr-6 md:pr-0 pb-32 md:pb-8"
+              listClassName="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 md:gap-6 pr-6 md:pr-0 pb-[calc(8rem+var(--safe-area-inset-bottom))] md:pb-8"
               itemContent={(_index: number, artist: any) => (
                 <ArtistCard key={artist.id} artist={artist} />
               )}

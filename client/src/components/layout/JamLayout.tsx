@@ -319,8 +319,8 @@ export default function JamLayout() {
 
   if (jamError) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6 relative">
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center px-6 pt-[max(1.5rem,var(--safe-area-inset-top))] pb-[max(1.5rem,var(--safe-area-inset-bottom))] relative">
+        <div className="absolute top-[calc(1rem+var(--safe-area-inset-top))] right-[calc(1rem+var(--safe-area-inset-right))] z-50 flex items-center gap-2">
           <ThemeSelector />
           <LanguageSelector />
         </div>
@@ -348,7 +348,7 @@ export default function JamLayout() {
 
   if (isCheckingDemo && (roomToJoin || isStandalone)) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-foreground">
+      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-foreground pt-[var(--safe-area-inset-top)] pb-[var(--safe-area-inset-bottom)]">
         <LoadingSpinner size="md" className="mb-4" />
         <p className="text-secondary">{t('jam.connecting_jam', 'Подключение к Jam...')}</p>
       </div>
@@ -357,7 +357,7 @@ export default function JamLayout() {
 
   if (!roomToJoin && !isValidStandaloneTrack && !isValidStandaloneAlbum && !isValidStandalonePlaylist && !isValidStandaloneQueue) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background">
+      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background pt-[var(--safe-area-inset-top)] pb-[var(--safe-area-inset-bottom)]">
         <h2 className="text-2xl font-bold mb-4">{t('jam.invalid_link')}</h2>
         <p className="text-secondary">{t('jam.invalid_link_desc')}</p>
       </div>
@@ -366,8 +366,8 @@ export default function JamLayout() {
 
   if (!isStandalone && !hasJoined.current && !effectiveUserName && !jamError && (usePlayerStore.getState().role !== 'host')) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center p-6 relative">
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+      <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background text-center px-6 pt-[max(1.5rem,var(--safe-area-inset-top))] pb-[max(1.5rem,var(--safe-area-inset-bottom))] relative">
+        <div className="absolute top-[calc(1rem+var(--safe-area-inset-top))] right-[calc(1rem+var(--safe-area-inset-right))] z-50 flex items-center gap-2">
           <ThemeSelector />
           <LanguageSelector />
         </div>
@@ -440,7 +440,7 @@ export default function JamLayout() {
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background">
+    <div className="flex-1 flex flex-col items-center justify-center h-[100dvh] bg-background pt-[var(--safe-area-inset-top)] pb-[var(--safe-area-inset-bottom)]">
       <h2 className="text-2xl font-bold mb-4">{t('jam.login_progress')}</h2>
       <p className="text-secondary">{t('jam.connecting_jam')}</p>
     </div>

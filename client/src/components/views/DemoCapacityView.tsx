@@ -48,8 +48,8 @@ export default function DemoCapacityView() {
   const iconPath = getAssetUrl(`/icons/${appIcon === 'cassette' ? 'logo_cassette.png' : appIcon === 'wave_light' ? 'favicon_light.png' : 'favicon_dark.png'}`);
 
   return (
-    <div className="h-full w-full bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
-      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+    <div className="h-full w-full bg-background flex flex-col items-center justify-center pt-[max(1rem,var(--safe-area-inset-top))] pb-[max(1rem,var(--safe-area-inset-bottom))] pl-[max(1rem,var(--safe-area-inset-left))] pr-[max(1rem,var(--safe-area-inset-right))] relative overflow-hidden font-sans">
+      <div className="absolute top-[calc(1rem+var(--safe-area-inset-top))] right-[calc(1rem+var(--safe-area-inset-right))] z-50 flex items-center gap-2">
         <ThemeSelector />
         <LanguageSelector />
       </div>

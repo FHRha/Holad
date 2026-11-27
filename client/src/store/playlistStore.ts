@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { getHoladServerUrl } from '../utils/serverConfig';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 export interface CustomPlaylist {
   id: string;
@@ -47,9 +48,10 @@ export async function fetchUserCustomPlaylists(): Promise<CustomPlaylist[]> {
     const headers: Record<string, string> = {
       ...getAuthHeaders(),
     };
-    const res = await fetch(`${baseUrl}/api/custom-playlists`, {
+    const res = await fetchWithTimeout(`${baseUrl}/api/custom-playlists`, {
       method: 'GET',
-      headers
+      headers,
+      timeoutMs: 8000,
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -78,10 +80,11 @@ export async function syncCustomPlaylistToServer(playlist: CustomPlaylist): Prom
   playlistSaveAbortControllers.set(playlist.id, currentController);
 
   try {
-    const res = await fetch(`${baseUrl}/api/custom-playlists`, {
+    const res = await fetchWithTimeout(`${baseUrl}/api/custom-playlists`, {
       method: 'POST',
       headers,
       signal: currentController.signal,
+      timeoutMs: 8000,
       body: JSON.stringify({
         id: playlist.id,
         name: playlist.name,
@@ -112,9 +115,10 @@ export async function deleteCustomPlaylistFromServer(id: string): Promise<void> 
       ...getAuthHeaders(),
     };
     const query = user ? `?userId=${encodeURIComponent(user)}` : '';
-    const res = await fetch(`${baseUrl}/api/custom-playlists/${encodeURIComponent(id)}${query}`, {
+    const res = await fetchWithTimeout(`${baseUrl}/api/custom-playlists/${encodeURIComponent(id)}${query}`, {
       method: 'DELETE',
       headers,
+      timeoutMs: 8000,
     });
     if (!res.ok && res.status !== 404) {
       console.error(`Failed to delete custom playlist from server: ${res.statusText}`);

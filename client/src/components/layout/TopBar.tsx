@@ -72,7 +72,7 @@ export default function TopBar() {
   };
 
   return (
-    <div className="sticky top-0 z-50 h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-background transform-gpu border-b border-border flex items-center justify-between px-4 w-full">
+    <div className="sticky top-0 z-50 h-[calc(4rem+var(--safe-area-inset-top))] pt-[var(--safe-area-inset-top)] bg-background transform-gpu border-b border-border flex items-center justify-between px-4 w-full">
       <div className="w-10 flex justify-center items-center">
         <button 
           onClick={toggleLeftSidebar} 

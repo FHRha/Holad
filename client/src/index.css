@@ -5,10 +5,10 @@
 @layer base {
   :root,
   .dark {
-    --safe-area-inset-top: env(safe-area-inset-top, 0px);
-    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
-    --safe-area-inset-left: env(safe-area-inset-left, 0px);
-    --safe-area-inset-right: env(safe-area-inset-right, 0px);
+    --safe-area-inset-top: max(env(safe-area-inset-top, 0px), var(--native-safe-area-top, 0px));
+    --safe-area-inset-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-safe-area-bottom, 0px));
+    --safe-area-inset-left: max(env(safe-area-inset-left, 0px), var(--native-safe-area-left, 0px));
+    --safe-area-inset-right: max(env(safe-area-inset-right, 0px), var(--native-safe-area-right, 0px));
     --background: #000000;
     --foreground: #ffffff;
     --foreground-rgb: 255, 255, 255;
@@ -225,22 +225,30 @@ button, a, input, select, [role="button"] {
 
 /* Safe area utility classes */
 .pt-safe {
-  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  padding-top: var(--safe-area-inset-top);
+}
+
+.pt-safe-4 {
+  padding-top: calc(1rem + var(--safe-area-inset-top));
 }
 
 .pb-safe {
-  padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+.pb-safe-nav {
+  padding-bottom: calc(8rem + var(--safe-area-inset-bottom));
 }
 
 .pl-safe {
-  padding-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  padding-left: var(--safe-area-inset-left);
 }
 
 .pr-safe {
-  padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  padding-right: var(--safe-area-inset-right);
 }
 
 .px-safe {
-  padding-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
-  padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  padding-left: var(--safe-area-inset-left);
+  padding-right: var(--safe-area-inset-right);
 }

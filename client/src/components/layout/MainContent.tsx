@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { fetchAlbums, getGenres, fetchFrequentAlbums, fetchRandomTracks } from '../../api/subsonic';
 import AlbumCarousel from './AlbumCarousel';
 import GenreCarousel from './GenreCarousel';
 import TrackCarousel from './TrackCarousel';
 import MobileMainContent from './MobileMainContent';
+import { HomeSectionSkeleton, Skeleton } from '../common/Skeleton';
 import { useTranslation } from 'react-i18next';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useUIStore } from '../../store/uiStore';
@@ -36,8 +37,11 @@ export default function MainContent() {
   const [recentTracks, setRecentTracks] = useState<any[]>(() => cachedMainContent?.recentTracks || []);
   const [frequentAlbums, setFrequentAlbums] = useState<any[]>(() => cachedMainContent?.frequentAlbums || []);
   const [genres, setGenres] = useState<any[]>(() => cachedMainContent?.genres || []);
-  const [loading, setLoading] = useState(() => !cachedMainContent);
+  const [albumsSettled, setAlbumsSettled] = useState(() => Boolean(cachedMainContent));
+  const [recentSettled, setRecentSettled] = useState(() => Boolean(cachedMainContent));
+  const [genresSettled, setGenresSettled] = useState(() => Boolean(cachedMainContent));
   const [isMobile, setIsMobile] = useState(isMobileDevice);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(isMobileDevice());
@@ -100,53 +104,86 @@ export default function MainContent() {
     return [];
   }, [isOfflineMode]);
 
-  const loadContent = async () => {
-    try {
-      if (!cachedMainContent) {
-        setLoading(true);
-      }
-      const [albumData, recentData, frequentData, genreData] = await Promise.all([
-        fetchAlbums(),
-        fetchRandomTracks(15), // Mocking recent tracks with random tracks for now
-        fetchFrequentAlbums(),
-        getGenres()
-      ]);
-      const newAlbums = albumData || [];
-      const newRecent = recentData || [];
-      const newFrequent = frequentData || [];
-      const newGenres = (genreData || []).slice(0, 15); // top 15 genres for main page
-      const newRandom = cachedMainContent?.randomAlbums?.length ? cachedMainContent.randomAlbums : shuffleList(newAlbums);
-
-      setAlbums(newAlbums);
-      setRandomAlbums(newRandom);
-      setRecentTracks(newRecent);
-      setFrequentAlbums(newFrequent);
-      setGenres(newGenres);
-
+  const loadContent = () => {
+    const updateCache = (patch: Partial<MainContentCache>) => {
       cachedMainContent = {
-        albums: newAlbums,
-        randomAlbums: newRandom,
-        recentTracks: newRecent,
-        frequentAlbums: newFrequent,
-        genres: newGenres,
+        albums: patch.albums ?? cachedMainContent?.albums ?? [],
+        randomAlbums: patch.randomAlbums ?? cachedMainContent?.randomAlbums ?? [],
+        recentTracks: patch.recentTracks ?? cachedMainContent?.recentTracks ?? [],
+        frequentAlbums: patch.frequentAlbums ?? cachedMainContent?.frequentAlbums ?? [],
+        genres: patch.genres ?? cachedMainContent?.genres ?? [],
       };
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    // Load each section independently so slow endpoints (like frequent size=500) never block the whole Home view
+    fetchAlbums()
+      .then((albumData) => {
+        if (!mountedRef.current) return;
+        const newAlbums = albumData || [];
+        const newRandom = cachedMainContent?.randomAlbums?.length ? cachedMainContent.randomAlbums : shuffleList(newAlbums);
+        setAlbums(newAlbums);
+        setRandomAlbums(newRandom);
+        updateCache({ albums: newAlbums, randomAlbums: newRandom });
+      })
+      .catch((e) => console.error(e))
+      .finally(() => {
+        if (mountedRef.current) setAlbumsSettled(true);
+      });
+
+    fetchRandomTracks(15)
+      .then((recentData) => {
+        if (!mountedRef.current) return;
+        const newRecent = recentData || [];
+        setRecentTracks(newRecent);
+        updateCache({ recentTracks: newRecent });
+      })
+      .catch((e) => console.error(e))
+      .finally(() => {
+        if (mountedRef.current) setRecentSettled(true);
+      });
+
+    fetchFrequentAlbums()
+      .then((frequentData) => {
+        if (!mountedRef.current) return;
+        const newFrequent = frequentData || [];
+        setFrequentAlbums(newFrequent);
+        updateCache({ frequentAlbums: newFrequent });
+      })
+      .catch((e) => console.error(e));
+
+    getGenres()
+      .then((genreData) => {
+        if (!mountedRef.current) return;
+        const newGenres = (genreData || []).slice(0, 15);
+        setGenres(newGenres);
+        updateCache({ genres: newGenres });
+      })
+      .catch((e) => console.error(e))
+      .finally(() => {
+        if (mountedRef.current) setGenresSettled(true);
+      });
   };
 
   useEffect(() => {
+    mountedRef.current = true;
     loadContent();
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
-
-  if (loading) {
-    return <div className="flex-1 flex items-center justify-center text-secondary">{t('common.loading_music')}</div>;
-  }
 
   // On mobile UA, Android WebView, or screen <= 768px, always render MobileMainContent
   const effectiveIsMobile = isMobile || isMobileDevice();
+
+  const hasInitialContent = isOfflineMode
+    ? true
+    : effectiveIsMobile
+      ? (albums.length > 0 || recentTracks.length > 0 || (albumsSettled && recentSettled))
+      : (displayAlbums.length > 0 || albumsSettled);
+
+  if (!hasInitialContent) {
+    return <HomeSectionSkeleton isMobile={effectiveIsMobile} />;
+  }
 
   if (effectiveIsMobile) {
     return <MobileMainContent albums={albums} recentTracks={recentTracks} frequentAlbums={frequentAlbums} genres={genres} />;
@@ -173,7 +210,18 @@ export default function MainContent() {
             />
           </div>
           <div className="animate-home-section" style={{ animationDelay: '70ms' }}>
-            <GenreCarousel title={t('views.radio_genres')} genres={displayGenres} baseDelay={60} />
+            {!genresSettled && displayGenres.length === 0 ? (
+              <div className="mb-8 flex flex-col gap-3">
+                <Skeleton className="h-6 w-40" />
+                <div className="flex gap-3 overflow-hidden">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-36 rounded-xl shrink-0" />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <GenreCarousel title={t('views.radio_genres')} genres={displayGenres} baseDelay={60} />
+            )}
           </div>
           <div className="animate-home-section" style={{ animationDelay: '140ms' }}>
             {isOfflineMode ? (

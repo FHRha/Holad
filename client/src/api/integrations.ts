@@ -1,5 +1,6 @@
 import { getHoladServerUrl } from '../utils/serverConfig';
 import { useAuthStore } from '../store/authStore';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 const getHeaders = () => {
   const { user, token, salt, url } = useAuthStore.getState();
@@ -24,8 +25,9 @@ export async function fetchIntegrations(): Promise<ServerIntegrationItem[]> {
   if (!isAuthenticated || !user) return [];
 
   try {
-    const res = await fetch(`${getHoladServerUrl()}/api/holad/integrations/${encodeURIComponent(user)}`, {
-      headers: getHeaders()
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/integrations/${encodeURIComponent(user)}`, {
+      headers: getHeaders(),
+      timeoutMs: 8000
     });
     if (!res.ok) return [];
     return await res.json();
@@ -40,10 +42,11 @@ export async function pushIntegrations(items: ServerIntegrationItem[]): Promise<
   if (!isAuthenticated || !user) return false;
 
   try {
-    const res = await fetch(`${getHoladServerUrl()}/api/holad/integrations/${encodeURIComponent(user)}`, {
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/integrations/${encodeURIComponent(user)}`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify(items)
+      body: JSON.stringify(items),
+      timeoutMs: 8000
     });
     return res.ok;
   } catch (err) {

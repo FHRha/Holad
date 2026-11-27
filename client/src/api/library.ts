@@ -2,6 +2,7 @@ import type { Track } from '../types';
 import { getHoladServerUrl } from '../utils/serverConfig';
 import { useAuthStore } from '../store/authStore';
 import { getCoverArtUrl } from './subsonic/albums';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 export interface LibraryTracksParams {
   offset?: number;
@@ -127,7 +128,8 @@ function mapCachedArtist(a: any) {
 }
 
 export async function fetchLibraryTracks(
-  params: LibraryTracksParams = {}
+  params: LibraryTracksParams = {},
+  timeoutMs = 8000
 ): Promise<LibraryTracksResponse> {
   const baseUrl = getHoladServerUrl();
   const query = new URLSearchParams();
@@ -145,8 +147,9 @@ export async function fetchLibraryTracks(
   const queryString = query.toString();
   const url = `${baseUrl}/api/library/tracks${queryString ? `?${queryString}` : ''}`;
 
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     headers: getAuthHeaders(),
+    timeoutMs,
   });
 
   if (!res.ok) {
@@ -165,7 +168,8 @@ export async function fetchLibraryTracks(
 }
 
 export async function fetchLibraryAlbums(
-  params: LibraryAlbumsParams = {}
+  params: LibraryAlbumsParams = {},
+  timeoutMs = 8000
 ): Promise<LibraryAlbumsResponse> {
   const baseUrl = getHoladServerUrl();
   const query = new URLSearchParams();
@@ -182,8 +186,9 @@ export async function fetchLibraryAlbums(
   const queryString = query.toString();
   const url = `${baseUrl}/api/library/albums${queryString ? `?${queryString}` : ''}`;
 
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     headers: getAuthHeaders(),
+    timeoutMs,
   });
 
   if (!res.ok) {
@@ -202,7 +207,8 @@ export async function fetchLibraryAlbums(
 }
 
 export async function fetchLibraryArtists(
-  params: LibraryArtistsParams = {}
+  params: LibraryArtistsParams = {},
+  timeoutMs = 8000
 ): Promise<LibraryArtistsResponse> {
   const baseUrl = getHoladServerUrl();
   const query = new URLSearchParams();
@@ -217,8 +223,9 @@ export async function fetchLibraryArtists(
   const queryString = query.toString();
   const url = `${baseUrl}/api/library/artists${queryString ? `?${queryString}` : ''}`;
 
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     headers: getAuthHeaders(),
+    timeoutMs,
   });
 
   if (!res.ok) {
@@ -241,8 +248,9 @@ export async function getLibrarySyncStatus(userId?: string): Promise<LibrarySync
   const query = userId ? `?userId=${encodeURIComponent(userId)}` : '';
   const url = `${baseUrl}/api/library/status${query}`;
 
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     headers: getAuthHeaders(),
+    timeoutMs: 8000,
   });
 
   if (!res.ok) {
@@ -257,12 +265,13 @@ export async function triggerLibrarySync(userId?: string): Promise<LibrarySyncRe
   const query = userId ? `?userId=${encodeURIComponent(userId)}` : '';
   const url = `${baseUrl}/api/library/sync${query}`;
 
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: 'POST',
     headers: {
       ...getAuthHeaders(),
       'Content-Type': 'application/json',
     },
+    timeoutMs: 8000,
   });
 
   const data = await res.json().catch(() => ({}));

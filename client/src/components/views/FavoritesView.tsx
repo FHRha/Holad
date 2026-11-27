@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 import FilterChip from '../common/FilterChip';
 import AlbumRow from '../common/AlbumRow';
 import { mapSubsonicTracks, mapSubsonicTrack } from '../../utils/trackMapper';
+import { CardGridSkeleton, TrackListSkeleton, Skeleton } from '../common/Skeleton';
 
 interface FavoritesViewCache {
   albums: any[];
@@ -76,9 +77,9 @@ export default function FavoritesView() {
 
   const handlePlayTrack = useCallback((index: number, trackList: any[]) => {
     const mappedTracks: Track[] = mapSubsonicTracks(trackList);
-    
+
     const action = useSettingsStore.getState().clickAction;
-    
+
     if (action === 'play_next') {
       usePlayerStore.getState().playNext([mappedTracks[index]]);
     } else {
@@ -91,9 +92,35 @@ export default function FavoritesView() {
 
   if (loading) {
     return (
-      <div className="flex-1 bg-transparent p-8 flex items-center justify-center">
-        <div className="animate-pulse text-primary font-bold text-xl">{t('views.loading_favorites')}</div>
-      </div>
+      <>
+        <div className="hidden md:block flex-1 bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar">
+          <div className="mb-10 border-b border-white/5 pb-4">
+            <Skeleton className="h-8 w-44" />
+          </div>
+          <div className="mb-12">
+            <Skeleton className="h-6 w-48 mb-6" />
+            <CardGridSkeleton count={6} />
+          </div>
+          <div>
+            <Skeleton className="h-6 w-44 mb-6" />
+            <TrackListSkeleton count={8} />
+          </div>
+        </div>
+
+        <div className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-[calc(8rem+var(--safe-area-inset-bottom))] w-full">
+          <div className="px-4 pt-[calc(1rem+var(--safe-area-inset-top))] pb-2 sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border z-10 w-full">
+            <Skeleton className="h-11 w-full rounded-xl mb-4" />
+            <div className="flex items-center gap-2 mb-4">
+              <Skeleton className="h-8 w-24 rounded-full" />
+              <Skeleton className="h-8 w-28 rounded-full" />
+            </div>
+            <Skeleton className="h-11 w-full rounded-xl mb-2" />
+          </div>
+          <div className="px-4 py-4">
+            <TrackListSkeleton count={8} compact />
+          </div>
+        </div>
+      </>
     );
   }
 
@@ -155,10 +182,10 @@ export default function FavoritesView() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.15 }}
-        className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32 w-full"
+        className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-[calc(8rem+var(--safe-area-inset-bottom))] w-full"
       >
-        <div className="px-4 pt-4 pb-2 sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border z-10 w-full">
-          <div 
+        <div className="px-4 pt-[calc(1rem+var(--safe-area-inset-top))] pb-2 sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border z-10 w-full">
+          <div
             className="flex items-center bg-card rounded-xl px-3 py-2.5 mb-4 w-full border border-border cursor-text shadow-xs"
             onClick={() => setSearchOpen(true)}
           >
@@ -169,18 +196,18 @@ export default function FavoritesView() {
           </div>
           <div className="flex items-center justify-between mb-4 relative">
             <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar flex-1 pr-14">
-              <FilterChip 
-                icon={<CloudOff size={16} />} 
-                label={t('views.filter_offline')} 
-                isActive={false} 
+              <FilterChip
+                icon={<CloudOff size={16} />}
+                label={t('views.filter_offline')}
+                isActive={false}
               />
-              <FilterChip 
-                icon={<Download size={16} />} 
-                label={t('views.filter_downloaded')} 
-                isActive={false} 
+              <FilterChip
+                icon={<Download size={16} />}
+                label={t('views.filter_downloaded')}
+                isActive={false}
               />
             </div>
-            <button 
+            <button
               onClick={() => setViewMode(prev => prev === 'grid' ? 'list' : 'grid')}
               className="absolute right-0 text-secondary hover:text-foreground transition-colors bg-card border border-border p-2 rounded-full z-10 shadow-xs"
             >
@@ -189,12 +216,12 @@ export default function FavoritesView() {
           </div>
 
           <div className="flex bg-card rounded-xl border border-border overflow-hidden w-full p-1 mb-2">
-             <button onClick={() => setMobileTab('tracks')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'tracks' ? 'bg-background text-foreground shadow-xs rounded-lg' : 'text-secondary hover:text-foreground'}`}>{t('views.tab_tracks')}</button>
-             <button onClick={() => setMobileTab('albums')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'albums' ? 'bg-background text-foreground shadow-xs rounded-lg' : 'text-secondary hover:text-foreground'}`}>{t('views.tab_albums')}</button>
-             <button onClick={() => setMobileTab('artists')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'artists' ? 'bg-background text-foreground shadow-xs rounded-lg' : 'text-secondary hover:text-foreground'}`}>{t('views.tab_artists')}</button>
+            <button onClick={() => setMobileTab('tracks')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'tracks' ? 'bg-background text-foreground shadow-xs rounded-lg' : 'text-secondary hover:text-foreground'}`}>{t('views.tab_tracks')}</button>
+            <button onClick={() => setMobileTab('albums')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'albums' ? 'bg-background text-foreground shadow-xs rounded-lg' : 'text-secondary hover:text-foreground'}`}>{t('views.tab_albums')}</button>
+            <button onClick={() => setMobileTab('artists')} className={`flex-1 py-2 text-[15px] font-bold transition-colors ${mobileTab === 'artists' ? 'bg-background text-foreground shadow-xs rounded-lg' : 'text-secondary hover:text-foreground'}`}>{t('views.tab_artists')}</button>
           </div>
         </div>
-        
+
         <motion.div
           key={mobileTab}
           initial={{ opacity: 0, y: 6 }}

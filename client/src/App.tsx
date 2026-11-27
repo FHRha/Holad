@@ -115,9 +115,28 @@ function MainAppContent() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isAuthenticated) return;
+    let idleId: number | null = null;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
+    const run = () => {
       preloadMobileViews();
+    };
+
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      idleId = (window as any).requestIdleCallback(run, { timeout: 1200 });
+    } else {
+      timerId = setTimeout(run, 600);
     }
+
+    return () => {
+      if (idleId !== null && typeof (window as any).cancelIdleCallback === 'function') {
+        (window as any).cancelIdleCallback(idleId);
+      }
+      if (timerId !== null) {
+        clearTimeout(timerId);
+      }
+    };
   }, [isAuthenticated]);
   
   // oxlint-disable-next-line
@@ -177,11 +196,30 @@ function MainAppContent() {
   useEffect(() => {
     // Reset any downloads that were stuck in 'downloading' state from a previous crash
     useDownloadStore.getState().resetStuckDownloads();
-    
-    // Verify that downloaded files still exist on disk
-    import('./store/downloadStore').then(({ verifyDownloads }) => {
-      verifyDownloads().catch(console.error);
-    });
+
+    // Defer disk verification slightly so startup network/render takes priority
+    let idleId: number | null = null;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    const runVerify = () => {
+      import('./store/downloadStore').then(({ verifyDownloads }) => {
+        verifyDownloads().catch(console.error);
+      });
+    };
+
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      idleId = (window as any).requestIdleCallback(runVerify, { timeout: 1500 });
+    } else {
+      timerId = setTimeout(runVerify, 700);
+    }
+
+    return () => {
+      if (idleId !== null && typeof (window as any).cancelIdleCallback === 'function') {
+        (window as any).cancelIdleCallback(idleId);
+      }
+      if (timerId !== null) {
+        clearTimeout(timerId);
+      }
+    };
   }, []);
 
 

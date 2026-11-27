@@ -1,6 +1,7 @@
 import { getApiUrl } from '../utils/serverConfig';
 import { useAuthStore } from '../store/authStore';
 import { useDemoStore } from '../store/demoStore';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 export interface CompactTrack {
   id: string;
@@ -74,9 +75,10 @@ export const fetchPlaybackState = async (): Promise<PlaybackStateResponse | null
   }
 
   try {
-    const res = await fetch(getApiUrl('/api/playback-state'), {
+    const res = await fetchWithTimeout(getApiUrl('/api/playback-state'), {
       method: 'GET',
-      headers: getHeaders()
+      headers: getHeaders(),
+      timeoutMs: 8000
     });
     if (!res.ok) {
       return null;
@@ -120,11 +122,12 @@ export const savePlaybackState = async (
 
   if (useKeepalive) {
     try {
-      fetch(url, {
+      fetchWithTimeout(url, {
         method: 'POST',
         keepalive: true,
         headers,
-        body
+        body,
+        timeoutMs: 8000
       }).then((res) => {
         if (res.ok && typeof localStorage !== 'undefined') {
           localStorage.removeItem('holad_pending_offline_playback');
@@ -150,11 +153,12 @@ export const savePlaybackState = async (
   activeSaveAbortController = currentController;
 
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers,
       body,
-      signal: currentController.signal
+      signal: currentController.signal,
+      timeoutMs: 8000
     });
     if (res.ok && typeof localStorage !== 'undefined') {
       localStorage.removeItem('holad_pending_offline_playback');

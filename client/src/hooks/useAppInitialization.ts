@@ -185,15 +185,53 @@ export function useAppInitialization() {
     // Connection logic is now handled in JamLayout if needed
     // We only connect for global listeners if needed, but jam routing handles the join.
 
+    let cancelled = false;
+    let deferredIdleId: number | null = null;
+    let deferredTimerId: ReturnType<typeof setTimeout> | null = null;
+
     if (isAuthenticated) {
       fetchStarred().then(data => {
+        if (cancelled) return;
         const trackIds = data.song?.map((t: any) => t.id) || [];
         const albumIds = data.album?.map((a: any) => a.id) || [];
         setLikedItems(trackIds, albumIds);
       }).catch(e => console.error("Failed to fetch starred items", e));
 
-      fetchExclusions().then(exclusions => {
-        if (exclusions) {
+      fetchPreferences().then(prefs => {
+        if (cancelled || !prefs) return;
+        const { syncTheme, syncLanguage, setTheme, setAccentColor, setCustomColor, setLanguage } = useSettingsStore.getState();
+        if (syncTheme) {
+          if (prefs.theme && (prefs.theme === 'dark' || prefs.theme === 'light' || prefs.theme === 'system')) {
+            setTheme(prefs.theme);
+          }
+          if (prefs.accent_color) {
+            setAccentColor(prefs.accent_color);
+          }
+          if (prefs.custom_colors) {
+            try {
+              const colors = typeof prefs.custom_colors === 'string' ? JSON.parse(prefs.custom_colors) : prefs.custom_colors;
+              if (Array.isArray(colors)) {
+                colors.forEach((col: string, idx: number) => {
+                  if (idx < 3) setCustomColor(idx, col);
+                });
+              }
+            } catch {}
+          }
+        }
+        if (syncLanguage && prefs.language) {
+          setLanguage(prefs.language);
+        }
+        if (prefs.profiles) {
+          useProfileStore.getState().syncWithServerProfiles(prefs.profiles, prefs.updated_at);
+        }
+      }).catch(e => console.error("Failed to fetch preferences", e));
+
+      // Defer secondary background syncs so initial playback state & primary view win the weak mobile pipe
+      const runDeferredSyncs = () => {
+        if (cancelled) return;
+
+        fetchExclusions().then(exclusions => {
+          if (cancelled || !exclusions) return;
           const currentStore = usePlayerStore.getState();
           const mergedTracks = Array.from(new Set([
             ...(currentStore.excludedTrackIds || []),
@@ -208,47 +246,18 @@ export function useAppInitialization() {
             ...(exclusions.excludedFingerprints || [])
           ]));
           setExcludedItems(mergedTracks, mergedAlbums, mergedFingerprints);
-        }
-      }).catch(e => console.error("Failed to fetch exclusions", e));
+        }).catch(e => console.error("Failed to fetch exclusions", e));
 
-      fetchUserCustomPlaylists().then(playlists => {
-        usePlaylistStore.getState().mergeServerPlaylists(playlists);
-      }).catch(e => console.error("Failed to fetch custom playlists", e));
-
-      syncHistoryWithServer().catch(e => console.error("Failed to sync history with server", e));
-
-      fetchPreferences().then(prefs => {
-        if (prefs) {
-          const { syncTheme, syncLanguage, setTheme, setAccentColor, setCustomColor, setLanguage } = useSettingsStore.getState();
-          if (syncTheme) {
-            if (prefs.theme && (prefs.theme === 'dark' || prefs.theme === 'light' || prefs.theme === 'system')) {
-              setTheme(prefs.theme);
-            }
-            if (prefs.accent_color) {
-              setAccentColor(prefs.accent_color);
-            }
-            if (prefs.custom_colors) {
-              try {
-                const colors = typeof prefs.custom_colors === 'string' ? JSON.parse(prefs.custom_colors) : prefs.custom_colors;
-                if (Array.isArray(colors)) {
-                  colors.forEach((col: string, idx: number) => {
-                    if (idx < 3) setCustomColor(idx, col);
-                  });
-                }
-              } catch {}
-            }
+        fetchUserCustomPlaylists().then(playlists => {
+          if (!cancelled) {
+            usePlaylistStore.getState().mergeServerPlaylists(playlists);
           }
-          if (syncLanguage && prefs.language) {
-            setLanguage(prefs.language);
-          }
-          if (prefs.profiles) {
-            useProfileStore.getState().syncWithServerProfiles(prefs.profiles, prefs.updated_at);
-          }
-        }
-      }).catch(e => console.error("Failed to fetch preferences", e));
+        }).catch(e => console.error("Failed to fetch custom playlists", e));
 
-      fetchIntegrations().then(items => {
-        if (Array.isArray(items)) {
+        syncHistoryWithServer().catch(e => console.error("Failed to sync history with server", e));
+
+        fetchIntegrations().then(items => {
+          if (cancelled || !Array.isArray(items)) return;
           const { setLastFmKey, setUseLastFm, setYandexToken, setUseYandex } = useSettingsStore.getState();
           for (const item of items) {
             if (item.integration_name === 'lastfm') {
@@ -263,8 +272,14 @@ export function useAppInitialization() {
               }
             }
           }
-        }
-      }).catch(e => console.error("Failed to fetch integrations", e));
+        }).catch(e => console.error("Failed to fetch integrations", e));
+      };
+
+      if (typeof window !== 'undefined' && typeof (window as any).requestIdleCallback === 'function') {
+        deferredIdleId = (window as any).requestIdleCallback(runDeferredSyncs, { timeout: 800 });
+      } else {
+        deferredTimerId = setTimeout(runDeferredSyncs, 500);
+      }
     }
 
     // Do not load default play queue if on a Jam route or joining a room
@@ -348,6 +363,16 @@ export function useAppInitialization() {
         usePlayerStore.setState({ isSessionHydrated: true });
       });
     }
+
+    return () => {
+      cancelled = true;
+      if (deferredIdleId !== null && typeof window !== 'undefined' && typeof (window as any).cancelIdleCallback === 'function') {
+        (window as any).cancelIdleCallback(deferredIdleId);
+      }
+      if (deferredTimerId !== null) {
+        clearTimeout(deferredTimerId);
+      }
+    };
   }, [isAuthenticated, user, roomToJoin, trackId, albumId, setLikedItems, setExcludedItems, isJamRoute, isDemoMode, guestUserId]);
 
   // Online network listener for synchronizing pending changes

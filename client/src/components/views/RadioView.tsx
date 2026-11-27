@@ -10,13 +10,13 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useUIStore } from '../../store/uiStore';
 import { formatGenre } from '../../utils/formatters';
 import { getSpotifyGenreColor } from '../../constants/genreColors';
-import LoadingSpinner from '../common/LoadingSpinner';
+import { Skeleton } from '../common/Skeleton';
 
 const StationCard = ({ id, title, icon: Icon, description, onClick, colorClass, loadingStation }: any) => {
   const isThisLoading = loadingStation === id;
-  
+
   return (
-    <div 
+    <div
       onClick={(e) => {
         if (isThisLoading) return;
         e.preventDefault();
@@ -28,10 +28,10 @@ const StationCard = ({ id, title, icon: Icon, description, onClick, colorClass, 
       <div className="absolute -bottom-6 -right-6 transform rotate-12 opacity-30 group-hover:opacity-40 transition-opacity">
         <Icon size={120} className="text-black drop-shadow-lg" />
       </div>
-      
+
       <div className="relative z-10 p-5 flex flex-col h-full min-h-[160px] justify-between">
         <h3 className="text-2xl font-black text-white drop-shadow-md leading-tight line-clamp-2">{title}</h3>
-        
+
         <div className="flex flex-col gap-4">
           <p className="text-sm text-white/80 font-bold drop-shadow-md line-clamp-2">{description}</p>
           <div className="absolute right-4 bottom-4">
@@ -50,7 +50,7 @@ export default function RadioView() {
   const [genres, setGenres] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingStation, setLoadingStation] = useState<string | null>(null);
-  
+
   const setQueueAndPlay = usePlayerStore(state => state.setQueueAndPlay);
   const { isOffline } = useNetworkStatus();
   const { activeFilter } = useUIStore();
@@ -75,7 +75,7 @@ export default function RadioView() {
     if (isOffline || activeFilter === 'Downloaded' || activeFilter === 'Offline') {
       const offline = getOfflineTracks();
       const genreCounts = new Map<string, number>();
-      
+
       offline.forEach(t => {
         if (t.genre) {
           const g = t.genre.trim();
@@ -84,7 +84,7 @@ export default function RadioView() {
           }
         }
       });
-      
+
       return Array.from(genreCounts.entries())
         .map(([value, songCount]) => ({ value, songCount }))
         .sort((a, b) => b.songCount - a.songCount)
@@ -147,7 +147,7 @@ export default function RadioView() {
   };
 
   const startRandomRadio = () => startStation('random', () => fetchRandomTracks(50));
-  
+
   const startFavoritesRadio = () => startStation('favorites', async () => {
     const tracks = await getStarred();
     return tracks.sort(() => Math.random() - 0.5);
@@ -162,10 +162,10 @@ export default function RadioView() {
   const startArtistMix = () => startStation('artist-mix', async () => {
     const allArtists = await getArtists();
     if (!allArtists || allArtists.length === 0) return [];
-    
+
     // Pick 5 random artists
     const shuffled = [...allArtists].sort(() => Math.random() - 0.5).slice(0, 5);
-    
+
     const tracksPromises = shuffled.map(async (a) => {
       try {
         const topSongs = await getTopSongs(a.name, 10, a.id);
@@ -175,7 +175,7 @@ export default function RadioView() {
       } catch (e) {
         // ignore and proceed to fallback
       }
-      
+
       // Fallback: fetch artist's albums and their songs
       try {
         const artistInfo = await getArtist(a.id);
@@ -193,55 +193,76 @@ export default function RadioView() {
       }
       return [];
     });
-    
+
     const nestedTracks = await Promise.all(tracksPromises);
-    
+
     // Flatten and shuffle
     const mixed = nestedTracks.flat().sort(() => Math.random() - 0.5);
     return mixed.slice(0, 50);
   });
 
   if (loading) {
-    return <LoadingSpinner fullScreen />;
+    return (
+      <div className="flex-1 bg-transparent md:bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar pt-[calc(2.5rem+var(--safe-area-inset-top))] md:pt-10 pb-[calc(8rem+var(--safe-area-inset-bottom))] md:pb-8">
+        <div className="max-w-6xl mx-auto space-y-12">
+          <section>
+            <Skeleton className="h-8 w-44 mb-6" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-40 rounded-xl" />
+              ))}
+            </div>
+          </section>
+          <section>
+            <Skeleton className="h-8 w-40 mb-6" />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-40 rounded-xl" />
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex-1 bg-transparent md:bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar pt-10 pb-32 md:pb-8">
+    <div className="flex-1 bg-transparent md:bg-background overflow-y-auto p-4 lg:p-8 hide-scrollbar pt-[calc(2.5rem+var(--safe-area-inset-top))] md:pt-10 pb-[calc(8rem+var(--safe-area-inset-bottom))] md:pb-8">
       <div className="max-w-6xl mx-auto space-y-12">
-        
+
         <section>
           <h2 className="text-2xl font-bold text-foreground mb-6">{t('views.radio_main')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StationCard 
+            <StationCard
               id="random"
-              title={t('views.radio_infinite')} 
+              title={t('views.radio_infinite')}
               description={t('views.radio_infinite_desc')}
               icon={Shuffle}
               onClick={startRandomRadio}
               colorClass="bg-[#1E3264]"
               loadingStation={loadingStation}
             />
-            <StationCard 
+            <StationCard
               id="favorites"
-              title={t('views.radio_favs')} 
+              title={t('views.radio_favs')}
               description={t('views.radio_favs_desc')}
               icon={Heart}
               onClick={startFavoritesRadio}
               colorClass="bg-[#E8115B]"
               loadingStation={loadingStation}
             />
-            <StationCard 
+            <StationCard
               id="newest"
-              title={t('views.radio_new')} 
+              title={t('views.radio_new')}
               description={t('views.radio_new_desc')}
               icon={Disc}
               onClick={startNewReleases}
               colorClass="bg-[#148A08]"
               loadingStation={loadingStation}
             />
-            <StationCard 
+            <StationCard
               id="artist-mix"
-              title={t('views.radio_artist_mix', 'Artist Mix')} 
+              title={t('views.radio_artist_mix', 'Artist Mix')}
               description={t('views.radio_artist_mix_desc', 'Random artists blend')}
               icon={Users}
               onClick={startArtistMix}
@@ -257,12 +278,12 @@ export default function RadioView() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {visibleGenres.map((genre: any, idx: number) => {
                 const colorClass = getSpotifyGenreColor(idx);
-                
+
                 return (
-                  <StationCard 
+                  <StationCard
                     key={genre.value}
                     id={`genre-${genre.value}`}
-                    title={formatGenre(genre.value, t)} 
+                    title={formatGenre(genre.value, t)}
                     description={`${genre.songCount} ${t('common.songs')}`}
                     icon={Music}
                     onClick={() => startGenreRadio(genre.value)}
@@ -278,4 +299,3 @@ export default function RadioView() {
     </div>
   );
 }
-

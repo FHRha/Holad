@@ -1,6 +1,7 @@
 import { useAuthStore } from '../store/authStore';
 import { getHoladServerUrl } from '../utils/serverConfig';
 import { isTauri, isTauriDesktop, isTauriMobile } from '../utils/platform';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 export const getBaseUrl = () => {
   const { isAuthenticated, url } = useAuthStore.getState();
@@ -64,23 +65,27 @@ export const buildUrl = (endpoint: string, params: Record<string, string> = {}) 
 };
 
 export const fetchWithRetry = async (url: string, options?: RequestInit): Promise<Response> => {
-  const delays = [1000, 1000, 1000, 5000];
-  const TIMEOUT_MS = 10000; // 10 seconds
+  const delays = [600, 1200];
+  const TIMEOUT_MS = 8000;
+
+  // Fail fast if explicitly offline before waiting for a timeout
+  const initiallyOffline = await import('../utils/networkStatus')
+    .then(m => m.networkManager.isOffline())
+    .catch(() => false);
+  if (initiallyOffline) {
+    throw new Error('Network offline');
+  }
 
   for (let i = 0; i <= delays.length; i++) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-      
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         ...options,
-        signal: options?.signal || controller.signal
+        timeoutMs: TIMEOUT_MS,
       });
-      clearTimeout(timeoutId);
-      
+
       // We got a response, so we're online
       import('../utils/networkStatus').then(m => m.networkManager.setOnline(true)).catch(() => {});
-      
+
       if (!res.ok) {
         const error = new Error(`HTTP ${res.status}`);
         (error as any).status = res.status;
@@ -88,7 +93,11 @@ export const fetchWithRetry = async (url: string, options?: RequestInit): Promis
       }
       return res;
     } catch (e: any) {
-      if (e.name === 'AbortError') {
+      if (e?.name === 'AbortError' && options?.signal?.aborted) {
+        throw e;
+      }
+
+      if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
         import('../utils/networkStatus').then(m => m.networkManager.setOnline(false)).catch(() => {});
         throw new Error('Network timeout');
       }
@@ -101,9 +110,9 @@ export const fetchWithRetry = async (url: string, options?: RequestInit): Promis
       if (typeof status === 'number' && status >= 400 && status < 500 && status !== 429) {
         throw e;
       }
-      
+
       if (i === delays.length) throw e;
-      
+
       // If forced offline, fail fast instead of retrying forever
       const isOffline = await import('../utils/networkStatus').then(m => m.networkManager.isOffline()).catch(() => false);
       if (isOffline && !e.message?.startsWith('HTTP ')) {
@@ -113,6 +122,6 @@ export const fetchWithRetry = async (url: string, options?: RequestInit): Promis
       await new Promise(r => setTimeout(r, delays[i]));
     }
   }
-  throw new Error("Fetch failed");
+  throw new Error('Fetch failed');
 };
 

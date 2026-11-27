@@ -10,6 +10,7 @@ import { useContextMenuStore } from '../../store/contextMenuStore';
 import LongPressWrapper from '../common/LongPressWrapper';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { sanitizeHtml } from '../../utils/sanitize';
+import { DetailHeaderSkeleton, TrackListSkeleton, CardGridSkeleton, Skeleton } from '../common/Skeleton';
 
 export default function ArtistView() {
   const { t } = useTranslation();
@@ -17,20 +18,47 @@ export default function ArtistView() {
   const navigate = useNavigate();
   const { openMenu } = useContextMenuStore();
   const downloads = useDownloadStore(state => state.downloads);
-  
+
   const {
     artist,
     artistInfo,
     externalStats,
     topSongs,
     loading,
+    tracksLoading,
     handlePlayArtist,
     handleShuffleArtist,
     handlePlaySong
   } = useArtistData(id);
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center text-secondary">{t('views.loading_artist')}</div>;
+    return (
+      <div className="flex-1 overflow-y-auto bg-transparent md:bg-card custom-scrollbar relative pb-[calc(8rem+var(--safe-area-inset-bottom))] md:pb-24">
+        <div className="p-6 pt-[calc(1.5rem+var(--safe-area-inset-top))] sm:p-10 relative">
+          <button
+            onClick={() => navigate(-1)}
+            aria-label={t('common.back', 'Назад')}
+            className="absolute top-[calc(1.5rem+var(--safe-area-inset-top))] md:top-6 left-6 p-2 rounded-full bg-black/40 hover:bg-black/60 text-foreground transition-colors z-10"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <DetailHeaderSkeleton avatarShape="circle" className="mt-8 sm:mt-4" />
+        </div>
+        <div className="px-6 sm:px-10 grid grid-cols-1 lg:grid-cols-3 gap-10 mt-4">
+          <div className="lg:col-span-2">
+            <Skeleton className="h-7 w-40 mb-6" />
+            <TrackListSkeleton count={6} compact />
+          </div>
+          <div className="lg:col-span-1">
+            <Skeleton className="h-44 w-full rounded-2xl" />
+          </div>
+        </div>
+        <div className="p-6 sm:p-10">
+          <Skeleton className="h-7 w-32 mb-6" />
+          <CardGridSkeleton count={6} />
+        </div>
+      </div>
+    );
   }
 
   if (!artist) {
@@ -41,8 +69,8 @@ export default function ArtistView() {
   const biography = (artistInfo?.biography && artistInfo.biography.trim()) ? artistInfo.biography : externalStats?.data?.bio;
 
   return (
-    <div className="flex-1 overflow-y-auto bg-transparent md:bg-card custom-scrollbar relative pb-24">
-      
+    <div className="flex-1 overflow-y-auto bg-transparent md:bg-card custom-scrollbar relative pb-[calc(8rem+var(--safe-area-inset-bottom))] md:pb-24">
+
       <div className="relative w-full h-80 sm:h-96">
         <div className="absolute inset-0 z-0">
           <div className="w-full h-full overflow-hidden blur-3xl opacity-30">
@@ -50,15 +78,16 @@ export default function ArtistView() {
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent" />
         </div>
-        
-        <div className="relative z-10 p-6 sm:p-10 h-full flex flex-col justify-end">
-          <button 
+
+        <div className="relative z-10 p-6 pt-[calc(1.5rem+var(--safe-area-inset-top))] sm:p-10 h-full flex flex-col justify-end">
+          <button
             onClick={() => navigate(-1)}
-            className="absolute top-6 left-6 p-2 rounded-full bg-black/40 hover:bg-black/60 text-foreground transition-colors"
+            aria-label={t('common.back', 'Назад')}
+            className="absolute top-[calc(1.5rem+var(--safe-area-inset-top))] md:top-6 left-6 p-2 rounded-full bg-black/40 hover:bg-black/60 text-foreground transition-colors"
           >
             <ArrowLeft size={20} />
           </button>
-          
+
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-8 text-center sm:text-left mt-auto">
             <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-full shadow-2xl overflow-hidden flex-shrink-0 bg-foreground/5 mx-auto sm:mx-0">
                <ArtistAvatar artistName={artist.name} artistId={artist.id} fallbackSize={60} className="w-full h-full object-cover" />
@@ -85,13 +114,13 @@ export default function ArtistView() {
       </div>
 
       <div className="p-4 sm:p-6 sm:px-10 flex items-center justify-center sm:justify-start gap-4">
-        <button 
+        <button
           onClick={handlePlayArtist}
           className="w-14 h-14 bg-primary text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-xl"
         >
           <Play size={24} fill="currentColor" className="ml-1" />
         </button>
-        <button 
+        <button
           onClick={handleShuffleArtist}
           className="text-secondary hover:text-foreground p-3 transition-colors"
         >
@@ -107,15 +136,17 @@ export default function ArtistView() {
       </div>
 
       <div className="px-6 sm:px-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
-        
+
         <div className="lg:col-span-2">
           <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-6">{t('views.popular_tracks', 'Популярное')}</h2>
-          {topSongs.length === 0 ? (
+          {tracksLoading && topSongs.length === 0 ? (
+            <TrackListSkeleton count={6} compact />
+          ) : topSongs.length === 0 ? (
             <p className="text-secondary text-sm">{t('views.no_track_data')}</p>
           ) : (
             <div className="flex flex-col gap-1">
               {topSongs.slice(0, 10).map((track, index) => (
-                <LongPressWrapper 
+                <LongPressWrapper
                   key={track.id}
                   onClick={() => handlePlaySong(index)}
                   onLongPress={(e: any) => {
@@ -127,23 +158,23 @@ export default function ArtistView() {
                   <div className="w-6 text-center text-sm font-medium text-secondary/70 group-hover:text-foreground">
                     {index + 1}
                   </div>
-                  
+
                   <div className="relative w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-foreground/5">
-                    <TrackImage 
-                      src={track.coverArt} 
-                      className="w-full h-full object-cover" 
-                      alt="" 
+                    <TrackImage
+                      src={track.coverArt}
+                      className="w-full h-full object-cover"
+                      alt=""
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <Play size={16} fill="currentColor" className="text-secondary" />
                     </div>
                   </div>
-                  
+
                   <div className="flex-1 min-w-0 flex items-center gap-2">
                     <p className="font-medium text-sm sm:text-base text-foreground truncate">{track.title}</p>
                     {isItemDownloaded(downloads, track.id, track.albumId, track) && <Download size={14} className="text-primary shrink-0" />}
                   </div>
-                  
+
                   <div className="text-xs sm:text-sm text-secondary/70 font-medium">
                     {formatTime(track.duration)}
                   </div>
@@ -157,7 +188,7 @@ export default function ArtistView() {
           {biography && (
             <div className="bg-foreground/5 rounded-2xl p-6 border border-foreground/5">
               <h3 className="text-sm font-bold uppercase tracking-widest text-secondary mb-4">{t('views.about_artist')}</h3>
-              <div 
+              <div
                 className="text-sm text-foreground/80 leading-relaxed line-clamp-12"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(biography) }}
               />

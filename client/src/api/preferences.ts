@@ -1,6 +1,7 @@
 import { getHoladServerUrl } from '../utils/serverConfig';
 import { useAuthStore } from '../store/authStore';
 import { useDemoStore } from '../store/demoStore';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 const getHeaders = () => {
   const { user, token, salt, url } = useAuthStore.getState();
@@ -46,8 +47,9 @@ export async function fetchPreferences(): Promise<ServerPreferences | null> {
   if (!user) return null;
 
   try {
-    const res = await fetch(`${getHoladServerUrl()}/api/holad/preferences/${encodeURIComponent(user)}`, {
-      headers: getHeaders()
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/preferences/${encodeURIComponent(user)}`, {
+      headers: getHeaders(),
+      timeoutMs: 8000
     });
     if (!res.ok) return null;
     return await res.json();
@@ -71,11 +73,12 @@ export async function pushPreferences(prefs: Partial<ServerPreferences>): Promis
   activePreferencesAbortController = currentController;
 
   try {
-    const res = await fetch(`${getHoladServerUrl()}/api/holad/preferences/${encodeURIComponent(user)}`, {
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/preferences/${encodeURIComponent(user)}`, {
       method: 'POST',
       headers: getHeaders(),
       signal: currentController.signal,
-      body: JSON.stringify(prefs)
+      body: JSON.stringify(prefs),
+      timeoutMs: 8000
     });
     return res.ok;
   } catch (err: any) {

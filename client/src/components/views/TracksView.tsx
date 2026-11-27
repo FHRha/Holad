@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Play, Heart, Clock, Search, FilterX, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { searchTracks, getArtists, fetchAlbums } from '../../api/subsonic';
@@ -10,6 +11,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useDownloadStore, isItemDownloaded, getOfflineTracks } from '../../store/downloadStore';
 import ArtistAvatar from '../common/ArtistAvatar';
 import TrackRow from '../common/TrackRow';
+import { TrackListSkeleton } from '../common/Skeleton';
 import { useTrackFilters } from '../../hooks/useTrackFilters';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
@@ -26,6 +28,7 @@ let cachedTracksData: TracksViewCache | null = null;
 
 export default function TracksView() {
   const { t } = useTranslation();
+  const isInsideLibrary = useLocation().pathname.startsWith('/library');
   const { isOffline } = useNetworkStatus();
   const [tracks, setTracks] = useState<any[]>(() => cachedTracksData?.tracks || []);
   const [globalArtists, setGlobalArtists] = useState<any[]>(() => cachedTracksData?.globalArtists || []);
@@ -114,7 +117,9 @@ export default function TracksView() {
   const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    const loadInitial = async () => {
+    let cancelled = false;
+
+    const loadInitialTracks = async () => {
       if (!cachedTracksData) {
         setLoading(true);
       }
@@ -129,64 +134,99 @@ export default function TracksView() {
           console.warn('[TracksView] Library cache unavailable, falling back to Subsonic API:', libErr);
         }
 
-        const artistsPromise = (async () => {
-          try {
-            const res = await fetchLibraryArtists({ limit: 10000 });
-            if (res && Array.isArray(res.artists) && res.artists.length > 0) {
-              return res.artists;
-            }
-          } catch (e) {
-            console.warn('[TracksView] fetchLibraryArtists failed, falling back to getArtists:', e);
-          }
-          return await getArtists();
-        })();
+        if (tracksData.length === 0) {
+          tracksData = (await searchTracks('', 100, 0)) || [];
+        }
 
-        const albumsPromise = (async () => {
-          try {
-            const res = await fetchLibraryAlbums({ limit: 10000 });
-            if (res && Array.isArray(res.albums) && res.albums.length > 0) {
-              return res.albums;
-            }
-          } catch (e) {
-            console.warn('[TracksView] fetchLibraryAlbums failed, falling back to fetchAlbums:', e);
-          }
-          const fallbackAlbumsRes = await fetchAlbums(0, 1000);
-          return Array.isArray(fallbackAlbumsRes) ? fallbackAlbumsRes : [];
-        })();
+        if (cancelled) return;
 
-        const [fallbackTracks, artistsData, albumsData] = await Promise.all([
-          tracksData.length === 0 ? searchTracks('', 100, 0) : Promise.resolve(tracksData),
-          artistsPromise,
-          albumsPromise
-        ]);
-        const finalInitialTracks = tracksData.length > 0 ? tracksData : fallbackTracks;
-        const sorted = finalInitialTracks.sort((a: any, b: any) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
-        const more = finalInitialTracks.length >= 100;
+        const sorted = [...tracksData].sort((a: any, b: any) =>
+          (a.title || a.name || '').localeCompare(b.title || b.name || '')
+        );
+        const more = tracksData.length >= 100;
         setTracks(sorted);
-        setGlobalArtists(artistsData || []);
-        setGlobalAlbums(albumsData || []);
         setHasMore(more);
         regularTracksRef.current = sorted;
         regularHasMoreRef.current = more;
         cachedTracksData = {
           tracks: sorted,
-          globalArtists: artistsData || [],
-          globalAlbums: albumsData || [],
+          globalArtists: cachedTracksData?.globalArtists || [],
+          globalAlbums: cachedTracksData?.globalAlbums || [],
           hasMore: more,
         };
       } catch (e) {
         console.error('Failed to load initial tracks:', e);
-        const offlineList = getOfflineTracks();
-        if (offlineList.length > 0) {
-          setTracks(offlineList);
-          regularTracksRef.current = offlineList;
+        if (!cancelled) {
+          const offlineList = getOfflineTracks();
+          if (offlineList.length > 0) {
+            setTracks(offlineList);
+            regularTracksRef.current = offlineList;
+          }
+          setHasMore(false);
         }
-        setHasMore(false);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
-    loadInitial();
+
+    const loadSidebarFilters = () => {
+      // Filter sidebar is hidden on mobile (< md); skip fetching 10k items on mobile
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        return;
+      }
+
+      (async () => {
+        try {
+          const res = await fetchLibraryArtists({ limit: 10000 });
+          if (res && Array.isArray(res.artists) && res.artists.length > 0) {
+            return res.artists;
+          }
+        } catch (e) {
+          console.warn('[TracksView] fetchLibraryArtists failed, falling back to getArtists:', e);
+        }
+        return await getArtists();
+      })()
+        .then(artistsData => {
+          if (cancelled) return;
+          const next = artistsData || [];
+          setGlobalArtists(next);
+          if (cachedTracksData) {
+            cachedTracksData.globalArtists = next;
+          }
+        })
+        .catch(() => {});
+
+      (async () => {
+        try {
+          const res = await fetchLibraryAlbums({ limit: 10000 });
+          if (res && Array.isArray(res.albums) && res.albums.length > 0) {
+            return res.albums;
+          }
+        } catch (e) {
+          console.warn('[TracksView] fetchLibraryAlbums failed, falling back to fetchAlbums:', e);
+        }
+        const fallbackAlbumsRes = await fetchAlbums(0, 1000);
+        return Array.isArray(fallbackAlbumsRes) ? fallbackAlbumsRes : [];
+      })()
+        .then(albumsData => {
+          if (cancelled) return;
+          const next = albumsData || [];
+          setGlobalAlbums(next);
+          if (cachedTracksData) {
+            cachedTracksData.globalAlbums = next;
+          }
+        })
+        .catch(() => {});
+    };
+
+    loadInitialTracks();
+    loadSidebarFilters();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Server-side filter fetch on artist or album filter selection
@@ -507,9 +547,11 @@ export default function TracksView() {
             {!isGuest && <div className="w-24 flex justify-center gap-4 ml-4"><Heart size={14} /><Ban size={14} /></div>}
           </div>
 
-          <div className="flex-1 overflow-hidden pt-2 px-4 md:px-0 relative">
+          <div className={`flex-1 overflow-hidden ${isInsideLibrary ? 'pt-2' : 'pt-[calc(0.5rem+var(--safe-area-inset-top))] md:pt-2'} px-4 md:px-0 relative`}>
             {loading ? (
-              <div className="flex items-center justify-center h-full text-secondary">{t('views.loading')}</div>
+              <div className="h-full overflow-y-auto hide-scrollbar pb-[calc(5rem+var(--safe-area-inset-bottom))] md:pb-4">
+                <TrackListSkeleton count={12} />
+              </div>
             ) : finalTracks.length === 0 ? (
               <div className="flex items-center justify-center h-full text-secondary">{t('views.not_found')}</div>
             ) : (
@@ -520,7 +562,7 @@ export default function TracksView() {
                 overscan={300}
                 className="h-full custom-scrollbar hide-scrollbar-mobile"
                 components={{
-                  Footer: () => <div className="h-[80px] md:hidden" />
+                  Footer: () => <div className="h-[calc(5rem+var(--safe-area-inset-bottom))] md:hidden" />
                 }}
                 itemContent={(index: number, track: any) => (
                   <TrackRow 

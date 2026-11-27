@@ -69,7 +69,7 @@ export default function HistoryView() {
   };
 
   return (
-    <div className="flex flex-col p-6 overflow-y-auto overflow-x-hidden w-full h-full text-foreground bg-background/50 pb-32">
+    <div className="flex flex-col px-6 pt-[calc(1.5rem+var(--safe-area-inset-top))] md:pt-6 pb-safe-nav md:pb-32 overflow-y-auto overflow-x-hidden w-full h-full text-foreground bg-background/50">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div className="flex items-center gap-3 relative">
           <button onClick={() => navigate(-1)} className="md:hidden p-2 -ml-2 text-secondary hover:text-foreground transition-colors">

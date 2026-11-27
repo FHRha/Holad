@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Play } from 'lucide-react';
 import { getPlaylists } from '../../api/subsonic/playlists';
 import { usePlaylistStore } from '../../store/playlistStore';
@@ -8,6 +8,7 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import PlaylistCover from '../common/PlaylistCover';
 import EmptyState from '../common/EmptyState';
+import { CardGridSkeleton, Skeleton } from '../common/Skeleton';
 import { isJamPath } from '../../utils/basePath';
 
 let cachedPlaylistsData: any[] | null = null;
@@ -15,6 +16,7 @@ let cachedPlaylistsData: any[] | null = null;
 export default function PlaylistsView() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const isInsideLibrary = useLocation().pathname.startsWith('/library');
   const { openMenu } = useContextMenuStore();
   const [playlists, setPlaylists] = useState<any[]>(() => cachedPlaylistsData || []);
   const [loading, setLoading] = useState(() => !cachedPlaylistsData);
@@ -86,16 +88,21 @@ export default function PlaylistsView() {
     }
   };
 
+  const mobileTopPadding = isInsideLibrary ? 'pt-4' : 'pt-[calc(1rem+var(--safe-area-inset-top))]';
+
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-secondary">
-        {t('views.loading_playlists', 'Loading playlists...')}
+      <div className={`flex-1 overflow-y-auto bg-transparent md:bg-card hide-scrollbar md:custom-scrollbar relative pb-[calc(6rem+var(--safe-area-inset-bottom))] md:pb-8 px-4 ${mobileTopPadding} md:p-6`}>
+        <div className="hidden md:flex sticky top-0 z-20 bg-card/90 backdrop-blur p-6 pb-4 border-b border-white/5 items-center justify-between -mx-6 -mt-6 mb-6">
+          <Skeleton className="h-8 w-44" />
+        </div>
+        <CardGridSkeleton count={10} />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-transparent md:bg-card hide-scrollbar md:custom-scrollbar relative pb-24 px-4 pt-4 md:p-6">
+    <div className={`flex-1 overflow-y-auto bg-transparent md:bg-card hide-scrollbar md:custom-scrollbar relative pb-[calc(6rem+var(--safe-area-inset-bottom))] md:pb-8 px-4 ${mobileTopPadding} md:p-6`}>
       <div className="hidden md:flex sticky top-0 z-20 bg-card/90 backdrop-blur p-6 pb-4 border-b border-white/5 items-center justify-between -mx-6 -mt-6 mb-6">
         <h1 className="text-2xl font-bold text-foreground">{t('views.my_playlists', 'My Playlists')}</h1>
       </div>

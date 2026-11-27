@@ -48,7 +48,10 @@ class JamSocketService {
     
     this.socket = io(getSocketUrl(), {
       path: getSocketPath(),
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 8,
+      reconnectionDelayMax: 15000,
+      timeout: 10000
     });
 
     this.socket.on('connect', () => {

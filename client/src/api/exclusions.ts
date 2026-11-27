@@ -1,5 +1,6 @@
 import { getHoladServerUrl } from '../utils/serverConfig';
 import { useAuthStore } from '../store/authStore';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 const getHeaders = () => {
   const { user, token, salt, url } = useAuthStore.getState();
@@ -37,9 +38,10 @@ export const fetchExclusions = async (): Promise<ExclusionsResponse | null> => {
   }
 
   try {
-    const res = await fetch(`${getHoladServerUrl()}/api/holad/exclusions/${encodeURIComponent(user)}`, {
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/exclusions/${encodeURIComponent(user)}`, {
       method: 'GET',
-      headers: getHeaders()
+      headers: getHeaders(),
+      timeoutMs: 8000
     });
     if (!res.ok) {
       throw new Error(`HTTP error ${res.status}`);
@@ -65,13 +67,14 @@ export const syncToggleExclusion = async (
   if (!isAuthenticated || !user) return null;
 
   try {
-    const res = await fetch(`${getHoladServerUrl()}/api/holad/exclusions/${encodeURIComponent(user)}`, {
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/exclusions/${encodeURIComponent(user)}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...getHeaders()
       },
-      body: JSON.stringify({ entityId, entityType, ...meta })
+      body: JSON.stringify({ entityId, entityType, ...meta }),
+      timeoutMs: 8000
     });
     if (!res.ok) {
       throw new Error(`HTTP error ${res.status}`);
@@ -94,13 +97,14 @@ export const syncReconcileExclusion = async (
   if (!isAuthenticated || !user) return false;
 
   try {
-    const res = await fetch(`${getHoladServerUrl()}/api/holad/exclusions/${encodeURIComponent(user)}/reconcile`, {
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/exclusions/${encodeURIComponent(user)}/reconcile`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...getHeaders()
       },
-      body: JSON.stringify({ oldId, newId, entityType, fingerprint })
+      body: JSON.stringify({ oldId, newId, entityType, fingerprint }),
+      timeoutMs: 8000
     });
     return res.ok;
   } catch (error) {
@@ -114,7 +118,7 @@ export const syncSetExclusions = async (trackIds: string[], albumIds: string[]):
   if (!isAuthenticated || !user) return false;
 
   try {
-    const res = await fetch(`${getHoladServerUrl()}/api/holad/exclusions/${encodeURIComponent(user)}`, {
+    const res = await fetchWithTimeout(`${getHoladServerUrl()}/api/holad/exclusions/${encodeURIComponent(user)}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -123,7 +127,8 @@ export const syncSetExclusions = async (trackIds: string[], albumIds: string[]):
       body: JSON.stringify({
         excludedTrackIds: trackIds,
         excludedAlbumIds: albumIds
-      })
+      }),
+      timeoutMs: 8000
     });
     return res.ok;
   } catch (error) {

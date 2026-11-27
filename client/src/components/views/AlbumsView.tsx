@@ -4,12 +4,13 @@ import { fetchLibraryAlbums } from '../../api/library';
 import { useTranslation } from 'react-i18next';
 import AlbumCard from '../common/AlbumCard';
 import AlbumRow from '../common/AlbumRow';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
 import { useDownloadStore, isItemDownloaded, getDownloadedAlbums } from '../../store/downloadStore';
 import { useContextMenuStore } from '../../store/contextMenuStore';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { VirtuosoGrid } from 'react-virtuoso';
+import { CardGridSkeleton, Skeleton } from '../common/Skeleton';
 
 interface AlbumsViewCache {
   albums: any[];
@@ -21,6 +22,7 @@ let cachedAlbumsData: AlbumsViewCache | null = null;
 export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 'list' }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const isInsideLibrary = useLocation().pathname.startsWith('/library');
   const activeFilter = useUIStore(s => s.activeFilter);
   const { isOffline } = useNetworkStatus();
   const downloads = useDownloadStore(state => state.downloads);
@@ -40,7 +42,7 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
       try {
         let incoming: any[] = [];
         try {
-          const libRes = await fetchLibraryAlbums({ limit: 50, offset: 0 });
+          const libRes = await fetchLibraryAlbums({ limit: 50, offset: 0 }, 5000);
           if (libRes && Array.isArray(libRes.albums) && libRes.albums.length > 0) {
             incoming = libRes.albums;
           }
@@ -114,8 +116,19 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
     }
   };
 
+  const topPaddingClass = isInsideLibrary ? 'pt-4' : 'pt-[calc(1rem+var(--safe-area-inset-top))] md:pt-4';
+
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center text-secondary">{t('views.loading_albums')}</div>;
+    return (
+      <div className="flex-1 overflow-hidden flex flex-col bg-transparent relative">
+        <div className={`px-4 ${topPaddingClass} md:px-8 shrink-0`}>
+          <Skeleton className="h-8 w-40 mb-8 hidden md:block" />
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 md:px-8 pb-[calc(5rem+var(--safe-area-inset-bottom))] md:pb-8 hide-scrollbar">
+          <CardGridSkeleton count={12} viewMode={viewMode} />
+        </div>
+      </div>
+    );
   }
 
   const finalAlbums = (() => {
@@ -149,7 +162,7 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col bg-transparent relative">
-      <div className="px-4 pt-4 md:px-8 shrink-0">
+      <div className={`px-4 ${topPaddingClass} md:px-8 shrink-0`}>
         <h1 className="text-2xl font-bold mb-8 text-foreground hidden md:block">{t('views.albums')}</h1>
       </div>
       
@@ -162,8 +175,8 @@ export default function AlbumsView({ viewMode = 'grid' }: { viewMode?: 'grid' | 
           className="h-full custom-scrollbar"
           listClassName={
             viewMode === 'grid' 
-              ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6 pr-6 md:pr-0 pb-[80px] md:pb-0"
-              : "flex flex-col gap-4 pr-6 md:pr-0 pb-[80px] md:pb-0"
+              ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6 pr-6 md:pr-0 pb-[calc(5rem+var(--safe-area-inset-bottom))] md:pb-0"
+              : "flex flex-col gap-4 pr-6 md:pr-0 pb-[calc(5rem+var(--safe-area-inset-bottom))] md:pb-0"
           }
           itemContent={(index: number, album: any) => {
             const firstChar = (album.name || album.title || '').charAt(0).toUpperCase();

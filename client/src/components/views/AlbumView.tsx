@@ -10,7 +10,7 @@ import { useAlbumData } from '../../hooks/useAlbumData';
 import ArtistLinks from '../common/ArtistLinks';
 import RatingStars from '../common/RatingStars';
 import LongPressWrapper from '../common/LongPressWrapper';
-import LoadingSpinner from '../common/LoadingSpinner';
+import { DetailHeaderSkeleton, TrackListSkeleton } from '../common/Skeleton';
 import TrackTableHeader from '../common/TrackTableHeader';
 import { useDownloadStore, isItemDownloaded } from '../../store/downloadStore';
 import { useUIStore } from '../../store/uiStore';
@@ -21,7 +21,7 @@ export default function AlbumView() {
   const { id } = useParams();
   const navigate = useNavigate();
   const observerTarget = useRef<HTMLDivElement>(null);
-  
+
   const { queue, currentIndex, likedTrackIds, toggleTrackLike, excludedTrackIds, excludedAlbumIds, excludedFingerprints, toggleTrackExclude, toggleAlbumExclude, isPlaying } = usePlayerStore();
   const { openMenu } = useContextMenuStore();
   const openUnignoreModal = useUIStore(state => state.openUnignoreModal);
@@ -44,7 +44,25 @@ export default function AlbumView() {
     handleAlbumRadio
   } = useAlbumData(id, observerTarget);
 
-  if (!album) return <LoadingSpinner fullScreen />;
+  if (!album) {
+    return (
+      <div className="flex-1 overflow-y-auto relative h-full bg-transparent md:bg-background custom-scrollbar">
+        <div className="px-4 md:px-8 pt-[calc(1.5rem+var(--safe-area-inset-top))] md:py-10 flex flex-col gap-6 md:gap-10 pb-[calc(8rem+var(--safe-area-inset-bottom))] md:pb-10">
+          <div className="relative">
+            <button
+              onClick={() => navigate(-1)}
+              aria-label={t('common.back', 'Назад')}
+              className="md:hidden absolute -top-2 left-0 p-2 rounded-full bg-black/40 hover:bg-black/60 text-foreground transition-colors z-20"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <DetailHeaderSkeleton />
+          </div>
+          <TrackListSkeleton count={8} />
+        </div>
+      </div>
+    );
+  }
 
   const coverUrl = getCoverArtUrl(album.coverArt || album.id, 600);
   const formatDuration = (seconds: number) => formatDurationVerbose(seconds, t);
@@ -58,19 +76,19 @@ export default function AlbumView() {
 
   return (
     <div className="flex-1 overflow-y-auto relative h-full bg-transparent md:bg-background custom-scrollbar">
-      <div 
+      <div
         className="absolute top-0 left-0 right-0 h-[500px] opacity-30 pointer-events-none transition-colors duration-1000"
         style={{ background: `linear-gradient(to bottom, ${dominantColor}, transparent)` }}
       />
 
-      <div className="relative z-10 px-4 md:px-8 py-6 md:py-10 flex flex-col gap-6 md:gap-10 min-h-full pb-32 md:pb-10">
+      <div className="relative z-10 px-4 md:px-8 pt-[calc(1.5rem+var(--safe-area-inset-top))] md:py-10 flex flex-col gap-6 md:gap-10 min-h-full pb-[calc(8rem+var(--safe-area-inset-bottom))] md:pb-10">
         {(() => {
           const firstSong = album.song?.[0];
           const displayYear = album.year || firstSong?.year || '2023';
-          
+
           return (
             <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-end text-center md:text-left relative">
-              <button 
+              <button
                 onClick={() => navigate(-1)}
                 aria-label={t('common.back', 'Назад')}
                 className="md:hidden absolute -top-2 left-0 p-2 rounded-full bg-black/40 hover:bg-black/60 text-foreground transition-colors z-20"
@@ -78,11 +96,11 @@ export default function AlbumView() {
                 <ArrowLeft size={20} />
               </button>
               <img src={coverUrl} alt="Album Cover" className="w-48 h-48 md:w-64 md:h-64 rounded-xl shadow-2xl object-cover mx-auto md:mx-0" />
-              
+
               <div className="flex flex-col gap-2 flex-1 w-full items-center md:items-start">
                 <span className="text-xs font-bold tracking-[0.2em] uppercase text-foreground/70">{t('views.album')}</span>
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-foreground tracking-tight leading-tight pt-1 mb-2 line-clamp-2">{album.name}</h1>
-                
+
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-xs md:text-sm text-foreground/70 font-medium mb-1">
                   <Music size={14} className="mr-1 hidden md:block" />
                   <span>{displayYear}</span>
@@ -93,33 +111,33 @@ export default function AlbumView() {
               <span>•</span>
               <span>{album.playCount || 0} {t('views.plays')}</span>
             </div>
-            
+
             <div className="text-lg md:text-xl font-bold text-foreground mb-4 w-max"><ArtistLinks artistString={album.artist} artistId={album.artistId} /></div>
-            
+
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 w-full">
-              <button 
-                onClick={handlePlayAll} 
+              <button
+                onClick={handlePlayAll}
                 aria-label={t('views.play', 'Воспроизведение')}
                 className="w-14 h-14 md:w-auto md:h-auto md:px-8 md:py-3 bg-primary md:bg-foreground text-black md:text-background rounded-full font-bold text-sm flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-xl"
               >
                 <Play fill="currentColor" size={24} className="md:size-18 ml-1 md:ml-0" /> <span className="hidden md:inline">{t('views.play')}</span>
               </button>
-              
+
               <button onClick={handlePlayNext} className="hidden md:flex bg-foreground/10 text-foreground px-6 py-3 rounded-full font-bold text-sm hover:bg-foreground/20 transition-colors items-center gap-2">
                 <ListPlus size={18} /> {t('views.play_next')}
               </button>
-              
+
               <button onClick={handleAddToEnd} className="hidden md:block bg-foreground/10 text-foreground px-6 py-3 rounded-full font-bold text-sm hover:bg-foreground/20 transition-colors">
                 {isAddedToQueue ? t('views.sent') : t('views.add_to_queue')}
               </button>
-              
+
               <button onClick={handleAlbumRadio} disabled={isRadioLoading} className="hidden md:flex bg-foreground/10 text-foreground px-6 py-3 rounded-full font-bold text-sm hover:bg-foreground/20 transition-colors items-center gap-2">
                 {isRadioLoading ? <div className="w-4 h-4 border-2 border-foreground/50 border-t-foreground rounded-full animate-spin" /> : <Radio size={16} />}
                 {t('views.album_radio')}
               </button>
-              
+
               <div className="hidden md:block flex-1" />
-              
+
               {!isGuest && (
                 <>
                   <RatingStars
@@ -129,17 +147,17 @@ export default function AlbumView() {
                     starClassName="md:w-5 md:h-5"
                     onRate={handleRate}
                   />
-                  
-                  <button 
-                    onClick={handleLike} 
+
+                  <button
+                    onClick={handleLike}
                     aria-label={isLiked ? t('player.tooltip_like_remove') : t('player.tooltip_like_add')}
                     className="hover:scale-110 transition-transform ml-2"
                   >
                     <Heart size={28} className={isLiked ? "text-primary" : "text-foreground/70 hover:text-foreground"} fill={isLiked ? "currentColor" : "none"} />
                   </button>
-                  
-                  <button 
-                    onClick={() => toggleAlbumExclude(album.id)} 
+
+                  <button
+                    onClick={() => toggleAlbumExclude(album.id)}
                     aria-label={excludedAlbumIds.includes(album.id) ? t('player.tooltip_exclude_remove') : t('player.tooltip_exclude_add')}
                     className="hover:scale-110 transition-transform ml-2"
                   >
@@ -147,8 +165,8 @@ export default function AlbumView() {
                   </button>
                 </>
               )}
-              
-              <button 
+
+              <button
                 onClick={(e) => openMenu(e.clientX, e.clientY, album, 'album')}
                 aria-label={t('common.more_options', 'Ещё действия')}
                 className="text-foreground/70 hover:text-foreground transition-colors ml-2"
@@ -164,19 +182,19 @@ export default function AlbumView() {
         <div className="flex flex-col lg:flex-row gap-10 mt-6">
           <div className="flex-1 flex flex-col">
             <TrackTableHeader showActions={!isGuest} />
-            
+
             {album.song?.slice(0, visibleCount).map((track: any, index: number) => {
               const currentPlaying = queue[currentIndex]?.id === track.id;
               const isTrackLiked = likedTrackIds.includes(track.id);
               const isTrackDownloaded = isItemDownloaded(downloads, track.id, track.albumId || album.id, track);
               const isExcluded = isTrackExcluded(track, excludedTrackIds, excludedAlbumIds, excludedFingerprints);
-              
+
               return (
-                <LongPressWrapper 
+                <LongPressWrapper
                   key={track.id}
-                  onLongPress={(e: any) => { 
-                    e.preventDefault(); 
-                    openMenu(e.clientX, e.clientY, { ...track, artistId: track.artistId || album.artistId, coverArt: getCoverArtUrl(track.coverArt || album.id, 300), albumId: album.id }, 'track'); 
+                  onLongPress={(e: any) => {
+                    e.preventDefault();
+                    openMenu(e.clientX, e.clientY, { ...track, artistId: track.artistId || album.artistId, coverArt: getCoverArtUrl(track.coverArt || album.id, 300), albumId: album.id }, 'track');
                   }}
                   onClick={() => {
                     if (isExcluded) {
@@ -212,8 +230,8 @@ export default function AlbumView() {
                   </div>
                   {!isGuest && (
                     <div className="hidden md:flex w-24 justify-center gap-4">
-                      <Heart 
-                        size={16} 
+                      <Heart
+                        size={16}
                         className={`opacity-0 group-hover:opacity-100 transition-opacity ${isTrackLiked ? 'opacity-100 text-primary' : 'text-secondary/50 hover:text-foreground'}`}
                         fill={isTrackLiked ? "currentColor" : "none"}
                         onClick={(e) => {
@@ -239,7 +257,7 @@ export default function AlbumView() {
                 </LongPressWrapper>
               );
             })}
-            
+
             {album.song && visibleCount < album.song.length && (
               <div ref={observerTarget} className="h-20 w-full flex items-center justify-center">
                 <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -250,7 +268,7 @@ export default function AlbumView() {
           {(() => {
             const firstSong = album.song?.[0];
             const displayGenre = album.genre || firstSong?.genre;
-            
+
             return (
               <div className="w-full lg:w-80 flex flex-col gap-8">
                 {displayGenre && (
@@ -261,7 +279,7 @@ export default function AlbumView() {
                     </div>
                   </div>
                 )}
-                
+
                 <div>
               <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">{t('views.tags')}</h3>
               <div className="flex flex-wrap gap-2">
@@ -269,7 +287,7 @@ export default function AlbumView() {
                 <span className="bg-foreground/5 border border-foreground/10 px-3 py-1 rounded-md text-xs font-semibold text-foreground/80 hover:text-foreground hover:bg-foreground/10 cursor-pointer transition-colors">official</span>
               </div>
             </div>
-            
+
             <div>
               <h3 className="text-xs font-bold tracking-widest text-secondary uppercase mb-3">{t('views.label')}</h3>
               <div className="inline-block bg-foreground/5 border border-foreground/10 px-4 py-1.5 rounded text-sm font-semibold text-foreground">

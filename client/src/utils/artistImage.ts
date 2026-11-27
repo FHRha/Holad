@@ -1,4 +1,5 @@
 import { getHoladServerUrl } from './serverConfig';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 const CACHE_PREFIX = 'artist_img_v2_';
 const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
@@ -44,9 +45,12 @@ export async function fetchArtistImage(artistName: string): Promise<string | nul
     }
   }
 
-  const fetchDeezer = async (retries = 2): Promise<string | null> => {
+  const fetchDeezer = async (retries = 1): Promise<string | null> => {
     try {
-      const res = await fetch(`${getHoladServerUrl()}/api/artist-image/${encodeURIComponent(searchQuery)}`);
+      const res = await fetchWithTimeout(
+        `${getHoladServerUrl()}/api/artist-image/${encodeURIComponent(searchQuery)}`,
+        { timeoutMs: 5000 }
+      );
       if (!res.ok) throw new Error('Deezer proxy error');
       const data = await res.json();
       return data?.url || null;
@@ -56,9 +60,12 @@ export async function fetchArtistImage(artistName: string): Promise<string | nul
     }
   };
 
-  const fetchApple = async (retries = 2): Promise<string | null> => {
+  const fetchApple = async (retries = 1): Promise<string | null> => {
     try {
-      const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=1`);
+      const res = await fetchWithTimeout(
+        `https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=1`,
+        { timeoutMs: 5000 }
+      );
       if (!res.ok) throw new Error('Apple API error');
       const data = await res.json();
       if (data.results && data.results.length > 0) {

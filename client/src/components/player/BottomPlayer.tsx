@@ -428,7 +428,7 @@ export default function BottomPlayer() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 15 }}
       transition={{ duration: 0.2 }}
-      className={`md:hidden fixed bottom-[calc(56px+env(safe-area-inset-bottom))] left-[max(0.5rem,env(safe-area-inset-left))] right-[max(0.5rem,env(safe-area-inset-right))] z-40 pb-2 ${isJamRoute && !isMinimized ? 'hidden' : ''}`}
+      className={`md:hidden fixed bottom-[calc(56px+var(--safe-area-inset-bottom))] left-[max(0.5rem,var(--safe-area-inset-left))] right-[max(0.5rem,var(--safe-area-inset-right))] z-40 pb-2 ${isJamRoute && !isMinimized ? 'hidden' : ''}`}
     >
       <div 
         className="flex h-14 bg-[#121212]/40 backdrop-blur-xl border border-white/10 rounded-[16px] items-center px-3 gap-3 relative overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]"

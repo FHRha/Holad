@@ -13,8 +13,8 @@ export default function FriendsView() {
   const { friends, hasNotifications, audioMode, setAudioMode, roomId } = useSocialState();
 
   return (
-    <div className="flex-1 overflow-y-auto bg-transparent md:bg-background custom-scrollbar pb-32 md:pb-12">
-      <div className="px-4 pt-4 pb-2 md:px-8 md:pt-8 md:pb-4 flex flex-col gap-4">
+    <div className="flex-1 overflow-y-auto bg-transparent md:bg-background custom-scrollbar pb-safe-nav md:pb-12">
+      <div className="px-4 pt-safe-4 pb-2 md:px-8 md:pt-8 md:pb-4 flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate(-1)}

@@ -278,8 +278,8 @@ export default function MobileMainContent({ albums, recentTracks, frequentAlbums
   };
 
   return (
-    <motion.div variants={mobileContainerVariants} initial="hidden" animate="visible" className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-32">
-      <div className="px-4 pt-4 pb-2 sticky top-0 bg-background/80 backdrop-blur-xl z-10">
+    <motion.div variants={mobileContainerVariants} initial="hidden" animate="visible" className="flex md:hidden flex-1 bg-transparent overflow-y-auto flex-col pb-safe-nav">
+      <div className="pt-safe-4 pb-2 pl-[max(1rem,var(--safe-area-inset-left))] pr-[max(1rem,var(--safe-area-inset-right))] sticky top-0 bg-background/80 backdrop-blur-xl z-10">
         <div className="flex items-center gap-3 mb-4">
           <div 
             className="flex-1 flex items-center bg-card rounded-xl px-3 py-2.5 border border-border cursor-text"
